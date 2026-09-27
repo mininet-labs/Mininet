@@ -136,6 +136,9 @@ interface RootCore {
 
   [Throws=MessagingFfiError]
   ConversationScanView scan_conversation(ConversationSecretHandle secret);
+
+  [Throws=MessagingFfiError]
+  PruneOutcome prune_conversation(ConversationSecretHandle secret, u32 keep);
 };
 
 dictionary PairingContact {
@@ -201,6 +204,15 @@ dictionary ReceivedMessageView {
 dictionary ConversationScanView {
   sequence<ReceivedMessageView> messages;
   sequence<string> rejected;
+};
+
+// Result of `RootCore.prune_conversation`: how many of that conversation's
+// own envelopes were discarded, and how many it has left. The only way to
+// reclaim room once `MAX_ENVELOPES` has been hit -- see
+// crates/mini-ffi/src/messaging.rs's doc comment on `prune_conversation`.
+dictionary PruneOutcome {
+  u64 removed;
+  u64 remaining;
 };
 
 enum BackgroundableOperation {

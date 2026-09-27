@@ -28,12 +28,15 @@
 //! and does not claim to, authenticate a message from a different person's
 //! root; that needs their KEL, which this module has no way to fetch yet.
 
+use std::collections::HashSet;
+
 use did_mini::{Controller, Did, Kel};
 use mini_messaging::{
     ConversationSecret, MessageDraft, MessageKind, ReceiptState, ReceivedMessage,
 };
 use mini_objects::{ObjectEnvelopeV2, ObjectId, OpaqueRoute};
 use mini_store::{MemoryBackend, Store};
+use zeroize::Zeroize;
 
 use crate::{PersistReader, RootCore};
 
@@ -66,6 +69,18 @@ pub struct ConversationSecretHandle {
 impl ConversationSecretHandle {
     pub fn new(route: Vec<u8>, key: Vec<u8>) -> Self {
         Self { route, key }
+    }
+}
+
+/// Scrub the raw key on drop, matching `mini-crypto::AeadKey`'s own
+/// `Drop` (best-effort: it cannot reach copies a previous reallocation
+/// left on the heap, but it does cover this field's live allocation).
+/// `route` is not secret -- it is an opaque storage tag, deliberately
+/// printed by this type's own `Debug` impl above -- so only `key` needs
+/// scrubbing here.
+impl Drop for ConversationSecretHandle {
+    fn drop(&mut self) {
+        self.key.zeroize();
     }
 }
 
@@ -120,6 +135,14 @@ pub struct ConversationScanView {
     pub rejected: Vec<String>,
 }
 
+/// Result of [`RootCore::prune_conversation`]: how many of that
+/// conversation's own envelopes were discarded, and how many it has left.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PruneOutcome {
+    pub removed: u64,
+    pub remaining: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MessagingFfiError {
     NoRoot,
@@ -138,7 +161,9 @@ impl core::fmt::Display for MessagingFfiError {
             Self::NoDevice => f.write_str("no delegated device is available to sign messages"),
             Self::InvalidSecret => f.write_str("conversation route/key must each be 32 bytes"),
             Self::InvalidMessage => f.write_str("invalid message draft or object id"),
-            Self::LimitExceeded => f.write_str("messaging state capacity reached"),
+            Self::LimitExceeded => f.write_str(
+                "messaging state capacity reached; call prune_conversation to free room",
+            ),
             Self::CorruptState => f.write_str("persisted messaging state is corrupt"),
             Self::Protocol(message) => {
                 write!(f, "messaging protocol rejected the request: {message}")
@@ -174,12 +199,20 @@ fn to_secret(handle: &ConversationSecretHandle) -> Result<ConversationSecret, Me
         .as_slice()
         .try_into()
         .map_err(|_| MessagingFfiError::InvalidSecret)?;
-    let key: [u8; KEY_LEN] = handle
+    // `[u8; KEY_LEN]` is `Copy`, so `from_local_vault` below receives its
+    // own copy and this local one survives the call -- it must be
+    // scrubbed explicitly rather than left for an ordinary stack drop,
+    // the same reasoning as `ConversationSecretHandle`'s own `key` field
+    // above.
+    let mut key: [u8; KEY_LEN] = handle
         .key
         .as_slice()
         .try_into()
         .map_err(|_| MessagingFfiError::InvalidSecret)?;
-    ConversationSecret::from_local_vault(OpaqueRoute::from_bytes(route), key).map_err(messaging_err)
+    let secret = ConversationSecret::from_local_vault(OpaqueRoute::from_bytes(route), key)
+        .map_err(messaging_err);
+    key.zeroize();
+    secret
 }
 
 fn to_object_id(text: &str) -> Result<ObjectId, MessagingFfiError> {
@@ -401,6 +434,69 @@ impl RootCore {
             .map(|id| id.as_str().to_string())
             .collect();
         Ok(ConversationScanView { messages, rejected })
+    }
+
+    /// Explicitly discard this conversation's own oldest persisted
+    /// envelopes, keeping only the newest `keep` (by send order, which
+    /// matches storage order). This is the only way to make room again
+    /// once `send_message` has hit `MAX_ENVELOPES`: that cap never evicts
+    /// anything on its own, since silently dropping real message history
+    /// a caller never asked to lose would violate this module's own "never
+    /// stores plaintext, never loses ciphertext behind the caller's back"
+    /// posture (see this module's top-level doc comment). A long-lived
+    /// identity that keeps messaging must eventually call this -- or an
+    /// equivalent export -- itself; `send_message` will otherwise return
+    /// `LimitExceeded` forever once the cap is reached, including across a
+    /// restart, since envelopes persist.
+    ///
+    /// A typed operation scoped to one conversation (identified by its
+    /// secret, the same capability `send_message`/`scan_conversation`
+    /// already require), not a raw index or a global `truncate(n)`: the
+    /// caller must be able to open the conversation it is choosing to
+    /// shrink, and envelopes belonging to any other conversation's route
+    /// are left completely untouched, matching per-conversation route
+    /// isolation everywhere else in this module. `keep = 0` clears the
+    /// whole conversation; `keep` at or above the conversation's current
+    /// length is a no-op that reports zero removed.
+    pub fn prune_conversation(
+        &self,
+        secret: std::sync::Arc<ConversationSecretHandle>,
+        keep: u32,
+    ) -> Result<PruneOutcome, MessagingFfiError> {
+        let secret = to_secret(&secret)?;
+        let route = secret.route();
+        let mut guard = self.lock();
+        let messaging = &mut guard.messaging;
+        // Oldest-first, in storage (== send) order, matching every other
+        // envelope in `messaging.envelopes` -- the vector is only ever
+        // appended to by `send_message`.
+        let mut this_conversation = Vec::new();
+        for (index, bytes) in messaging.envelopes.iter().enumerate() {
+            let envelope =
+                ObjectEnvelopeV2::from_bytes(bytes).map_err(|_| MessagingFfiError::CorruptState)?;
+            if envelope.route() == route {
+                this_conversation.push(index);
+            }
+        }
+        let keep = keep as usize;
+        let remove_count = this_conversation.len().saturating_sub(keep);
+        if remove_count == 0 {
+            return Ok(PruneOutcome {
+                removed: 0,
+                remaining: this_conversation.len() as u64,
+            });
+        }
+        let to_remove: HashSet<usize> = this_conversation[..remove_count].iter().copied().collect();
+        let mut index = 0usize;
+        messaging.envelopes.retain(|_| {
+            let drop_this = to_remove.contains(&index);
+            index += 1;
+            !drop_this
+        });
+        Ok(PruneOutcome {
+            removed: remove_count as u64,
+            remaining: (this_conversation.len() - remove_count) as u64,
+        })
     }
 }
 
@@ -695,6 +791,128 @@ mod tests {
             scan.messages[0].signature_verified,
             "the genuinely-delegated device must still be usable and verify"
         );
+    }
+
+    #[test]
+    fn prune_conversation_only_removes_the_named_conversations_own_envelopes() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+
+        let filler_secret = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![3u8; ROUTE_LEN],
+            vec![4u8; KEY_LEN],
+        ));
+        for i in 0..3u64 {
+            core.send_message(
+                filler_secret.clone(),
+                1_000 + i,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: format!("filler {i}"),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .unwrap();
+        }
+        core.send_message(
+            secret(),
+            2_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "keep me".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        let outcome = core.prune_conversation(filler_secret.clone(), 1).unwrap();
+        assert_eq!(outcome.removed, 2);
+        assert_eq!(outcome.remaining, 1);
+
+        // The other conversation is untouched: it's still fully readable.
+        let untouched = core.scan_conversation(secret()).unwrap();
+        assert_eq!(untouched.messages.len(), 1);
+        assert_eq!(untouched.messages[0].body, "keep me");
+
+        // Pruning again with the same `keep` is a no-op.
+        let second = core.prune_conversation(filler_secret, 1).unwrap();
+        assert_eq!(second.removed, 0);
+        assert_eq!(second.remaining, 1);
+    }
+
+    #[test]
+    fn prune_conversation_recovers_capacity_after_the_envelope_cap_is_hit() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+
+        let filler_secret = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![3u8; ROUTE_LEN],
+            vec![4u8; KEY_LEN],
+        ));
+        core.send_message(
+            filler_secret.clone(),
+            1_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "filler".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        // Fill the rest of the shared cap with clones of that one already-
+        // valid envelope rather than re-signing thousands of times; cheap,
+        // and `prune_conversation` only ever inspects each envelope's
+        // (unencrypted) route, never its plaintext.
+        {
+            let mut guard = core.lock();
+            let template = guard.messaging.envelopes[0].clone();
+            while guard.messaging.envelopes.len() < MAX_ENVELOPES {
+                guard.messaging.envelopes.push(template.clone());
+            }
+        }
+        assert_eq!(
+            core.send_message(
+                secret(),
+                2_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "no room".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::LimitExceeded),
+            "the cap must still be enforced before pruning"
+        );
+
+        let outcome = core.prune_conversation(filler_secret, 0).unwrap();
+        assert_eq!(outcome.removed, MAX_ENVELOPES as u64);
+        assert_eq!(outcome.remaining, 0);
+
+        let id = core
+            .send_message(
+                secret(),
+                2_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "room again".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .expect("pruning the filler conversation must free capacity for a new send");
+        assert!(!id.is_empty());
     }
 
     #[test]

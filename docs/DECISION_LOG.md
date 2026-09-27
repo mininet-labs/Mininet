@@ -24978,6 +24978,51 @@ reviewed adapters"), rather than a broad multi-crate FFI expansion.
    self-lockout, not a security boundary the call can enforce), and the
    revoke-does-not-remote-wipe honest limit is stated in the screen copy,
    not just a code comment.
+4. **Round-2 Codex review fixes (unmerged, still this same decision).**
+   Four further findings landed on the same not-yet-merged branch, after
+   the round covered by this entry's "Renumbering note" above:
+   - `MainActivity.kt`'s `rollBackToLastPersistedState()` (added in that
+     prior round to undo a half-applied revoke when `persistRootState()`
+     fails) itself had no failure path: if the restore-after-persist-
+     failure also failed, the error was silently swallowed and `rootCore`
+     was left mutated with no signal to the caller. It now returns whether
+     the rollback itself succeeded (logged distinctly from the original
+     persist failure via `Log.e`), and `revokeDevice` uses that to show a
+     message naming both failures rather than only the first. `rootCore`
+     is deliberately left as its already-mutated, never-persisted self
+     when rollback also fails — see the code comment on
+     `rollBackToLastPersistedState` for why that's more honest here than
+     a third, never-exercised fallback state.
+   - `revokeDevice` rebuilt `Home` through `homeState(message)`, whose
+     null/false defaults for `offer`/`pairingBusy` are correct for a
+     pairing attempt's *own* completion but wrong for an unrelated action
+     like a revoke: they discarded any pairing attempt genuinely still in
+     flight on its own coroutine, letting a second offer start against
+     now-stale UI state. `homeState` gained explicit `offer`/`pairingBusy`
+     parameters (still defaulting to null/false for every existing
+     caller), and `revokeDevice` now passes the pre-revoke `Home` state's
+     own values through instead of taking the defaults.
+   - `ConversationSecretHandle`'s `key: Vec<u8>` was dropped unscrubbed,
+     unlike the `AeadKey` derived from it (`mini-crypto::aead::AeadKey`
+     already zeroizes on `Drop`). It now does too, via the same
+     hand-rolled `Drop` + `zeroize::Zeroize` pattern already established
+     in `mini-crypto`/`mini-value` (`AeadKey`, `mlsag.rs`,
+     `stealth_impl.rs`); `to_secret`'s own temporary `[u8; 32]` copy
+     (`[u8; N]` is `Copy`, so it outlives the `from_local_vault` call it's
+     passed to) is scrubbed the same way before returning.
+   - `send_message` permanently returned `LimitExceeded` once
+     `MAX_ENVELOPES` (4096, and persisted, so the cap survives a restart)
+     was reached, with no recovery path. Rather than an automatic
+     oldest-first eviction — which would silently destroy message history
+     a caller never asked to lose, contradicting this module's "never
+     loses ciphertext behind the caller's back" posture — the fix is a new
+     explicit, typed `RootCore.prune_conversation(secret, keep)`, scoped to
+     one conversation (identified by the same secret capability
+     `send_message`/`scan_conversation` already require) via each
+     envelope's own unencrypted `route()`, never a raw index or a global
+     truncate. Envelopes belonging to any other conversation are left
+     untouched. 2 new tests cover cross-conversation isolation and
+     recovering send capacity after actually hitting the cap.
 
 **Rejected alternatives, and why:** a full "admin panel" with live
 online/last-seen presence (`mini-presence` investigated first) was
@@ -24994,26 +25039,34 @@ wall (`mini-messaging` depends only on `did-mini`/`mini-crypto`/
 `mini-objects`/`mini-store`). No cryptography invented — composes
 `mini-messaging`'s existing sealed-envelope primitive unchanged.
 
-**Implementation status:** shipped and tested on the Rust side: 9 new
+**Implementation status:** shipped and tested on the Rust side: 11 new
 `crates/mini-ffi/src/messaging.rs` unit tests (send/scan round-trip with
 verified signature, wrong-key rejection, invalid-secret-length rejection,
 no-root rejection, persist/restore round-trip, malformed-receipt
 rejection, plus three added in review remediation covering the
-root-delegation binding fix above), all 72 `mini-ffi` tests green, `cargo
-clippy -p mini-ffi --all-targets --all-features -- -D warnings` clean, and
-the UDL was round-tripped through real `uniffi-bindgen` Kotlin generation
-to confirm `sendMessage`/`scanConversation`/`ConversationSecretHandle` land
-correctly in generated Kotlin. `ConversationSecretHandle` is a UniFFI
-`interface` (opaque object handle), not a `dictionary`: a second
-pre-merge review finding noted that a `dictionary` generates a Kotlin
-`data class`, whose compiler-generated `toString()`/`equals()` would print
-the raw conversation key (and the Rust struct's own derived `Debug` had
-the same problem) — an `interface` has no such printable representation,
-and nothing outside this module ever reads `route`/`key` back out of one.
-The Kotlin `HomeScreen` changes are unverified in this environment (no
-JDK/Android SDK/Gradle/emulator here, same standing limit as every other
-Android UI change in this log) — Gradle sync and a real device/emulator
-run remain outstanding.
+root-delegation binding fix above, plus two added in the round-2 fixes
+above covering `prune_conversation`), all 74 `mini-ffi` tests green,
+`cargo clippy -p mini-ffi --all-targets --all-features -- -D warnings` and
+`cargo clippy --all-targets --all-features --workspace -- -D warnings`
+clean, `cargo test --workspace --all-features` clean across the whole
+repository (2,878 tests passed, 0 failed, confirming the round-2 fixes
+introduce no regression anywhere else — `mini-ffi` has no in-workspace
+reverse dependents, so this was a breadth check, not an expected source
+of interaction), and the UDL (including the round-2 `prune_conversation`/
+`PruneOutcome` addition) was round-tripped through real `uniffi-bindgen`
+Kotlin generation to confirm `sendMessage`/`scanConversation`/
+`ConversationSecretHandle` land correctly in generated Kotlin.
+`ConversationSecretHandle` is a UniFFI `interface` (opaque object handle),
+not a `dictionary`: a second pre-merge review finding noted that a
+`dictionary` generates a Kotlin `data class`, whose compiler-generated
+`toString()`/`equals()` would print the raw conversation key (and the Rust
+struct's own derived `Debug` had the same problem) — an `interface` has no
+such printable representation, and nothing outside this module ever reads
+`route`/`key` back out of one. The Kotlin `HomeScreen`/`MiniViewModel`
+changes, including both round-2 Kotlin fixes above, are unverified in this
+environment (no JDK/Android SDK/Gradle/emulator here, same standing limit
+as every other Android UI change in this log) — Gradle sync and a real
+device/emulator run remain outstanding.
 
 **Failure point:** conversation-key establishment is still entirely
 caller-managed (no pairwise session protocol exists yet — same limit

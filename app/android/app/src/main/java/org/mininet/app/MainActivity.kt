@@ -3,6 +3,7 @@ package org.mininet.app
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
@@ -255,7 +256,19 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
         updateHome(pairingBusy = false, message = reason)
     }
 
-    private fun homeState(message: String? = null): CoreUiState.Home {
+    // `offer`/`pairingBusy` default to null/false: every existing caller of
+    // this overload (`createRoot`'s initial state, and `beginPairing`/
+    // `acceptPairingQr`'s own success/failure paths) is itself the
+    // authoritative end of whatever pairing attempt was in flight, so
+    // resetting those two fields there is correct, not an oversight. A
+    // caller rebuilding `Home` for an unrelated reason while a pairing
+    // attempt may still be running -- see `revokeDevice` -- must pass the
+    // current values through explicitly instead of taking these defaults.
+    private fun homeState(
+        message: String? = null,
+        offer: PairingOfferView? = null,
+        pairingBusy: Boolean = false,
+    ): CoreUiState.Home {
         val rootDid = requireNotNull(rootCore.rootDid())
         val devices = rootCore.delegatedDevices()
         val deviceDid = devices.firstOrNull()
@@ -265,6 +278,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
             deviceDid = deviceDid,
             contacts = rootCore.pairingContacts(),
             devices = devices,
+            offer = offer,
+            pairingBusy = pairingBusy,
             message = message,
         )
     }
@@ -285,11 +300,25 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
      * a security boundary this call can meaningfully enforce.
      */
     fun revokeDevice(did: String) {
-        if (state !is CoreUiState.Home) return
+        val home = state as? CoreUiState.Home ?: return
         runCatching {
             rootCore.revokeDelegatedDevice(did)
             persistRootState()
-            state = homeState("Revoked ${did.take(28)}…")
+            // Revocation is unrelated to any pairing attempt already in
+            // flight (see `beginPairing`/`acceptPairingQr`, which run on
+            // their own coroutine and keep going regardless of what this
+            // synchronous call does to `state`). Preserving the current
+            // `offer`/`pairingBusy` here -- rather than the null/false
+            // `homeState` defaults meant for a pairing attempt's own
+            // completion -- keeps that coroutine's eventual `updateHome`/
+            // `homeState` call the single place that ever clears them, so
+            // it can't collide with a second pairing offer started against
+            // stale UI state in the meantime.
+            state = homeState(
+                message = "Revoked ${did.take(28)}…",
+                offer = home.offer,
+                pairingBusy = home.pairingBusy,
+            )
         }.onFailure { failure ->
             // `revokeDelegatedDevice` above already mutated `rootCore`'s
             // in-memory root KEL before `persistRootState()` threw (Keystore
@@ -301,28 +330,60 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
             // next restore. Roll back to the last durably persisted state
             // instead of reporting the failure on top of a half-applied
             // revocation.
-            rollBackToLastPersistedState()
-            state = homeState(failure.message ?: failure::class.java.simpleName)
+            val rolledBack = rollBackToLastPersistedState()
+            val message = if (rolledBack) {
+                failure.message ?: failure::class.java.simpleName
+            } else {
+                // The restore-after-persist-failure failed too (e.g. the
+                // Keystore key or the state file itself is now unusable).
+                // `rootCore` is deliberately left as its already-mutated,
+                // never-persisted self here rather than touched further --
+                // with no known-good state left to fall back to, showing
+                // what this process actually did (the revoke really did
+                // apply, in memory) is more honest than either quietly
+                // reporting only the original persist failure on top of a
+                // Home screen that looks like a clean success, or leaving
+                // `rootCore` in some third, never-exercised state. Say so
+                // distinctly so the caller/user knows this change has not
+                // survived to disk and may not survive a restart.
+                "Revoked ${did.take(28)}… here, but could not save it and could not " +
+                    "confirm your last saved identity either. Do not force-quit " +
+                    "Mininet until this is resolved -- restart the app to retry."
+            }
+            state = homeState(message = message, offer = home.offer, pairingBusy = home.pairingBusy)
         }
     }
 
     // Discard any in-memory mutation that never made it to disk by
-    // reloading `rootCore` from the last successfully persisted blob. A
-    // no-op if nothing has ever been persisted yet, since callers that can
-    // reach an authority-changing action here (see `revokeDevice`) only do
-    // so from [CoreUiState.Home], which itself requires a prior successful
-    // persist to have happened (either from `createRoot()` or from
-    // restoring an existing identity at startup).
-    private fun rollBackToLastPersistedState() {
-        if (!stateFile.exists()) return
-        runCatching {
+    // reloading `rootCore` from the last successfully persisted blob.
+    // Returns whether the rollback itself succeeded, distinct from the
+    // original persist failure that triggered it, so the caller can tell
+    // "cleanly reverted" apart from "still mutated, and now also unable to
+    // confirm what's on disk" (see `revokeDevice`'s failure handling).
+    //
+    // A no-op success if nothing has ever been persisted yet, since callers
+    // that can reach an authority-changing action here (see `revokeDevice`)
+    // only do so from [CoreUiState.Home], which itself requires a prior
+    // successful persist to have happened (either from `createRoot()` or
+    // from restoring an existing identity at startup).
+    private fun rollBackToLastPersistedState(): Boolean {
+        if (!stateFile.exists()) return true
+        return runCatching {
             RootCore.restore(stateFile.readBytes().toUByteList(), storageCipher)
         }.onSuccess { restored ->
             rootCore = restored
-        }
-        // If even reloading the last-known-good blob fails, there is
-        // nothing further this call can safely do; `rootCore` is left as-is
-        // and the original failure is still surfaced to the caller.
+        }.onFailure { restoreFailure ->
+            // Deliberately a distinct log line from the original persist
+            // failure that triggered this rollback attempt -- conflating
+            // the two in triage would hide that recovery itself failed,
+            // not just the original save.
+            Log.e(
+                "MininetRootCore",
+                "Rollback to last persisted state failed after a persist failure; " +
+                    "in-memory root state is now ahead of disk for this session.",
+                restoreFailure,
+            )
+        }.isSuccess
     }
 
     private fun updateHome(

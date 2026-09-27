@@ -37,7 +37,7 @@ pub use lifecycle::{
 pub use mesh::{MeshError, MeshHandle, MeshMessage};
 pub use messaging::{
     ConversationScanView, ConversationSecretHandle, MessageDraftInput, MessageKindInput,
-    MessagingFfiError, ReceivedMessageView,
+    MessagingFfiError, PruneOutcome, ReceivedMessageView,
 };
 pub use pairing::{PairingContact, PairingError, PairingOfferView};
 
