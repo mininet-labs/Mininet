@@ -228,8 +228,12 @@ nullifiers and fees atomically. Quorum-backed tests exercise a funded payment,
 recipient re-spend and Byzantine invented/rebound inputs. Snapshot replay binds
 the configured genesis and independently supplied claim evidence.
 
-Evidence gossip, bounded retention, audited issuance/withdrawal, approved state
-migration and external cryptographic review remain open. Validator admission
+A bounded-admission proposal adds local entry, aggregate-wire-byte and per-claim
+budgets to `mini-shielded-verify::ClaimEvidencePool`, with atomic admission and
+no implicit eviction. This is retained-wire evidence hardening, not a complete
+memory bound, persistence, or historical retention/recovery policy.
+Evidence gossip, safe historical retention, audited issuance/withdrawal, approved
+state migration and external cryptographic review remain open. Validator admission
 and weak-device/partition evidence must be assessed separately. The
 [current audit matrix](audits/PR332_REMEDIATION_STATUS.md) records the actual
 PARTIAL findings; the existence of helpers is not their closure.
