@@ -195,7 +195,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     }
 
     fun beginPairing(displayName: String) {
-        if (state !is CoreUiState.Home) return
+        val home = state as? CoreUiState.Home ?: return
+        if (home.pairingBusy) return
         updateHome(pairingBusy = true, message = "Preparing a signed pairing offer…")
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
@@ -230,7 +231,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     }
 
     fun acceptPairingQr(qrPayload: String, displayName: String) {
-        if (state !is CoreUiState.Home) return
+        val home = state as? CoreUiState.Home ?: return
+        if (home.pairingBusy) return
         updateHome(pairingBusy = true, message = "Verifying signed offer…")
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
@@ -253,7 +255,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     }
 
     fun reportQrFailure(reason: String) {
-        updateHome(pairingBusy = false, message = reason)
+        // A camera callback cannot end an already-running Rust pairing operation.
+        updateHome(message = reason)
     }
 
     // `offer`/`pairingBusy` default to null/false: every existing caller of
@@ -301,6 +304,12 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
      */
     fun revokeDevice(did: String) {
         val home = state as? CoreUiState.Home ?: return
+        // Rollback replaces RootCore, including transient pairing state.
+        // Only the pairing coroutine's completion may release this guard.
+        if (home.pairingBusy) {
+            updateHome(message = "Finish pairing before revoking a device.")
+            return
+        }
         runCatching {
             rootCore.revokeDelegatedDevice(did)
             persistRootState()
@@ -361,13 +370,9 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     // "cleanly reverted" apart from "still mutated, and now also unable to
     // confirm what's on disk" (see `revokeDevice`'s failure handling).
     //
-    // A no-op success if nothing has ever been persisted yet, since callers
-    // that can reach an authority-changing action here (see `revokeDevice`)
-    // only do so from [CoreUiState.Home], which itself requires a prior
-    // successful persist to have happened (either from `createRoot()` or
-    // from restoring an existing identity at startup).
+    // A missing snapshot cannot undo a mutation and must not report success.
     private fun rollBackToLastPersistedState(): Boolean {
-        if (!stateFile.exists()) return true
+        if (!stateFile.exists()) return false
         return runCatching {
             RootCore.restore(stateFile.readBytes().toUByteList(), storageCipher)
         }.onSuccess { restored ->
