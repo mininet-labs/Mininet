@@ -159,10 +159,10 @@ fn encounter(a: &mut Peer, b: &mut Peer) {
 /// **Repeated intermittent drops.** A real connection between two peers is
 /// killed after only a handful of frames, over and over, with a fresh
 /// connection each time -- the way a phone walking in and out of BLE/Wi-Fi
-/// range looks from `mini-sync`'s point of view. Every attempt must either
-/// fully fail (no partial/duplicate ingest) or fully succeed; after enough
-/// attempts the two stores must be byte-identical, never having lost or
-/// duplicated anything.
+/// range looks from `mini-sync`'s point of view. An interrupted encounter
+/// may retain a completed pull even if the opposite leg fails. Every attempt
+/// must preserve verified content; a final uninterrupted encounter must
+/// converge without loss or duplication.
 #[test]
 fn repeated_intermittent_drops_eventually_converge_without_loss_or_duplication() {
     use mini_bearer::BearerError;
@@ -194,9 +194,9 @@ fn repeated_intermittent_drops_eventually_converge_without_loss_or_duplication()
 
     // Attempt with an increasing, but still small, frame budget each time --
     // a real reconnect after a partition doesn't guarantee more airtime than
-    // the last one. Eventually (once the budget covers a whole round) it
-    // must succeed; every earlier attempt must leave B's store untouched by
-    // that attempt (idempotent all-or-nothing ingest).
+    // the last one. A completed pull may commit before the opposite leg
+    // fails, so interrupted encounters must preserve monotonic verified
+    // progress rather than leave the entire store untouched.
     for budget in [1usize, 2, 4, 8, 16, 32] {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
