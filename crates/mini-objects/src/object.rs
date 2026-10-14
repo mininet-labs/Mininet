@@ -303,7 +303,8 @@ impl Object {
     /// Layer 1 — integrity: confirm `claimed` names exactly these bytes. Any
     /// holder can check this with no keys at all.
     pub fn verify_integrity(&self, claimed: &ObjectId) -> Result<()> {
-        if &self.id == claimed {
+        let actual = ObjectId::of(&self.to_bytes());
+        if &actual == claimed && actual == self.id {
             Ok(())
         } else {
             Err(ObjectError::IdMismatch)
