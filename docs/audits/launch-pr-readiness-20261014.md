@@ -94,3 +94,49 @@ New safety/rate-limit crates need real opt-in callers and acceptance evidence.
 External cryptography/DKG review, real-device testing, legal/economic review,
 personhood research and actual activation decisions retain their own closure
 requirements. More code and green CI alone cannot establish those outcomes.
+
+## Follow-up engineering — same review, October 14
+
+All six previously conflicting branches (#355, #356, #358, #359, #360, #363)
+now incorporate main `e88722744110aa35d323b63d98006447f6c0aecb` through
+leased, non-forced merge commits. Both independent append-only decision records
+are preserved. #355/#356 also preserve disjoint Cargo.lock package changes and
+both status-document additions. This repairs source conflicts, not security
+approval or technical gate failures. Generated navigation still needs runtime
+regeneration.
+
+#355 additionally rejects missing snapshots as successful rollback and prevents
+revocation/RootCore replacement during active pairing. Camera failure callbacks
+cannot clear an in-flight pairing guard. Kotlin runtime acceptance remains open.
+#363's ordinary-card private-follow action is disabled, preventing the identified
+UI privacy leak; delegated pseudonym ingest and linkage confidentiality remain
+unresolved.
+
+#356 at `dbacdac80aeaf71a8dd7a9c00450887ede6b3f01` fixes Default/new
+consistency, stable IDs/high-water persistence, escaped fields and checked
+allocation. Legacy files remain readable. Rule allocation/import now return
+Results, and import stages mutations to prevent partial application at
+exhaustion. Five new regressions are proposed; exact-head CI is queued. This is
+still a local primitive without a live client caller.
+
+#364 at `c657c308957c3a477b6324d5e04887949ba5abb0` passed Linux formatting,
+Clippy and full-workspace tests, Windows client/packaging, Android and
+reproducibility workflows. Shared dependency-deny and governance remain red.
+#365 at `9edf013ec551a53c32363fb9abc636b53ccbf189` passed Linux formatting,
+Clippy and full-workspace tests after the concurrent-test Clippy correction.
+Its shared security/governance blockers remain; do not infer overall CI success.
+
+Draft #367 at `3fba39fd964be652a0ae3e8cd03b8be2fde74c5f` implements the
+document-52 Pre-Go-Live profile with explicit Go-Live state, exact canonical
+document pin and transition rollback protection. Historical v1 tests and
+dependency exception expiry remain. Candidate validation is in progress; the
+old canonical base evaluator cannot activate its own successor from proposal
+code. See `governance/PRE_GO_LIVE_PROFILE.md` in that PR for the precise
+canonical integration boundary. No expiry extension or technical-check
+disablement is proposed.
+
+The workspace restart remains pending/offline, so coordinated Wasmtime
+48.0.4+ lockfile resolution, runner API adaptation/adversarial execution,
+navigation regeneration and local Kotlin acceptance are not completed.
+Continue with those tasks once execution becomes available, retaining the
+explicit audit/hardware/activation gates.
