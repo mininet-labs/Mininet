@@ -16,6 +16,16 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## Proposed offline credit and account primitives (D-0529)
+
+**Prototype, not activated:** reusable signed credit allowances, sender-side
+cumulative enforcement with encrypted durable outbox, bounded Human Share debt
+and repayment accounting, private cash-account projection and complete-input
+finality checks. Settlement/issuance cadence is arithmetic only. Collective
+issuance, private canonical credit proofs/storage, atomic repayment transfers and
+wallet UI remain unimplemented. No guaranteed IOU payout or real-value readiness.
+Scope and staged gates: [design](design/human-share-offline-credit.md).
+
 ## PR #332 audit correction (2026-09-09)
 
 The original F-01–F-24 audit remains **PARTIAL**, and real value / real people remain **NO-GO**. Historical statements that all findings are closed are superseded as implementation status by the [current claim-to-executor evidence matrix](audits/PR332_REMEDIATION_STATUS.md). Passing structural checks does not establish semantic audit closure or external approval.

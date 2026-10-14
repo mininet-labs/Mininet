@@ -9,3 +9,4 @@ description = "Deterministic Day-0 MINI genesis and bounded issuance policy impl
 
 [dependencies]
 mini-crypto = { path = "../mini-crypto" }
+mini-settlement = { path = "../mini-settlement" }
