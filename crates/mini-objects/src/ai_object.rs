@@ -323,7 +323,8 @@ impl AiObject {
 
     /// Layer 1 — integrity: confirm `claimed` names exactly these bytes.
     pub fn verify_integrity(&self, claimed: &ObjectId) -> Result<()> {
-        if &self.id == claimed {
+        let actual = ObjectId::of(&self.to_bytes());
+        if &actual == claimed && actual == self.id {
             Ok(())
         } else {
             Err(ObjectError::IdMismatch)
@@ -452,5 +453,46 @@ impl AiObjectBuilder {
         obj.signatures = device.sign_message(&obj.signing_bytes());
         obj.id = ObjectId::of(&obj.to_bytes());
         Ok(obj)
+    }
+}
+
+#[cfg(test)]
+mod integrity_tests {
+    use super::*;
+
+    #[test]
+    fn mutated_payload_or_provenance_cannot_keep_the_signed_id() {
+        let device = Controller::incept_single().unwrap();
+        let original = AiObjectBuilder::new(
+            AiOrigin::GeneratedContent,
+            AiProvenance {
+                system_id: "test-system".into(),
+                model_id: "test-model".into(),
+                produced_at_ms: 1,
+            },
+        )
+        .payload(Payload::Public(b"original".to_vec()))
+        .sign(&device.did(), &device)
+        .unwrap();
+        let claimed = original.id().clone();
+        original.verify_integrity(&claimed).unwrap();
+        let mut payload = original.clone();
+        payload.payload = Payload::Public(b"modified".to_vec());
+        let mut provenance = original.clone();
+        provenance.provenance.model_id = "different-model".into();
+        for modified in [payload, provenance] {
+            assert_eq!(
+                modified.verify_integrity(&claimed),
+                Err(ObjectError::IdMismatch)
+            );
+            let decoded = AiObject::from_bytes(&modified.to_bytes()).unwrap();
+            assert_ne!(decoded.id(), &claimed);
+            assert_eq!(
+                modified.verify_integrity(decoded.id()),
+                Err(ObjectError::IdMismatch)
+            );
+            decoded.verify_integrity(decoded.id()).unwrap();
+            assert!(decoded.verify_signature(&device.kel()).is_err());
+        }
     }
 }
