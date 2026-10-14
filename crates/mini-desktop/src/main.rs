@@ -5072,7 +5072,13 @@ No tracking. No forced updates.",
             let mut clicked_private = false;
             let mut clicked = ui.add(theme::primary_button("Add peer and follow")).clicked();
             if ui
-                .add(theme::secondary_button("Add peer and follow privately"))
+                .add_enabled(
+                    false,
+                    theme::secondary_button("Add peer and follow privately"),
+                )
+                .on_hover_text(
+                    "Private following requires an authenticated pairwise identity. Ordinary connection cards cannot establish one.",
+                )
                 .clicked()
             {
                 clicked = true;
