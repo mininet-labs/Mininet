@@ -141,7 +141,10 @@ impl ClaimEvidencePool {
         let claim = PrivatePaymentClaim::decode(&claim_bytes)
             .map_err(|_| EvidenceError::MalformedClaim(MalformedClaim))?;
         let digest = claim.transcript_digest();
-        let mut state = self.state.write().expect("claim evidence pool lock poisoned");
+        let mut state = self
+            .state
+            .write()
+            .expect("claim evidence pool lock poisoned");
         let existing_len = match state.claims.get(&digest) {
             Some(existing) if existing == &claim_bytes => return Ok(digest),
             Some(existing) => Some(existing.len()),

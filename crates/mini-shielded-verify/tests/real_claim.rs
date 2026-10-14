@@ -10,10 +10,12 @@
 
 use mini_execution::{ClaimVerifier, NullifierRecord};
 use mini_private_payment::{
-    build, InMemoryOutputSet, OutputSet, PaymentPurpose, PaymentRequest, PrivatePaymentClaim, Recipient,
-    MIN_RING_SIZE,
+    build, InMemoryOutputSet, OutputSet, PaymentPurpose, PaymentRequest, PrivatePaymentClaim,
+    Recipient, MIN_RING_SIZE,
 };
-use mini_shielded_verify::{ClaimEvidencePool, EvidenceError, EvidenceLimits, ShieldedClaimVerifier};
+use mini_shielded_verify::{
+    ClaimEvidencePool, EvidenceError, EvidenceLimits, ShieldedClaimVerifier,
+};
 use mini_value::StealthKeypair;
 use std::sync::Arc;
 
