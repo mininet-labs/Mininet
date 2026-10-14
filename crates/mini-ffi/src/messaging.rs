@@ -467,6 +467,13 @@ impl RootCore {
         let route = secret.route();
         let mut guard = self.lock();
         let messaging = &mut guard.messaging;
+        let store = rebuild_store(&messaging.envelopes)?;
+        let scan = mini_messaging::scan(&store, &secret).map_err(messaging_err)?;
+        if !scan.rejected.is_empty() {
+            return Err(MessagingFfiError::Protocol(
+                "conversation secret cannot authenticate all envelopes to prune".to_string(),
+            ));
+        }
         // Oldest-first, in storage (== send) order, matching every other
         // envelope in `messaging.envelopes` -- the vector is only ever
         // appended to by `send_message`.
@@ -794,6 +801,48 @@ mod tests {
     }
 
     #[test]
+    fn wrong_key_prune_preserves_persisted_history() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        core.send_message(
+            secret(),
+            1_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "keep this history".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        let before = core.lock().messaging.envelopes.clone();
+        for keep in [0, 1] {
+            let wrong = std::sync::Arc::new(ConversationSecretHandle::new(
+                vec![7u8; ROUTE_LEN],
+                vec![8u8; KEY_LEN],
+            ));
+            assert!(core.prune_conversation(wrong, keep).is_err());
+            assert_eq!(core.lock().messaging.envelopes, before);
+        }
+
+        let blob = core.persist_state(Box::new(XorCipher(0xA5))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0xA5))).unwrap();
+        let scan = restored.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].body, "keep this history");
+        assert_eq!(
+            restored.prune_conversation(secret(), 0).unwrap(),
+            PruneOutcome {
+                removed: 1,
+                remaining: 0,
+            }
+        );
+    }
+
+    #[test]
     fn prune_conversation_only_removes_the_named_conversations_own_envelopes() {
         let core = RootCore::new();
         core.create_root().unwrap();
@@ -870,8 +919,8 @@ mod tests {
 
         // Fill the rest of the shared cap with clones of that one already-
         // valid envelope rather than re-signing thousands of times; cheap,
-        // and `prune_conversation` only ever inspects each envelope's
-        // (unencrypted) route, never its plaintext.
+        // and `prune_conversation` authenticates matching ciphertext through
+        // `mini-messaging` before removing it.
         {
             let mut guard = core.lock();
             let template = guard.messaging.envelopes[0].clone();
