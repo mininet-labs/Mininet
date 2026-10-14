@@ -249,6 +249,22 @@ pub fn sign_spend(
     })
 }
 
+/// Derive the same nullifier as an MLSAG spend, without signing a transaction.
+///
+/// For local wallet spent/reservation checks only. Publishing the mapping from
+/// a one-time output to this image reveals which ring member was actually spent.
+/// This uses the existing MLSAG construction and does not change its wire format.
+pub fn spend_key_image(one_time_secret: &[u8; 32]) -> Option<[u8; 32]> {
+    let mut x = decompress_scalar(one_time_secret)?;
+    if x == Scalar::ZERO {
+        return None;
+    }
+    let key = (x * basepoint()).compress();
+    let image = (x * hash_to_point(&[key.as_bytes()])).compress().to_bytes();
+    x.zeroize();
+    Some(image)
+}
+
 /// Verify one spend proof.
 ///
 /// A `true` result means: some member of `ring_keys` authorized `message`,
