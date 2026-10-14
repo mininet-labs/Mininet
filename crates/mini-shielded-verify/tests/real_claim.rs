@@ -312,8 +312,8 @@ fn concurrent_admission_cannot_overbook_count_or_byte_budget() {
         let barrier = Arc::new(std::sync::Barrier::new(claims.len()));
         let handles: Vec<_> = claims
             .iter()
-            .cloned()
             .map(|claim| {
+                let claim = claim.clone();
                 let pool = pool.clone();
                 let barrier = barrier.clone();
                 std::thread::spawn(move || {
