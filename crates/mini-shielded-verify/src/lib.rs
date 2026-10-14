@@ -27,9 +27,10 @@
 //!   (a dedicated gossip topic, a request/response protocol, an existing
 //!   mempool) is not this crate's job — it only defines the shape a
 //!   validator's own evidence-gathering component must fill.
-//! - **No pruning/eviction policy.** A pool that only ever grows is a
-//!   real operational concern for a long-running validator; this crate
-//!   states that rather than pretending a policy already exists.
+//! - **Bounded admission, no pruning/eviction policy.** Finite local entry,
+//!   total-byte and per-claim budgets fail closed at capacity. Defaults are
+//!   operational budgets, not protocol validity rules. Safe historical
+//!   retention, persistence and recovery remain host responsibilities.
 //! - **No accountability/measurement layer.** Roadmap R8 asks for a
 //!   validator set that "verifies claims and is measured for it" — this
 //!   crate provides the verification; recording *which* validators ran
@@ -47,65 +48,147 @@ use mini_execution::{
 };
 use mini_private_payment::PrivatePaymentClaim;
 
-/// A claim's wire bytes failed to decode — see
-/// [`PrivatePaymentClaim::decode`]'s own "structural validation only"
-/// scope; this never means the claim is invalid, only unstorable.
+/// A claim's wire bytes failed structural decoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MalformedClaim;
 
-/// A validator's local, non-canonical store of full shielded-spend claim
-/// bytes it has learned about — never part of the canonical block body or
-/// wire protocol (`mini_execution::nullifier`'s own docs explain why that
-/// boundary is load-bearing, not an oversight). Keyed by each claim's own
-/// `transcript_digest`, computed here rather than taken on a caller's
-/// word, so a lookup can never retrieve bytes that don't actually belong
-/// to the digest asked for.
+/// Local resource budgets, not canonical claim-validity rules.
+/// Zero limits deliberately disable admission; no claim is evicted implicitly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EvidenceLimits {
+    pub max_claims: usize,
+    pub max_total_bytes: usize,
+    pub max_claim_bytes: usize,
+}
+
+impl Default for EvidenceLimits {
+    fn default() -> Self {
+        Self {
+            max_claims: 1024,
+            max_total_bytes: 64 * 1024 * 1024,
+            max_claim_bytes: 1024 * 1024,
+        }
+    }
+}
+
+/// Admission failures never mutate retained evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceError {
+    MalformedClaim(MalformedClaim),
+    ClaimTooLarge,
+    ClaimCountLimit,
+    TotalBytesLimit,
+}
+
+impl core::fmt::Display for EvidenceError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "shielded evidence admission refused: {self:?}")
+    }
+}
+
+impl std::error::Error for EvidenceError {}
+
 #[derive(Debug, Default)]
+struct EvidenceState {
+    claims: BTreeMap<[u8; 32], Vec<u8>>,
+    total_bytes: usize,
+}
+
+/// A bounded local store of structurally decoded shielded claim bytes.
+/// Admission is not cryptographic verification. The verifier still checks
+/// the complete proof and canonical execution still checks membership.
+/// Limits bound retained wire bytes and entry count, not allocator overhead,
+/// caller-owned buffers, transient decoding, or concurrent lookup copies.
+/// Historical evidence is never evicted: a full pool fails closed, and the
+/// host must reconcile retention/recovery requirements before replacing it.
+#[derive(Debug)]
 pub struct ClaimEvidencePool {
-    claims: RwLock<BTreeMap<[u8; 32], Vec<u8>>>,
+    limits: EvidenceLimits,
+    state: RwLock<EvidenceState>,
+}
+
+impl Default for ClaimEvidencePool {
+    fn default() -> Self {
+        Self::with_limits(EvidenceLimits::default())
+    }
 }
 
 impl ClaimEvidencePool {
-    /// A fresh, empty pool.
+    /// A fresh pool with finite default local budgets.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Record a claim's wire bytes, keyed by its own `transcript_digest`.
-    /// Only structural decoding is checked here — a decoded-but-invalid
-    /// claim is still stored, exactly like `PrivatePaymentClaim::decode`'s
-    /// own contract: "a decoded claim is not a verified one."
-    /// [`ShieldedClaimVerifier::verify_claim`] is what decides trust, at
-    /// lookup time, so a stale or since-superseded evidence entry can
-    /// never grant more trust than the actual claim it holds bears.
-    pub fn insert(&self, claim_bytes: Vec<u8>) -> Result<[u8; 32], MalformedClaim> {
-        let claim = PrivatePaymentClaim::decode(&claim_bytes).map_err(|_| MalformedClaim)?;
+    /// Use explicit host-selected local budgets.
+    pub fn with_limits(limits: EvidenceLimits) -> Self {
+        Self {
+            limits,
+            state: RwLock::new(EvidenceState::default()),
+        }
+    }
+
+    /// Store structurally decoded bytes under their computed transcript digest.
+    /// Exact retries consume no capacity. Replacement under an existing digest
+    /// consumes only the replacement byte size, preserving prior semantics.
+    /// Admission is structural: invalid proof bytes can replace valid evidence,
+    /// so retained bytes never establish trust without verification.
+    /// Capacity checks and admission share one write lock so concurrent
+    /// insertions cannot exceed a budget.
+    pub fn insert(&self, claim_bytes: Vec<u8>) -> Result<[u8; 32], EvidenceError> {
+        if claim_bytes.len() > self.limits.max_claim_bytes {
+            return Err(EvidenceError::ClaimTooLarge);
+        }
+        let claim = PrivatePaymentClaim::decode(&claim_bytes)
+            .map_err(|_| EvidenceError::MalformedClaim(MalformedClaim))?;
         let digest = claim.transcript_digest();
-        self.claims
-            .write()
-            .expect("claim evidence pool lock poisoned")
-            .insert(digest, claim_bytes);
+        let mut state = self.state.write().expect("claim evidence pool lock poisoned");
+        let existing_len = match state.claims.get(&digest) {
+            Some(existing) if existing == &claim_bytes => return Ok(digest),
+            Some(existing) => Some(existing.len()),
+            None => None,
+        };
+        if existing_len.is_none() && state.claims.len() >= self.limits.max_claims {
+            return Err(EvidenceError::ClaimCountLimit);
+        }
+        let total_bytes = state
+            .total_bytes
+            .checked_sub(existing_len.unwrap_or(0))
+            .and_then(|total| total.checked_add(claim_bytes.len()))
+            .filter(|total| *total <= self.limits.max_total_bytes)
+            .ok_or(EvidenceError::TotalBytesLimit)?;
+        state.claims.insert(digest, claim_bytes);
+        state.total_bytes = total_bytes;
         Ok(digest)
     }
 
-    /// The stored wire bytes for `digest`, if this pool has ever seen one.
+    /// Copy retained bytes, if present.
     pub fn get(&self, digest: &[u8; 32]) -> Option<Vec<u8>> {
-        self.claims
+        self.state
             .read()
             .expect("claim evidence pool lock poisoned")
+            .claims
             .get(digest)
             .cloned()
     }
 
-    /// How many claims this pool currently holds.
+    /// Retained claim count.
     pub fn len(&self) -> usize {
-        self.claims
+        self.state
             .read()
             .expect("claim evidence pool lock poisoned")
+            .claims
             .len()
     }
 
-    /// Whether this pool holds no claims yet.
+    /// Retained wire-byte total, excluding allocator overhead and copies.
+    pub fn total_bytes(&self) -> usize {
+        self.state
+            .read()
+            .expect("claim evidence pool lock poisoned")
+            .total_bytes
+    }
+
+    /// Whether no evidence is retained.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -240,7 +323,10 @@ mod tests {
     #[test]
     fn malformed_bytes_are_rejected_before_storage() {
         let pool = ClaimEvidencePool::new();
-        assert_eq!(pool.insert(vec![0xff; 4]), Err(MalformedClaim));
+        assert_eq!(
+            pool.insert(vec![0xff; 4]),
+            Err(EvidenceError::MalformedClaim(MalformedClaim))
+        );
         assert!(pool.is_empty());
     }
 
