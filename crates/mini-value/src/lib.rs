@@ -77,8 +77,8 @@ pub use curve::random_scalar_bytes;
 pub use error::{Result, ValueError};
 pub use fee::{fee_in_micro_mini, PriceEntry, PriceHistory, PRICE_SCALE};
 pub use mlsag::{
-    balancing_blinding, reblind, sign_spend, verify_spend, MlsagSignature, SpendWitness,
-    MLSAG_DOMAIN,
+    balancing_blinding, reblind, sign_spend, spend_key_image, verify_spend, MlsagSignature,
+    SpendWitness, MLSAG_DOMAIN,
 };
 pub use ring::{NoRingSignature, RingSignature, RingSignatureScheme};
 pub use ring_impl::MininetRingSignature;

@@ -37,6 +37,8 @@ pub enum DecodeFailure {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PrivatePaymentError {
+    /// Only some inputs appear finalized: refresh the coherent canonical view.
+    IncompleteFinality,
     /// The wire bytes were not a well-formed claim.
     Decode(DecodeFailure),
     /// The claim names a different settlement network. A payment valid on
@@ -145,6 +147,9 @@ impl core::fmt::Display for DecodeFailure {
 impl core::fmt::Display for PrivatePaymentError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            PrivatePaymentError::IncompleteFinality => {
+                write!(f, "canonical view contains only part of a payment")
+            }
             PrivatePaymentError::Decode(failure) => write!(f, "decode failed: {failure}"),
             PrivatePaymentError::NetworkMismatch => {
                 write!(f, "claim is for a different settlement network")
