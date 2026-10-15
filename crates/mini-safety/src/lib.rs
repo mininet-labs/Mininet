@@ -382,258 +382,261 @@ impl SafetyProfile {
         for rule in mutes {
             let already_present = self.mute_rules.values().any(|existing| existing == rule);
             if !already_present {
-                self
-                    .add_mute_rule(AddMuteRuleRequest { rule: rule.clone() })?;
-                    added_mutes += 1;
-                }
+                self.add_mute_rule(AddMuteRuleRequest { rule: rule.clone() })?;
+                added_mutes += 1;
             }
-            Ok((added_blocks, added_mutes))
         }
-    
-        /// Serialize to plain lines a caller can write to a local file (the
-        /// same convention as `mini-desktop`'s `muted.txt`, generalized). Block
-        /// reasons and mute rules round-trip; `MuteRuleId` allocation order is
-        /// preserved on reload.
-        pub fn to_lines(&self) -> Vec<String> {
-            let mut lines = Vec::with_capacity(1 + self.blocked.len() + self.mute_rules.len());
-            lines.push(format!("safety\t2\t{}", self.next_rule_id));
-            for (key, did) in &self.blocked {
-                match self.block_reasons.get(key) {
-                    Some(reason) => {
-                        lines.push(format!("block\t{}\t{}", did.as_str(), escape_field(reason)));
-                    }
-                    None => lines.push(format!("block\t{}", did.as_str())),
+        Ok((added_blocks, added_mutes))
+    }
+
+    /// Serialize to plain lines a caller can write to a local file (the
+    /// same convention as `mini-desktop`'s `muted.txt`, generalized). Block
+    /// reasons and mute rules round-trip; `MuteRuleId` allocation order is
+    /// preserved on reload.
+    pub fn to_lines(&self) -> Vec<String> {
+        let mut lines = Vec::with_capacity(1 + self.blocked.len() + self.mute_rules.len());
+        lines.push(format!("safety\t2\t{}", self.next_rule_id));
+        for (key, did) in &self.blocked {
+            match self.block_reasons.get(key) {
+                Some(reason) => {
+                    lines.push(format!("block\t{}\t{}", did.as_str(), escape_field(reason)));
                 }
+                None => lines.push(format!("block\t{}", did.as_str())),
             }
-            for (id, rule) in &self.mute_rules {
-                let (kind, value) = match rule {
-                    MuteRule::Keyword(value) => ("keyword", value),
-                    MuteRule::ExactObject(value) => ("object", value),
-                };
-                lines.push(format!("mute\t{id}\t{kind}\t{}", escape_field(value)));
-            }
-            lines
         }
-    
-        /// Read versioned stable IDs or migrate the legacy value-only format.
-        /// Legacy files cannot recover IDs that were already lost before this change.
-        pub fn from_lines<I, S>(lines: I) -> Result<Self, SafetyError>
-        where
-            I: IntoIterator<Item = S>,
-            S: AsRef<str>,
-        {
-            let lines: Vec<String> = lines
-                .into_iter()
-                .map(|line| line.as_ref().to_string())
-                .collect();
-            for line in &lines {
-                if line.contains(['\r', '\n']) {
-                    return Err(SafetyError::Malformed(line.clone()));
-                }
-            }
-            let Some(first) = lines.iter().position(|line| !line.trim().is_empty()) else {
-                return Ok(Self::new());
+        for (id, rule) in &self.mute_rules {
+            let (kind, value) = match rule {
+                MuteRule::Keyword(value) => ("keyword", value),
+                MuteRule::ExactObject(value) => ("object", value),
             };
-            if !lines[first].starts_with("safety\t") {
-                return Self::from_legacy_lines(&lines);
-            }
-            let malformed = |line: &str| SafetyError::Malformed(line.to_string());
-            let header: Vec<&str> = lines[first].split('\t').collect();
-            if header.len() != 3 || header[1] != "2" {
-                return Err(malformed(&lines[first]));
-            }
-            let next: u64 = header[2].parse().map_err(|_| malformed(&lines[first]))?;
-            if next == 0 {
-                return Err(malformed(&lines[first]));
-            }
-            let mut profile = Self::new();
-            profile.next_rule_id = next;
-            for line in &lines[first + 1..] {
-                if line.trim().is_empty() {
-                    continue;
-                }
-                let fields: Vec<&str> = line.split('\t').collect();
-                match fields.as_slice() {
-                    ["block", scid] | ["block", scid, _] => {
-                        let did = Did::parse(scid).map_err(|_| malformed(line))?;
-                        if profile.is_blocked(&did) {
-                            return Err(malformed(line));
-                        }
-                        let reason = if fields.len() == 3 {
-                            Some(unescape_field(fields[2])?)
-                        } else {
-                            None
-                        };
-                        profile.block_identity(BlockIdentityRequest { blocked: did, reason });
-                    }
-                    ["mute", id, kind, value] => {
-                        let id: u64 = id.parse().map_err(|_| malformed(line))?;
-                        if id == 0 || id >= next || profile.mute_rules.contains_key(&id) {
-                            return Err(malformed(line));
-                        }
-                        let value = unescape_field(value)?;
-                        let rule = match *kind {
-                            "keyword" => MuteRule::Keyword(value),
-                            "object" => MuteRule::ExactObject(value),
-                            _ => return Err(malformed(line)),
-                        };
-                        profile.mute_rules.insert(id, rule);
-                    }
-                    _ => return Err(malformed(line)),
-                }
-            }
-            Ok(profile)
+            lines.push(format!("mute\t{id}\t{kind}\t{}", escape_field(value)));
         }
-    
-        /// Parse lines produced by [`Self::to_lines`] (or hand-written in the
-        /// same format) back into a profile. An unrecognized line is a hard
-        /// error rather than a silent skip, so a corrupted or truncated local
-        /// file is never mistaken for "nothing is blocked".
-        fn from_legacy_lines<I, S>(lines: I) -> Result<Self, SafetyError>
-        where
-            I: IntoIterator<Item = S>,
-            S: AsRef<str>,
-        {
-            let mut profile = Self::new();
-            for raw in lines {
-                let line = raw.as_ref();
-                if line.trim().is_empty() {
-                    continue;
-                }
-                let (kind, rest) = line
-                    .split_once('\t')
-                    .ok_or_else(|| SafetyError::Malformed(line.to_string()))?;
-                match kind {
-                    "block" => {
-                        let mut parts = rest.splitn(2, '\t');
-                        let scid = parts
-                            .next()
-                            .ok_or_else(|| SafetyError::Malformed(line.to_string()))?;
-                        let did =
-                            Did::parse(scid).map_err(|_| SafetyError::Malformed(line.to_string()))?;
-                        let reason = parts.next().map(str::to_string);
-                        profile.block_identity(BlockIdentityRequest {
-                            blocked: did,
-                            reason,
-                        });
-                    }
-                    "mute" => {
-                        let rule = MuteRule::decode(rest)?;
-                        profile.add_mute_rule(AddMuteRuleRequest { rule })?;
-                    }
-                    _ => return Err(SafetyError::Malformed(line.to_string())),
-                }
-            }
-            Ok(profile)
-        }
+        lines
     }
-    
-    fn escape_field(value: &str) -> String {
-        let mut out = String::new();
-        for c in value.chars() {
-            match c {
-                '\\' => out.push_str("\\\\"),
-                '\t' => out.push_str("\\t"),
-                '\n' => out.push_str("\\n"),
-                '\r' => out.push_str("\\r"),
-                _ => out.push(c),
+
+    /// Read versioned stable IDs or migrate the legacy value-only format.
+    /// Legacy files cannot recover IDs that were already lost before this change.
+    pub fn from_lines<I, S>(lines: I) -> Result<Self, SafetyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let lines: Vec<String> = lines
+            .into_iter()
+            .map(|line| line.as_ref().to_string())
+            .collect();
+        for line in &lines {
+            if line.contains(['\r', '\n']) {
+                return Err(SafetyError::Malformed(line.clone()));
             }
         }
-        out
-    }
-    
-    fn unescape_field(value: &str) -> Result<String, SafetyError> {
-        let mut out = String::new();
-        let mut chars = value.chars();
-        while let Some(c) = chars.next() {
-            if c != '\\' {
-                out.push(c);
+        let Some(first) = lines.iter().position(|line| !line.trim().is_empty()) else {
+            return Ok(Self::new());
+        };
+        if !lines[first].starts_with("safety\t") {
+            return Self::from_legacy_lines(&lines);
+        }
+        let malformed = |line: &str| SafetyError::Malformed(line.to_string());
+        let header: Vec<&str> = lines[first].split('\t').collect();
+        if header.len() != 3 || header[1] != "2" {
+            return Err(malformed(&lines[first]));
+        }
+        let next: u64 = header[2].parse().map_err(|_| malformed(&lines[first]))?;
+        if next == 0 {
+            return Err(malformed(&lines[first]));
+        }
+        let mut profile = Self::new();
+        profile.next_rule_id = next;
+        for line in &lines[first + 1..] {
+            if line.trim().is_empty() {
                 continue;
             }
-            let decoded = match chars.next() {
-                Some('\\') => '\\',
-                Some('t') => '\t',
-                Some('n') => '\n',
-                Some('r') => '\r',
-                _ => return Err(SafetyError::Malformed(value.to_string())),
-            };
-            out.push(decoded);
+            let fields: Vec<&str> = line.split('\t').collect();
+            match fields.as_slice() {
+                ["block", scid] | ["block", scid, _] => {
+                    let did = Did::parse(scid).map_err(|_| malformed(line))?;
+                    if profile.is_blocked(&did) {
+                        return Err(malformed(line));
+                    }
+                    let reason = if fields.len() == 3 {
+                        Some(unescape_field(fields[2])?)
+                    } else {
+                        None
+                    };
+                    profile.block_identity(BlockIdentityRequest {
+                        blocked: did,
+                        reason,
+                    });
+                }
+                ["mute", id, kind, value] => {
+                    let id: u64 = id.parse().map_err(|_| malformed(line))?;
+                    if id == 0 || id >= next || profile.mute_rules.contains_key(&id) {
+                        return Err(malformed(line));
+                    }
+                    let value = unescape_field(value)?;
+                    let rule = match *kind {
+                        "keyword" => MuteRule::Keyword(value),
+                        "object" => MuteRule::ExactObject(value),
+                        _ => return Err(malformed(line)),
+                    };
+                    profile.mute_rules.insert(id, rule);
+                }
+                _ => return Err(malformed(line)),
+            }
         }
-        Ok(out)
+        Ok(profile)
     }
-    
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-    
-        fn did(n: u8) -> Did {
-            // Deterministic, valid did:mini identity roots for tests, via the
-            // real inception path (did-mini exposes no test-only DID
-            // constructor other than parsing an already-valid string).
-            let controller =
-                did_mini::Controller::incept_single_from_seeds(&[n; 32], &[n.wrapping_add(1); 32])
-                    .expect("incept");
-            controller.did()
+
+    /// Parse lines produced by [`Self::to_lines`] (or hand-written in the
+    /// same format) back into a profile. An unrecognized line is a hard
+    /// error rather than a silent skip, so a corrupted or truncated local
+    /// file is never mistaken for "nothing is blocked".
+    fn from_legacy_lines<I, S>(lines: I) -> Result<Self, SafetyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut profile = Self::new();
+        for raw in lines {
+            let line = raw.as_ref();
+            if line.trim().is_empty() {
+                continue;
+            }
+            let (kind, rest) = line
+                .split_once('\t')
+                .ok_or_else(|| SafetyError::Malformed(line.to_string()))?;
+            match kind {
+                "block" => {
+                    let mut parts = rest.splitn(2, '\t');
+                    let scid = parts
+                        .next()
+                        .ok_or_else(|| SafetyError::Malformed(line.to_string()))?;
+                    let did =
+                        Did::parse(scid).map_err(|_| SafetyError::Malformed(line.to_string()))?;
+                    let reason = parts.next().map(str::to_string);
+                    profile.block_identity(BlockIdentityRequest {
+                        blocked: did,
+                        reason,
+                    });
+                }
+                "mute" => {
+                    let rule = MuteRule::decode(rest)?;
+                    profile.add_mute_rule(AddMuteRuleRequest { rule })?;
+                }
+                _ => return Err(SafetyError::Malformed(line.to_string())),
+            }
         }
-    
-        #[test]
-        fn fresh_profile_hides_nothing() {
-            let profile = SafetyProfile::new();
-            assert_eq!(
-                profile.visibility_for(&did(1), "obj-1", "hello"),
-                Visibility::Visible
-            );
+        Ok(profile)
+    }
+}
+
+fn escape_field(value: &str) -> String {
+    let mut out = String::new();
+    for c in value.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\t' => out.push_str("\\t"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            _ => out.push(c),
         }
-    
-        #[test]
-        fn block_identity_hides_all_their_content_and_is_reversible() {
-            let mut profile = SafetyProfile::new();
-            let author = did(1);
-            assert!(profile.block_identity(BlockIdentityRequest {
-                blocked: author.clone(),
-                reason: Some("harassment".into()),
-            }));
-            assert!(profile.is_blocked(&author));
-            assert_eq!(profile.block_reason(&author), Some("harassment"));
-            assert_eq!(
-                profile.visibility_for(&author, "obj-1", "anything"),
-                Visibility::HiddenBlockedAuthor
-            );
-    
-            assert!(profile.unblock_identity(UnblockIdentityRequest {
-                blocked: author.clone()
-            }));
-            assert!(!profile.is_blocked(&author));
-            assert_eq!(
-                profile.visibility_for(&author, "obj-1", "anything"),
-                Visibility::Visible
-            );
+    }
+    out
+}
+
+fn unescape_field(value: &str) -> Result<String, SafetyError> {
+    let mut out = String::new();
+    let mut chars = value.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
         }
-    
-        #[test]
-        fn re_blocking_is_idempotent_and_updates_reason() {
-            let mut profile = SafetyProfile::new();
-            let author = did(2);
-            assert!(profile.block_identity(BlockIdentityRequest {
-                blocked: author.clone(),
-                reason: None,
-            }));
-            assert!(!profile.block_identity(BlockIdentityRequest {
-                blocked: author.clone(),
-                reason: Some("spam".into()),
-            }));
-            assert_eq!(profile.blocked_count(), 1);
-            assert_eq!(profile.block_reason(&author), Some("spam"));
-        }
-    
-        #[test]
-        fn keyword_mute_is_case_insensitive_and_removable() {
-            let mut profile = SafetyProfile::new();
-            let author = did(3);
-            let id = profile.add_mute_rule(AddMuteRuleRequest {
+        let decoded = match chars.next() {
+            Some('\\') => '\\',
+            Some('t') => '\t',
+            Some('n') => '\n',
+            Some('r') => '\r',
+            _ => return Err(SafetyError::Malformed(value.to_string())),
+        };
+        out.push(decoded);
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn did(n: u8) -> Did {
+        // Deterministic, valid did:mini identity roots for tests, via the
+        // real inception path (did-mini exposes no test-only DID
+        // constructor other than parsing an already-valid string).
+        let controller =
+            did_mini::Controller::incept_single_from_seeds(&[n; 32], &[n.wrapping_add(1); 32])
+                .expect("incept");
+        controller.did()
+    }
+
+    #[test]
+    fn fresh_profile_hides_nothing() {
+        let profile = SafetyProfile::new();
+        assert_eq!(
+            profile.visibility_for(&did(1), "obj-1", "hello"),
+            Visibility::Visible
+        );
+    }
+
+    #[test]
+    fn block_identity_hides_all_their_content_and_is_reversible() {
+        let mut profile = SafetyProfile::new();
+        let author = did(1);
+        assert!(profile.block_identity(BlockIdentityRequest {
+            blocked: author.clone(),
+            reason: Some("harassment".into()),
+        }));
+        assert!(profile.is_blocked(&author));
+        assert_eq!(profile.block_reason(&author), Some("harassment"));
+        assert_eq!(
+            profile.visibility_for(&author, "obj-1", "anything"),
+            Visibility::HiddenBlockedAuthor
+        );
+
+        assert!(profile.unblock_identity(UnblockIdentityRequest {
+            blocked: author.clone()
+        }));
+        assert!(!profile.is_blocked(&author));
+        assert_eq!(
+            profile.visibility_for(&author, "obj-1", "anything"),
+            Visibility::Visible
+        );
+    }
+
+    #[test]
+    fn re_blocking_is_idempotent_and_updates_reason() {
+        let mut profile = SafetyProfile::new();
+        let author = did(2);
+        assert!(profile.block_identity(BlockIdentityRequest {
+            blocked: author.clone(),
+            reason: None,
+        }));
+        assert!(!profile.block_identity(BlockIdentityRequest {
+            blocked: author.clone(),
+            reason: Some("spam".into()),
+        }));
+        assert_eq!(profile.blocked_count(), 1);
+        assert_eq!(profile.block_reason(&author), Some("spam"));
+    }
+
+    #[test]
+    fn keyword_mute_is_case_insensitive_and_removable() {
+        let mut profile = SafetyProfile::new();
+        let author = did(3);
+        let id = profile
+            .add_mute_rule(AddMuteRuleRequest {
                 rule: MuteRule::Keyword("SpAm".into()),
             })
-                    .unwrap();
+            .unwrap();
         assert_eq!(
             profile.visibility_for(&author, "obj-1", "this is spam content"),
             Visibility::HiddenMuted { rule: id }
@@ -901,7 +904,10 @@ impl SafetyProfile {
             vec!["safety\t2\t0"],
             vec!["safety\t3\t1"],
             vec!["safety\t2\t2", "mute\t1\tkeyword\tbad\\q"],
-            vec!["safety\t2\t2", "mute\t1\tkeyword\tbad\nmute\tobject\tinjected"],
+            vec![
+                "safety\t2\t2",
+                "mute\t1\tkeyword\tbad\nmute\tobject\tinjected",
+            ],
         ] {
             assert!(SafetyProfile::from_lines(lines).is_err());
         }
