@@ -273,8 +273,9 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
         pairingBusy: Boolean = false,
     ): CoreUiState.Home {
         val rootDid = requireNotNull(rootCore.rootDid())
-        val devices = rootCore.delegatedDevices()
-        val deviceDid = devices.firstOrNull()
+        val localDevices = rootCore.delegatedDevices()
+        val devices = rootCore.authorizedDevices()
+        val deviceDid = localDevices.firstOrNull()
             ?: error("restored root has no delegated device")
         return CoreUiState.Home(
             rootDid = rootDid,
@@ -289,8 +290,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
 
     /**
      * Revoke one of this root's own delegated devices (D-0335's
-     * `RootCore.revokeDelegatedDevice`, already wired end-to-end since it
-     * shipped -- this is the first UI surface that calls it). Honest limit:
+     * `RootCore.revokeDelegatedDevice`). The list comes from the root KEL,
+     * including remotely enrolled devices. Honest limit:
      * revocation only removes [did] from the root's KEL-recorded
      * authorization; it does not, and cannot, reach out and disable that
      * physical device -- a revoked device only "finds out" if and when it

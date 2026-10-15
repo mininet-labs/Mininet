@@ -36,8 +36,8 @@ pub use lifecycle::{
 };
 pub use mesh::{MeshError, MeshHandle, MeshMessage};
 pub use messaging::{
-    ConversationScanView, ConversationSecretHandle, MessageDraftInput, MessageKindInput,
-    MessagingFfiError, PruneOutcome, ReceivedMessageView,
+    ConversationEnvelopeBatch, ConversationScanView, ConversationSecretHandle, MessageDraftInput,
+    MessageKindInput, MessagingFfiError, PruneOutcome, ReceivedMessageView,
 };
 pub use pairing::{PairingContact, PairingError, PairingOfferView};
 
@@ -566,6 +566,23 @@ impl RootCore {
             .iter()
             .map(|d| d.did().as_str().to_string())
             .collect()
+    }
+
+    /// All devices currently authorized by this root's KEL, including
+    /// remotely enrolled devices whose private controller is not held here.
+    /// `delegated_devices` retains its existing local-controller semantics.
+    pub fn authorized_devices(&self) -> Vec<String> {
+        self.lock()
+            .root
+            .as_ref()
+            .map(|root| {
+                root.kel()
+                    .delegated_devices()
+                    .into_iter()
+                    .map(|(did, _)| did.as_str().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// This root's own current KEL bytes — no secrets, safe to hand to any
@@ -1265,6 +1282,8 @@ mod tests {
         // device A's local secret-holding `delegated_devices()` list,
         // which correctly stays empty here (see
         // `revoke_delegated_device_does_not_require_holding_the_devices_secrets`).
+        assert!(device_a.delegated_devices().is_empty());
+        assert_eq!(device_a.authorized_devices(), vec![device_b_did.clone()]);
         let root_kel_after_enroll = device_a.root_kel().unwrap();
         assert!(is_device_delegated(root_kel_after_enroll, device_b_did.clone()).unwrap());
 
@@ -1276,6 +1295,7 @@ mod tests {
         // 4. Device B can no longer act for the root after revocation, and
         // device A observes the revocation took effect via the same
         // portable KEL-bytes query.
+        assert!(device_a.authorized_devices().is_empty());
         let root_kel_after_revoke = device_a.root_kel().unwrap();
         assert!(!is_device_delegated(root_kel_after_revoke, device_b_did).unwrap());
     }

@@ -43,6 +43,7 @@ use crate::{PersistReader, RootCore};
 const ROUTE_LEN: usize = 32;
 const KEY_LEN: usize = 32;
 const MAX_ENVELOPES: usize = 4096;
+const MAX_MESSAGING_BYTES: usize = 8 * 1024 * 1024;
 const MAX_ENVELOPE_BYTES: usize = 1 << 20;
 const MAX_BODY_BYTES: usize = 64 * 1024;
 const MAX_ATTACHMENTS: usize = 32;
@@ -127,6 +128,13 @@ pub struct ReceivedMessageView {
     /// one of its own currently-known devices, verified against that
     /// device's own current KEL.
     pub signature_verified: bool,
+}
+
+/// Ciphertext transfer scoped by a separately supplied conversation capability.
+/// Key authentication does not authenticate the remote author's delegation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConversationEnvelopeBatch {
+    pub envelopes: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -303,7 +311,43 @@ fn view_from_received(
 /// replaying the whole (bounded, `MAX_ENVELOPES`-capped) history per call is
 /// simpler and easier to review than keeping a long-lived store handle
 /// alive across the `std::sync::Mutex<RootState>` boundary.
+fn envelope_bytes(envelopes: &[Vec<u8>]) -> Result<usize, MessagingFfiError> {
+    if envelopes.len() > MAX_ENVELOPES {
+        return Err(MessagingFfiError::LimitExceeded);
+    }
+    envelopes.iter().try_fold(0usize, |total, bytes| {
+        if bytes.len() > MAX_ENVELOPE_BYTES {
+            return Err(MessagingFfiError::LimitExceeded);
+        }
+        total
+            .checked_add(bytes.len())
+            .filter(|sum| *sum <= MAX_MESSAGING_BYTES)
+            .ok_or(MessagingFfiError::LimitExceeded)
+    })
+}
+
+fn authenticate_envelope(
+    bytes: &[u8],
+    secret: &ConversationSecret,
+) -> Result<ObjectEnvelopeV2, MessagingFfiError> {
+    let envelope =
+        ObjectEnvelopeV2::from_bytes(bytes).map_err(|_| MessagingFfiError::InvalidMessage)?;
+    if envelope.route() != secret.route() {
+        return Err(MessagingFfiError::InvalidMessage);
+    }
+    let mut store = Store::new(MemoryBackend::new());
+    store
+        .insert_private(&envelope)
+        .map_err(|_| MessagingFfiError::InvalidMessage)?;
+    let scan = mini_messaging::scan(&store, secret).map_err(messaging_err)?;
+    if !scan.rejected.is_empty() || scan.messages.len() != 1 {
+        return Err(MessagingFfiError::InvalidMessage);
+    }
+    Ok(envelope)
+}
+
 fn rebuild_store(envelopes: &[Vec<u8>]) -> Result<Store<MemoryBackend>, MessagingFfiError> {
+    envelope_bytes(envelopes)?;
     let mut store = Store::new(MemoryBackend::new());
     for bytes in envelopes {
         let envelope =
@@ -359,8 +403,17 @@ impl RootCore {
         if messaging.envelopes.len() >= MAX_ENVELOPES {
             return Err(MessagingFfiError::LimitExceeded);
         }
-        let mut store = rebuild_store(&messaging.envelopes)?;
+        let retained_bytes = envelope_bytes(&messaging.envelopes)?;
         let sequence = messaging.next_sequence;
+        let next_sequence = sequence
+            .checked_add(1)
+            .ok_or(MessagingFfiError::LimitExceeded)?;
+        // Reserve the maximum envelope allowance before rebuilding/allocating.
+        // This conservative bound may require explicit pruning near capacity.
+        if retained_bytes > MAX_MESSAGING_BYTES - MAX_ENVELOPE_BYTES {
+            return Err(MessagingFfiError::LimitExceeded);
+        }
+        let mut store = rebuild_store(&messaging.envelopes)?;
         let id = mini_messaging::send(
             &mut store,
             &secret,
@@ -375,14 +428,71 @@ impl RootCore {
             .get_private(&id)
             .map_err(|_| MessagingFfiError::CorruptState)?;
         let bytes = envelope.to_bytes();
-        if bytes.len() > MAX_ENVELOPE_BYTES {
+        if bytes.len() > MAX_ENVELOPE_BYTES || retained_bytes + bytes.len() > MAX_MESSAGING_BYTES {
             return Err(MessagingFfiError::LimitExceeded);
         }
         messaging.envelopes.push(bytes);
-        messaging.next_sequence = sequence
-            .checked_add(1)
-            .ok_or(MessagingFfiError::LimitExceeded)?;
+        messaging.next_sequence = next_sequence;
         Ok(id.as_str().to_string())
+    }
+
+    /// Export only ciphertext authenticated by this route/key capability.
+    /// The caller chooses transport and must protect the separate secret.
+    pub fn export_conversation_envelopes(
+        &self,
+        secret: std::sync::Arc<ConversationSecretHandle>,
+    ) -> Result<ConversationEnvelopeBatch, MessagingFfiError> {
+        let secret = to_secret(&secret)?;
+        let state = self.lock();
+        envelope_bytes(&state.messaging.envelopes)?;
+        let mut envelopes = Vec::new();
+        for bytes in &state.messaging.envelopes {
+            let envelope = ObjectEnvelopeV2::from_bytes(bytes)
+                .map_err(|_| MessagingFfiError::CorruptState)?;
+            if envelope.route() == secret.route() {
+                authenticate_envelope(bytes, &secret)?;
+                envelopes.push(bytes.clone());
+            }
+        }
+        Ok(ConversationEnvelopeBatch { envelopes })
+    }
+
+    /// Authenticate every envelope before atomically adding unique ciphertext.
+    /// AEAD key possession is required, but remote signature authority remains
+    /// unverified until the caller obtains that author's authenticated KELs.
+    pub fn import_conversation_envelopes(
+        &self,
+        secret: std::sync::Arc<ConversationSecretHandle>,
+        batch: ConversationEnvelopeBatch,
+    ) -> Result<u64, MessagingFfiError> {
+        // Check caller-provided sizes before decoding or making staged copies.
+        envelope_bytes(&batch.envelopes)?;
+        let secret = to_secret(&secret)?;
+        let mut state = self.lock();
+        let mut total = envelope_bytes(&state.messaging.envelopes)?;
+        let mut ids = HashSet::new();
+        for bytes in &state.messaging.envelopes {
+            let envelope = ObjectEnvelopeV2::from_bytes(bytes)
+                .map_err(|_| MessagingFfiError::CorruptState)?;
+            ids.insert(envelope.id().as_str().to_string());
+        }
+        let mut staged = Vec::new();
+        for bytes in batch.envelopes {
+            let envelope = authenticate_envelope(&bytes, &secret)?;
+            if ids.insert(envelope.id().as_str().to_string()) {
+                total = total
+                    .checked_add(bytes.len())
+                    .filter(|sum| *sum <= MAX_MESSAGING_BYTES)
+                    .ok_or(MessagingFfiError::LimitExceeded)?;
+                if state.messaging.envelopes.len() + staged.len() >= MAX_ENVELOPES {
+                    return Err(MessagingFfiError::LimitExceeded);
+                }
+                staged.push(bytes);
+            }
+        }
+        let added = staged.len() as u64;
+        state.messaging.envelopes.extend(staged);
+        Ok(added)
     }
 
     /// Decrypt every persisted envelope this conversation's secret can open.
@@ -532,8 +642,13 @@ pub(super) fn decode_messaging_state(
         return Err(crate::RootError::CorruptState);
     }
     let mut envelopes = Vec::with_capacity(envelope_count);
+    let mut total = 0usize;
     for _ in 0..envelope_count {
         let len = reader.u32()? as usize;
+        total = total
+            .checked_add(len)
+            .filter(|sum| *sum <= MAX_MESSAGING_BYTES)
+            .ok_or(crate::RootError::CorruptState)?;
         if len > MAX_ENVELOPE_BYTES {
             return Err(crate::RootError::CorruptState);
         }
@@ -1014,4 +1129,126 @@ mod tests {
              by this root's own current KEL, must never be reported as verified"
         );
     }
+    fn text_draft(body: &str) -> MessageDraftInput {
+        MessageDraftInput {
+            kind: MessageKindInput::Text,
+            body: body.to_string(),
+            reply_to: None,
+            attachments: Vec::new(),
+            receipt_for: None,
+        }
+    }
+
+    #[test]
+    fn two_cores_transfer_deduplicate_and_restore_ciphertext() {
+        let sender = RootCore::new();
+        sender.create_root().unwrap();
+        sender.create_device().unwrap();
+        let receiver = RootCore::new();
+        receiver.create_root().unwrap();
+        receiver.create_device().unwrap();
+        sender
+            .send_message(secret(), 1, text_draft("remote"))
+            .unwrap();
+        let batch = sender.export_conversation_envelopes(secret()).unwrap();
+        assert_eq!(
+            receiver
+                .import_conversation_envelopes(secret(), batch.clone())
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            receiver.import_conversation_envelopes(secret(), batch).unwrap(),
+            0
+        );
+        let blob = receiver.persist_state(Box::new(XorCipher(0x5A))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0x5A))).unwrap();
+        let scan = restored.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].body, "remote");
+        assert!(!scan.messages[0].signature_verified);
+        assert!(scan.rejected.is_empty());
+    }
+
+    #[test]
+    fn transfer_rejects_wrong_route_key_and_partial_batch_without_mutation() {
+        let sender = RootCore::new();
+        sender.create_root().unwrap();
+        sender.create_device().unwrap();
+        sender.send_message(secret(), 1, text_draft("remote")).unwrap();
+        let batch = sender.export_conversation_envelopes(secret()).unwrap();
+        let receiver = RootCore::new();
+        for handle in [
+            ConversationSecretHandle::new(vec![8; ROUTE_LEN], vec![9; KEY_LEN]),
+            ConversationSecretHandle::new(vec![7; ROUTE_LEN], vec![8; KEY_LEN]),
+        ] {
+            assert!(receiver
+                .import_conversation_envelopes(std::sync::Arc::new(handle), batch.clone())
+                .is_err());
+            assert!(receiver.lock().messaging.envelopes.is_empty());
+        }
+        let mut mixed = batch.clone();
+        mixed.envelopes.push(vec![0; 16]);
+        assert!(receiver
+            .import_conversation_envelopes(secret(), mixed)
+            .is_err());
+        assert!(receiver.lock().messaging.envelopes.is_empty());
+        assert_eq!(receiver.lock().messaging.next_sequence, 0);
+    }
+
+    #[test]
+    fn aggregate_budget_and_sequence_overflow_do_not_mutate_state() {
+        let sender = RootCore::new();
+        sender.create_root().unwrap();
+        sender.create_device().unwrap();
+        sender
+            .send_message(secret(), 1, text_draft(&"x".repeat(MAX_BODY_BYTES)))
+            .unwrap();
+        let batch = sender.export_conversation_envelopes(secret()).unwrap();
+        let template = batch.envelopes[0].clone();
+        let receiver = RootCore::new();
+        receiver.create_root().unwrap();
+        receiver.create_device().unwrap();
+        receiver
+            .send_message(secret(), 2, text_draft(&"y".repeat(MAX_BODY_BYTES)))
+            .unwrap();
+        {
+            let mut state = receiver.lock();
+            let filler = state.messaging.envelopes[0].clone();
+            state.messaging.envelopes =
+                vec![filler.clone(); MAX_MESSAGING_BYTES / filler.len()];
+        }
+        let before = receiver.lock().messaging.envelopes.clone();
+        let sequence = receiver.lock().messaging.next_sequence;
+        assert_eq!(
+            receiver.send_message(secret(), 3, text_draft("full")),
+            Err(MessagingFfiError::LimitExceeded)
+        );
+        assert_eq!(
+            receiver.import_conversation_envelopes(secret(), batch),
+            Err(MessagingFfiError::LimitExceeded)
+        );
+        assert_eq!(receiver.lock().messaging.envelopes, before);
+        assert_eq!(receiver.lock().messaging.next_sequence, sequence);
+        let mut encoded = Vec::new();
+        let overflow = MessagingState {
+            envelopes: vec![template.clone(); MAX_MESSAGING_BYTES / template.len() + 1],
+            next_sequence: 0,
+        };
+        encode_messaging_state(&mut encoded, &overflow);
+        let mut reader = PersistReader::new(&encoded);
+        assert!(decode_messaging_state(&mut reader).is_err());
+        {
+            let mut state = receiver.lock();
+            state.messaging.envelopes.clear();
+            state.messaging.next_sequence = u64::MAX;
+        }
+        assert_eq!(
+            receiver.send_message(secret(), 3, text_draft("overflow")),
+            Err(MessagingFfiError::LimitExceeded)
+        );
+        assert!(receiver.lock().messaging.envelopes.is_empty());
+        assert_eq!(receiver.lock().messaging.next_sequence, u64::MAX);
+    }
+
 }

@@ -16,6 +16,7 @@ use mini_objects::{
     RetentionClass, StorageDescriptor,
 };
 use mini_store::{Backend, Store, StoreError};
+use zeroize::Zeroize;
 
 const MESSAGE_TYPE: &str = "mininet/private-message/v1";
 const PAYLOAD_VERSION: u8 = 1;
@@ -81,12 +82,12 @@ impl ConversationSecret {
 
     /// Restore a conversation capability from bytes obtained from an
     /// OS-protected local vault.
-    pub fn from_local_vault(route: OpaqueRoute, key_bytes: [u8; 32]) -> Result<Self> {
-        Ok(Self {
-            route,
-            key: AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &key_bytes)
-                .map_err(ObjectError::Crypto)?,
-        })
+    pub fn from_local_vault(route: OpaqueRoute, mut key_bytes: [u8; 32]) -> Result<Self> {
+        let key = AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &key_bytes)
+            .map_err(ObjectError::Crypto);
+        // The by-value array is its own Copy; scrub it on success and error.
+        key_bytes.zeroize();
+        Ok(Self { route, key: key? })
     }
 }
 
