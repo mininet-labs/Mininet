@@ -49,6 +49,19 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Stage the exact final source tree for navigation
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          cargo update -p wasmtime -p wasmtime-wasi
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/mininet-labs/Mininet/41bd8b80a2b61b7fcd5a95c15f2f8e57a3f7c927/docs/audits/launch-pr-readiness-20261014.md \
+            --output docs/audits/launch-pr-readiness-20261014.md
+          rm .github/workflows/resolve-security-lock.yml
+          python3 - <<'PY'
+          import hashlib
+          import pathlib
+          print("NAV_LOCK_SHA256:" + hashlib.sha256(pathlib.Path("Cargo.lock").read_bytes()).hexdigest())
+          PY
       - name: Regenerate integrated repository navigation
         run: python3 tools/mininet_nav.py build
       - name: Emit public generated navigation for exact-byte recovery
