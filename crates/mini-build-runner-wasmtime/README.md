@@ -88,26 +88,25 @@ way D-0069 decided Wasmtime.
 
 ## Dependency governance
 
-`wasmtime`/`wasmtime-wasi` are pinned to an exact patch version
-(`=46.0.1`) in `Cargo.toml` — never bump on autopilot; a version bump is a
-reviewed commit that re-runs the adversarial suite below. (Bumped once
-already, from the original `27.0.0`, before this crate ever merged: the
-`dependency-audit` CI job flagged several open RustSec advisories against
-`wasmtime-wasi` 27.0.0 that bypass `FilePerms` enforcement directly —
-exactly the boundary this crate exists to guarantee — plus a long list of
-Wasmtime-core trap/panic/sandbox-escape issues. `46.0.1` is the first
-version with all of them fixed.) Feature set is trimmed
-(`default-features = false`, `["cranelift", "runtime", "std"]` requested;
-`wasmtime-wasi`'s own `Cargo.toml` additionally forces on
-`component-model`/`async` regardless of what's requested — the actual
-resolved set, checked via `cargo tree -e features`, is `async,
-component-model, cranelift, once_cell, runtime, std,
-wasmtime-jit-icache-coherence, wasmtime-unwinder`, excluding Wasmtime's
-`anyhow`, `backtrace`, `cache`, `gc`/`gc-copying`/`gc-drc`/`gc-null`,
-`wat`, `profiling`, `parallel-compilation`, `pooling-allocator`,
-`demangle`, `addr2line`, `coredump`, `debug-builtins`,
-`component-model-async`, `threads`, `stack-switching`, `debug`,
-`compile-time-builtins`, and `wit-parser` defaults).
+`wasmtime` and `wasmtime-wasi` are pinned together to `=48.0.4`.
+The workspace compiler is pinned to Rust 1.95.0, matching upstream's minimum
+supported compiler for that runtime. This upgrade addresses
+RUSTSEC-2026-0314, -0316, -0321, -0322, -0323, -0324 and -0327 reported
+against 46.0.3. Historical 27.x/46.x remediation is retained in the manifest
+comments; an old patched baseline does not cover later advisories.
+
+Never bump these pins on autopilot: resolve the lockfile with Cargo and run
+the real adversarial suite below. The Wasmtime 48 filesystem API combines
+directory/file permissions as `FsPerms`: workspace mounts remain
+`ReadOnly`, scratch/artifact mounts remain `ReadWrite`, and an absent
+capability still creates no mount. Network admission and the limitation on
+ambient clocks/randomness remain unchanged.
+
+Default features are disabled; the requested Wasmtime features remain
+`cranelift`, `runtime` and `std`. Transitive dependencies can enable
+additional features. Inspect the current graph with
+`cargo tree -p mini-build-runner-wasmtime -e features` rather than treating
+an earlier version's feature inventory as the current resolved graph.
 
 Compiles untrusted Wasm bytes directly inside this isolated process (not
 via a separate trusted precompiler) — Wasmtime's own documentation warns
