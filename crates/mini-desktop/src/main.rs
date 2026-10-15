@@ -36,9 +36,9 @@ use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 #[cfg(all(test, windows))]
 use mini_social::publish_profile;
 use mini_social::{
-    community_members, derive_relationship_pseudonym, followers, following, known_profiles,
+    community_members, followers, following, known_profiles,
     publish_comment, publish_community, publish_media_post, publish_profile_details, publish_wall,
-    resolve_community, resolve_profile, set_follow, set_membership, set_private_follow,
+    resolve_community, resolve_profile, set_follow, set_membership,
     set_reaction, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
     NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
     MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
@@ -1109,33 +1109,11 @@ impl Workspace {
         Ok(())
     }
 
-    /// Same shape as [`Workspace::set_follow_target`], but publishes a
-    /// *private* follow edge (issue #19, D-0538): derives this
-    /// relationship's own pairwise pseudonym via
-    /// [`derive_relationship_pseudonym`] instead of signing with the
-    /// real human root, and follows `target_pseudonym` (the counterpart's
-    /// own relationship pseudonym `Did`, learned out of band — e.g. from a
-    /// [`mini_social::verify_relationship_linkage`] exchange) with
-    /// [`set_private_follow`]. Nothing published by this path ever carries
-    /// the caller's real human-root `Did`.
-    fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let pseudonym = derive_relationship_pseudonym(&identity.root, target_pseudonym)
-            .map_err(|error| error.to_string())?;
-        set_private_follow(
-            &mut self.store,
-            &pseudonym,
-            target_pseudonym,
-            true,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
+    /// Fail closed until the client persists pseudonym/device KEL state and
+    /// authenticates a counterpart's pairwise target through confidential pairing.
+    fn follow_privately(&mut self, _target_pseudonym: &Did) -> Result<(), String> {
+        Err("private follow requires durable pseudonym/device state and authenticated target pairing"
+            .to_string())
     }
 
     fn following_count(&self) -> usize {
@@ -9441,13 +9419,9 @@ shot at dusk",
         std::fs::remove_dir_all(test_root).unwrap();
     }
 
-    /// Real integration test for issue #19 / D-0538: proves
-    /// [`Workspace::follow_privately`] — the actual app-surface call path,
-    /// not just the `mini-social` library primitives it wraps — publishes a
-    /// private follow edge that never carries either party's real
-    /// human-root `Did`.
+    /// The incomplete client identity lifecycle must never publish a FOLLOW.
     #[test]
-    fn follow_privately_never_publishes_the_real_human_root() {
+    fn follow_privately_fails_closed_without_pseudonym_state() {
         use super::{now_ms, DesktopIdentity, Workspace};
         use mini_social::{derive_relationship_pseudonym, following};
         use mini_store::FsBackend;
@@ -9464,7 +9438,6 @@ shot at dusk",
             Controller::incept_device_single_from_seeds(&alice_root_did, &[32; 32], &[33; 32])
                 .unwrap();
         let bob_root = Controller::incept_single_from_seeds(&[40; 32], &[41; 32]).unwrap();
-        let bob_root_did = bob_root.did();
         // Bob's own pseudonym for his relationship with Alice: Alice learns
         // this out of band (a `verify_relationship_linkage` exchange, out of
         // scope for this test), not from the object store.
@@ -9491,23 +9464,22 @@ shot at dusk",
             conversations: Vec::new(),
         };
 
-        workspace
+        let error = workspace
             .follow_privately(&bob_pseudonym_for_alice_did)
-            .unwrap();
-
-        // Alice's own relationship pseudonym for this counterpart is what
-        // actually published the edge.
-        let published = following(&workspace.store, &alice_pseudonym_for_bob_did).unwrap();
-        assert_eq!(published, vec![bob_pseudonym_for_alice_did.clone()]);
-
-        // Alice's real human root never appears as a follower/following
-        // entry anywhere in the store this call touched.
-        let real_root_following = following(&workspace.store, &alice_root_did).unwrap();
-        assert!(real_root_following.is_empty());
-        assert!(!published
-            .iter()
-            .any(|did| did.as_str() == alice_root_did.as_str()
-                || did.as_str() == bob_root_did.as_str()));
+            .unwrap_err();
+        assert!(error.contains("durable pseudonym/device state"));
+        assert_eq!(workspace.sequence, 0);
+        assert!(workspace
+            .store
+            .by_type(&mini_objects::ObjectType::FOLLOW)
+            .unwrap()
+            .is_empty());
+        assert!(following(&workspace.store, &alice_root_did)
+            .unwrap()
+            .is_empty());
+        assert!(following(&workspace.store, &alice_pseudonym_for_bob_did)
+            .unwrap()
+            .is_empty());
 
         std::fs::remove_dir_all(&test_root).unwrap();
     }

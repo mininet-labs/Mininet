@@ -24959,139 +24959,49 @@ performance measurement; independent reviews and owner-opt-in release.
 
 **Supersedes / superseded by:** none. Proposal only; no rule superseded.
 
-### D-0536 — Private, per-relationship social-graph edges via `did-mini`'s existing pairwise pseudonyms (issue #19)  ·  *Shipped*
+### D-0536 — Relationship pseudonym primitives with verified FOLLOW admission · *Proposed*
 
-**Date:** 2026-09-22 · **Refs:** `crates/mini-social/src/private_graph.rs`;
-`did-mini::Controller::incept_pairwise_pseudonym` (SPEC-01 §10, pre-existing);
-`crates/mini-social/src/pairing.rs` (the embedded-KEL offer/acceptance shape
-this reuses); issue #19 ("Privacy-preserving social graph architecture").
+**Date:** 2026-10-15 · **Refs:** issue #19; `crates/mini-social/src/private_graph.rs`.
 
-**Decision:** `mini-social::set_follow` signs a `FOLLOW` object with the
-follower's real human-root `Did` and names the target's real human-root `Did`
-in the payload — the only option that existed before this change, so it was
-also the default for every relationship, including ones neither side meant
-to be legible to a third party. Anyone observing storage/replication traffic
-could read `author_human` and the target `Did` straight off the wire and
-reconstruct the full social graph. `crates/mini-social/src/private_graph.rs`
-adds an alternative that composes `did-mini`'s **already-existing**
-`Controller::incept_pairwise_pseudonym` (SPEC-01 §10, shipped long before
-this issue) — no new cryptography, exactly the "check whether social-graph
-edges can reuse that" instruction issue #19 opened with:
+**Decision:** compose the existing pairwise pseudonym inception primitive.
+`set_private_follow` accepts a caller-persisted pseudonym root KEL and its
+active delegated POST device. Delegation, signature, author binding and
+capability verification complete before any store insertion. The caller must
+persist the evolving pseudonym KEL and device state. Re-incepting the same
+deterministic root and adding a fresh random device on every call would fork
+that root's KEL and is not a valid lifecycle.
 
-1. `derive_relationship_pseudonym(root, counterpart)` derives a distinct,
-   deterministic, unlinkable-looking pseudonym root per counterpart from the
-   caller's own key material (context = a domain-separated hash of the
-   counterpart's `Did`).
-2. `set_private_follow` publishes the `FOLLOW` edge through the existing
-   `set_follow` using only pseudonym `Did`s as author and target — never a
-   real root.
-3. `create_relationship_linkage` / `verify_relationship_linkage` let a root
-   vouch, to one named counterpart only, that a pseudonym `Did` is really it
-   — the same embedded-KEL, offline-verifiable shape `mini-social::pairing`
-   already uses for its offer/acceptance exchange. This linkage is deliberately
-   **never published**; it must be handed directly to the one counterpart it
-   names (e.g. the same private channel pairing already uses, or an
-   encrypted `Payload::Encrypted` object), and `verify_relationship_linkage`
-   refuses to accept it for anyone else, so a leaked or misdirected linkage
-   cannot be repurposed to deanonymize the pseudonym.
+**Privacy boundary:** FOLLOW edges remain public between their pseudonym DIDs.
+Linkage assertions contain plaintext real-root and pseudonym identifiers.
+Anyone holding leaked bytes can read that linkage and verify it by supplying
+the named counterpart DID. The signed counterpart field binds context; it
+provides neither confidentiality nor authentication of the verifier.
+No transport, including an ordinary pairing TCP exchange, is presumed
+confidential by this API. Authenticated confidential target exchange and
+delivery must be provided separately.
 
-**Constitutional impact:** Directive 16 / P1 (voice/value wall) — untouched;
-`mini-social` gained no new dependency edge, no `mini-forge`/`mini-value`
-link. Directive 14 (simplicity is security) — composes an already-reviewed,
-already-shipped primitive (`incept_pairwise_pseudonym`) rather than
-inventing a new pseudonymization scheme; no cryptography invented here.
-Typed-domain rule — `set_private_follow` and `create_relationship_linkage`
-take specific pseudonym/linkage types, never a generic `sign(bytes)`.
-"Identity root" language preserved throughout the module's doc comments;
-this does not touch personhood.
+**Validation:** regression source covers a persisted delegated KEL accepted
+by `mini_objects::verify_provenance`, and root-as-device, foreign,
+undelegated, SIGN-only and revoked signers rejected without FOLLOW writes.
+These changes have not been executed locally; exact-head CI is required.
+No new cryptography, verified two-store sync, external audit or launch claim.
 
-**Implementation status:** shipped. `derive_relationship_pseudonym`,
-`set_private_follow`, `create_relationship_linkage`,
-`verify_relationship_linkage`, and `VerifiedRelationshipLinkage` are public
-from `mini-social`. Three tests prove: (a) the same root deriving pseudonyms
-for two different counterparts gets two distinct, unlinkable `did:mini`
-roots, and re-deriving for the same counterpart recovers the identical
-pseudonym; (b) a `FOLLOW` edge published this way carries only pseudonym
-`Did`s — an observer of the object store sees no real root, and two of one
-party's relationships use distinct pseudonyms so they cannot be merged into
-one graph node; (c) both sides of one relationship still mutually
-authenticate via exchanged linkage proofs, while a linkage scoped to one
-counterpart is rejected by anyone else.
+**Required follow-up:** durable pseudonym/device ownership and recovery;
+authenticated target pairing and confidential linkage delivery; complete
+verified ingestion with KEL carriers across two stores; independent review.
+These blockers keep issue #19 open.
 
-**Failure point:** this hides *which* identity roots sit behind a
-relationship's two pseudonym `Did`s from an object-store/replication
-observer — it does **not** hide that *a* relationship exists between two
-pseudonym `Did`s (the `FOLLOW` object itself is still visible, same as a
-public follow), and it does not hide network-layer metadata (who talks to
-whom, when — out of scope here, same honestly-noted limitation
-`docs/design/storage-fraud-detection.md` already carries for the adjacent
-storage-claim case). Privacy also depends entirely on the linkage proof
-being delivered over a channel a third party cannot read; this module picks
-no such channel — pairing's existing TCP exchange or an encrypted
-`Payload::Encrypted` object are both suitable and left to the caller.
-`mini-social::wall`'s public-wall linkage (`publish_wall_linkage`) remains
-intentionally separate and public — it is for a *voluntary* disclosure, the
-opposite intent from this module.
+### D-0538 — Fail closed in the incomplete desktop private-follow path · *Proposed*
 
-**Required follow-up:** wiring `set_private_follow`/the linkage exchange
-into `mini-social::pairing`'s existing offer/acceptance flow so pairing can
-optionally establish a private relationship end-to-end in one exchange
-(today the caller must derive pseudonyms and exchange linkages themselves);
-extending the same pattern to wall membership/community-join edges if the
-founder wants those private by default too; deciding whether/how encrypted
-`Payload::Encrypted` linkage delivery over `mini-sync` should be a first-
-class helper rather than left to the caller.
+**Date:** 2026-10-15 · **Refs:** D-0536; `Workspace::follow_privately`.
 
-**Supersedes / superseded by:** none. Composes SPEC-01 §10's pre-existing
-`incept_pairwise_pseudonym` and `mini-social::pairing`'s embedded-KEL
-verification shape; does not change either.
+**Decision:** the ordinary connection-card private-follow UI stays disabled.
+An ordinary root DID card does not authenticate a pairwise target.
+`Workspace::follow_privately` returns an explicit error without deriving
+a pseudonym, incrementing its sequence or publishing an object until durable
+pseudonym/device state and authenticated target pairing are implemented.
+A regression source checks the error, unchanged sequence and empty FOLLOW
+indexes. No local test execution is claimed.
 
-### D-0538 — Wire private-follow primitives into a real `mini-desktop` caller (roadmap #19 follow-up)  ·  *Shipped*
-
-**Date:** 2026-09-24 · **Refs:** `crates/mini-desktop/src/main.rs`
-(`Workspace::follow_privately`); `crates/mini-social/src/private_graph.rs`
-(unchanged, the primitives being wired); D-0536 (this wiring's own
-prerequisite); issue #19.
-
-**Decision:** D-0536 shipped `derive_relationship_pseudonym`/
-`set_private_follow`/`create_relationship_linkage`/
-`verify_relationship_linkage`, fully tested at the `mini-social` library
-level, but nothing in the workspace actually called them — a user had no
-way to create a private follow through any existing app code path. Closes
-that gap:
-
-1. `Workspace::follow_privately(&mut self, target: &Did) -> Result<(), String>`
-   — same shape as the existing `Workspace::set_follow_target`, but derives
-   this relationship's pseudonym via `derive_relationship_pseudonym` and
-   publishes the FOLLOW edge via `set_private_follow`, so the real human
-   root of either party never appears on the published edge.
-2. A real UI call site: the "Add from a connection card" panel now offers
-   "Add peer and follow" (unchanged, ordinary follow) alongside a new
-   "Add peer and follow privately" button that parses the card's `did` and
-   calls `follow_privately` through the same connection-card flow, not a
-   speculative/unused code path.
-3. Integration-level test (`follow_privately_never_publishes_the_real_human_root`)
-   builds a real `Workspace` over an `FsBackend` store with two real
-   `DesktopIdentity`s and asserts, through this exact call site, that the
-   published FOLLOW edge contains only pseudonym `Did`s.
-
-**Constitutional impact:** none new beyond D-0536's own (Directive 14 —
-composition, not invention; Directive 16/P1 voice/value wall untouched).
-
-**Implementation status:** shipped. `cargo test -p mini-desktop
-follow_privately` passes; `cargo fmt --all`, `cargo clippy --all-targets
---all-features --workspace -- -D warnings`, `cargo test --workspace
---all-features`, and `python3 tools/mininet_nav.py build` all pass.
-
-**Failure point:** none new — `create_relationship_linkage`/
-`verify_relationship_linkage` (the mutual-authentication half of D-0536)
-still has no real `mini-desktop` caller; only the publish half
-(`set_private_follow`) is wired here. A private follow is fully
-functional and unlinkable today; proving *which* real root a pseudonym
-belongs to (the linkage half) remains library-only.
-
-**Required follow-up:** wire `create_relationship_linkage`/
-`verify_relationship_linkage` into a real mutual-authentication flow
-(e.g. exchanged during pairing) when that UI work is prioritized.
-
-**Supersedes / superseded by:** none. Extends D-0536.
+**Supersedes:** the unvalidated private-follow publishing and leak-resistance
+claims in earlier revisions of this unmerged PR. No production activation.

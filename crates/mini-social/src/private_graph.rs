@@ -1,69 +1,17 @@
-//! Private, per-relationship social graph edges (issue #19; D-0529).
+//! Relationship pseudonyms and signed plaintext linkage assertions (issue #19; D-0536).
 //!
-//! ## The problem
+//! Pseudonyms compose the existing pairwise inception primitive. A caller must
+//! persist each pseudonym root's evolving KEL and its delegated signing device;
+//! deriving the same inception again does not recover later delegation events.
+//! This module provides no durable identity lifecycle or authenticated pairing.
 //!
-//! [`crate::set_follow`] signs a `FOLLOW` object with the follower's own
-//! human-root [`Did`], naming the target's human-root `Did` in the payload.
-//! That is exactly right for a *voluntarily public* follow (a fan following
-//! a public figure's wall, say) but it is the only option today, so it is
-//! also what any relationship gets by default — including one where neither
-//! side ever meant their connection to be legible to a third party. Anyone
-//! who can see storage or replication traffic (a relay, a witness, a nosy
-//! peer) can read every `FOLLOW` object's `author_human` and target `Did`
-//! directly off the wire and reconstruct the full social graph, because both
-//! ends are the same stable, root-linked handle used everywhere else that
-//! identity root participates (posts, votes, payments).
-//!
-//! ## The fix: reuse `did-mini`'s pairwise pseudonyms, one per relationship
-//!
-//! `did-mini` already solves exactly this problem for identity in general
-//! (SPEC-01 §10): [`Controller::incept_pairwise_pseudonym`] deterministically
-//! derives an independent, unlinkable-looking `did:mini` root from a caller's
-//! own key material plus an arbitrary context. This module composes that
-//! existing primitive — it invents no new cryptography — into a
-//! relationship-scoped identity:
-//!
-//! - [`derive_relationship_pseudonym`] derives, from a human-root
-//!   [`Controller`] and a counterpart's `Did`, the *same* independent root
-//!   every time it is called with that counterpart again, but a
-//!   **different, unlinkable** root for every other counterpart or context
-//!   (proven by [`tests::different_counterparts_yield_unlinkable_pseudonyms`]).
-//! - A follow (or wall-membership) edge is then published with
-//!   [`crate::set_follow`] using the pseudonym's own `Did` as both author and
-//!   target, via [`set_private_follow`] — never the real human-root. An
-//!   observer of storage/replication traffic sees two `did:mini` roots they
-//!   cannot tell apart from any other independent identity, and cannot link
-//!   to either party's real root or to any *other* relationship either party
-//!   maintains, because each relationship gets its own derived root.
-//! - The two parties still need to recognize *each other* across that
-//!   pseudonymity. [`create_relationship_linkage`] /
-//!   [`verify_relationship_linkage`] let a root vouch, to one specific
-//!   counterpart only, that a given pseudonym `Did` is really it — the same
-//!   embedded-KEL, offline-verifiable shape [`crate::pairing`] already uses
-//!   for its offer/acceptance exchange. Critically, **this linkage is never
-//!   published to the object store**: it is handed directly to the one
-//!   counterpart it names (e.g. over the same private channel used for
-//!   pairing, or inside an encrypted `Payload::Encrypted` message), so it
-//!   never becomes something a third-party observer can read. The
-//!   counterpart who does hold it can authenticate the relationship
-//!   (`verified.root == the human they already trust`); nobody else can.
-//!
-//! ## What this does and does not hide
-//!
-//! - **Hides:** which stable identity roots participate in *which*
-//!   relationship, from anyone who only observes storage/replication
-//!   traffic or the object store itself. Two relationships from the same
-//!   root are structurally unlinkable to each other by that observer.
-//! - **Does not hide:** the existence of *a* relationship between two
-//!   pseudonym `Did`s (a `FOLLOW` object between them is still visible, same
-//!   as any public follow) — only which real identities sit behind those
-//!   pseudonyms. It also does not hide network-layer metadata (who talks to
-//!   whom, when) — that is out of scope for this module, same limitation
-//!   `docs/design/storage-fraud-detection.md` already notes honestly for the
-//!   adjacent storage-claim case. And it depends on the linkage proof being
-//!   delivered over a channel a third party cannot read; this module does
-//!   not choose that channel (pairing's TCP exchange or an encrypted
-//!   `Payload::Encrypted` object are both suitable, and out of scope here).
+//! Private FOLLOW objects carry pseudonym DIDs, but remain public graph edges.
+//! Signers must be actually delegated POST devices of the supplied pseudonym KEL.
+//! Linkage assertions are plaintext: anyone holding their bytes can learn the
+//! real-root/pseudonym relationship. Counterpart scoping binds signed context;
+//! it provides neither confidentiality nor proof of the verifier's identity.
+//! Authenticated confidential delivery, traffic analysis protection and verified
+//! two-store synchronization remain separate integration requirements.
 
 use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};
 use mini_crypto::{Signature, SignatureSuite};
@@ -107,33 +55,37 @@ pub fn derive_relationship_pseudonym(root: &Controller, counterpart: &Did) -> Re
         .map_err(SocialError::from)
 }
 
-/// Publish a private follow (or unfollow) edge between two relationship
-/// pseudonyms. `pseudonym` must be a [`Controller`] returned by
-/// [`derive_relationship_pseudonym`] (or an equivalent single-key root the
-/// caller otherwise controls) acting as its own signing device, and
-/// `target_pseudonym` the counterpart's own relationship pseudonym `Did`
-/// (learned from a [`VerifiedRelationshipLinkage`] or exchanged directly).
-/// This never takes a real human-root `Did` — that is the whole point: the
-/// object this writes carries only pseudonym `Did`s, never a stable,
-/// root-linked handle.
+/// Publish a FOLLOW using caller-persisted pseudonym identity state.
+///
+/// `pseudonym_root` must be the current KEL of the relationship pseudonym.
+/// `device` must be its active POST delegate. Persist both identities and KEL
+/// updates outside this function; never re-incept the same pseudonym and create
+/// a fresh delegation history on each call. The target must have been
+/// authenticated separately. All provenance checks precede store mutation.
+#[allow(clippy::too_many_arguments)]
 pub fn set_private_follow<B: mini_store::Backend>(
     store: &mut mini_store::Store<B>,
-    pseudonym: &Controller,
+    pseudonym_root: &Kel,
+    device: &Controller,
     target_pseudonym: &Did,
     follow: bool,
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<mini_objects::Object> {
-    let me = pseudonym.did();
-    crate::set_follow(
-        store,
-        &me,
-        pseudonym,
-        target_pseudonym,
-        follow,
-        timestamp_ms,
-        sequence,
-    )
+    let capabilities = verify_delegation(pseudonym_root, &device.kel())?;
+    if !capabilities.contains(Capabilities::POST) {
+        return Err(SocialError::PairingCapabilityMissing);
+    }
+    let mut payload = vec![u8::from(follow)];
+    put_str(&mut payload, target_pseudonym.as_str());
+    let object = mini_objects::ObjectBuilder::new(mini_objects::ObjectType::FOLLOW)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(mini_objects::Payload::Public(payload))
+        .sign(&pseudonym_root.did(), device)?;
+    mini_objects::verify_provenance(&object, pseudonym_root, &device.kel())?;
+    store.insert(&object)?;
+    Ok(object)
 }
 
 /// A [`create_relationship_linkage`] proof, authenticated by
@@ -144,26 +96,19 @@ pub struct VerifiedRelationshipLinkage {
     pub root: Did,
     /// The relationship pseudonym `Did` the root is vouching for.
     pub pseudonym: Did,
-    /// The one counterpart this linkage is scoped to — a linkage received
-    /// by anyone else is rejected by [`verify_relationship_linkage`], so a
-    /// leaked linkage cannot be repurposed to deanonymize the pseudonym to
-    /// a party it was never meant for.
+    /// Signed counterpart context checked against a caller-supplied DID.
+    /// This does not authenticate the verifier or conceal the plaintext
+    /// root/pseudonym linkage from anyone who possesses its bytes.
     pub counterpart: Did,
     pub issued_at_ms: u64,
 }
 
-/// Build a signed, offline-verifiable statement that `pseudonym` (normally
-/// the output of [`derive_relationship_pseudonym`] for `counterpart`) really
-/// is controlled by the human-root behind `root_kel`/`device` — the same
-/// embedded-KEL shape [`crate::pairing::create_pairing_offer`] uses, so a
-/// scanner needs nothing but these bytes to verify it fully offline.
+/// Build a signed plaintext root/pseudonym assertion with embedded KELs.
 ///
-/// **This must never be published to the object store or any other
-/// broadcast surface.** It is meaningful privacy only while it stays
-/// confined to the one `counterpart` it names — hand it over an already
-/// private/authenticated channel (e.g. the same LAN pairing exchange, or an
-/// encrypted [`mini_objects::Payload::Encrypted`] message addressed to that
-/// counterpart alone).
+/// Never publish this to the object store or a broadcast surface. Anyone
+/// holding these bytes can recover the root/pseudonym linkage. Delivery must
+/// provide separately authenticated confidentiality; this module implements
+/// neither delivery nor recipient authentication.
 pub fn create_relationship_linkage(
     root_kel: &Kel,
     device: &Controller,
@@ -193,14 +138,11 @@ pub fn create_relationship_linkage(
     Ok(out)
 }
 
-/// Authenticate raw linkage bytes (as received directly from the
-/// counterpart it names — never from the object store). Verifies the
-/// embedded delegation chain and detached signature exactly like
-/// [`crate::pairing::verify_pairing_offer`], and additionally rejects the
-/// linkage outright unless it was scoped to `expected_counterpart`: a
-/// linkage handed to the wrong party, whether by mistake or by a relay
-/// trying to correlate it, verifies as cryptographically sound but is
-/// refused here because it was never meant for that recipient.
+/// Verify delegation, signature and signed counterpart context.
+///
+/// `expected_counterpart` is supplied by the caller, not proof that the caller
+/// controls that identity. A leaked assertion remains readable and verifiable
+/// by anyone who supplies its named counterpart DID.
 pub fn verify_relationship_linkage(
     bytes: &[u8],
     expected_counterpart: &Did,
@@ -354,62 +296,107 @@ mod tests {
         assert_eq!(rederived.did().as_str(), pseudonym_for_bob.did().as_str());
     }
 
-    /// A third-party observer of the object store sees only pseudonym
-    /// `Did`s on a `FOLLOW` edge — never Alice's or Bob's real root — and
-    /// two of Alice's relationships remain unlinkable to each other from
-    /// that view alone.
+    fn delegate_pseudonym(pseudonym: &mut Controller, seed: u8) -> Controller {
+        let device = Controller::incept_device_single_from_seeds(
+            &pseudonym.did(),
+            &[seed; 32],
+            &[seed.wrapping_add(1); 32],
+        )
+        .unwrap();
+        pseudonym
+            .delegate_device(&device.did(), Capabilities::POST)
+            .unwrap();
+        device
+    }
+
     #[test]
-    fn private_follow_never_reveals_real_roots_to_an_observer() {
+    fn private_follow_accepts_persisted_delegated_provenance() {
         let mut store = Store::new(MemoryBackend::default());
         let alice = root(10);
         let bob = root(11);
-        let carol = root(12);
-
-        let alice_for_bob = derive_relationship_pseudonym(&alice, &bob.did()).unwrap();
-        let bob_for_alice = derive_relationship_pseudonym(&bob, &alice.did()).unwrap();
-        let alice_for_carol = derive_relationship_pseudonym(&alice, &carol.did()).unwrap();
-
-        set_private_follow(
+        let mut pseudonym = derive_relationship_pseudonym(&alice, &bob.did()).unwrap();
+        let target = derive_relationship_pseudonym(&bob, &alice.did()).unwrap();
+        let device = delegate_pseudonym(&mut pseudonym, 40);
+        // Reload the caller's current KEL, including its delegation event.
+        let persisted_kel = Kel::from_bytes(&pseudonym.kel().to_bytes()).unwrap();
+        let object = set_private_follow(
             &mut store,
-            &alice_for_bob,
-            &bob_for_alice.did(),
+            &persisted_kel,
+            &device,
+            &target.did(),
             true,
             1_000,
             0,
         )
         .unwrap();
-        set_private_follow(
-            &mut store,
-            &alice_for_carol,
-            // Carol need not even be online for Alice to publish this edge;
-            // only the pseudonym Did matters here.
-            &derive_relationship_pseudonym(&carol, &alice.did())
-                .unwrap()
-                .did(),
-            true,
-            1_000,
-            0,
-        )
-        .unwrap();
-
-        // The observer's whole view is: what does each pseudonym follow?
-        let bob_side = following(&store, &alice_for_bob.did()).unwrap();
-        assert_eq!(bob_side, vec![bob_for_alice.did()]);
-        assert!(
-            !bob_side
-                .iter()
-                .any(|d| d.as_str() == alice.did().as_str() || d.as_str() == bob.did().as_str()),
-            "no real root ever appears on a private follow edge"
+        mini_objects::verify_provenance(&object, &persisted_kel, &device.kel()).unwrap();
+        assert_eq!(object.author_human, pseudonym.did());
+        assert_eq!(object.author_device, device.did());
+        assert_ne!(object.author_human, alice.did());
+        assert_eq!(
+            following(&store, &pseudonym.did()).unwrap(),
+            vec![target.did()]
         );
+        assert_eq!(
+            followers(&store, &target.did()).unwrap(),
+            vec![pseudonym.did()]
+        );
+    }
 
-        // The two relationships used unmistakably different pseudonyms for
-        // Alice, so an observer cannot merge them into one social-graph node.
-        assert_ne!(alice_for_bob.did().as_str(), alice_for_carol.did().as_str());
-
-        // followers() over the pseudonym graph works exactly like the
-        // public graph, just keyed by pseudonym instead of real root.
-        let bob_followers = followers(&store, &bob_for_alice.did()).unwrap();
-        assert_eq!(bob_followers, vec![alice_for_bob.did()]);
+    #[test]
+    fn invalid_private_follow_signers_leave_store_unchanged() {
+        let mut store = Store::new(MemoryBackend::default());
+        let (mut pseudonym, valid_device) = delegated_pair(50);
+        let (_, foreign_device) = delegated_pair(60);
+        let target = root(70).did();
+        let undelegated = Controller::incept_device_single_from_seeds(
+            &pseudonym.did(),
+            &[80; 32],
+            &[81; 32],
+        )
+        .unwrap();
+        let sign_only = Controller::incept_device_single_from_seeds(
+            &pseudonym.did(),
+            &[82; 32],
+            &[83; 32],
+        )
+        .unwrap();
+        pseudonym
+            .delegate_device(&sign_only.did(), Capabilities::SIGN)
+            .unwrap();
+        // Root-as-device, foreign, undelegated and insufficient capability.
+        for device in [&pseudonym, &foreign_device, &undelegated, &sign_only] {
+            assert!(set_private_follow(
+                &mut store,
+                &pseudonym.kel(),
+                device,
+                &target,
+                true,
+                1_000,
+                0,
+            )
+            .is_err());
+            assert!(store
+                .by_type(&mini_objects::ObjectType::FOLLOW)
+                .unwrap()
+                .is_empty());
+            assert!(store.by_author(&pseudonym.did()).unwrap().is_empty());
+        }
+        pseudonym.revoke_device(&valid_device.did()).unwrap();
+        assert!(set_private_follow(
+            &mut store,
+            &pseudonym.kel(),
+            &valid_device,
+            &target,
+            true,
+            1_000,
+            0,
+        )
+        .is_err());
+        assert!(store
+            .by_type(&mini_objects::ObjectType::FOLLOW)
+            .unwrap()
+            .is_empty());
     }
 
     /// Both sides of one relationship can still mutually authenticate: Bob
@@ -449,9 +436,10 @@ mod tests {
         let verified_bob = verify_relationship_linkage(&bob_linkage, &alice.did()).unwrap();
         assert_eq!(verified_bob.root.as_str(), bob.did().as_str());
 
-        // A linkage scoped to Bob is refused by anyone else it might leak
-        // to — e.g. Carol, who was never the intended recipient.
+        // A mismatched expected context is rejected; this is not confidentiality.
         let carol = root(22);
         assert!(verify_relationship_linkage(&alice_linkage, &carol.did()).is_err());
+        // Any holder of leaked bytes can supply Bob's public DID and verify.
+        assert!(verify_relationship_linkage(&alice_linkage, &bob.did()).is_ok());
     }
 }
