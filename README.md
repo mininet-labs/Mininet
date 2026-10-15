@@ -482,7 +482,7 @@ for what's activated, staged, or founder-only),
 constitutional legal position — voluntary participation, no universal
 representative, individual legal responsibility, no protocol ownership),
 [`docs/android-os/`](docs/android-os/) (unreviewed P3 feasibility spike:
-preinstalling `app/android` as a priv-app on a candidate hardened Android
+preinstalling `app/android` as an unprivileged system app on a candidate hardened Android
 OS fork — see [`docs/mobile/`](docs/mobile/) for the accepted mobile-OS
 roadmap this spike runs alongside, not ahead of).
 Find anything offline: `python tools/mininet_nav.py build` (see
