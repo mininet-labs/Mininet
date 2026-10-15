@@ -772,6 +772,22 @@ class BootstrapOperatingProfileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = copy_fixture(Path(temp) / "candidate")
             state_path = root / CHECKER.BOOTSTRAP_STATE_PATH
+            # Explicit historical fixture: current main uses the successor profile.
+            state_path.write_text(json.dumps({
+                "$schema": "./bootstrap-operating-state.schema.json",
+                "schema_version": 1, "profile_id": "founder-guarded-github-exception-v1",
+                "decision_ref": "D-0083", "status": "active",
+                "effective_at": "2026-07-12T21:40:00Z",
+                "expires_at": "2026-10-12T23:59:59Z",
+                "independent_non_founder_human_maintainers": 0,
+                "production_release_candidate": False, "forge_canonical": False,
+                "last_verified_at": "2026-07-12T21:40:00Z", "superseded_by": None,
+            }), encoding="utf-8")
+            (root / "governance/policy.yml").write_text(
+                "normal_minimum_independent_human_approvals: 2\n"
+                "authority_decision: D-0083\nminimum_required_human_approvals: 0\n",
+                encoding="utf-8",
+            )
             if mutate:
                 data = json.loads(state_path.read_text(encoding="utf-8"))
                 mutate(data)
