@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Beta MINI Account Registration payload",
+  "description": "Semantic schema for mininet.beta/account/v1. The canonical Rust parser re-derives account_id from beta_epoch + signed owner DID + nonce; this schema is documentation/interchange, not a substitute for that check.",
+  "type": "object",
+  "required": ["beta_epoch", "nonce", "account_id"],
+  "properties": {
+    "beta_epoch": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "nonce": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "account_id": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+  },
+  "additionalProperties": false
+}
