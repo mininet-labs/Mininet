@@ -46,9 +46,10 @@ GrapheneOS feasibility spike, not a shipped operating system.
 | #334 | `60554aa03c14` | Mergeable. Five historical workflows succeeded; includes #342 branch merge. Fresh security/governance checks and gate-by-gate integration review remain necessary. |
 
 No AI review above supplies approval weight. Keep technical review distinct from
-human integration responsibility. Canonical document 52 supersedes bootstrap
-calendar/approval procedure while preserving substantive protections, external
-review evidence and the irreversible Go-Live boundary.
+human integration responsibility. D-0515 registers document 52 administratively;
+it does not ratify section 5's anonymous-audit/A1 override. That gate-closure
+question remains explicitly unresolved. Do not infer substantive authorization
+from the document's numbering, index entry, or self-activation text.
 
 ## Changes produced by this review
 
@@ -62,19 +63,20 @@ review evidence and the irreversible Go-Live boundary.
 - The issue-201 work lease is proposed closed because #333 already merged;
   its history is preserved. This does not close issue #201 or hardware acceptance.
 
-## Current shared CI blockers
+## Baseline failures observed before integration
 
 1. Wasmtime and wasmtime-wasi 46.0.3: RUSTSEC-2026-0314, -0316, -0321,
    -0322, -0323, -0324 and -0327. Upgrade both exact pins together to at least
    48.0.4 in the 48.x line (or 49.0.2+), regenerate Cargo.lock, and run runner
    adversarial tests plus dependency-deny. Do not suppress these advisories.
-2. Governance unit tests still apply D-0083's October-12 sunset although
-   canonical document 52 supersedes that calendar process and directs a
-   machine-readable Pre-Go-Live replacement. Update enforcement coherently;
-   never replace the failure with an arbitrary later date or disable checks.
-3. Work claim #201 remains active in main despite merged #333 and an expired
-   September-25 lease. Close the implementation lease, preserving open substantive
-   hardware and external-review work.
+2. The old governance checker applied D-0083's October-12 sunset. The proposed
+   operating-profile migration was implemented in #367 and integrated on
+   October 15 under the user's explicit merge instruction. This records that
+   limited procedural integration; it does not settle document 52 section 5,
+   close A1, or authorize treating AI/founder review as external audit.
+3. The stale issue-201 implementation lease is resolved by the registry cleanup
+   in this proposal and merged #367. Issue #201 and its substantive hardware/
+   external-review acceptance requirements remain open.
 
 ## Ordered path toward integration
 
@@ -140,3 +142,20 @@ The workspace restart remains pending/offline, so coordinated Wasmtime
 navigation regeneration and local Kotlin acceptance are not completed.
 Continue with those tasks once execution becomes available, retaining the
 explicit audit/hardware/activation gates.
+
+## October 15 integration update
+
+The user explicitly instructed merging mergeable proposals. #367 was merged as
+`1e8e1563d2358c27a1748b0c57de1dc155828659` after its required checks and
+platform/workspace jobs passed. The shared Wasmtime advisory failure was
+recorded, not suppressed; it remains engineering work. This merge installs the
+scoped operating-profile implementation and stale-lease cleanup. D-0515's
+unresolved section-5/A1 gate-closure issue is not decided by that integration.
+
+GitHub's strict up-to-date rule requires fresh checks on the new main. Ready
+feature heads are being assembled into one integration candidate, preserving
+original ancestry and reducing duplicated serial validation. Known private-graph
+blockers (#363) and separately unreviewed wire/OS/Beta changes are excluded.
+#368 prepares the coordinated Wasmtime 48.0.4/Rust 1.95 upgrade; #369 adds a
+deterministic witness-lock lifetime regression and fix. Both remain proposals
+until their required evidence passes.
