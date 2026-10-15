@@ -24,10 +24,10 @@ own naming; until then it stays here, clearly labeled as unadopted.
 Ship Mininet as a preinstalled, preconfigured system app on a
 privacy/security-hardened Android OS, rather than as a normal Play
 Store-style install. "Preinstalled" here specifically means: the existing
-[`app/android`](../../app/android) app, built as a **privileged system app**
-(`priv-app`) baked into the OS image, auto-granted the runtime permissions it
-needs, and optionally auto-started, instead of a user having to find and
-sideload it.
+[`app/android`](../../app/android) app, built as an **unprivileged system app**
+baked into the OS image, with revocable default Bluetooth runtime grants.
+M09 retains the ordinary app sandbox; platform privileges require the separate
+M10 design and review.
 
 This is deliberately scoped as **OS integration of the existing app**, not a
 new app. `app/android` and `crates/mini-ffi` do not change; only where and how
@@ -68,18 +68,14 @@ the two is chosen — only `BUILD.md`'s manifest URL changes.
 
 ## What "integration" means concretely
 
-1. **Priv-app install, not user install.** `app/android`'s APK is added as a
-   product package in the OS build (`PRODUCT_PACKAGES`) and placed under
-   `/system/priv-app/Mininet/` in the resulting image, the same install
-   class as the OS's own Settings or Dialer app — not `/data/app` where a
-   normal user-installed APK lives.
-2. **Pre-granted runtime permissions.** A `privapp-permissions` allowlist
-   entry (Android requires every priv-app's sensitive permissions to be
-   explicitly allowlisted by the OS build, or the app silently loses them)
-   plus a `default-permissions` grant so Bluetooth/mesh access does not
-   require a first-run permission dialog — see
-   [`os/grapheneos-overlay`](../../os/grapheneos-overlay) for the exact
-   XML.
+1. **Unprivileged preinstallation.** The APK is included through
+   `PRODUCT_PACKAGES` under `/system/app/Mininet/`, with no privileged
+   permissions, platform shared UID, or extra SELinux domain.
+2. **Revocable runtime defaults.** The `default-permissions` XML requests
+   Bluetooth runtime grants with `fixed="false"`. These are dangerous
+   runtime permissions, not signature/privileged permissions. There is no
+   privapp allowlist. Verify actual grants and user revocation on the
+   selected OS; preinstallation alone does not prove they were applied.
 3. **No other OS behavior changes yet.** This design does *not* move any of
    Mininet's logic into `system_server`, does not add a new Binder service,
    and does not touch boot (`init.rc`). Those are real future steps (see
@@ -97,9 +93,8 @@ os/grapheneos-overlay/
   local_manifest/mininet.xml         <- repo-tool local manifest snippet
   device/mininet/os_overlay/
     mininet_overlay.mk               <- product makefile: adds Mininet as PRODUCT_PACKAGES
-    Android.bp                       <- imports the separately Gradle-built APK as a priv-app module
+    Android.bp                       <- imports the separately Gradle-built APK as an unprivileged system-app module
     Mininet.apk                      <- NOT committed; built locally per BUILD.md step 4
-    etc/permissions/privapp-permissions-org.mininet.app.xml
     etc/default-permissions/default-permissions-org.mininet.app.xml
 ```
 
@@ -111,17 +106,17 @@ local-manifest mechanism, on a separate Linux build machine, per `BUILD.md`.
 
 ## Threat-model notes
 
-- Priv-app status is itself a trust escalation: a priv-app can be granted
-  permissions a normal app cannot, without a runtime prompt. The
-  allowlist in this overlay grants exactly the permissions
-  `app/android`'s own `AndroidManifest.xml` already declares
-  (`BLUETOOTH_SCAN`/`ADVERTISE`/`CONNECT`, `INTERNET`) — nothing broader.
-  Any future permission added to the app must be a conscious, reviewed
-  addition to both files, not just the manifest.
+- M09 uses ordinary app permissions and sandboxing. Default Bluetooth
+  grants remain revocable; verify denial and revocation behavior on hardware.
+  Any future platform privilege requires M10 review and justification.
+- The initial OS build signs this APK with a development certificate.
+  Offline release signing must explicitly replace that certificate in the
+  target-files archive, then verify the final APK and AVB artifacts. No
+  release key is selected or entrusted to Soong by this overlay.
 - This does not change Mininet's own cryptographic trust model
   (`did-mini`, `RootCore`, KEL history) at all — it only changes how the
-  APK reaches the device and what permission prompts the user sees (none,
-  for the allowlisted set) on first boot.
+  APK reaches the device and the initial runtime permission defaults. It does not establish mesh,
+  custody/recovery, or release readiness.
 
 ## Deliberately out of scope (future work, not this change)
 

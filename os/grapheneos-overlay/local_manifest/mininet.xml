@@ -9,7 +9,7 @@
   GrapheneOS source checkout, then `repo sync device/mininet/mininet`.
 
   `revision="main"` below is a placeholder only -- do not sync it as-is.
-  A privileged app compiled and signed into an OS image must be built from
+  A preinstalled app compiled and signed into an OS image must be built from
   an immutable, reviewed revision, never a moving branch tip (otherwise
   `repo sync` on a rebuild silently pulls in whatever `main` has become).
   docs/android-os/BUILD.md step 2 overrides this attribute with a specific

@@ -1,4 +1,4 @@
-# Product overlay: adds Mininet as a preinstalled priv-app.
+# Product overlay: adds Mininet as a preinstalled unprivileged system app.
 #
 # `inherit-product` this file from your device's device.mk (see
 # docs/android-os/BUILD.md step 3). Depends on:
@@ -15,5 +15,4 @@ PRODUCT_PACKAGES += \
     Mininet
 
 PRODUCT_COPY_FILES += \
-    device/mininet/mininet/os/grapheneos-overlay/device/mininet/os_overlay/etc/permissions/privapp-permissions-org.mininet.app.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/privapp-permissions-org.mininet.app.xml \
     device/mininet/mininet/os/grapheneos-overlay/device/mininet/os_overlay/etc/default-permissions/default-permissions-org.mininet.app.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/default-permissions/default-permissions-org.mininet.app.xml

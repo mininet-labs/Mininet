@@ -39,7 +39,7 @@ From the root of your GrapheneOS source checkout (the directory containing
 `.repo/`):
 
 First, pick the exact commit of this repository you have reviewed and want
-baked into the image — **never `main`**: `main` moves, and a priv-app
+baked into the image — **never `main`**: `main` moves, and a preinstalled app
 compiled and signed into an OS image from a moving branch can neither be
 reproduced nor audited later (a later `repo sync` would silently pull in
 whatever `main` has become by then, and the checked-in manifest's own
@@ -87,8 +87,8 @@ overlay's package list:
 $(call inherit-product, device/mininet/mininet/os/grapheneos-overlay/device/mininet/os_overlay/mininet_overlay.mk)
 ```
 
-This adds `Mininet` to `PRODUCT_PACKAGES` as a priv-app (imported from a
-prebuilt APK — see step 4), and installs the permission allowlist files
+This adds `Mininet` to `PRODUCT_PACKAGES` as an unprivileged system app (imported from a
+prebuilt APK — see step 4), and installs the revocable default-permission file
 from that same overlay directory.
 
 ## 4. Build the APK, then the OS image
@@ -97,44 +97,61 @@ AOSP's Soong build system does not build Gradle projects directly, so
 `app/android` is still built with Gradle first, exactly as for a normal
 non-OS install, and the resulting APK is copied in as a prebuilt:
 
+Install JDK 17, Gradle 9.5.0, and the standalone Android SDK command-line
+tools first, as specified in [ANDROID_FOUNDATION.md](../mobile/ANDROID_FOUNDATION.md).
+AOSP's own bundled Java/tools do not supply these app-build prerequisites.
+From the AOSP checkout root, in a shell dedicated to the APK build:
+
 ```bash
-# From device/mininet/mininet (this repo, now inside the AOSP tree):
-cd device/mininet/mininet/app/android
+MININET_AOSP_ROOT="$PWD"
+export JAVA_HOME=/absolute/path/to/jdk-17
+export ANDROID_HOME=/absolute/path/to/android-sdk
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+sdkmanager --licenses
+sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+java -version
+gradle --version # must report 9.5.0 and JVM 17
 
-# mini-ffi's native library still needs cross-compiling for
-# arm64-v8a/x86_64 first, same as any normal build of this app.
+cd "$MININET_AOSP_ROOT/device/mininet/mininet/app/android"
 rustup target add aarch64-linux-android x86_64-linux-android
-command -v cargo-ndk >/dev/null || cargo install cargo-ndk --version 4.1.2 --locked
+cargo install cargo-ndk --version 4.1.2 --locked
 ./scripts/build-rust.sh release
-
-# app/android has no Gradle wrapper committed; use an installed Gradle
-# 9.5.0, the same way android-ci.yml and ANDROID_FOUNDATION.md do.
 gradle :app:assembleRelease
 cp app/build/outputs/apk/release/app-release-unsigned.apk \
    ../../os/grapheneos-overlay/device/mininet/os_overlay/Mininet.apk
+```
 
-# Back to the AOSP tree root:
-cd -
+Use a fresh shell for the OS build so the APK's JDK/PATH overrides do not
+replace the OS branch's toolchain. Return to the AOSP checkout root:
+
+```bash
 source build/envsetup.sh
-lunch <device_target>-user   # e.g. shiba-user for a Pixel 8; see GrapheneOS docs
+lunch <product>-<release_config>-user
+# Example only: shiba-cur-user, if the selected OS branch exposes it.
+# Use that branch's documented lunch choices; the release config is required.
 m target-files-package
 ```
 
-Watch the build log for `Mininet` — confirm it gets imported and installed
-to `system/priv-app/Mininet/`. `android_app_import`'s `presigned: false`
-(set in this overlay's `Android.bp`) means the OS build's own release key
-re-signs the APK during `m target-files-package` — you do not need to sign
-`Mininet.apk` yourself before this step, only build it.
+Confirm Mininet is installed under `system/app/Mininet/`, without
+privileged permissions or shared platform identity. This initial build uses
+the explicit development `testkey` certificate from `Android.bp`.
+It is not a release-signed artifact. Preserve the target-files archive for
+the separate offline release signing stage below.
 
 ## 5. Sign, flash, and verify
 
 Follow GrapheneOS's own signing and flashing instructions
 (https://grapheneos.org/build#signing-builds and
 https://grapheneos.org/install/cli) exactly — this overlay does not change
-GrapheneOS's release/verified-boot signing process at all. After flashing:
+GrapheneOS's release/verified-boot signing process. Configure the offline
+signing stage to replace Mininet's development certificate with the intended
+release APK certificate; verify the final APK signer and AVB chain before
+flashing. Never distribute the development-signed build as a release.
+This spike has not been built, flashed, or hardware-validated. After flashing:
 
 1. Confirm **Settings → Apps → Mininet** shows it as a system app (no
-   uninstall option, only "disable" — that's the expected priv-app
+   uninstall option, only "disable" — that's the expected preinstalled system-app
    behavior).
 2. Verify the three Bluetooth permissions were actually pre-granted —
    **do not** rely on the absence of a permission dialog on first launch as
@@ -149,11 +166,12 @@ GrapheneOS's release/verified-boot signing process at all. After flashing:
    done
    ```
 
-   Each should print `Permission granted`. If any prints `Permission
-   denied`, the `privapp-permissions`/`default-permissions` XML did not get
-   picked up; check `adb logcat | grep -i privapp` for the specific denial
-   reason (Android logs exactly which permission failed allowlist
-   verification).
+   Each should print `Permission granted` when the OS applied the
+   default grants. If denied, inspect the installed `etc/default-permissions`
+   XML, package name, manifest and the selected OS's grant policy. These
+   runtime permissions do not require privileged app status or a privapp
+   allowlist. Verify the user can revoke each grant in Settings and that
+   the app handles denial.
 3. From here, testing Mininet itself (pairing, mesh, identity) is
    identical to testing the plain `app/android` build — nothing about its
    own behavior changed, only its install class.
@@ -173,9 +191,6 @@ GrapheneOS's release/verified-boot signing process at all. After flashing:
   `build-rust.sh release` was skipped, or its output wasn't picked up by
   `gradle :app:assembleRelease`, so the APK has no native library at all
   for the device's ABI.
-- **Permission still prompts at runtime**: priv-app permission allowlisting
-  is strict about the exact package name and permission string matching;
-  diff `os/grapheneos-overlay/device/mininet/os_overlay/etc/permissions/privapp-permissions-org.mininet.app.xml`
-  against `app/android/app/src/main/AndroidManifest.xml`'s current
-  `<uses-permission>` list — if the manifest gained a permission this
-  overlay predates, the allowlist needs the same addition.
+- **Bluetooth permission denied**: check the installed default-permissions
+  file and selected OS policy, then test explicit user grants and revocation.
+  Do not add platform privileges to bypass a runtime permission problem.
