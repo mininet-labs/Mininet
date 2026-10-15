@@ -46,9 +46,7 @@ use wasmtime_wasi::p2::add_to_linker_sync;
 use wasmtime_wasi::p2::bindings::sync::Command;
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 use wasmtime_wasi::sockets::SocketAddrUse;
-use wasmtime_wasi::{
-    DirPerms, FilePerms, ResourceTable, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView,
-};
+use wasmtime_wasi::{FsPerms, ResourceTable, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 use crate::error::{Result, RunnerError};
 use crate::limiter::MemoryLimiter;
@@ -252,7 +250,7 @@ fn build_wasi_ctx(
                     )
                 })?;
                 builder
-                    .preopened_dir(dir, "/workspace", DirPerms::READ, FilePerms::READ)
+                    .preopened_dir(dir, "/workspace", FsPerms::ReadOnly)
                     .map_err(|e| RunnerError::Wasmtime(e.to_string()))?;
             }
             Capability::ScratchWrite => {
@@ -262,7 +260,7 @@ fn build_wasi_ctx(
                     )
                 })?;
                 builder
-                    .preopened_dir(dir, "/scratch", DirPerms::all(), FilePerms::all())
+                    .preopened_dir(dir, "/scratch", FsPerms::ReadWrite)
                     .map_err(|e| RunnerError::Wasmtime(e.to_string()))?;
             }
             Capability::ArtifactsWrite => {
@@ -272,7 +270,7 @@ fn build_wasi_ctx(
                     )
                 })?;
                 builder
-                    .preopened_dir(dir, "/artifacts", DirPerms::all(), FilePerms::all())
+                    .preopened_dir(dir, "/artifacts", FsPerms::ReadWrite)
                     .map_err(|e| RunnerError::Wasmtime(e.to_string()))?;
             }
             Capability::ClockMonotonic => {
