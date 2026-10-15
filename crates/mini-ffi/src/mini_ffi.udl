@@ -100,6 +100,8 @@ interface RootCore {
 
   sequence<string> delegated_devices();
 
+  sequence<string> authorized_devices();
+
   [Throws=RootError]
   sequence<u8> root_kel();
 
@@ -136,6 +138,12 @@ interface RootCore {
 
   [Throws=MessagingFfiError]
   ConversationScanView scan_conversation(ConversationSecretHandle secret);
+
+  [Throws=MessagingFfiError]
+  ConversationEnvelopeBatch export_conversation_envelopes(ConversationSecretHandle secret);
+
+  [Throws=MessagingFfiError]
+  u64 import_conversation_envelopes(ConversationSecretHandle secret, ConversationEnvelopeBatch batch);
 
   [Throws=MessagingFfiError]
   PruneOutcome prune_conversation(ConversationSecretHandle secret, u32 keep);
@@ -199,6 +207,11 @@ dictionary ReceivedMessageView {
   // verified against that device's own current KEL -- see messaging.rs's
   // module doc comment. Never true for another person's DID.
   boolean signature_verified;
+};
+
+// Bounded ciphertext only; transport and remote signature authority are separate.
+dictionary ConversationEnvelopeBatch {
+  sequence<sequence<u8>> envelopes;
 };
 
 dictionary ConversationScanView {
