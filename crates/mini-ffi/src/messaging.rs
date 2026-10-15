@@ -1,0 +1,1017 @@
+//! Mobile-facing bridge for `mini-messaging`: encrypted, route+key-scoped
+//! conversations sent/read through the same [`crate::RootCore`] that already
+//! owns this process's root and delegated-device signing keys.
+//!
+//! `mini-messaging` itself is explicit that it "does not invent key
+//! distribution": every [`ConversationSecretHandle`] this module accepts is
+//! a route+key pair the caller must already hold from an out-of-band
+//! authenticated exchange (today: `ConversationSecret::key_bytes_for_local_vault`
+//! copied out of one process and into another's OS-protected vault by the
+//! app itself, e.g. for a user's own multi-device conversation; a real
+//! pairwise session-establishment protocol is future work, same as
+//! `mini-messaging`'s own doc comment already says). This boundary does not
+//! widen that: it does not generate, exchange, or store secrets on Rust's
+//! own initiative.
+//!
+//! `signature_verified` on a scanned message is **only ever computed
+//! against one of this process's own currently-known devices' KELs**
+//! (`state.devices`, matched by the message's claimed `author_device`),
+//! and only when the message also claims `author_human` equal to this
+//! process's own root. A message decrypts successfully whenever the caller
+//! holds the right conversation key, regardless of who wrote it
+//! (`mini-messaging::scan`'s own doc: "decryption alone does not
+//! authenticate device delegation"). For a message this device is
+//! reading in a conversation scoped to *our own* root+devices (the "control
+//! your own delegated devices" case `RootCore`'s device-delegation methods
+//! already support), that check is exactly the right one -- it can
+//! recognize a genuinely still-delegated device of *this* root. It cannot,
+//! and does not claim to, authenticate a message from a different person's
+//! root; that needs their KEL, which this module has no way to fetch yet.
+
+use std::collections::HashSet;
+
+use did_mini::{Controller, Did, Kel};
+use mini_messaging::{
+    ConversationSecret, MessageDraft, MessageKind, ReceiptState, ReceivedMessage,
+};
+use mini_objects::{ObjectEnvelopeV2, ObjectId, OpaqueRoute};
+use mini_store::{MemoryBackend, Store};
+use zeroize::Zeroize;
+
+use crate::{PersistReader, RootCore};
+
+const ROUTE_LEN: usize = 32;
+const KEY_LEN: usize = 32;
+const MAX_ENVELOPES: usize = 4096;
+const MAX_ENVELOPE_BYTES: usize = 1 << 20;
+const MAX_BODY_BYTES: usize = 64 * 1024;
+const MAX_ATTACHMENTS: usize = 32;
+const MAX_OBJECT_ID_BYTES: usize = 256;
+
+/// A conversation's opaque storage route bound to its symmetric key, as
+/// raw bytes crossing the FFI boundary. See this module's doc comment for
+/// what establishing one of these safely actually requires.
+///
+/// Deliberately a UniFFI `interface` (opaque object handle), not a
+/// `dictionary`: a `dictionary` crosses to Kotlin as a `data class`, whose
+/// compiler-generated `toString()`/`equals()`/`hashCode()` print or hash
+/// every constructor field with no per-field way to exclude one -- so
+/// logging or string-interpolating the handle would print the raw
+/// conversation key, and possession of that key is enough to read and
+/// write the conversation. An `interface` has no such generated printable
+/// representation. `Debug` is implemented by hand below for the same
+/// reason on the Rust side.
+pub struct ConversationSecretHandle {
+    route: Vec<u8>,
+    key: Vec<u8>,
+}
+
+impl ConversationSecretHandle {
+    pub fn new(route: Vec<u8>, key: Vec<u8>) -> Self {
+        Self { route, key }
+    }
+}
+
+/// Scrub the raw key on drop, matching `mini-crypto::AeadKey`'s own
+/// `Drop` (best-effort: it cannot reach copies a previous reallocation
+/// left on the heap, but it does cover this field's live allocation).
+/// `route` is not secret -- it is an opaque storage tag, deliberately
+/// printed by this type's own `Debug` impl above -- so only `key` needs
+/// scrubbing here.
+impl Drop for ConversationSecretHandle {
+    fn drop(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl core::fmt::Debug for ConversationSecretHandle {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ConversationSecretHandle")
+            .field("route", &self.route)
+            .field("key", &"<redacted>")
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageKindInput {
+    Text,
+    System,
+    ReceiptDelivered,
+    ReceiptRead,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageDraftInput {
+    pub kind: MessageKindInput,
+    pub body: String,
+    pub reply_to: Option<String>,
+    pub attachments: Vec<String>,
+    pub receipt_for: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReceivedMessageView {
+    pub envelope_id: String,
+    pub author_human: String,
+    pub author_device: String,
+    pub timestamp_ms: u64,
+    pub sequence: u64,
+    pub kind: MessageKindInput,
+    pub body: String,
+    pub reply_to: Option<String>,
+    pub attachments: Vec<String>,
+    pub receipt_for: Option<String>,
+    /// See this module's top-level doc comment: only ever true for a
+    /// message claiming to be authored by *this process's own root* and
+    /// one of its own currently-known devices, verified against that
+    /// device's own current KEL.
+    pub signature_verified: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConversationScanView {
+    pub messages: Vec<ReceivedMessageView>,
+    pub rejected: Vec<String>,
+}
+
+/// Result of [`RootCore::prune_conversation`]: how many of that
+/// conversation's own envelopes were discarded, and how many it has left.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PruneOutcome {
+    pub removed: u64,
+    pub remaining: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MessagingFfiError {
+    NoRoot,
+    NoDevice,
+    InvalidSecret,
+    InvalidMessage,
+    LimitExceeded,
+    CorruptState,
+    Protocol(String),
+}
+
+impl core::fmt::Display for MessagingFfiError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::NoRoot => f.write_str("create or restore an identity before messaging"),
+            Self::NoDevice => f.write_str("no delegated device is available to sign messages"),
+            Self::InvalidSecret => f.write_str("conversation route/key must each be 32 bytes"),
+            Self::InvalidMessage => f.write_str("invalid message draft or object id"),
+            Self::LimitExceeded => f.write_str(
+                "messaging state capacity reached; call prune_conversation to free room",
+            ),
+            Self::CorruptState => f.write_str("persisted messaging state is corrupt"),
+            Self::Protocol(message) => {
+                write!(f, "messaging protocol rejected the request: {message}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for MessagingFfiError {}
+
+fn messaging_err(error: mini_messaging::MessagingError) -> MessagingFfiError {
+    match error {
+        mini_messaging::MessagingError::InvalidMessage => MessagingFfiError::InvalidMessage,
+        mini_messaging::MessagingError::LimitExceeded => MessagingFfiError::LimitExceeded,
+        other => MessagingFfiError::Protocol(other.to_string()),
+    }
+}
+
+/// Per-`RootCore` messaging state. Envelopes are the same encrypted bytes
+/// `mini-messaging` seals -- this module never stores plaintext -- and are
+/// carried inside `RootCore::persist_state`'s existing ciphertext, the same
+/// way `pairing::PairingState`'s follow objects already are, rather than a
+/// second, separately-keyed storage location.
+#[derive(Debug, Default)]
+pub(super) struct MessagingState {
+    envelopes: Vec<Vec<u8>>,
+    next_sequence: u64,
+}
+
+fn to_secret(handle: &ConversationSecretHandle) -> Result<ConversationSecret, MessagingFfiError> {
+    let route: [u8; ROUTE_LEN] = handle
+        .route
+        .as_slice()
+        .try_into()
+        .map_err(|_| MessagingFfiError::InvalidSecret)?;
+    // `[u8; KEY_LEN]` is `Copy`, so `from_local_vault` below receives its
+    // own copy and this local one survives the call -- it must be
+    // scrubbed explicitly rather than left for an ordinary stack drop,
+    // the same reasoning as `ConversationSecretHandle`'s own `key` field
+    // above.
+    let mut key: [u8; KEY_LEN] = handle
+        .key
+        .as_slice()
+        .try_into()
+        .map_err(|_| MessagingFfiError::InvalidSecret)?;
+    let secret = ConversationSecret::from_local_vault(OpaqueRoute::from_bytes(route), key)
+        .map_err(messaging_err);
+    key.zeroize();
+    secret
+}
+
+fn to_object_id(text: &str) -> Result<ObjectId, MessagingFfiError> {
+    if text.len() > MAX_OBJECT_ID_BYTES {
+        return Err(MessagingFfiError::InvalidMessage);
+    }
+    ObjectId::parse(text).map_err(|_| MessagingFfiError::InvalidMessage)
+}
+
+fn to_draft(input: MessageDraftInput) -> Result<MessageDraft, MessagingFfiError> {
+    if input.body.len() > MAX_BODY_BYTES || input.attachments.len() > MAX_ATTACHMENTS {
+        return Err(MessagingFfiError::LimitExceeded);
+    }
+    let reply_to = input.reply_to.as_deref().map(to_object_id).transpose()?;
+    let attachments = input
+        .attachments
+        .iter()
+        .map(|id| to_object_id(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let receipt_for = input.receipt_for.as_deref().map(to_object_id).transpose()?;
+    let kind = match input.kind {
+        MessageKindInput::Text => MessageKind::Text,
+        MessageKindInput::System => MessageKind::System,
+        MessageKindInput::ReceiptDelivered => MessageKind::Receipt(ReceiptState::Delivered),
+        MessageKindInput::ReceiptRead => MessageKind::Receipt(ReceiptState::Read),
+    };
+    if matches!(kind, MessageKind::Receipt(_)) && receipt_for.is_none() {
+        return Err(MessagingFfiError::InvalidMessage);
+    }
+    Ok(MessageDraft {
+        kind,
+        body: input.body,
+        reply_to,
+        attachments,
+        receipt_for,
+    })
+}
+
+fn from_kind(kind: MessageKind) -> MessageKindInput {
+    match kind {
+        MessageKind::Text => MessageKindInput::Text,
+        MessageKind::System => MessageKindInput::System,
+        MessageKind::Receipt(ReceiptState::Delivered) => MessageKindInput::ReceiptDelivered,
+        MessageKind::Receipt(ReceiptState::Read) => MessageKindInput::ReceiptRead,
+    }
+}
+
+fn view_from_received(
+    message: ReceivedMessage,
+    own_root_did: Option<&Did>,
+    own_device_kel: Option<&Kel>,
+) -> ReceivedMessageView {
+    // `verify_signature` checks the signature against the claimed *device*'s
+    // own KEL (`PrivateObject::verify_signature`'s own contract -- it
+    // rejects outright if the KEL's DID doesn't match `author_device`), not
+    // the root's. `own_device_kel` is already looked up by the caller to be
+    // one of this root's own currently-known devices matching
+    // `message.author_device`; requiring `own_root_did == author_human` on
+    // top of that keeps this restricted to "my own root talking to my own
+    // devices", not just "some device I happen to also custody".
+    let signature_verified = match (own_root_did, own_device_kel) {
+        (Some(root_did), Some(kel)) if &message.author_human == root_did => {
+            message.verify_signature(kel).is_ok()
+        }
+        _ => false,
+    };
+    ReceivedMessageView {
+        envelope_id: message.envelope_id.as_str().to_string(),
+        author_human: message.author_human.as_str().to_string(),
+        author_device: message.author_device.as_str().to_string(),
+        timestamp_ms: message.timestamp_ms,
+        sequence: message.sequence,
+        kind: from_kind(message.kind),
+        body: message.body,
+        reply_to: message.reply_to.map(|id| id.as_str().to_string()),
+        attachments: message
+            .attachments
+            .into_iter()
+            .map(|id| id.as_str().to_string())
+            .collect(),
+        receipt_for: message.receipt_for.map(|id| id.as_str().to_string()),
+        signature_verified,
+    }
+}
+
+/// Rebuild an ephemeral in-memory store from this `RootCore`'s persisted
+/// envelope bytes. `mini-store`'s `MemoryBackend` is cheap enough that
+/// replaying the whole (bounded, `MAX_ENVELOPES`-capped) history per call is
+/// simpler and easier to review than keeping a long-lived store handle
+/// alive across the `std::sync::Mutex<RootState>` boundary.
+fn rebuild_store(envelopes: &[Vec<u8>]) -> Result<Store<MemoryBackend>, MessagingFfiError> {
+    let mut store = Store::new(MemoryBackend::new());
+    for bytes in envelopes {
+        let envelope =
+            ObjectEnvelopeV2::from_bytes(bytes).map_err(|_| MessagingFfiError::CorruptState)?;
+        store
+            .insert_private(&envelope)
+            .map_err(|_| MessagingFfiError::CorruptState)?;
+    }
+    Ok(store)
+}
+
+impl RootCore {
+    /// Seal `draft` into this conversation's route under this process's
+    /// root+device identity, and persist the resulting encrypted envelope.
+    /// Returns the new envelope's id.
+    pub fn send_message(
+        &self,
+        secret: std::sync::Arc<ConversationSecretHandle>,
+        timestamp_ms: u64,
+        draft: MessageDraftInput,
+    ) -> Result<String, MessagingFfiError> {
+        let secret = to_secret(&secret)?;
+        let draft = to_draft(draft)?;
+        let mut guard = self.lock();
+        // Split-borrow distinct fields directly (rather than calling a
+        // `&self`/`&mut self` helper) so `messaging` stays mutably
+        // borrowable while `root`/`devices` are only read -- and so
+        // `device` never needs `Controller::clone` (deliberately
+        // unimplemented: it would let secret key material be duplicated
+        // in memory without a good reason).
+        let crate::RootState {
+            root,
+            devices,
+            messaging,
+            ..
+        } = &mut *guard;
+        let root_ref = root.as_ref().ok_or(MessagingFfiError::NoRoot)?;
+        let author_human = root_ref.did();
+        // A device held in `devices` (this process created or completed
+        // enrollment for it) is not on its own proof that *this* root
+        // delegates it -- `finish_device_enrollment` does not require the
+        // process to be device-less, so a process could hold both its own
+        // root and a device actually delegated by someone else's root.
+        // Re-derive the current delegation set from the root's own KEL
+        // (source of truth, not the local `devices` list) so a message can
+        // never claim `author_human` for a device that root never actually
+        // authorized.
+        let delegated = root_ref.kel().delegated_devices();
+        let device = devices
+            .iter()
+            .find(|candidate| delegated.iter().any(|(did, _)| *did == candidate.did()))
+            .ok_or(MessagingFfiError::NoDevice)?;
+        if messaging.envelopes.len() >= MAX_ENVELOPES {
+            return Err(MessagingFfiError::LimitExceeded);
+        }
+        let mut store = rebuild_store(&messaging.envelopes)?;
+        let sequence = messaging.next_sequence;
+        let id = mini_messaging::send(
+            &mut store,
+            &secret,
+            author_human,
+            device,
+            timestamp_ms,
+            sequence,
+            draft,
+        )
+        .map_err(messaging_err)?;
+        let envelope = store
+            .get_private(&id)
+            .map_err(|_| MessagingFfiError::CorruptState)?;
+        let bytes = envelope.to_bytes();
+        if bytes.len() > MAX_ENVELOPE_BYTES {
+            return Err(MessagingFfiError::LimitExceeded);
+        }
+        messaging.envelopes.push(bytes);
+        messaging.next_sequence = sequence
+            .checked_add(1)
+            .ok_or(MessagingFfiError::LimitExceeded)?;
+        Ok(id.as_str().to_string())
+    }
+
+    /// Decrypt every persisted envelope this conversation's secret can open.
+    /// Full re-scan each call, matching `mini-messaging::scan`'s own model
+    /// (no cursor/incremental API exists yet).
+    pub fn scan_conversation(
+        &self,
+        secret: std::sync::Arc<ConversationSecretHandle>,
+    ) -> Result<ConversationScanView, MessagingFfiError> {
+        let secret = to_secret(&secret)?;
+        let state = self.lock();
+        let store = rebuild_store(&state.messaging.envelopes)?;
+        let scan = mini_messaging::scan(&store, &secret).map_err(messaging_err)?;
+        let own_root_did = state.root.as_ref().map(Controller::did);
+        // Mirrors `send_message`'s own fix: a device in `state.devices` is
+        // only trustworthy as "one of this root's own devices" when the
+        // root's *own current KEL* still actively delegates it -- not
+        // merely because this process happens to hold its controller (see
+        // `send_message` for how the two can diverge).
+        let own_delegated: Vec<Did> = state
+            .root
+            .as_ref()
+            .map(|root| {
+                root.kel()
+                    .delegated_devices()
+                    .into_iter()
+                    .map(|(did, _)| did)
+                    .collect()
+            })
+            .unwrap_or_default();
+        let messages = scan
+            .messages
+            .into_iter()
+            .map(|message| {
+                let own_device_kel = state
+                    .devices
+                    .iter()
+                    .find(|device| {
+                        device.did() == message.author_device
+                            && own_delegated.contains(&device.did())
+                    })
+                    .map(Controller::kel);
+                view_from_received(message, own_root_did.as_ref(), own_device_kel.as_ref())
+            })
+            .collect();
+        let rejected = scan
+            .rejected
+            .into_iter()
+            .map(|id| id.as_str().to_string())
+            .collect();
+        Ok(ConversationScanView { messages, rejected })
+    }
+
+    /// Explicitly discard this conversation's own oldest persisted
+    /// envelopes, keeping only the newest `keep` (by send order, which
+    /// matches storage order). This is the only way to make room again
+    /// once `send_message` has hit `MAX_ENVELOPES`: that cap never evicts
+    /// anything on its own, since silently dropping real message history
+    /// a caller never asked to lose would violate this module's own "never
+    /// stores plaintext, never loses ciphertext behind the caller's back"
+    /// posture (see this module's top-level doc comment). A long-lived
+    /// identity that keeps messaging must eventually call this -- or an
+    /// equivalent export -- itself; `send_message` will otherwise return
+    /// `LimitExceeded` forever once the cap is reached, including across a
+    /// restart, since envelopes persist.
+    ///
+    /// A typed operation scoped to one conversation (identified by its
+    /// secret, the same capability `send_message`/`scan_conversation`
+    /// already require), not a raw index or a global `truncate(n)`: the
+    /// caller must be able to open the conversation it is choosing to
+    /// shrink, and envelopes belonging to any other conversation's route
+    /// are left completely untouched, matching per-conversation route
+    /// isolation everywhere else in this module. `keep = 0` clears the
+    /// whole conversation; `keep` at or above the conversation's current
+    /// length is a no-op that reports zero removed.
+    pub fn prune_conversation(
+        &self,
+        secret: std::sync::Arc<ConversationSecretHandle>,
+        keep: u32,
+    ) -> Result<PruneOutcome, MessagingFfiError> {
+        let secret = to_secret(&secret)?;
+        let route = secret.route();
+        let mut guard = self.lock();
+        let messaging = &mut guard.messaging;
+        let store = rebuild_store(&messaging.envelopes)?;
+        let scan = mini_messaging::scan(&store, &secret).map_err(messaging_err)?;
+        if !scan.rejected.is_empty() {
+            return Err(MessagingFfiError::Protocol(
+                "conversation secret cannot authenticate all envelopes to prune".to_string(),
+            ));
+        }
+        // Oldest-first, in storage (== send) order, matching every other
+        // envelope in `messaging.envelopes` -- the vector is only ever
+        // appended to by `send_message`.
+        let mut this_conversation = Vec::new();
+        for (index, bytes) in messaging.envelopes.iter().enumerate() {
+            let envelope =
+                ObjectEnvelopeV2::from_bytes(bytes).map_err(|_| MessagingFfiError::CorruptState)?;
+            if envelope.route() == route {
+                this_conversation.push(index);
+            }
+        }
+        let keep = keep as usize;
+        let remove_count = this_conversation.len().saturating_sub(keep);
+        if remove_count == 0 {
+            return Ok(PruneOutcome {
+                removed: 0,
+                remaining: this_conversation.len() as u64,
+            });
+        }
+        let to_remove: HashSet<usize> = this_conversation[..remove_count].iter().copied().collect();
+        let mut index = 0usize;
+        messaging.envelopes.retain(|_| {
+            let drop_this = to_remove.contains(&index);
+            index += 1;
+            !drop_this
+        });
+        Ok(PruneOutcome {
+            removed: remove_count as u64,
+            remaining: (this_conversation.len() - remove_count) as u64,
+        })
+    }
+}
+
+pub(super) fn encode_messaging_state(out: &mut Vec<u8>, state: &MessagingState) {
+    out.extend_from_slice(&state.next_sequence.to_le_bytes());
+    out.extend_from_slice(&(state.envelopes.len() as u32).to_le_bytes());
+    for envelope in &state.envelopes {
+        out.extend_from_slice(&(envelope.len() as u32).to_le_bytes());
+        out.extend_from_slice(envelope);
+    }
+}
+
+pub(super) fn decode_messaging_state(
+    reader: &mut PersistReader<'_>,
+) -> Result<MessagingState, crate::RootError> {
+    let next_sequence = {
+        let bytes = reader.take(8)?;
+        u64::from_le_bytes(
+            bytes
+                .try_into()
+                .map_err(|_| crate::RootError::CorruptState)?,
+        )
+    };
+    let envelope_count = reader.u32()? as usize;
+    if envelope_count > MAX_ENVELOPES {
+        return Err(crate::RootError::CorruptState);
+    }
+    let mut envelopes = Vec::with_capacity(envelope_count);
+    for _ in 0..envelope_count {
+        let len = reader.u32()? as usize;
+        if len > MAX_ENVELOPE_BYTES {
+            return Err(crate::RootError::CorruptState);
+        }
+        let bytes = reader.take(len)?.to_vec();
+        ObjectEnvelopeV2::from_bytes(&bytes).map_err(|_| crate::RootError::CorruptState)?;
+        envelopes.push(bytes);
+    }
+    Ok(MessagingState {
+        envelopes,
+        next_sequence,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{StorageCipher, StorageCipherError};
+
+    #[derive(Debug)]
+    struct XorCipher(u8);
+
+    impl StorageCipher for XorCipher {
+        fn encrypt(&self, plaintext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Ok(plaintext.into_iter().map(|b| b ^ self.0).collect())
+        }
+        fn decrypt(&self, ciphertext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Ok(ciphertext.into_iter().map(|b| b ^ self.0).collect())
+        }
+    }
+
+    fn secret() -> std::sync::Arc<ConversationSecretHandle> {
+        std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![7u8; ROUTE_LEN],
+            vec![9u8; KEY_LEN],
+        ))
+    }
+
+    #[test]
+    fn send_then_scan_round_trips_a_text_message_with_verified_signature() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+
+        let id = core
+            .send_message(
+                secret(),
+                1_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "hello from my other device".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .unwrap();
+
+        let scan = core.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.rejected, Vec::<String>::new());
+        assert_eq!(scan.messages.len(), 1);
+        let message = &scan.messages[0];
+        assert_eq!(message.envelope_id, id);
+        assert_eq!(message.body, "hello from my other device");
+        assert_eq!(message.kind, MessageKindInput::Text);
+        assert!(
+            message.signature_verified,
+            "a message this same RootCore just signed for its own root must verify"
+        );
+    }
+
+    #[test]
+    fn wrong_key_scan_rejects_without_reading_plaintext() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        core.send_message(
+            secret(),
+            1_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "secret".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        let wrong = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![7u8; ROUTE_LEN],
+            vec![1u8; KEY_LEN],
+        ));
+        let scan = core.scan_conversation(wrong).unwrap();
+        assert!(scan.messages.is_empty());
+        assert_eq!(scan.rejected.len(), 1);
+    }
+
+    #[test]
+    fn invalid_secret_length_is_rejected() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        let bad = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![1u8; 4],
+            vec![2u8; KEY_LEN],
+        ));
+        assert_eq!(
+            core.send_message(
+                bad,
+                1_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: String::new(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::InvalidSecret)
+        );
+    }
+
+    #[test]
+    fn sending_without_a_root_is_rejected() {
+        let core = RootCore::new();
+        assert_eq!(
+            core.send_message(
+                secret(),
+                1_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "x".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::NoRoot)
+        );
+    }
+
+    #[test]
+    fn persisting_and_restoring_round_trips_conversation_history() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        core.send_message(
+            secret(),
+            1_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "durable".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        let blob = core.persist_state(Box::new(XorCipher(0x5A))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0x5A))).unwrap();
+
+        let scan = restored.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].body, "durable");
+    }
+
+    #[test]
+    fn receipt_without_a_target_is_rejected() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        assert_eq!(
+            core.send_message(
+                secret(),
+                1_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::ReceiptDelivered,
+                    body: String::new(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::InvalidMessage)
+        );
+    }
+
+    /// Enrolls `core` (device-side, issue #199 flow) as a device of a wholly
+    /// separate root `root_b`, returning `root_b`'s controller and the new
+    /// device's DID. `core` ends up holding a `Controller` in `state.devices`
+    /// that `core`'s own root never delegated -- exactly the divergence
+    /// `send_message`/`scan_conversation` must not trust.
+    fn enroll_as_device_of_a_different_root(core: &RootCore) -> (did_mini::Controller, Did) {
+        let mut root_b = did_mini::Controller::incept_single().unwrap();
+        let request = core
+            .begin_device_enrollment(root_b.did().as_str().to_string())
+            .unwrap();
+        let device_kel = did_mini::Kel::from_bytes(&request).unwrap();
+        root_b
+            .delegate_device(&device_kel.did(), did_mini::Capabilities::primary())
+            .unwrap();
+        core.finish_device_enrollment(root_b.kel().to_bytes())
+            .unwrap();
+        (root_b, device_kel.did())
+    }
+
+    #[test]
+    fn send_message_refuses_a_locally_held_device_this_root_never_delegated() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        // No `create_device()` call: the only device this process holds is
+        // one delegated by a completely different root.
+        enroll_as_device_of_a_different_root(&core);
+
+        assert_eq!(
+            core.send_message(
+                secret(),
+                1_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "should never claim my root authored this".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::NoDevice),
+            "a device the root itself never delegated must never be used to sign, \
+             even though this process happens to hold its controller"
+        );
+    }
+
+    #[test]
+    fn send_message_picks_a_device_this_root_actually_delegates_over_a_foreign_one() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        // Foreign device added first, so a naive `devices.first()` would
+        // have picked it.
+        enroll_as_device_of_a_different_root(&core);
+        core.create_device().unwrap();
+
+        let scan = {
+            let id = core
+                .send_message(
+                    secret(),
+                    1_000,
+                    MessageDraftInput {
+                        kind: MessageKindInput::Text,
+                        body: "signed by my real device".to_string(),
+                        reply_to: None,
+                        attachments: Vec::new(),
+                        receipt_for: None,
+                    },
+                )
+                .unwrap();
+            let scan = core.scan_conversation(secret()).unwrap();
+            assert_eq!(scan.messages[0].envelope_id, id);
+            scan
+        };
+        assert!(
+            scan.messages[0].signature_verified,
+            "the genuinely-delegated device must still be usable and verify"
+        );
+    }
+
+    #[test]
+    fn wrong_key_prune_preserves_persisted_history() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        core.send_message(
+            secret(),
+            1_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "keep this history".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        let before = core.lock().messaging.envelopes.clone();
+        for keep in [0, 1] {
+            let wrong = std::sync::Arc::new(ConversationSecretHandle::new(
+                vec![7u8; ROUTE_LEN],
+                vec![8u8; KEY_LEN],
+            ));
+            assert!(core.prune_conversation(wrong, keep).is_err());
+            assert_eq!(core.lock().messaging.envelopes, before);
+        }
+
+        let blob = core.persist_state(Box::new(XorCipher(0xA5))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0xA5))).unwrap();
+        let scan = restored.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].body, "keep this history");
+        assert_eq!(
+            restored.prune_conversation(secret(), 0).unwrap(),
+            PruneOutcome {
+                removed: 1,
+                remaining: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn prune_conversation_only_removes_the_named_conversations_own_envelopes() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+
+        let filler_secret = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![3u8; ROUTE_LEN],
+            vec![4u8; KEY_LEN],
+        ));
+        for i in 0..3u64 {
+            core.send_message(
+                filler_secret.clone(),
+                1_000 + i,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: format!("filler {i}"),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .unwrap();
+        }
+        core.send_message(
+            secret(),
+            2_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "keep me".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        let outcome = core.prune_conversation(filler_secret.clone(), 1).unwrap();
+        assert_eq!(outcome.removed, 2);
+        assert_eq!(outcome.remaining, 1);
+
+        // The other conversation is untouched: it's still fully readable.
+        let untouched = core.scan_conversation(secret()).unwrap();
+        assert_eq!(untouched.messages.len(), 1);
+        assert_eq!(untouched.messages[0].body, "keep me");
+
+        // Pruning again with the same `keep` is a no-op.
+        let second = core.prune_conversation(filler_secret, 1).unwrap();
+        assert_eq!(second.removed, 0);
+        assert_eq!(second.remaining, 1);
+    }
+
+    #[test]
+    fn prune_conversation_recovers_capacity_after_the_envelope_cap_is_hit() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+
+        let filler_secret = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![3u8; ROUTE_LEN],
+            vec![4u8; KEY_LEN],
+        ));
+        core.send_message(
+            filler_secret.clone(),
+            1_000,
+            MessageDraftInput {
+                kind: MessageKindInput::Text,
+                body: "filler".to_string(),
+                reply_to: None,
+                attachments: Vec::new(),
+                receipt_for: None,
+            },
+        )
+        .unwrap();
+
+        // Fill the rest of the shared cap with clones of that one already-
+        // valid envelope rather than re-signing thousands of times; cheap,
+        // and `prune_conversation` authenticates matching ciphertext through
+        // `mini-messaging` before removing it.
+        {
+            let mut guard = core.lock();
+            let template = guard.messaging.envelopes[0].clone();
+            while guard.messaging.envelopes.len() < MAX_ENVELOPES {
+                guard.messaging.envelopes.push(template.clone());
+            }
+        }
+        assert_eq!(
+            core.send_message(
+                secret(),
+                2_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "no room".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::LimitExceeded),
+            "the cap must still be enforced before pruning"
+        );
+
+        let outcome = core.prune_conversation(filler_secret, 0).unwrap();
+        assert_eq!(outcome.removed, MAX_ENVELOPES as u64);
+        assert_eq!(outcome.remaining, 0);
+
+        let id = core
+            .send_message(
+                secret(),
+                2_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "room again".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .expect("pruning the filler conversation must free capacity for a new send");
+        assert!(!id.is_empty());
+    }
+
+    #[test]
+    fn scan_never_verifies_a_message_from_a_locally_held_but_undelegated_device() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        let (_root_b, device_b_did) = enroll_as_device_of_a_different_root(&core);
+
+        // Forge an envelope claiming `author_human` = this process's own
+        // root, signed by the foreign device -- e.g. what a compromised or
+        // simply misconfigured foreign device could attempt, since it is
+        // still a `Controller` this process physically holds in
+        // `state.devices`.
+        let raw_secret = to_secret(&secret()).unwrap();
+        let bytes = {
+            let mut guard = core.lock();
+            let crate::RootState { root, devices, .. } = &mut *guard;
+            let author_human = root.as_ref().unwrap().did();
+            let device_b = devices
+                .iter()
+                .find(|d| d.did() == device_b_did)
+                .expect("finish_device_enrollment added it to state.devices");
+            let mut store = rebuild_store(&[]).unwrap();
+            let id = mini_messaging::send(
+                &mut store,
+                &raw_secret,
+                author_human,
+                device_b,
+                1_000,
+                0,
+                MessageDraft {
+                    kind: MessageKind::Text,
+                    body: "forged".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .unwrap();
+            store.get_private(&id).unwrap().to_bytes()
+        };
+        core.lock().messaging.envelopes.push(bytes);
+
+        let scan = core.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].author_device, device_b_did.as_str());
+        assert!(
+            !scan.messages[0].signature_verified,
+            "a device that is only locally held, and never actually delegated \
+             by this root's own current KEL, must never be reported as verified"
+        );
+    }
+}

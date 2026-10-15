@@ -3,6 +3,7 @@ package org.mininet.app
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
@@ -99,6 +100,8 @@ sealed interface CoreUiState {
         val rootDid: String,
         val deviceDid: String,
         val contacts: List<PairingContact>,
+        /** Every device this root currently delegates, including [deviceDid]. */
+        val devices: List<String> = listOf(deviceDid),
         val offer: PairingOfferView? = null,
         val pairingBusy: Boolean = false,
         val message: String? = null,
@@ -134,7 +137,12 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
             RootCore()
         }
     }
-    private val rootCore: RootCore = rootCoreResult.getOrElse { RootCore() }
+    // `var`, not `val`: an authority-changing call (e.g. device revocation)
+    // that mutates this instance's in-memory state but then fails to
+    // durably persist that mutation must be able to swap in a freshly
+    // restored `RootCore` reflecting the last state that *did* make it to
+    // disk -- see `revokeDevice`/`rollBackToLastPersistedState`.
+    private var rootCore: RootCore = rootCoreResult.getOrElse { RootCore() }
 
     var state: CoreUiState by mutableStateOf(
         rootCoreResult.fold(
@@ -187,7 +195,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     }
 
     fun beginPairing(displayName: String) {
-        if (state !is CoreUiState.Home) return
+        val home = state as? CoreUiState.Home ?: return
+        if (home.pairingBusy) return
         updateHome(pairingBusy = true, message = "Preparing a signed pairing offer…")
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
@@ -222,7 +231,8 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     }
 
     fun acceptPairingQr(qrPayload: String, displayName: String) {
-        if (state !is CoreUiState.Home) return
+        val home = state as? CoreUiState.Home ?: return
+        if (home.pairingBusy) return
         updateHome(pairingBusy = true, message = "Verifying signed offer…")
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
@@ -245,19 +255,140 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
     }
 
     fun reportQrFailure(reason: String) {
-        updateHome(pairingBusy = false, message = reason)
+        // A camera callback cannot end an already-running Rust pairing operation.
+        updateHome(message = reason)
     }
 
-    private fun homeState(message: String? = null): CoreUiState.Home {
+    // `offer`/`pairingBusy` default to null/false: every existing caller of
+    // this overload (`createRoot`'s initial state, and `beginPairing`/
+    // `acceptPairingQr`'s own success/failure paths) is itself the
+    // authoritative end of whatever pairing attempt was in flight, so
+    // resetting those two fields there is correct, not an oversight. A
+    // caller rebuilding `Home` for an unrelated reason while a pairing
+    // attempt may still be running -- see `revokeDevice` -- must pass the
+    // current values through explicitly instead of taking these defaults.
+    private fun homeState(
+        message: String? = null,
+        offer: PairingOfferView? = null,
+        pairingBusy: Boolean = false,
+    ): CoreUiState.Home {
         val rootDid = requireNotNull(rootCore.rootDid())
-        val deviceDid = rootCore.delegatedDevices().firstOrNull()
+        val devices = rootCore.delegatedDevices()
+        val deviceDid = devices.firstOrNull()
             ?: error("restored root has no delegated device")
         return CoreUiState.Home(
             rootDid = rootDid,
             deviceDid = deviceDid,
             contacts = rootCore.pairingContacts(),
+            devices = devices,
+            offer = offer,
+            pairingBusy = pairingBusy,
             message = message,
         )
+    }
+
+    /**
+     * Revoke one of this root's own delegated devices (D-0335's
+     * `RootCore.revokeDelegatedDevice`, already wired end-to-end since it
+     * shipped -- this is the first UI surface that calls it). Honest limit:
+     * revocation only removes [did] from the root's KEL-recorded
+     * authorization; it does not, and cannot, reach out and disable that
+     * physical device -- a revoked device only "finds out" if and when it
+     * re-checks a fresh copy of the root KEL itself. Revoking this
+     * session's own current device ([CoreUiState.Home.deviceDid]) is
+     * refused in the UI ([DeviceCard]'s revoke button is disabled for it)
+     * rather than in this function, since the local `RootCore` would keep
+     * signing with that device's still-held secret key regardless --
+     * revoking your own current device from itself is a self-lockout, not
+     * a security boundary this call can meaningfully enforce.
+     */
+    fun revokeDevice(did: String) {
+        val home = state as? CoreUiState.Home ?: return
+        // Rollback replaces RootCore, including transient pairing state.
+        // Only the pairing coroutine's completion may release this guard.
+        if (home.pairingBusy) {
+            updateHome(message = "Finish pairing before revoking a device.")
+            return
+        }
+        runCatching {
+            rootCore.revokeDelegatedDevice(did)
+            persistRootState()
+            // Revocation is unrelated to any pairing attempt already in
+            // flight (see `beginPairing`/`acceptPairingQr`, which run on
+            // their own coroutine and keep going regardless of what this
+            // synchronous call does to `state`). Preserving the current
+            // `offer`/`pairingBusy` here -- rather than the null/false
+            // `homeState` defaults meant for a pairing attempt's own
+            // completion -- keeps that coroutine's eventual `updateHome`/
+            // `homeState` call the single place that ever clears them, so
+            // it can't collide with a second pairing offer started against
+            // stale UI state in the meantime.
+            state = homeState(
+                message = "Revoked ${did.take(28)}…",
+                offer = home.offer,
+                pairingBusy = home.pairingBusy,
+            )
+        }.onFailure { failure ->
+            // `revokeDelegatedDevice` above already mutated `rootCore`'s
+            // in-memory root KEL before `persistRootState()` threw (Keystore
+            // encryption, the temporary write, or the atomic move can each
+            // fail independently). Leaving that mutation in place would
+            // desync memory from disk: a retry would hit an
+            // already-revoked device in memory, while the un-persisted disk
+            // copy still authorizes it and would re-authorize it on the
+            // next restore. Roll back to the last durably persisted state
+            // instead of reporting the failure on top of a half-applied
+            // revocation.
+            val rolledBack = rollBackToLastPersistedState()
+            val message = if (rolledBack) {
+                failure.message ?: failure::class.java.simpleName
+            } else {
+                // The restore-after-persist-failure failed too (e.g. the
+                // Keystore key or the state file itself is now unusable).
+                // `rootCore` is deliberately left as its already-mutated,
+                // never-persisted self here rather than touched further --
+                // with no known-good state left to fall back to, showing
+                // what this process actually did (the revoke really did
+                // apply, in memory) is more honest than either quietly
+                // reporting only the original persist failure on top of a
+                // Home screen that looks like a clean success, or leaving
+                // `rootCore` in some third, never-exercised state. Say so
+                // distinctly so the caller/user knows this change has not
+                // survived to disk and may not survive a restart.
+                "Revoked ${did.take(28)}… here, but could not save it and could not " +
+                    "confirm your last saved identity either. Do not force-quit " +
+                    "Mininet until this is resolved -- restart the app to retry."
+            }
+            state = homeState(message = message, offer = home.offer, pairingBusy = home.pairingBusy)
+        }
+    }
+
+    // Discard any in-memory mutation that never made it to disk by
+    // reloading `rootCore` from the last successfully persisted blob.
+    // Returns whether the rollback itself succeeded, distinct from the
+    // original persist failure that triggered it, so the caller can tell
+    // "cleanly reverted" apart from "still mutated, and now also unable to
+    // confirm what's on disk" (see `revokeDevice`'s failure handling).
+    //
+    // A missing snapshot cannot undo a mutation and must not report success.
+    private fun rollBackToLastPersistedState(): Boolean {
+        if (!stateFile.exists()) return false
+        return runCatching {
+            RootCore.restore(stateFile.readBytes().toUByteList(), storageCipher)
+        }.onSuccess { restored ->
+            rootCore = restored
+        }.onFailure { restoreFailure ->
+            // Deliberately a distinct log line from the original persist
+            // failure that triggered this rollback attempt -- conflating
+            // the two in triage would hide that recovery itself failed,
+            // not just the original save.
+            Log.e(
+                "MininetRootCore",
+                "Rollback to last persisted state failed after a persist failure; " +
+                    "in-memory root state is now ahead of disk for this session.",
+                restoreFailure,
+            )
+        }.isSuccess
     }
 
     private fun updateHome(
@@ -397,6 +528,7 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
                     onCreateOffer = model::beginPairing,
                     onAcceptQr = model::acceptPairingQr,
                     onQrFailure = model::reportQrFailure,
+                    onRevokeDevice = model::revokeDevice,
                 )
                 is CoreUiState.Unavailable -> CoreUnavailable(state.reason)
                 is CoreUiState.RestoreFailed -> RestoreFailedScreen(state.reason)
@@ -484,6 +616,7 @@ private fun HomeScreen(
     onCreateOffer: (String) -> Unit,
     onAcceptQr: (String, String) -> Unit,
     onQrFailure: (String) -> Unit,
+    onRevokeDevice: (String) -> Unit,
 ) {
     var displayName by androidx.compose.runtime.remember { mutableStateOf("") }
     val camera = rememberLauncherForActivityResult(
@@ -592,6 +725,20 @@ private fun HomeScreen(
             NoticeCard(state.message)
         }
 
+        Text("Your devices", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Text(
+            "Revoking a device removes it from your root's signed authorization list. It does not remotely lock or wipe that device -- it only stops being recognized as you the next time it checks a fresh copy of your identity.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Ink.copy(alpha = 0.62f),
+        )
+        state.devices.forEach { deviceDid ->
+            DeviceCard(
+                did = deviceDid,
+                isCurrentDevice = deviceDid == state.deviceDid,
+                onRevoke = { onRevokeDevice(deviceDid) },
+            )
+        }
+
         Text("People you follow", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
         if (state.contacts.isEmpty()) {
             Text(
@@ -601,6 +748,55 @@ private fun HomeScreen(
         } else {
             state.contacts.forEach { contact ->
                 ContactCard(contact)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceCard(did: String, isCurrentDevice: Boolean, onRevoke: () -> Unit) {
+    var confirming by androidx.compose.runtime.remember(did) { mutableStateOf(false) }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                if (isCurrentDevice) "This device" else "Delegated device",
+                fontWeight = FontWeight.ExtraBold,
+            )
+            Text(
+                did,
+                style = MaterialTheme.typography.bodySmall,
+                color = Ink.copy(alpha = 0.62f),
+            )
+            if (isCurrentDevice) {
+                Text(
+                    "Can't be revoked from itself -- switch to another delegated device first.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Ink.copy(alpha = 0.5f),
+                )
+            } else if (confirming) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = { confirming = false; onRevoke() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Amber),
+                    ) {
+                        Text("Confirm revoke", fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(onClick = { confirming = false }) {
+                        Text("Cancel")
+                    }
+                }
+            } else {
+                OutlinedButton(onClick = { confirming = true }) {
+                    Text("Revoke this device")
+                }
             }
         }
     }

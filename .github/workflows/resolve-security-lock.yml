@@ -1,0 +1,67 @@
+name: resolve-security-lock
+
+on:
+  pull_request:
+    paths:
+      - "crates/mini-build-runner-wasmtime/Cargo.toml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/resolve-security-lock.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    if: github.head_ref == 'codex/launch-integration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Install the reviewed toolchain and guest target
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+          rustup target add --toolchain 1.95.0 wasm32-wasip2
+      - name: Resolve both reviewed exact Wasmtime pins
+        run: cargo update -p wasmtime -p wasmtime-wasi
+      - name: Emit the public resolved lockfile for exact-byte recovery
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import pathlib
+          data = pathlib.Path("Cargo.lock").read_bytes()
+          print("RESOLVED_LOCK_SHA256:" + hashlib.sha256(data).hexdigest())
+          for line in data.decode("utf-8").splitlines():
+              print("RESOLVED_LOCK_LINE:" + line)
+          PY
+      - name: Exercise the adversarial runner suite with the resolved graph
+        run: cargo test --locked -p mini-build-runner-wasmtime
+
+  navigation:
+    if: github.head_ref == 'codex/launch-integration'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        file: [REPO_INDEX.json, REPO_INDEX.jsonl, REPO_MAP.md]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Regenerate integrated repository navigation
+        run: python3 tools/mininet_nav.py build
+      - name: Emit public generated navigation for exact-byte recovery
+        env:
+          NAV_FILENAME: ${{ matrix.file }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          path = "docs/_generated/" + os.environ["NAV_FILENAME"]
+          data = pathlib.Path(path).read_bytes()
+          print("NAVSHA256:" + path + ":" + hashlib.sha256(data).hexdigest())
+          for line in data.decode("utf-8").splitlines():
+              print("NAVFILE:" + path + ":" + line)
+          PY

@@ -3088,6 +3088,7 @@ dependencies = [
  "mini-bearer",
  "mini-crypto",
  "mini-mesh",
+ "mini-messaging",
  "mini-objects",
  "mini-social",
  "mini-store",
@@ -3373,6 +3374,13 @@ dependencies = [
  "mini-objects",
  "mini-presence",
  "mini-storage",
+]
+
+[[package]]
+name = "mini-safety"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
 ]
 
 [[package]]

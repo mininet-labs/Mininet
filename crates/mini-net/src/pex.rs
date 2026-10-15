@@ -268,10 +268,23 @@ pub fn build_response(routing: &RoutingTable, book: &AddressBook, exclude: &Peer
 
 /// Absorb a [`PexMessage::Response`]'s records into this node's own
 /// routing table and address book. Never learns the local node's own id
-/// as a peer. Best-effort: a record whose id is already known, or whose
-/// bucket is full (see [`RoutingTable::insert`]'s own honest limit), is
-/// silently skipped rather than treated as an error — an unauthenticated
-/// hint that turns out to be redundant is not a protocol violation.
+/// as a peer. Best-effort: a record whose id is already known is silently
+/// skipped rather than treated as an error — an unauthenticated hint that
+/// turns out to be redundant is not a protocol violation.
+///
+/// [`AddressBook::insert`] is only ever called for an id [`RoutingTable`]
+/// itself accepts (newly inserted) or already holds — never for an id
+/// [`RoutingTable::insert`] refused because its bucket is full (see that
+/// method's own honest limit). Without this gate a hostile peer could send
+/// an unbounded *number* of [`PexMessage::Response`]s — each individually
+/// capped at [`MAX_PEX_RECORDS`], but with a fresh forged [`PeerId`] in
+/// every batch — and grow [`AddressBook`] without limit even though
+/// [`RoutingTable`] itself refused most of those ids; gating on routing
+/// acceptance ties the address book's size to the routing table's own
+/// bound ([`crate::routing::BUCKET_SIZE`] times its bucket count) instead
+/// of to how many responses an attacker is willing to send (the same
+/// "cap before it can be used as a resource-exhaustion vector" stance
+/// [`crate::GossipRouter`] takes on message ids).
 pub fn absorb_response(records: &[PeerRecord], routing: &mut RoutingTable, book: &mut AddressBook) {
     let local = routing.local();
     for record in records {
@@ -279,7 +292,9 @@ pub fn absorb_response(records: &[PeerRecord], routing: &mut RoutingTable, book:
             continue;
         }
         routing.insert(record.id);
-        book.insert(record.id, record.addr);
+        if routing.contains(&record.id) {
+            book.insert(record.id, record.addr);
+        }
     }
 }
 
@@ -430,6 +445,43 @@ mod tests {
         assert!(!routing.contains(&local));
         assert!(routing.contains(&discovered));
         assert_eq!(book.get(&discovered), Some(addr(9007)));
+    }
+
+    #[test]
+    fn absorb_response_never_grows_the_address_book_past_the_routing_table_bound() {
+        use crate::routing::BUCKET_SIZE;
+
+        let local = id(0);
+        let mut routing = RoutingTable::new(local);
+        let mut book = AddressBook::new();
+
+        // A hostile peer sends many separate PEX responses, each within
+        // MAX_PEX_RECORDS but with a fresh forged PeerId every time —
+        // an attacker is never limited to one response. Before the fix,
+        // book.len() would grow to match every distinct id offered here
+        // regardless of whether RoutingTable ever accepted it.
+        for batch in 0..200u32 {
+            let mut records = Vec::new();
+            for i in 0..MAX_PEX_RECORDS as u32 {
+                let n = batch * MAX_PEX_RECORDS as u32 + i;
+                let mut bytes = [0u8; 32];
+                bytes[0..4].copy_from_slice(&n.to_be_bytes());
+                records.push(PeerRecord {
+                    id: PeerId(bytes),
+                    addr: addr((n % 60000) as u16 + 1),
+                });
+            }
+            absorb_response(&records, &mut routing, &mut book);
+        }
+
+        // Total forged ids offered: 200 * MAX_PEX_RECORDS, far more than
+        // the routing table could ever accept.
+        assert!(book.len() <= routing.len());
+        assert!(
+            book.len() <= 256 * BUCKET_SIZE,
+            "address book grew past the routing table's own bound: {}",
+            book.len()
+        );
     }
 
     #[test]

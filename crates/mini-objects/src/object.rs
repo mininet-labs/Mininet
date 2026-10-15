@@ -46,6 +46,15 @@ impl ObjectId {
         &self.0
     }
 
+    /// A placeholder id to fill in during construction, before the real
+    /// content id is known. `pub(crate)` so sibling envelope modules (the
+    /// AI-disclosure envelope) can build up an object and seal its real id
+    /// afterward the same way this module does, without this crate ever
+    /// exposing an `ObjectId` that does not name real bytes.
+    pub(crate) fn placeholder() -> Self {
+        ObjectId(String::new())
+    }
+
     /// Compute the content id over `bytes` (BLAKE3 multihash, base58btc). `pub(crate)`
     /// so other modules in this crate (the v2 envelope) derive ids the exact
     /// same way rather than duplicating the recipe.
@@ -303,7 +312,8 @@ impl Object {
     /// Layer 1 — integrity: confirm `claimed` names exactly these bytes. Any
     /// holder can check this with no keys at all.
     pub fn verify_integrity(&self, claimed: &ObjectId) -> Result<()> {
-        if &self.id == claimed {
+        let actual = ObjectId::of(&self.to_bytes());
+        if &actual == claimed && actual == self.id {
             Ok(())
         } else {
             Err(ObjectError::IdMismatch)
@@ -328,7 +338,7 @@ enum EncodeMode {
     Full,
 }
 
-fn parse_did(bytes: Vec<u8>) -> Result<Did> {
+pub(crate) fn parse_did(bytes: Vec<u8>) -> Result<Did> {
     let s = String::from_utf8(bytes).map_err(|_| ObjectError::BadObject)?;
     Did::parse(&s).map_err(ObjectError::Identity)
 }

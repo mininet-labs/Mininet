@@ -1,0 +1,13 @@
+[package]
+name = "mini-safety"
+version = "0.0.1"
+description = "Device-local abuse handling: blocklists, mutes and content filters the viewer applies to their own feed. Never removes anything from the network and never denies anyone network access (constitution principles 7 and 10)."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
