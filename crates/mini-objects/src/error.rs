@@ -56,6 +56,18 @@ pub enum ObjectError {
     /// its own trusted channel, who actually owns the resource and
     /// supplies that identity for this check.
     CapabilityIssuerNotResourceOwner,
+    /// An AI-disclosure object's mandatory provenance metadata (producing
+    /// system id, model id, or production time) was empty or otherwise
+    /// structurally invalid. This field is required, never optional, so it
+    /// cannot be silently omitted by a caller.
+    MissingAiProvenance,
+    /// An AI-disclosure object's wire encoding was decoded through the
+    /// human-authored [`crate::Object`] path, or vice versa. The two
+    /// envelopes are deliberately distinct byte formats (a different leading
+    /// tag) precisely so this substitution is impossible: this error means
+    /// something upstream already forced bytes across that boundary rather
+    /// than this decoder catching a genuine ambiguity.
+    WrongEnvelopeKind,
     /// An identity/delegation/signature failure.
     Identity(IdentityError),
     /// A cryptographic primitive failure.
@@ -106,6 +118,18 @@ impl core::fmt::Display for ObjectError {
                 write!(
                     f,
                     "capability grant's issuer is not the resource's actual owner"
+                )
+            }
+            ObjectError::MissingAiProvenance => {
+                write!(
+                    f,
+                    "AI disclosure object is missing mandatory provenance metadata"
+                )
+            }
+            ObjectError::WrongEnvelopeKind => {
+                write!(
+                    f,
+                    "bytes belong to the other envelope kind (human/AI mismatch)"
                 )
             }
             ObjectError::Identity(e) => write!(f, "identity error: {e}"),

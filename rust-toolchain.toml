@@ -16,6 +16,6 @@
 # needed small non-behavioral rewrites to satisfy them -- not "unchanged,"
 # but no crate's logic or test coverage changed, only lint-clean phrasing.
 [toolchain]
-channel = "1.94.1"
+channel = "1.95.0"
 components = ["rustfmt", "clippy"]
 profile = "minimal"

@@ -542,6 +542,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-safety",
+        Coverage::Gap {
+            reason: "viewer-local block/mute state; block/unblock/mute/filter/import round-trip and persistence are already covered by its own in-crate tests",
+        },
+    ),
+    (
         "mini-windows-setup",
         Coverage::Exercised { area: "install" },
     ),

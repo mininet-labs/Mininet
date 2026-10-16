@@ -37,6 +37,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod ai_object;
 mod capability;
 mod codec;
 mod envelope_v2;
@@ -45,6 +46,9 @@ mod object;
 mod private_object;
 mod pseudonym;
 
+pub use ai_object::{
+    verify_ai_provenance, AiObject, AiObjectBuilder, AiOrigin, AiProvenance, AI_ENVELOPE_TAG,
+};
 pub use capability::{
     AuthenticatedObjectOwner, CapabilityGrant, CapabilityRequest, CapabilityRight, CapabilityScope,
     CapabilityToken, CapabilityTokenCommitment, CAPABILITY_VERSION,

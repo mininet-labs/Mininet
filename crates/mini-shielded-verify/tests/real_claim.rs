@@ -10,9 +10,12 @@
 
 use mini_execution::{ClaimVerifier, NullifierRecord};
 use mini_private_payment::{
-    build, InMemoryOutputSet, OutputSet, PaymentPurpose, PaymentRequest, Recipient, MIN_RING_SIZE,
+    build, InMemoryOutputSet, OutputSet, PaymentPurpose, PaymentRequest, PrivatePaymentClaim,
+    Recipient, MIN_RING_SIZE,
 };
-use mini_shielded_verify::{ClaimEvidencePool, ShieldedClaimVerifier};
+use mini_shielded_verify::{
+    ClaimEvidencePool, EvidenceError, EvidenceLimits, ShieldedClaimVerifier,
+};
 use mini_value::StealthKeypair;
 use std::sync::Arc;
 
@@ -158,4 +161,174 @@ fn wrong_network_id_is_rejected() {
 
     let verifier = ShieldedClaimVerifier::new([0xee; 32], evidence);
     assert!(verifier.verify_claim(&NETWORK, &digest, &group).is_none());
+}
+
+#[test]
+fn pool_limits_preserve_evidence_and_accept_retries_at_capacity() {
+    let (bytes, digest, group, _) = a_real_claim_and_its_nullifier_group();
+    let size = bytes.len();
+    let pool = Arc::new(ClaimEvidencePool::with_limits(EvidenceLimits {
+        max_claims: 1,
+        max_total_bytes: size,
+        max_claim_bytes: size,
+    }));
+    assert_eq!(pool.insert(bytes.clone()), Ok(digest));
+    assert_eq!(pool.insert(bytes.clone()), Ok(digest));
+    assert_eq!(pool.len(), 1);
+    assert_eq!(pool.total_bytes(), size);
+    let mut different = PrivatePaymentClaim::decode(&bytes).unwrap();
+    different.valid_until_ms += 1;
+    assert_eq!(
+        pool.insert(different.encode()),
+        Err(EvidenceError::ClaimCountLimit)
+    );
+    assert_eq!(pool.get(&digest), Some(bytes));
+    assert_eq!(pool.total_bytes(), size);
+    let verifier = ShieldedClaimVerifier::new(NETWORK, pool);
+    assert!(verifier.verify_claim(&NETWORK, &digest, &group).is_some());
+}
+
+#[test]
+fn replacement_preserves_accounting_and_still_requires_verification() {
+    let (bytes, digest, group, _) = a_real_claim_and_its_nullifier_group();
+    let size = bytes.len();
+    let pool = Arc::new(ClaimEvidencePool::with_limits(EvidenceLimits {
+        max_claims: 1,
+        max_total_bytes: size,
+        max_claim_bytes: size,
+    }));
+    let mut changed = PrivatePaymentClaim::decode(&bytes).unwrap();
+    changed.inputs[0].signature.challenge = vec![0; 32];
+    let invalid_bytes = changed.encode();
+    assert_eq!(changed.transcript_digest(), digest);
+    assert_eq!(invalid_bytes.len(), size);
+    assert_ne!(invalid_bytes, bytes);
+    assert_eq!(pool.insert(bytes.clone()), Ok(digest));
+    assert_eq!(pool.insert(invalid_bytes.clone()), Ok(digest));
+    assert_eq!(pool.len(), 1);
+    assert_eq!(pool.total_bytes(), size);
+    assert_eq!(pool.get(&digest), Some(invalid_bytes));
+    let verifier = ShieldedClaimVerifier::new(NETWORK, pool.clone());
+    assert!(verifier.verify_claim(&NETWORK, &digest, &group).is_none());
+    assert_eq!(pool.insert(bytes), Ok(digest));
+    assert_eq!(pool.len(), 1);
+    assert_eq!(pool.total_bytes(), size);
+    assert!(verifier.verify_claim(&NETWORK, &digest, &group).is_some());
+}
+
+#[test]
+fn byte_limits_reject_without_mutating_retained_state() {
+    let (bytes, digest, _, _) = a_real_claim_and_its_nullifier_group();
+    let size = bytes.len();
+    let too_small = ClaimEvidencePool::with_limits(EvidenceLimits {
+        max_claims: 2,
+        max_total_bytes: size * 2,
+        max_claim_bytes: size - 1,
+    });
+    assert_eq!(
+        too_small.insert(bytes.clone()),
+        Err(EvidenceError::ClaimTooLarge)
+    );
+    assert_eq!(too_small.total_bytes(), 0);
+    assert!(too_small.is_empty());
+    let pool = ClaimEvidencePool::with_limits(EvidenceLimits {
+        max_claims: 2,
+        max_total_bytes: size,
+        max_claim_bytes: size,
+    });
+    assert_eq!(pool.insert(bytes.clone()), Ok(digest));
+    let mut different = PrivatePaymentClaim::decode(&bytes).unwrap();
+    different.valid_until_ms += 1;
+    assert_eq!(
+        pool.insert(different.encode()),
+        Err(EvidenceError::TotalBytesLimit)
+    );
+    assert_eq!(pool.get(&digest), Some(bytes));
+    assert_eq!(pool.len(), 1);
+    assert_eq!(pool.total_bytes(), size);
+}
+
+#[test]
+fn zero_budgets_disable_admission() {
+    let (bytes, _, _, _) = a_real_claim_and_its_nullifier_group();
+    let size = bytes.len();
+    for (limits, error) in [
+        (
+            EvidenceLimits {
+                max_claims: 0,
+                max_total_bytes: size,
+                max_claim_bytes: size,
+            },
+            EvidenceError::ClaimCountLimit,
+        ),
+        (
+            EvidenceLimits {
+                max_claims: 1,
+                max_total_bytes: 0,
+                max_claim_bytes: size,
+            },
+            EvidenceError::TotalBytesLimit,
+        ),
+        (
+            EvidenceLimits {
+                max_claims: 1,
+                max_total_bytes: size,
+                max_claim_bytes: 0,
+            },
+            EvidenceError::ClaimTooLarge,
+        ),
+    ] {
+        let pool = ClaimEvidencePool::with_limits(limits);
+        assert_eq!(pool.insert(bytes.clone()), Err(error));
+        assert!(pool.is_empty());
+        assert_eq!(pool.total_bytes(), 0);
+    }
+}
+
+#[test]
+fn concurrent_admission_cannot_overbook_count_or_byte_budget() {
+    let (bytes, _, _, _) = a_real_claim_and_its_nullifier_group();
+    let size = bytes.len();
+    let claims: Vec<_> = (0..8)
+        .map(|offset| {
+            let mut claim = PrivatePaymentClaim::decode(&bytes).unwrap();
+            claim.valid_until_ms += offset;
+            claim.encode()
+        })
+        .collect();
+    for limits in [
+        EvidenceLimits {
+            max_claims: 1,
+            max_total_bytes: size * 8,
+            max_claim_bytes: size,
+        },
+        EvidenceLimits {
+            max_claims: 8,
+            max_total_bytes: size,
+            max_claim_bytes: size,
+        },
+    ] {
+        let pool = Arc::new(ClaimEvidencePool::with_limits(limits));
+        let barrier = Arc::new(std::sync::Barrier::new(claims.len()));
+        let handles: Vec<_> = claims
+            .iter()
+            .map(|claim| {
+                let claim = claim.clone();
+                let pool = pool.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    pool.insert(claim)
+                })
+            })
+            .collect();
+        let admitted = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .filter(Result::is_ok)
+            .count();
+        assert_eq!(admitted, 1);
+        assert_eq!(pool.len(), 1);
+        assert_eq!(pool.total_bytes(), size);
+    }
 }
