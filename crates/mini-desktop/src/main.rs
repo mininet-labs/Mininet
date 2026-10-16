@@ -17,6 +17,7 @@ mod mute_list;
 mod netsearch;
 mod network_session;
 mod peer_link;
+mod private_relationship;
 mod player;
 mod theme;
 mod timeline;
@@ -1109,11 +1110,39 @@ impl Workspace {
         Ok(())
     }
 
-    /// Fail closed until the client persists pseudonym/device KEL state and
-    /// authenticates a counterpart's pairwise target through confidential pairing.
-    fn follow_privately(&mut self, _target_pseudonym: &Did) -> Result<(), String> {
-        Err("private follow requires durable pseudonym/device state and authenticated target pairing"
-            .to_string())
+    /// Explicit owner-selected authenticated pairing entry point. Ordinary
+    /// root-DID connection cards remain unable to invoke this operation.
+    #[allow(dead_code)]
+    fn pair_private<B: mini_bearer::Bearer>(
+        &mut self,
+        connection: &mut mini_transport_security::AuthenticatedConnection<B>,
+        expected_peer: &Did,
+        initiator: bool,
+    ) -> Result<Did, String> {
+        let identity = self.identity.as_ref().ok_or("identity is locked")?;
+        let vault = private_relationship::FileVault::open(
+            self.root.join("relationships.dpapi"),
+        )?;
+        let mut relationships = private_relationship::Relationships::open(
+            vault, identity.root.did(),
+        )?;
+        relationships.pair(
+            connection, &identity.root, &identity.device, expected_peer, initiator, now_ms(),
+        )
+    }
+
+    /// Only a target committed by authenticated confidential pairing may be
+    /// followed; absent state never recreates or re-delegates a pseudonym.
+    fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
+        let identity = self.identity.as_ref().ok_or("identity is locked")?;
+        let vault = private_relationship::FileVault::open(
+            self.root.join("relationships.dpapi"),
+        )?;
+        let mut relationships = private_relationship::Relationships::open(
+            vault, identity.root.did(),
+        )?;
+        relationships.follow(&mut self.store, target_pseudonym, true, now_ms())?;
+        Ok(())
     }
 
     fn following_count(&self) -> usize {

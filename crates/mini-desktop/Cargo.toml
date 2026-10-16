@@ -24,6 +24,8 @@ mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }
 mini-messaging = { path = "../mini-messaging" }
 mini-bearer = { path = "../mini-bearer" }
+mini-transport-security = { path = "../mini-transport-security" }
+zeroize = "1"
 mini-sync = { path = "../mini-sync" }
 mini-ticket = { path = "../mini-ticket" }
 mini-crypto = { path = "../mini-crypto" }

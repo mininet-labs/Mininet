@@ -1,0 +1,23 @@
+name: validate-private-relationships
+on:
+  pull_request:
+    paths:
+      - "crates/mini-desktop/**"
+      - ".github/workflows/validate-private-relationships.yml"
+permissions:
+  contents: read
+jobs:
+  targeted:
+    if: github.head_ref == 'feature/privacy-preserving-social-graph'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Format and emit exact correction patch
+        run: |
+          cargo fmt --all
+          git diff -- crates/mini-desktop/src/main.rs crates/mini-desktop/src/private_relationship.rs
+      - name: Test durable identity and real authenticated TCP pairing
+        run: cargo test --locked -p mini-desktop private_relationship -- --nocapture
