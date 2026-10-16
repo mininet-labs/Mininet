@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        file: [REPO_INDEX.json, REPO_INDEX.jsonl, REPO_MAP.md]
+        file: [REPO_INDEX.jsonl, REPO_MAP.md]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -72,6 +72,9 @@ jobs:
           import hashlib
           import os
           import pathlib
+          for filename in ["REPO_INDEX.json", "REPO_INDEX.jsonl", "REPO_MAP.md"]:
+              generated = pathlib.Path("docs/_generated") / filename
+              print("ALL_NAV_SHA256:" + str(generated) + ":" + hashlib.sha256(generated.read_bytes()).hexdigest())
           path = "docs/_generated/" + os.environ["NAV_FILENAME"]
           data = pathlib.Path(path).read_bytes()
           print("NAVSHA256:" + path + ":" + hashlib.sha256(data).hexdigest())

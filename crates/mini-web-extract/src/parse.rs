@@ -250,10 +250,8 @@ impl<'a> Parser<'a> {
 
     fn apply_semantics(&mut self, name_lower: &str, attrs: &[(String, String)]) {
         match name_lower {
-            "html" => {
-                if self.language.is_none() {
-                    self.language = get_attr(attrs, "lang").filter(|s| !s.is_empty());
-                }
+            "html" if self.language.is_none() => {
+                self.language = get_attr(attrs, "lang").filter(|s| !s.is_empty());
             }
             "meta" => {
                 if let (Some(name), Some(content)) =
