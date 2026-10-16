@@ -24958,3 +24958,50 @@ credit state/proofs; durable canonical integration; wallet/device recovery;
 performance measurement; independent reviews and owner-opt-in release.
 
 **Supersedes / superseded by:** none. Proposal only; no rule superseded.
+
+### D-0536 — Relationship pseudonym primitives with verified FOLLOW admission · *Proposed*
+
+**Date:** 2026-10-15 · **Refs:** issue #19; `crates/mini-social/src/private_graph.rs`.
+
+**Decision:** compose the existing pairwise pseudonym inception primitive.
+`set_private_follow` accepts a caller-persisted pseudonym root KEL and its
+active delegated POST device. Delegation, signature, author binding and
+capability verification complete before any store insertion. The caller must
+persist the evolving pseudonym KEL and device state. Re-incepting the same
+deterministic root and adding a fresh random device on every call would fork
+that root's KEL and is not a valid lifecycle.
+
+**Privacy boundary:** FOLLOW edges remain public between their pseudonym DIDs.
+Linkage assertions contain plaintext real-root and pseudonym identifiers.
+Anyone holding leaked bytes can read that linkage and verify it by supplying
+the named counterpart DID. The signed counterpart field binds context; it
+provides neither confidentiality nor authentication of the verifier.
+No transport, including an ordinary pairing TCP exchange, is presumed
+confidential by this API. Authenticated confidential target exchange and
+delivery must be provided separately.
+
+**Validation:** regression source covers a persisted delegated KEL accepted
+by `mini_objects::verify_provenance`, and root-as-device, foreign,
+undelegated, SIGN-only and revoked signers rejected without FOLLOW writes.
+These changes have not been executed locally; exact-head CI is required.
+No new cryptography, verified two-store sync, external audit or launch claim.
+
+**Required follow-up:** durable pseudonym/device ownership and recovery;
+authenticated target pairing and confidential linkage delivery; complete
+verified ingestion with KEL carriers across two stores; independent review.
+These blockers keep issue #19 open.
+
+### D-0538 — Fail closed in the incomplete desktop private-follow path · *Proposed*
+
+**Date:** 2026-10-15 · **Refs:** D-0536; `Workspace::follow_privately`.
+
+**Decision:** the ordinary connection-card private-follow UI stays disabled.
+An ordinary root DID card does not authenticate a pairwise target.
+`Workspace::follow_privately` returns an explicit error without deriving
+a pseudonym, incrementing its sequence or publishing an object until durable
+pseudonym/device state and authenticated target pairing are implemented.
+A regression source checks the error, unchanged sequence and empty FOLLOW
+indexes. No local test execution is claimed.
+
+**Supersedes:** the unvalidated private-follow publishing and leak-resistance
+claims in earlier revisions of this unmerged PR. No production activation.

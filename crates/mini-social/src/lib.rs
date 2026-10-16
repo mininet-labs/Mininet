@@ -19,10 +19,15 @@
 //!   deterministically on every replica (`mini-store` LWW).
 //! - A **follow** is a `FOLLOW` object naming a target human, with a state
 //!   byte (follow/unfollow) — per (follower, target) the latest wins by
-//!   `(sequence, object id)`, the same convergence rule as everywhere. The
-//!   graph is derivable by anyone from public objects; private/pseudonymous
-//!   graphs come with pairwise identifiers (SPEC-01 §10) later and are noted
-//!   honestly, not promised early.
+//!   `(sequence, object id)`, the same convergence rule as everywhere. A
+//!   follow published this way is derivable by anyone from public objects —
+//!   that is the deliberate default for a voluntarily public relationship.
+//!   For a relationship neither side means to be globally legible, publish
+//!   the edge over [`crate::set_private_follow`] instead: each side
+//!   derives a per-relationship pairwise pseudonym (SPEC-01 §10, via
+//!   `did-mini`'s existing `Controller::incept_pairwise_pseudonym`) and the
+//!   edge is signed and targeted with those pseudonym `Did`s, never a real
+//!   root (issue #19, D-0529).
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
@@ -30,6 +35,7 @@
 mod discovery;
 mod pairing;
 mod post;
+mod private_graph;
 mod wall;
 
 pub use discovery::{
@@ -47,6 +53,12 @@ pub use pairing::{
     send_pairing_acceptance, verify_pairing_acceptance, verify_pairing_offer, PairingNonceLedger,
     VerifiedPairingAcceptance, VerifiedPairingOffer, MAX_PAIRING_DEVICE_KEL_BYTES,
     MAX_PAIRING_OFFER_WINDOW_MS, MAX_PAIRING_ROOT_KEL_BYTES, PAIRING_NONCE_BYTES,
+};
+
+pub use private_graph::{
+    create_relationship_linkage, derive_relationship_pseudonym, set_private_follow,
+    verify_relationship_linkage, VerifiedRelationshipLinkage, MAX_LINKAGE_DEVICE_KEL_BYTES,
+    MAX_LINKAGE_ROOT_KEL_BYTES,
 };
 
 pub use wall::{
