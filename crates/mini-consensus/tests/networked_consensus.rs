@@ -135,7 +135,7 @@ fn four_nodes_over_a_real_tcp_mesh_finalize_and_converge() {
 
     let mut handles = Vec::new();
     for (index, (listener, (root, device))) in
-        listeners.into_iter().zip(signers.into_iter()).enumerate()
+        listeners.into_iter().zip(signers).enumerate()
     {
         let addrs = addrs.clone();
         let validators = validators.clone();
@@ -255,7 +255,7 @@ fn a_crashed_proposer_is_survived_by_view_change_and_the_cluster_still_converges
 
     let mut handles = Vec::new();
     for (index, (listener, (root, device))) in
-        listeners.into_iter().zip(online.into_iter()).enumerate()
+        listeners.into_iter().zip(online).enumerate()
     {
         let addrs = addrs.clone();
         let validators = validators.clone();
@@ -714,7 +714,7 @@ fn four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip() {
 
     let mut handles = Vec::new();
     for (index, (listener, (root, device))) in
-        listeners.into_iter().zip(signers.into_iter()).enumerate()
+        listeners.into_iter().zip(signers).enumerate()
     {
         let addrs = addrs.clone();
         let validators = validators.clone();
