@@ -187,15 +187,14 @@ fn run_accrual_engine(
         }
 
         // Per-window rate cap.
-        let credited = if window_ms == 0 {
-            raw
-        } else {
-            let w = at_ms / window_ms;
+        let credited = if let Some(w) = at_ms.checked_div(window_ms) {
             let used = window_used.entry(w).or_insert(0);
             let room = max_points_per_window.saturating_sub(*used);
             let c = raw.min(room);
             *used += c;
             c
+        } else {
+            raw
         };
 
         accrued = accrued.saturating_add(credited);

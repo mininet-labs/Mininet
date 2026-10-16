@@ -88,11 +88,14 @@ way D-0069 decided Wasmtime.
 
 ## Dependency governance
 
-`wasmtime` and `wasmtime-wasi` are pinned together to `=48.0.4`.
+`wasmtime` and `wasmtime-wasi` are pinned together to `=48.0.6`.
 The workspace compiler is pinned to Rust 1.95.0, matching upstream's minimum
 supported compiler for that runtime. This upgrade addresses
 RUSTSEC-2026-0314, -0316, -0321, -0322, -0323, -0324 and -0327 reported
-against 46.0.3. Historical 27.x/46.x remediation is retained in the manifest
+against 46.0.3, plus RUSTSEC-2026-0352 through -0359 and -0361 through
+-0364 affecting the earlier 48.0.4 candidate (including the WASI symlink
+rename sandbox escape). The October 14 upstream 48.0.6 release contains
+these fixes. Historical 27.x/46.x remediation is retained in the manifest
 comments; an old patched baseline does not cover later advisories.
 
 Never bump these pins on autopilot: resolve the lockfile with Cargo and run

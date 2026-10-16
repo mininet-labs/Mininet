@@ -447,8 +447,8 @@ impl RootCore {
         envelope_bytes(&state.messaging.envelopes)?;
         let mut envelopes = Vec::new();
         for bytes in &state.messaging.envelopes {
-            let envelope = ObjectEnvelopeV2::from_bytes(bytes)
-                .map_err(|_| MessagingFfiError::CorruptState)?;
+            let envelope =
+                ObjectEnvelopeV2::from_bytes(bytes).map_err(|_| MessagingFfiError::CorruptState)?;
             if envelope.route() == secret.route() {
                 authenticate_envelope(bytes, &secret)?;
                 envelopes.push(bytes.clone());
@@ -472,8 +472,8 @@ impl RootCore {
         let mut total = envelope_bytes(&state.messaging.envelopes)?;
         let mut ids = HashSet::new();
         for bytes in &state.messaging.envelopes {
-            let envelope = ObjectEnvelopeV2::from_bytes(bytes)
-                .map_err(|_| MessagingFfiError::CorruptState)?;
+            let envelope =
+                ObjectEnvelopeV2::from_bytes(bytes).map_err(|_| MessagingFfiError::CorruptState)?;
             ids.insert(envelope.id().as_str().to_string());
         }
         let mut staged = Vec::new();
@@ -1158,7 +1158,9 @@ mod tests {
             1
         );
         assert_eq!(
-            receiver.import_conversation_envelopes(secret(), batch).unwrap(),
+            receiver
+                .import_conversation_envelopes(secret(), batch)
+                .unwrap(),
             0
         );
         let blob = receiver.persist_state(Box::new(XorCipher(0x5A))).unwrap();
@@ -1175,7 +1177,9 @@ mod tests {
         let sender = RootCore::new();
         sender.create_root().unwrap();
         sender.create_device().unwrap();
-        sender.send_message(secret(), 1, text_draft("remote")).unwrap();
+        sender
+            .send_message(secret(), 1, text_draft("remote"))
+            .unwrap();
         let batch = sender.export_conversation_envelopes(secret()).unwrap();
         let receiver = RootCore::new();
         for handle in [
@@ -1215,8 +1219,7 @@ mod tests {
         {
             let mut state = receiver.lock();
             let filler = state.messaging.envelopes[0].clone();
-            state.messaging.envelopes =
-                vec![filler.clone(); MAX_MESSAGING_BYTES / filler.len()];
+            state.messaging.envelopes = vec![filler.clone(); MAX_MESSAGING_BYTES / filler.len()];
         }
         let before = receiver.lock().messaging.envelopes.clone();
         let sequence = receiver.lock().messaging.next_sequence;
@@ -1250,5 +1253,4 @@ mod tests {
         assert!(receiver.lock().messaging.envelopes.is_empty());
         assert_eq!(receiver.lock().messaging.next_sequence, u64::MAX);
     }
-
 }

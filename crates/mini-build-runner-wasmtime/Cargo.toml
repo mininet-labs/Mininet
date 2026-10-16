@@ -53,12 +53,14 @@ mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 # it, which is the whole deny-by-default filesystem premise of D-0069.
 # Both advisories' stated solution range (>=46.0.3, <47.0.0) is satisfied
 # by this patch bump alone -- no WASI Preview 2 API surface change.
-# Security remediation: 48.0.4 is the smallest supported line covering
-# RUSTSEC-2026-0314/-0316/-0321/-0322/-0323/-0324/-0327.
+# Security remediation: 48.0.6 is the smallest supported line covering
+# RUSTSEC-2026-0314/-0316/-0321/-0322/-0323/-0324/-0327 and
+# the October 14 patch set: -0352 through -0359 and -0361 through -0364.
+# Includes the WASI symlink-rename sandbox escape; do not waive advisories.
 # Upstream requires Rust 1.95; both Wasmtime pins move together and the
 # adversarial runner suite must pass before integration.
-wasmtime = { version = "=48.0.4", default-features = false, features = ["cranelift", "runtime", "std"] }
-wasmtime-wasi = { version = "=48.0.4", default-features = false }
+wasmtime = { version = "=48.0.6", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=48.0.6", default-features = false }
 # `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
 # implements `rand_core::TryRng<Error = Infallible>`, which blanket-
 # implements the `Rng` trait `WasiCtxBuilder::secure_random`/
