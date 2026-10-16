@@ -364,7 +364,7 @@ pub fn campaign_create(home: &Path, store_path: &Path, mut args: Vec<String>) ->
 
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
-    let object = mini_forge::coordination::create_campaign(
+    let object = mini_forge::create_campaign(
         &mut store,
         &identity.human_did(),
         &identity.device,
@@ -394,7 +394,7 @@ pub fn finding_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> 
 
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
-    let object = mini_forge::coordination::create_finding(
+    let object = mini_forge::create_finding(
         &mut store,
         &identity.human_did(),
         &identity.device,
@@ -423,7 +423,7 @@ pub fn disposition_create(home: &Path, store_path: &Path, mut args: Vec<String>)
 
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
-    let object = mini_forge::coordination::create_disposition(
+    let object = mini_forge::create_disposition(
         &mut store,
         &identity.human_did(),
         &identity.device,
@@ -450,7 +450,7 @@ pub fn campaign_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> R
     let identity = crate::identity::load_or_init(home)?;
     let store = open_store(store_path)?;
     let oracle = build_oracle(home, &identity)?;
-    let snapshot = mini_forge::coordination::campaign_snapshot(&store, &oracle, &id)
+    let snapshot = mini_forge::campaign_snapshot(&store, &oracle, &id)
         .map_err(|error| CliError::Forge(error.to_string()))?;
 
     let mut human = format!(
@@ -506,7 +506,7 @@ pub fn campaign_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> R
         ))
 }
 
-fn campaign_json(campaign: &mini_forge::coordination::Campaign) -> JsonValue {
+fn campaign_json(campaign: &mini_forge::Campaign) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(campaign.id.as_str())),
         (
@@ -522,7 +522,7 @@ fn campaign_json(campaign: &mini_forge::coordination::Campaign) -> JsonValue {
     ])
 }
 
-fn finding_json(finding: &mini_forge::coordination::Finding) -> JsonValue {
+fn finding_json(finding: &mini_forge::Finding) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(finding.id.as_str())),
         (
@@ -535,7 +535,7 @@ fn finding_json(finding: &mini_forge::coordination::Finding) -> JsonValue {
     ])
 }
 
-fn disposition_json(disposition: &mini_forge::coordination::Disposition) -> JsonValue {
+fn disposition_json(disposition: &mini_forge::Disposition) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(disposition.id.as_str())),
         (
