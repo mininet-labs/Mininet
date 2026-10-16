@@ -3,7 +3,8 @@ name = "mini-desktop"
 version = "0.0.1"
 description = "Sovereignty-first Windows desktop reference client shell for Mininet."
 edition.workspace = true
-rust-version.workspace = true
+# File::try_lock/unlock are the process-exclusion boundary (stable in 1.89).
+rust-version = "1.89"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true

@@ -67,8 +67,21 @@ restart/sequence continuation. The in-memory test vault is a test adapter,
 not an encrypted storage substitute. Windows DPAPI behavior retains the existing
 platform boundary and needs Windows validation.
 
-Local execution is unavailable. The temporary read-only
-validate-private-relationships workflow emits rustfmt corrections and runs
-targeted hosted tests. It must be removed after the corrected sources are
-recovered and final exact-head checks pass. Current code/test source is not
-itself evidence that those tests passed.
+Hosted validation at source head `902a883e754e51b1d10448a78f4968547cfa557b`:
+[workflow 38860259911](https://github.com/mininet-labs/Mininet/actions/runs/38860259911),
+job `116840687511`, ran `cargo fmt --all` and
+`cargo test --locked -p mini-desktop private_relationship -- --nocapture`.
+All four targeted tests passed (0 failed): exclusive creator lease;
+persistence failure without target/sequence/public writes; identity continuity
+after restart with replay/tamper/wrong-identity rejection; and real authenticated
+TCP pairing followed by verified two-store ingestion and restart.
+
+The hosted formatter's exact corrections are committed and its temporary
+read-only workflow is removed. Standard Windows Clippy reported only that
+`File::try_lock` and `File::unlock` require Rust 1.89 while the desktop
+manifest declared 1.83; the desktop now declares its actual 1.89 API floor.
+The already pinned workspace toolchain satisfies it. No lint was suppressed.
+
+Final corrected-head checks, Windows DPAPI/platform validation and full
+workspace checks still need to pass. The separate old Wasmtime dependency-deny
+baseline failure is not evidence against or validation of this implementation.

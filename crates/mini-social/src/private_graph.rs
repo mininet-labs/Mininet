@@ -349,18 +349,12 @@ mod tests {
         let (mut pseudonym, valid_device) = delegated_pair(50);
         let (_, foreign_device) = delegated_pair(60);
         let target = root(70).did();
-        let undelegated = Controller::incept_device_single_from_seeds(
-            &pseudonym.did(),
-            &[80; 32],
-            &[81; 32],
-        )
-        .unwrap();
-        let sign_only = Controller::incept_device_single_from_seeds(
-            &pseudonym.did(),
-            &[82; 32],
-            &[83; 32],
-        )
-        .unwrap();
+        let undelegated =
+            Controller::incept_device_single_from_seeds(&pseudonym.did(), &[80; 32], &[81; 32])
+                .unwrap();
+        let sign_only =
+            Controller::incept_device_single_from_seeds(&pseudonym.did(), &[82; 32], &[83; 32])
+                .unwrap();
         pseudonym
             .delegate_device(&sign_only.did(), Capabilities::SIGN)
             .unwrap();

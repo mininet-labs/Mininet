@@ -17,8 +17,8 @@ mod mute_list;
 mod netsearch;
 mod network_session;
 mod peer_link;
-mod private_relationship;
 mod player;
+mod private_relationship;
 mod theme;
 mod timeline;
 mod video;
@@ -37,13 +37,12 @@ use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 #[cfg(all(test, windows))]
 use mini_social::publish_profile;
 use mini_social::{
-    community_members, followers, following, known_profiles,
-    publish_comment, publish_community, publish_media_post, publish_profile_details, publish_wall,
-    resolve_community, resolve_profile, set_follow, set_membership,
-    set_reaction, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
-    NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
-    MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
-    MAX_PROFILE_FIELD_VALUE_BYTES,
+    community_members, followers, following, known_profiles, publish_comment, publish_community,
+    publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
+    set_follow, set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer,
+    LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField,
+    ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{kel_carrier, KelCache};
@@ -1120,14 +1119,16 @@ impl Workspace {
         initiator: bool,
     ) -> Result<Did, String> {
         let identity = self.identity.as_ref().ok_or("identity is locked")?;
-        let vault = private_relationship::FileVault::open(
-            self.root.join("relationships.dpapi"),
-        )?;
-        let mut relationships = private_relationship::Relationships::open(
-            vault, identity.root.did(),
-        )?;
+        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
+        let mut relationships =
+            private_relationship::Relationships::open(vault, identity.root.did())?;
         relationships.pair(
-            connection, &identity.root, &identity.device, expected_peer, initiator, now_ms(),
+            connection,
+            &identity.root,
+            &identity.device,
+            expected_peer,
+            initiator,
+            now_ms(),
         )
     }
 
@@ -1135,12 +1136,9 @@ impl Workspace {
     /// followed; absent state never recreates or re-delegates a pseudonym.
     fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
         let identity = self.identity.as_ref().ok_or("identity is locked")?;
-        let vault = private_relationship::FileVault::open(
-            self.root.join("relationships.dpapi"),
-        )?;
-        let mut relationships = private_relationship::Relationships::open(
-            vault, identity.root.did(),
-        )?;
+        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
+        let mut relationships =
+            private_relationship::Relationships::open(vault, identity.root.did())?;
         relationships.follow(&mut self.store, target_pseudonym, true, now_ms())?;
         Ok(())
     }
