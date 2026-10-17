@@ -874,3 +874,165 @@ fn parse_pr_payload_strict(pr: &Object) -> Option<(String, String)> {
     }
     Some((branch, title))
 }
+
+/// Verified, exact-state proposal information for interactive and automated
+/// reviewers. `approvals` uses precisely the resolver's quorum rules; readiness
+/// remains provisional local evidence, never chain finality or release authority.
+#[derive(Debug, Clone)]
+pub struct ProposalView {
+    pub id: ObjectId,
+    pub project: ObjectId,
+    pub author: Did,
+    pub branch: String,
+    pub title: String,
+    pub head: ObjectId,
+    pub base: ObjectId,
+    pub current_tip: ObjectId,
+    pub current_branch_head: Option<ObjectId>,
+    pub approvals: u32,
+    pub required_approvals: u32,
+    pub stale: bool,
+    pub forks_detected: bool,
+}
+
+/// Inspect a proposal only after verifying its author, commit and governance
+/// root. Ambiguous or extra links fail closed rather than selecting one value.
+pub fn inspect_proposal<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    id: &ObjectId,
+) -> Result<ProposalView> {
+    let pr = store.get(id)?;
+    if pr.object_type != ObjectType::Custom(PR_TYPE.to_string()) || !author_verified(oracle, &pr) {
+        return Err(ForgeError::BadObject);
+    }
+    let (branch, title) = parse_pr_payload_strict(&pr).ok_or(ForgeError::BadObject)?;
+    let link = |rel: &str| -> Result<ObjectId> {
+        let mut links = pr.links.iter().filter(|l| l.rel == rel);
+        let target = links.next().ok_or(ForgeError::BadObject)?.target.clone();
+        if links.next().is_some() {
+            return Err(ForgeError::BadObject);
+        }
+        Ok(target)
+    };
+    if pr.links.len() != 3 {
+        return Err(ForgeError::BadObject);
+    }
+    let project = link("project")?;
+    let head = link("head")?;
+    let base = link("base")?;
+    let commit = store.get(&head)?;
+    if !author_verified(oracle, &commit) || !crate::commit_is_well_formed(store, &commit) {
+        return Err(ForgeError::BadObject);
+    }
+    let state = resolve_project(store, oracle, &project)?;
+    let approvals = quorum(
+        store,
+        oracle,
+        id,
+        Some(&head),
+        &state.policy,
+        &pr.author_human,
+    )?;
+    Ok(ProposalView {
+        id: id.clone(),
+        project,
+        author: pr.author_human,
+        branch: branch.clone(),
+        title,
+        head,
+        stale: base != state.tip,
+        base,
+        current_tip: state.tip,
+        current_branch_head: state
+            .branches
+            .iter()
+            .find(|(b, _)| b == &branch)
+            .map(|(_, h)| h.clone()),
+        approvals,
+        required_approvals: state.policy.min_approvals,
+        forks_detected: state.forks_detected,
+    })
+}
+
+/// Deterministic listing of locally available verified proposals. Invalid or
+/// unknown-identity objects are never presented as reviewable proposals.
+pub fn list_proposals<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    project: &ObjectId,
+) -> Result<Vec<ProposalView>> {
+    resolve_project(store, oracle, project)?;
+    let mut proposals = Vec::new();
+    for id in store.linking_to(project)? {
+        if let Ok(view) = inspect_proposal(store, oracle, &id) {
+            if &view.project == project {
+                proposals.push(view);
+            }
+        }
+    }
+    proposals.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+    Ok(proposals)
+}
+
+/// Verified review evidence. `eligible_approval` means this verdict satisfies
+/// current policy and exact-head rules; repeated roots still count only once
+/// in ProposalView::approvals. Rejection is evidence, never an approval.
+#[derive(Debug, Clone)]
+pub struct ProposalReview {
+    pub id: ObjectId,
+    pub reviewer: Did,
+    pub reviewed_head: ObjectId,
+    pub approved: bool,
+    pub eligible_approval: bool,
+}
+
+pub fn proposal_reviews<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    id: &ObjectId,
+) -> Result<Vec<ProposalReview>> {
+    let view = inspect_proposal(store, oracle, id)?;
+    let state = resolve_project(store, oracle, &view.project)?;
+    let mut reviews = Vec::new();
+    for review_id in store.linking_to(id)? {
+        let obj = store.get(&review_id)?;
+        if obj.object_type != ObjectType::Custom(APPROVE_TYPE.to_string())
+            || !author_verified(oracle, &obj)
+        {
+            continue;
+        }
+        let bytes = match &obj.payload {
+            Payload::Public(b) => b,
+            _ => continue,
+        };
+        let approved = match bytes.first() {
+            Some(&VERDICT_APPROVE) => true,
+            Some(&0) => false,
+            _ => continue,
+        };
+        let mut offset = 1;
+        let Some(head) = take_str(bytes, &mut offset) else {
+            continue;
+        };
+        if offset != bytes.len() {
+            continue;
+        }
+        let Ok(reviewed_head) = ObjectId::parse(&head) else {
+            continue;
+        };
+        let eligible_approval = approved
+            && reviewed_head == view.head
+            && obj.author_human != view.author
+            && state.policy.contains(&obj.author_human);
+        reviews.push(ProposalReview {
+            id: review_id,
+            reviewer: obj.author_human,
+            reviewed_head,
+            approved,
+            eligible_approval,
+        });
+    }
+    reviews.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+    Ok(reviews)
+}

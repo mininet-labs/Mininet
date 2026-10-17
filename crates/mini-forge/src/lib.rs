@@ -197,6 +197,21 @@ impl From<did_mini::IdentityError> for ForgeError {
     }
 }
 
+/// Maximum bytes in one source-tree path segment. Nodes predating this
+/// extension must be upgraded to read trees containing names over 64 bytes.
+pub const MAX_FILENAME_BYTES: usize = 255;
+
+/// A safe source-tree filename, preserving the forge's restricted ASCII
+/// alphabet and excluding separators and traversal components.
+pub fn file_name_is_well_formed(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= MAX_FILENAME_BYTES
+        && s.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.')
+        && s != "."
+        && s != ".."
+}
+
 pub(crate) fn valid_name(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 64
@@ -254,7 +269,7 @@ pub fn put_tree<B: Backend>(
     payload.extend_from_slice(&(sorted.len() as u32).to_be_bytes());
     let mut builder = ObjectBuilder::new(ObjectType::Custom(TREE_TYPE.to_string()));
     for e in &sorted {
-        if !valid_name(&e.name) {
+        if !file_name_is_well_formed(&e.name) {
             return Err(ForgeError::BadName);
         }
         payload.push(u8::from(e.is_dir));
@@ -299,7 +314,7 @@ fn read_tree(obj: &Object) -> Result<Vec<TreeEntry>> {
         };
         off += 1;
         let name = take_str(b, &mut off).ok_or(ForgeError::BadObject)?;
-        if !valid_name(&name) {
+        if !file_name_is_well_formed(&name) {
             return Err(ForgeError::BadObject);
         }
         // Canonical order: strictly ascending names (also rules out duplicates

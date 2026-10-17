@@ -110,3 +110,11 @@ cargo run -p mini-cli -- identity init
 ```
 
 License: CC0-1.0 (public domain).
+
+## Native migration and collaboration
+
+See [the migration runbook](../../docs/design/native-forge-migration.md) for
+`mini git import-snapshot` / `export`, `repo commit --workspace`, structured
+`pr list|show|diff|review|approve|merge`, and saved `remote` endpoints. These
+compose signed native collaboration without GitHub; source exchange never
+installs software or bypasses governance approval.

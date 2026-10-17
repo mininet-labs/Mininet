@@ -468,8 +468,9 @@ prove the error-envelope path, which lives in `main.rs`
 (`mini_cli::json_error_envelope`/`command_kind`) rather than
 `mini_cli::run` itself, since that function's `Result<String>` contract
 must keep `Err` meaning "the command failed" for every existing Rust
-caller. `identity`/`kel`/`repo`/`pr`/`sync` still have no `--json`
-support and cleanly reject the flag — named follow-up, not a silent gap.
+caller. Native migration now adds JSON support for `repo init`/`commit`,
+all `pr` commands, `git` and `remote`. `identity`/`kel`/other `repo` commands/
+`sync` still reject `--json` explicitly.
 
 **Adversarial CLI fixtures (D-0079):** `crates/mini-cli/tests/
 adversarial_release_install.rs` drives `release`/`installer` through the
@@ -496,6 +497,13 @@ a simulated one, and still not yet a running distributed system with real
 network partitions or concurrent installers racing each other.
 
 ## Batch 5 — Mininet as the primary forge
+
+**Native developer migration:** the [migration runbook](native-forge-migration.md)
+now covers the local Git snapshot/mirror driver, safe native workspaces, JSON
+proposal inspection and findings-only review, and saved-peer synchronization.
+This adds human/agent command integration to existing primitives; it does not
+activate a governance cutover or a persistent hosting service.
+
 
 P2P proposal/review synchronization (reusing `mini-sync`/`mini-net`, no new
 wire protocol needed per the same composition insight D-0062 already

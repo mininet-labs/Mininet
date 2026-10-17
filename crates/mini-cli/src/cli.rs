@@ -12,8 +12,8 @@ use did_mini::Did;
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
 use crate::{
-    build, coordination, identity, installer, intake, keystone, pr, provenance, release, repo,
-    store, sync,
+    build, coordination, git, identity, installer, intake, keystone, pr, provenance, release,
+    remote, repo, store, sync,
 };
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
@@ -56,7 +56,8 @@ fn dirs_home() -> Option<PathBuf> {
 /// Run one CLI invocation. `raw_args` is everything after the program
 /// name. Returns the human-readable output to print on success -- or, if
 /// `--json` is present, a single-line JSON document for the commands that
-/// support it (`build`/`release`/`provenance`/`installer`; see
+/// support it (`repo init|commit`, `pr`, `git`, `remote`, and the existing
+/// build/release/provenance/installer groups; see
 /// `crate::json`'s module docs). `--json` on any other command is a clean
 /// usage error rather than a silently-ignored flag, since a scripting
 /// caller trusting `--json` to always produce parseable output must never
@@ -99,14 +100,10 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
             reject_json(json, "kel")?;
             dispatch_kel(home, args)
         }
-        "repo" => {
-            reject_json(json, "repo")?;
-            dispatch_repo(home, store_path, args)
-        }
-        "pr" => {
-            reject_json(json, "pr")?;
-            dispatch_pr(home, store_path, args)
-        }
+        "repo" => dispatch_repo(home, store_path, args, json),
+        "pr" => dispatch_pr(home, store_path, args, json),
+        "remote" => remote::dispatch(home, store_path, args, json),
+        "git" => git::dispatch(home, store_path, args, json),
         "team" => dispatch_team(home, store_path, args, json),
         "task" => dispatch_task(home, store_path, args, json),
         "sync" => {
@@ -232,8 +229,16 @@ fn dispatch_kel(home: &Path, mut args: Vec<String>) -> Result<String> {
     }
 }
 
-fn dispatch_repo(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_repo(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
     let noun = next(&mut args, "repo")?;
+    if !matches!(noun.as_str(), "init" | "commit") {
+        reject_json(json, "repo subcommand")?;
+    }
     match noun.as_str() {
         "init" => {
             let name = next(&mut args, "repo init")?;
@@ -248,11 +253,18 @@ fn dispatch_repo(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
                 })
                 .transpose()?
                 .unwrap_or(0);
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected repo init arguments".into()));
+            }
             repo::init(home, store_path, &name, maintainers?, min_approvals)
+                .map(|r| r.render(json, "repo.init"))
         }
         "track" => {
             let name = next(&mut args, "repo track")?;
             let id = next(&mut args, "repo track")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected repo arguments".into()));
+            }
             repo::track(home, &name, &id)
         }
         "commit" => {
@@ -261,22 +273,52 @@ fn dispatch_repo(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
                 .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
             let message = extract_flag(&mut args, "--message")
                 .ok_or_else(|| CliError::Usage("--message required".to_string()))?;
-            let paths: Vec<PathBuf> = args.into_iter().map(PathBuf::from).collect();
-            repo::commit_paths(home, store_path, &project, &branch, &message, &paths)
+            if let Some(workspace) = extract_flag(&mut args, "--workspace") {
+                if !args.is_empty() {
+                    return Err(CliError::Usage(
+                        "--workspace cannot be mixed with paths or unknown flags".into(),
+                    ));
+                }
+                repo::commit_workspace(
+                    home,
+                    store_path,
+                    &project,
+                    &branch,
+                    &message,
+                    Path::new(&workspace),
+                )
+                .map(|r| r.render(json, "repo.commit"))
+            } else {
+                if args.iter().any(|arg| arg.starts_with("--")) {
+                    return Err(CliError::Usage("unknown repo commit flag".into()));
+                }
+                let paths: Vec<PathBuf> = args.into_iter().map(PathBuf::from).collect();
+                repo::commit_paths(home, store_path, &project, &branch, &message, &paths)
+                    .map(|r| r.render(json, "repo.commit"))
+            }
         }
         "checkout" => {
             let commit_id = next(&mut args, "repo checkout")?;
             let dest = next(&mut args, "repo checkout")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected repo arguments".into()));
+            }
             repo::checkout_commit(home, store_path, &commit_id, Path::new(&dest))
         }
         "branch" => {
             let project = next(&mut args, "repo branch")?;
             let branch_name = next(&mut args, "repo branch")?;
             let set_to = extract_flag(&mut args, "--set");
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected repo arguments".into()));
+            }
             repo::branch(home, store_path, &project, &branch_name, set_to.as_deref())
         }
         "status" => {
             let project = next(&mut args, "repo status")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected repo arguments".into()));
+            }
             repo::status(home, store_path, &project)
         }
         other => Err(CliError::Usage(format!(
@@ -285,9 +327,14 @@ fn dispatch_repo(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
     }
 }
 
-fn dispatch_pr(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_pr(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
     let noun = next(&mut args, "pr")?;
-    match noun.as_str() {
+    let result = match noun.as_str() {
         "propose" => {
             let project = next(&mut args, "pr propose")?;
             let branch = extract_flag(&mut args, "--branch")
@@ -297,6 +344,9 @@ fn dispatch_pr(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<
             let head = extract_flag(&mut args, "--head")
                 .ok_or_else(|| CliError::Usage("--head required".to_string()))?;
             let base = extract_flag(&mut args, "--base");
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr arguments".into()));
+            }
             pr::propose_pr(
                 home,
                 store_path,
@@ -307,12 +357,26 @@ fn dispatch_pr(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<
                 base.as_deref(),
             )
         }
+        "review" => {
+            let id = next(&mut args, "pr review")?;
+            let head = extract_flag(&mut args, "--head")
+                .ok_or_else(|| CliError::Usage("--head required".into()))?;
+            let findings = extract_flag(&mut args, "--findings")
+                .ok_or_else(|| CliError::Usage("--findings required".into()))?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr review arguments".into()));
+            }
+            pr::add_findings(home, store_path, &id, &head, &findings)
+        }
         "approve" => {
             let pr_id = next(&mut args, "pr approve")?;
             let head = extract_flag(&mut args, "--head")
                 .ok_or_else(|| CliError::Usage("--head required".to_string()))?;
             let reject = extract_bool_flag(&mut args, "--reject");
             let findings = extract_flag(&mut args, "--findings");
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr arguments".into()));
+            }
             pr::approve_pr(
                 home,
                 store_path,
@@ -326,6 +390,9 @@ fn dispatch_pr(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<
             let project = next(&mut args, "pr merge")?;
             let pr_id = next(&mut args, "pr merge")?;
             let prev = extract_flag(&mut args, "--prev");
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr arguments".into()));
+            }
             pr::merge_pr(home, store_path, &project, &pr_id, prev.as_deref())
         }
         "ai-assisted" => {
@@ -333,16 +400,41 @@ fn dispatch_pr(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<
             let owner = extract_flag(&mut args, "--owner")
                 .ok_or_else(|| CliError::Usage("--owner required".to_string()))?;
             let owner = Did::parse(&owner).map_err(|e| CliError::Identity(e.to_string()))?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr arguments".into()));
+            }
             pr::set_ai_assisted(home, store_path, &pr_id, owner)
+        }
+        "list" => {
+            let project = next(&mut args, "pr list")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr list arguments".into()));
+            }
+            pr::list_prs(home, store_path, &project)
+        }
+        "show" | "diff" => {
+            let id = next(&mut args, "pr show/diff")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr arguments".into()));
+            }
+            if noun == "show" {
+                pr::show_pr(home, store_path, &id)
+            } else {
+                pr::diff_pr(home, store_path, &id)
+            }
         }
         "findings" => {
             let pr_id = next(&mut args, "pr findings")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected pr arguments".into()));
+            }
             pr::show_findings(home, store_path, &pr_id)
         }
         other => Err(CliError::Usage(format!(
             "unknown `pr` subcommand: {other:?}"
         ))),
-    }
+    }?;
+    Ok(result.render(json, &format!("pr.{noun}")))
 }
 
 fn dispatch_sync(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {

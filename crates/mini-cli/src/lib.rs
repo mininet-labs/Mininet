@@ -20,6 +20,11 @@
 //! the encrypted channel while preserving the out-of-process Wasmtime runner
 //! boundary and treating every worker result as untrusted evidence.
 //!
+//! Git snapshot migration and export mirrors (`git`), safe snapshot workspaces
+//! (`repo commit --workspace`), structured exact-head reviews (`pr --json`),
+//! and saved peer endpoints (`remote`) provide the native developer workflow.
+//! See `docs/design/native-forge-migration.md` for the supported boundary.
+//!
 //! ## Honest limits
 //!
 //! - No key rotation from the CLI yet (`crate::identity`'s module docs).
@@ -43,6 +48,7 @@ mod build;
 mod cli;
 mod coordination;
 mod error;
+mod git;
 pub mod identity;
 mod installer;
 mod intake;
@@ -53,6 +59,7 @@ mod pr;
 mod project;
 mod provenance;
 mod release;
+mod remote;
 mod repo;
 mod selftest;
 mod sequence;

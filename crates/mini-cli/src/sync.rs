@@ -113,6 +113,12 @@ pub fn listen(home: &Path, store_path: &Path, addr: &str, times: u32) -> Result<
 /// `mini sync connect <host:port>` — dial exactly one peer and sync as
 /// [`SyncRole::Initiator`] (pulls first, then serves the peer's pull).
 pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
+    connect_report(home, store_path, addr).map(|report| format_report(addr, &report))
+}
+
+/// Structured counterpart used by saved-peer automation. Counts describe
+/// received objects only, never acceptance or canonicalization by the peer.
+pub fn connect_report(home: &Path, store_path: &Path, addr: &str) -> Result<IngestReport> {
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     seed_own_kel_carriers(&identity, &mut store)?;
@@ -121,7 +127,22 @@ pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
         .hydrate_from_store(&store)
         .map_err(|e| CliError::Sync(e.to_string()))?;
 
-    let mut bearer = TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?;
+    // Saved endpoints are numeric addresses: bound connection and stalled-peer
+    // I/O without introducing DNS or changing the legacy hostname path.
+    let mut bearer = if let Ok(address) = addr.parse::<std::net::SocketAddr>() {
+        let stream =
+            std::net::TcpStream::connect_timeout(&address, std::time::Duration::from_secs(10))
+                .map_err(|e| CliError::Sync(e.to_string()))?;
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(30)))
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(30)))
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+        TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?
+    } else {
+        TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?
+    };
     let (init, hello) = Initiator::start().map_err(|e| CliError::Sync(e.to_string()))?;
     bearer
         .send(&hello)
@@ -140,7 +161,7 @@ pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
     )
     .map_err(|e| CliError::Sync(e.to_string()))?;
 
-    Ok(format_report(addr, &report))
+    Ok(report)
 }
 
 /// A one-shot native release server result. The server exits after one

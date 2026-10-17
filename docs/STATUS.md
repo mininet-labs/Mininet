@@ -1716,6 +1716,15 @@ given time.
 
 ## 10. Self-hosted forge spine (D-0066, tracking issue #102)
 
+**Native migration/workspace/review implementation:** local SHA-1/SHA-256 Git
+snapshot import with signed provenance, new Git export mirrors, bounded native
+source workspaces, structured exact-head proposal/review/diff commands and saved
+peer synchronization now compose the existing Forge primitives. This is
+engineering preparation, not a governance cutover or external gate closure.
+See [Native Forge migration and collaboration](design/native-forge-migration.md)
+for commands, compatibility boundaries and acceptance evidence.
+
+
 Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
 external-audit-driven development-sequencing initiative
 (`docs/design/self-hosted-forge-spine.md`). Batches 1-4 (developer →

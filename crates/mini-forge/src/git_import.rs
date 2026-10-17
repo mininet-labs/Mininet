@@ -37,8 +37,8 @@ use mini_store::{Backend, Store};
 
 use crate::git_export::hex_encode;
 use crate::{
-    commit, put_file, put_tree, take_str, valid_name, ForgeError, GitObject, GitObjectKind, Result,
-    TreeEntry, MAX_TREE_ENTRIES,
+    commit, file_name_is_well_formed, put_file, put_tree, take_str, ForgeError, GitObject,
+    GitObjectKind, Result, TreeEntry, MAX_TREE_ENTRIES,
 };
 
 /// The custom object type carrying a [`GitImportProvenance`] record.
@@ -109,7 +109,7 @@ fn parse_tree_body(body: &[u8]) -> Result<Vec<RawTreeEntry>> {
             + space
             + 1;
         let name = std::str::from_utf8(&body[space + 1..nul]).map_err(|_| ForgeError::BadObject)?;
-        if !valid_name(name) {
+        if !file_name_is_well_formed(name) {
             return Err(ForgeError::BadName);
         }
         let id_start = nul + 1;
