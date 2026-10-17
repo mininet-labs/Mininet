@@ -2814,6 +2814,7 @@ dependencies = [
  "mini-sync",
  "mini-windows-setup",
  "tempfile",
+ "zeroize",
 ]
 
 [[package]]

@@ -27,6 +27,8 @@ pub(crate) enum Msg {
     Objects(Vec<Vec<u8>>),
     /// End of this pull.
     Done,
+    /// Paged mode only: bounded transfer window ended before all Wants.
+    WindowDone,
 }
 
 const T_ROOT: u8 = 1;
@@ -36,6 +38,7 @@ const T_IDS: u8 = 4;
 const T_WANT: u8 = 5;
 const T_OBJECTS: u8 = 6;
 const T_DONE: u8 = 7;
+const T_WINDOW_DONE: u8 = 8;
 
 impl Msg {
     pub(crate) fn encode(&self) -> Vec<u8> {
@@ -69,6 +72,7 @@ impl Msg {
                 }
             }
             Msg::Done => w.push(T_DONE),
+            Msg::WindowDone => w.push(T_WINDOW_DONE),
         }
         w
     }
@@ -115,6 +119,7 @@ impl Msg {
                 Msg::Objects(objs)
             }
             T_DONE => Msg::Done,
+            T_WINDOW_DONE => Msg::WindowDone,
             _ => return Err(SyncError::Protocol),
         };
         if !r.finished() {
