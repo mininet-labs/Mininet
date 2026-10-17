@@ -2,7 +2,7 @@
 //! specifically "for the SHA-256 Git-object interop path," and the
 //! self-hosted-forge-spine design doc names this real work as still
 //! pending. Exports a mini-forge commit chain (commit → tree → blobs,
-//! recursively through every ancestor) as real git objects in git's
+//! iteratively through every ancestor) as real git objects in git's
 //! SHA-256 object format (`git init --object-format=sha256`) — the exact
 //! same `"<kind> <len>\0<body>"` framing and SHA-256 hashing real `git`
 //! computes, verified in this crate's own tests against the actual `git`
@@ -27,22 +27,22 @@
 //! requiring a real email — `.invalid` is the top-level domain RFC 2606
 //! reserves for exactly this "not a real address" purpose. Git also wants
 //! a UTC offset per timestamp; mini-forge tracks no timezone, so every
-//! exported commit is stamped `+0000`. File mode is always `100644`
-//! (regular, non-executable) — mini-forge's tree model has no executable
-//! bit to translate.
+//! exported commit is stamped `+0000`. File mode is `100644` for ordinary
+//! blobs and `100755` for executable blobs; source bytes and that portable
+//! executable bit are preserved.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use did_mini::Did;
 use mini_objects::{ObjectId, ObjectType, Payload};
 use mini_store::{Backend, Store};
 
-use crate::{read_tree, ForgeError, Result, FILE_TYPE};
+use crate::{read_tree, ForgeError, Result, EXECUTABLE_FILE_TYPE, FILE_TYPE};
 
 /// Hard ceiling on how many ancestor commits one export walks — the same
-/// hostile-input bound every other recursive walk in this tree uses
+/// hostile-input discipline used by other bounded walks in this tree
 /// (`checkout`'s depth budget, `resolve_project`'s chain walk).
-pub const MAX_EXPORT_COMMITS: usize = 100_000;
+pub const MAX_EXPORT_COMMITS: usize = 4096;
 
 /// One real git object in git's SHA-256 object format. `bytes` is the
 /// exact framing git itself hashes; a caller writing a real on-disk git
@@ -127,134 +127,260 @@ fn git_tree_sort_key(name: &str, is_dir: bool) -> Vec<u8> {
     key
 }
 
-fn export_file<B: Backend>(
-    store: &Store<B>,
-    id: &ObjectId,
-    objects: &mut BTreeMap<String, GitObject>,
-) -> Result<String> {
-    let obj = store.get(id)?;
-    if obj.object_type != ObjectType::Custom(FILE_TYPE.to_string()) {
-        return Err(ForgeError::BadObject);
-    }
-    let bytes = match &obj.payload {
-        Payload::Public(b) => b.clone(),
-        Payload::Encrypted(_) => return Err(ForgeError::BadObject),
-    };
-    let git_obj = frame("blob", &bytes);
-    let git_id = git_obj.id.clone();
-    objects.entry(git_id.clone()).or_insert(git_obj);
-    Ok(git_id)
-}
-
-fn export_tree<B: Backend>(
-    store: &Store<B>,
-    id: &ObjectId,
-    objects: &mut BTreeMap<String, GitObject>,
-) -> Result<String> {
-    let obj = store.get(id)?;
-    let mut entries = read_tree(&obj)?;
-    entries.sort_by_key(|e| git_tree_sort_key(&e.name, e.is_dir));
-
-    let mut body = Vec::new();
-    for e in &entries {
-        let child_git_id = if e.is_dir {
-            export_tree(store, &e.target, objects)?
-        } else {
-            export_file(store, &e.target, objects)?
-        };
-        let mode = if e.is_dir { "40000" } else { "100644" };
-        body.extend_from_slice(mode.as_bytes());
-        body.push(b' ');
-        body.extend_from_slice(e.name.as_bytes());
-        body.push(0);
-        body.extend_from_slice(&hex_decode(&child_git_id)?);
-    }
-    let git_obj = frame("tree", &body);
-    let git_id = git_obj.id.clone();
-    objects.entry(git_id.clone()).or_insert(git_obj);
-    Ok(git_id)
-}
-
-/// The synthesized, clearly-non-routable git author identity for a
-/// `did:mini` author — see this module's own "Honest lossiness" doc.
+/// The synthesized, clearly-non-routable git author identity for a did:mini.
 fn synthetic_identity(human: &Did) -> (String, String) {
     let scid = human.scid();
     (format!("mini:{scid}"), format!("{scid}@mininet.invalid"))
 }
 
-fn export_commit_rec<B: Backend>(
-    store: &Store<B>,
-    id: &ObjectId,
-    objects: &mut BTreeMap<String, GitObject>,
-    exported: &mut BTreeMap<String, String>,
-    budget: &mut usize,
-) -> Result<String> {
-    if let Some(existing) = exported.get(id.as_str()) {
-        return Ok(existing.clone());
+const MAX_EXPORT_OBJECTS: usize = 65_536;
+const MAX_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+
+enum ExportNode {
+    File {
+        bytes: Vec<u8>,
+        executable: bool,
+    },
+    Tree(Vec<crate::TreeEntry>),
+    Commit {
+        human: Did,
+        timestamp_ms: u64,
+        message: String,
+        tree: ObjectId,
+        parents: Vec<ObjectId>,
+    },
+}
+impl ExportNode {
+    fn dependencies(&self) -> Vec<ObjectId> {
+        match self {
+            Self::File { .. } => Vec::new(),
+            Self::Tree(entries) => entries.iter().map(|entry| entry.target.clone()).collect(),
+            Self::Commit { tree, parents, .. } => std::iter::once(tree.clone())
+                .chain(parents.iter().cloned())
+                .collect(),
+        }
     }
-    *budget = budget.checked_sub(1).ok_or(ForgeError::FieldTooLarge)?;
-
-    let obj = store.get(id)?;
-    if obj.object_type != ObjectType::COMMIT {
-        return Err(ForgeError::BadObject);
-    }
-    let tree_link = obj
-        .links
-        .iter()
-        .find(|l| l.rel == "tree")
-        .ok_or(ForgeError::BadObject)?;
-    let tree_git_id = export_tree(store, &tree_link.target, objects)?;
-
-    let mut parent_git_ids = Vec::new();
-    for link in obj.links.iter().filter(|l| l.rel == "parent") {
-        parent_git_ids.push(export_commit_rec(
-            store,
-            &link.target,
-            objects,
-            exported,
-            budget,
-        )?);
-    }
-
-    let message = match &obj.payload {
-        Payload::Public(b) => String::from_utf8(b.clone()).map_err(|_| ForgeError::BadObject)?,
-        Payload::Encrypted(_) => return Err(ForgeError::BadObject),
-    };
-    let (name, email) = synthetic_identity(&obj.author_human);
-    let ts_secs = obj.timestamp_ms / 1000;
-
-    let mut body = Vec::new();
-    body.extend_from_slice(format!("tree {tree_git_id}\n").as_bytes());
-    for p in &parent_git_ids {
-        body.extend_from_slice(format!("parent {p}\n").as_bytes());
-    }
-    body.extend_from_slice(format!("author {name} <{email}> {ts_secs} +0000\n").as_bytes());
-    body.extend_from_slice(format!("committer {name} <{email}> {ts_secs} +0000\n").as_bytes());
-    body.push(b'\n');
-    body.extend_from_slice(message.trim_end_matches('\n').as_bytes());
-    body.push(b'\n');
-
-    let git_obj = frame("commit", &body);
-    let git_id = git_obj.id.clone();
-    objects.entry(git_id.clone()).or_insert(git_obj);
-    exported.insert(id.as_str().to_string(), git_id.clone());
-    Ok(git_id)
+}
+struct Converted {
+    id: String,
+    kind: GitObjectKind,
+    executable: bool,
+    tree_height: usize,
 }
 
-/// Export `commit_id` and its full ancestor chain as real git SHA-256
-/// objects. Returns the exported commit's git object id, plus every git
-/// object (blobs, trees, commits, deduplicated by git id) needed to make
-/// that commit resolvable in a real `git init --object-format=sha256`
-/// repository.
+/// Export a complete ancestor DAG without recursive commit traversal. Every
+/// native blob/tree/commit is converted once, including shared tree DAGs.
+/// Limits apply before publication: 4096 commits, 65536 unique native/Git
+/// objects, 64 MiB native/framed Git bytes and the normal Forge tree depth.
+/// Missing dependencies, cycles and cross-kind links fail explicitly.
 pub fn export_commit_chain<B: Backend>(
     store: &Store<B>,
     commit_id: &ObjectId,
 ) -> Result<(String, Vec<GitObject>)> {
-    let mut objects = BTreeMap::new();
-    let mut exported = BTreeMap::new();
-    let mut budget = MAX_EXPORT_COMMITS;
-    let git_id = export_commit_rec(store, commit_id, &mut objects, &mut exported, &mut budget)?;
-    Ok((git_id, objects.into_values().collect()))
+    let mut pending = vec![commit_id.clone()];
+    let mut queued = BTreeSet::from([commit_id.as_str().to_string()]);
+    let mut nodes = BTreeMap::new();
+    let mut native_bytes = 0usize;
+    let mut commits = 0usize;
+    while let Some(id) = pending.pop() {
+        if nodes.len() >= MAX_EXPORT_OBJECTS {
+            return Err(ForgeError::FieldTooLarge);
+        }
+        let obj = store.get(&id)?;
+        native_bytes = native_bytes
+            .checked_add(obj.to_bytes().len())
+            .ok_or(ForgeError::FieldTooLarge)?;
+        if native_bytes > MAX_EXPORT_BYTES {
+            return Err(ForgeError::FieldTooLarge);
+        }
+        let node = if obj.object_type == ObjectType::COMMIT {
+            commits += 1;
+            if commits > MAX_EXPORT_COMMITS {
+                return Err(ForgeError::FieldTooLarge);
+            }
+            let tree = crate::validated_commit_tree(&obj)?;
+            let message = match &obj.payload {
+                Payload::Public(bytes) => {
+                    String::from_utf8(bytes.clone()).map_err(|_| ForgeError::BadObject)?
+                }
+                Payload::Encrypted(_) => return Err(ForgeError::BadObject),
+            };
+            ExportNode::Commit {
+                human: obj.author_human.clone(),
+                timestamp_ms: obj.timestamp_ms,
+                message,
+                tree,
+                parents: obj
+                    .links
+                    .iter()
+                    .filter(|link| link.rel == "parent")
+                    .map(|link| link.target.clone())
+                    .collect(),
+            }
+        } else if obj.object_type == ObjectType::Custom(crate::TREE_TYPE.to_string()) {
+            let mut entries = read_tree(&obj)?;
+            entries.sort_by_key(|entry| git_tree_sort_key(&entry.name, entry.is_dir));
+            ExportNode::Tree(entries)
+        } else if obj.object_type == ObjectType::Custom(FILE_TYPE.to_string())
+            || obj.object_type == ObjectType::Custom(EXECUTABLE_FILE_TYPE.to_string())
+        {
+            let bytes = match &obj.payload {
+                Payload::Public(bytes) => bytes.clone(),
+                Payload::Encrypted(_) => return Err(ForgeError::BadObject),
+            };
+            ExportNode::File {
+                bytes,
+                executable: obj.object_type == ObjectType::Custom(EXECUTABLE_FILE_TYPE.to_string()),
+            }
+        } else {
+            return Err(ForgeError::BadObject);
+        };
+        for dependency in node.dependencies() {
+            if queued.insert(dependency.as_str().to_string()) {
+                if queued.len() > MAX_EXPORT_OBJECTS {
+                    return Err(ForgeError::FieldTooLarge);
+                }
+                pending.push(dependency);
+            }
+        }
+        nodes.insert(id.as_str().to_string(), node);
+    }
+    if !matches!(
+        nodes.get(commit_id.as_str()),
+        Some(ExportNode::Commit { .. })
+    ) {
+        return Err(ForgeError::BadObject);
+    }
+    let mut counts = BTreeMap::new();
+    let mut children: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut ready = VecDeque::new();
+    for (id, node) in &nodes {
+        let dependencies: BTreeSet<_> = node
+            .dependencies()
+            .into_iter()
+            .map(|id| id.as_str().to_string())
+            .collect();
+        counts.insert(id.clone(), dependencies.len());
+        if dependencies.is_empty() {
+            ready.push_back(id.clone());
+        }
+        for dependency in dependencies {
+            children.entry(dependency).or_default().push(id.clone());
+        }
+    }
+    let mut converted: BTreeMap<String, Converted> = BTreeMap::new();
+    let mut objects: BTreeMap<String, GitObject> = BTreeMap::new();
+    let mut git_bytes = 0usize;
+    while let Some(id) = ready.pop_front() {
+        let node = nodes.remove(&id).ok_or(ForgeError::BadObject)?;
+        let mut executable = false;
+        let mut tree_height = 0usize;
+        let object = match node {
+            ExportNode::File {
+                bytes,
+                executable: mode,
+            } => {
+                executable = mode;
+                frame("blob", &bytes)
+            }
+            ExportNode::Tree(entries) => {
+                let mut body = Vec::new();
+                for entry in entries {
+                    let target = converted
+                        .get(entry.target.as_str())
+                        .ok_or(ForgeError::BadObject)?;
+                    let mode = if entry.is_dir {
+                        if target.kind != GitObjectKind::Tree {
+                            return Err(ForgeError::BadObject);
+                        }
+                        tree_height = tree_height.max(target.tree_height + 1);
+                        "40000"
+                    } else {
+                        if target.kind != GitObjectKind::Blob {
+                            return Err(ForgeError::BadObject);
+                        }
+                        if target.executable {
+                            "100755"
+                        } else {
+                            "100644"
+                        }
+                    };
+                    if tree_height > crate::MAX_TREE_DEPTH {
+                        return Err(ForgeError::TooDeep);
+                    }
+                    body.extend_from_slice(mode.as_bytes());
+                    body.push(b' ');
+                    body.extend_from_slice(entry.name.as_bytes());
+                    body.push(0);
+                    body.extend_from_slice(&hex_decode(&target.id)?);
+                }
+                frame("tree", &body)
+            }
+            ExportNode::Commit {
+                human,
+                timestamp_ms,
+                message,
+                tree,
+                parents,
+            } => {
+                let target = converted.get(tree.as_str()).ok_or(ForgeError::BadObject)?;
+                if target.kind != GitObjectKind::Tree {
+                    return Err(ForgeError::BadObject);
+                }
+                let mut body = format!("tree {}\n", target.id).into_bytes();
+                for parent in parents {
+                    let target = converted
+                        .get(parent.as_str())
+                        .ok_or(ForgeError::BadObject)?;
+                    if target.kind != GitObjectKind::Commit {
+                        return Err(ForgeError::BadObject);
+                    }
+                    body.extend_from_slice(format!("parent {}\n", target.id).as_bytes());
+                }
+                let (name, email) = synthetic_identity(&human);
+                let seconds = timestamp_ms / 1000;
+                body.extend_from_slice(format!("author {name} <{email}> {seconds} +0000\ncommitter {name} <{email}> {seconds} +0000\n\n").as_bytes());
+                // Preserve the established export framing: one terminal newline.
+                body.extend_from_slice(message.trim_end_matches('\n').as_bytes());
+                body.push(b'\n');
+                frame("commit", &body)
+            }
+        };
+        let git_id = object.id.clone();
+        let kind = object.kind;
+        if let std::collections::btree_map::Entry::Vacant(entry) = objects.entry(git_id.clone()) {
+            git_bytes = git_bytes
+                .checked_add(object.bytes.len())
+                .ok_or(ForgeError::FieldTooLarge)?;
+            if git_bytes > MAX_EXPORT_BYTES {
+                return Err(ForgeError::FieldTooLarge);
+            }
+            entry.insert(object);
+        }
+        converted.insert(
+            id.clone(),
+            Converted {
+                id: git_id,
+                kind,
+                executable,
+                tree_height,
+            },
+        );
+        for child in children.get(&id).into_iter().flatten() {
+            let count = counts.get_mut(child).ok_or(ForgeError::BadObject)?;
+            *count = count.checked_sub(1).ok_or(ForgeError::BadObject)?;
+            if *count == 0 {
+                ready.push_back(child.clone());
+            }
+        }
+    }
+    if !nodes.is_empty() {
+        return Err(ForgeError::BadObject);
+    }
+    let root = converted
+        .get(commit_id.as_str())
+        .ok_or(ForgeError::BadObject)?;
+    Ok((root.id.clone(), objects.into_values().collect()))
 }
 
 #[cfg(test)]

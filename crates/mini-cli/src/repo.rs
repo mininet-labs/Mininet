@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use did_mini::Did;
 use mini_forge::{
-    checkout, commit, project, put_file, put_tree, resolve_branch, resolve_project, set_branch,
-    Policy, TreeEntry,
+    checkout_with_modes, commit, project, put_file, put_tree, resolve_branch, resolve_project,
+    set_branch, Policy, TreeEntry,
 };
 use mini_objects::ObjectId;
 use mini_store::{FsBackend, Store};
@@ -175,7 +175,7 @@ pub fn commit_workspace(
 }
 
 enum Snapshot {
-    File(String, Vec<u8>),
+    File(String, Vec<u8>, bool),
     Directory(String, Vec<Snapshot>),
 }
 
@@ -271,7 +271,14 @@ fn read_snapshot(
             }
             budget.files -= 1;
             budget.bytes -= bytes.len();
-            result.push(Snapshot::File(name, bytes));
+            #[cfg(unix)]
+            let executable = {
+                use std::os::unix::fs::PermissionsExt;
+                metadata.permissions().mode() & 0o111 != 0
+            };
+            #[cfg(not(unix))]
+            let executable = false;
+            result.push(Snapshot::File(name, bytes, executable));
         } else {
             return Err(CliError::Usage(format!(
                 "not a regular file or directory: {}",
@@ -313,11 +320,15 @@ fn store_snapshot(
         .iter()
         .map(|entry| {
             let (name, is_dir, target) = match entry {
-                Snapshot::File(name, bytes) => (
+                Snapshot::File(name, bytes, executable) => (
                     name,
                     false,
-                    put_file(store, human, device, bytes)
-                        .map_err(|e| CliError::Forge(e.to_string()))?,
+                    (if *executable {
+                        mini_forge::put_executable_file(store, human, device, bytes)
+                    } else {
+                        put_file(store, human, device, bytes)
+                    })
+                    .map_err(|e| CliError::Forge(e.to_string()))?,
                 ),
                 Snapshot::Directory(name, children) => {
                     let entries = store_snapshot(store, human, device, children)?;
@@ -347,7 +358,8 @@ pub fn checkout_commit(
 ) -> Result<String> {
     let store = open_store(store_path)?;
     let commit_id = ObjectId::parse(commit_ref).map_err(|e| CliError::Object(e.to_string()))?;
-    let files = checkout(&store, &commit_id).map_err(|e| CliError::Forge(e.to_string()))?;
+    let files =
+        checkout_with_modes(&store, &commit_id).map_err(|e| CliError::Forge(e.to_string()))?;
     // Publish only a fully materialized checkout. Existing destinations are
     // refused so local edits can never be silently overwritten.
     if fs::symlink_metadata(dest).is_ok() {
@@ -380,7 +392,11 @@ pub fn checkout_commit(
     let staging = staging
         .ok_or_else(|| CliError::Io("could not allocate checkout staging directory".into()))?;
     let write_result = (|| -> Result<()> {
-        for (path, bytes) in &files {
+        for (path, bytes, executable) in &files {
+            #[cfg(not(unix))]
+            if *executable {
+                return Err(CliError::Usage("this platform cannot materialize executable source modes; use a Unix workspace".into()));
+            }
             if Path::new(path)
                 .components()
                 .any(|c| !matches!(c, std::path::Component::Normal(_)))
@@ -395,6 +411,23 @@ pub fn checkout_commit(
                 fs::create_dir_all(parent).map_err(|e| CliError::Io(e.to_string()))?;
             }
             fs::write(&full, bytes).map_err(|e| CliError::Io(e.to_string()))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                // Preserve umask's read/write restrictions, changing only the
+                // portable executable bit on newly staged regular files.
+                let mode = fs::metadata(&full)
+                    .map_err(|e| CliError::Io(e.to_string()))?
+                    .permissions()
+                    .mode();
+                let mode = if *executable {
+                    mode | ((mode & 0o444) >> 2)
+                } else {
+                    mode & !0o111
+                };
+                fs::set_permissions(&full, fs::Permissions::from_mode(mode))
+                    .map_err(|e| CliError::Io(e.to_string()))?;
+            }
         }
         if fs::symlink_metadata(dest).is_ok() {
             return Err(CliError::Usage(
@@ -508,9 +541,9 @@ mod workspace_tests {
         let entries = read_snapshot(&paths, 0, &mut SnapshotBudget::default()).unwrap();
         assert_eq!(entries.len(), 2);
         assert!(
-            matches!(&entries[0], Snapshot::File(name, bytes) if name == "a.rs" && bytes == b"a")
+            matches!(&entries[0], Snapshot::File(name, bytes, _) if name == "a.rs" && bytes == b"a")
         );
-        assert!(matches!(&entries[1], Snapshot::File(name, _) if name == "z.rs"));
+        assert!(matches!(&entries[1], Snapshot::File(name, _, _) if name == "z.rs"));
     }
 
     #[test]
@@ -551,6 +584,62 @@ mod workspace_tests {
         let alias = dir.path().join("alias");
         symlink(dir.path(), &alias).unwrap();
         assert!(read_snapshot(&[alias.join("secret")], 0, &mut SnapshotBudget::default()).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_workspace_preserves_executable_modes() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        let store = dir.path().join("store");
+        init(&home, &store, "demo", vec![], 1).unwrap();
+        let workspace = dir.path().join("source");
+        fs::create_dir(&workspace).unwrap();
+        let script = workspace.join("run.sh");
+        let text = workspace.join("text.sh");
+        fs::write(&script, b"#!/bin/sh\necho hello\n").unwrap();
+        fs::write(&text, b"text").unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o750)).unwrap();
+        fs::set_permissions(&text, fs::Permissions::from_mode(0o640)).unwrap();
+        let result = commit_workspace(&home, &store, "demo", "main", "modes", &workspace).unwrap();
+        let id = result.human.strip_prefix("commit created: ").unwrap();
+        let dest = dir.path().join("checkout");
+        checkout_commit(&home, &store, id, &dest).unwrap();
+        assert_ne!(
+            fs::metadata(dest.join("run.sh"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0
+        );
+        assert_eq!(
+            fs::metadata(dest.join("text.sh"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0
+        );
+        let modes = commit_workspace(&home, &store, "demo", "main", "again", &dest).unwrap();
+        let id = ObjectId::parse(modes.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        let store = open_store(&store).unwrap();
+        let files = checkout_with_modes(&store, &id).unwrap();
+        assert!(
+            files
+                .iter()
+                .find(|(name, _, _)| name == "run.sh")
+                .unwrap()
+                .2
+        );
+        assert!(
+            !files
+                .iter()
+                .find(|(name, _, _)| name == "text.sh")
+                .unwrap()
+                .2
+        );
     }
 
     #[test]

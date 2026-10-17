@@ -13,7 +13,7 @@ use crate::error::{CliError, Result};
 use crate::json::CommandResult;
 use crate::{
     build, coordination, git, identity, installer, intake, keystone, pr, provenance, release,
-    remote, repo, store, sync,
+    remote, repo, service, store, sync,
 };
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
@@ -103,6 +103,7 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "repo" => dispatch_repo(home, store_path, args, json),
         "pr" => dispatch_pr(home, store_path, args, json),
         "remote" => remote::dispatch(home, store_path, args, json),
+        "service" => service::dispatch(home, store_path, args, json),
         "git" => git::dispatch(home, store_path, args, json),
         "team" => dispatch_team(home, store_path, args, json),
         "task" => dispatch_task(home, store_path, args, json),

@@ -118,3 +118,9 @@ See [the migration runbook](../../docs/design/native-forge-migration.md) for
 `pr list|show|diff|review|approve|merge`, and saved `remote` endpoints. These
 compose signed native collaboration without GitHub; source exchange never
 installs software or bypasses governance approval.
+
+The [Unix software launch profile](../../docs/design/native-forge-launch.md)
+adds executable-preserving, resumable history migration and
+`mini service run|status|stop` with explicit peer allowlists and pinned
+mutual authentication. Run `python3 tools/check_native_forge.py --release`
+for the repeatable coding acceptance gate.

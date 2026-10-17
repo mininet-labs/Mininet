@@ -498,6 +498,15 @@ network partitions or concurrent installers racing each other.
 
 ## Batch 5 — Mininet as the primary forge
 
+**Unix software launch profile:** persistent authenticated service hosting,
+explicit root allowlists and saved endpoint pins, paged/resumable windows,
+executable-preserving source/history migration and iterative deep Git mirrors
+now have focused software acceptance coverage. The maintained operational
+commands and boundaries are in [native-forge-launch.md](native-forge-launch.md).
+Local daemon IPC/event subscriptions and automatic discovery are distinct
+from this owner-invoked network service.
+
+
 **Native developer migration:** the [migration runbook](native-forge-migration.md)
 now covers the local Git snapshot/mirror driver, safe native workspaces, JSON
 proposal inspection and findings-only review, and saved-peer synchronization.

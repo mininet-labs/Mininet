@@ -28,12 +28,12 @@
 //! ## Honest limits
 //!
 //! - No key rotation from the CLI yet (`crate::identity`'s module docs).
-//! - No daemon (`mini-devd`): every invocation is a fresh process reading
-//!   local files: acceptable for solo/small-group use, not for background
-//!   sync or live event subscriptions. `mini sync` handles exactly one
-//!   connection per invocation, then exits (`crate::sync`'s module docs).
-//!   Native release serving is likewise one request per invocation; it is not
-//!   a persistent update service.
+//! - `mini service run` now hosts authenticated native synchronization with
+//!   bounded workers; it is an owner-invoked foreground process suitable for
+//!   supervision. Legacy `mini sync` remains bounded per invocation. There
+//!   is no local daemon IPC/event-subscription API or automatic discovery.
+//!   Native release serving remains one request per invocation; source sync
+//!   never becomes a persistent forced-update service.
 //! - The per-home sequence counter (`crate::sequence`) serializes concurrent
 //!   invocations with an OS-backed lock, but other files in a home are not a
 //!   general transaction boundary.
@@ -63,6 +63,7 @@ mod remote;
 mod repo;
 mod selftest;
 mod sequence;
+mod service;
 pub mod store;
 mod sync;
 mod windows;

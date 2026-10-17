@@ -22,12 +22,15 @@ The result contains `commit_id`, `provenance_id`, `source_format` and
 is rehashed, and the entire supported snapshot is validated before signing.
 The importing identity signs the snapshot and its provenance; Git author
 strings and embedded Git signatures remain source evidence, not authenticated
-Mininet authorship. The import is one snapshot, not the original history.
+Mininet authorship. This command imports one snapshot. `git import-history` adds verified ancestry
+and merge-parent preservation with signed resumable checkpoints; see the
+[software launch profile](native-forge-launch.md).
 
-Executable files require explicit `--allow-executable-loss`: the current
-Forge file object stores bytes but no executable bit. Original paths/modes/IDs
-are retained in signed provenance. The option permits that known metadata
-loss; it never permits dropping files. Symlinks, submodules, unsupported names,
+Executable files now preserve their portable executable bit through an
+additive signed file-object type. Original paths/modes/IDs remain in signed
+provenance. Upgraded readers are required for executable objects. The legacy
+`--allow-executable-loss` option is accepted but preservation remains enabled.
+Symlinks, submodules, unsupported names,
 oversized objects and excessive work are rejected. Git LFS pointer files are
 ordinary source bytes; LFS content is not fetched. See `git.rs` for exact
 resource caps. Import does not move a governed branch or approve a proposal.
@@ -101,7 +104,10 @@ ingest counts, not a receipt proving the peer accepted or merged an update.
 `canonicalized:false` means this command did not create a merge. Store contents
 may still include independently governed heads received from peers.
 The listener serves the requested number of connections sequentially and exits;
-there is no new background daemon, public hosting service or NAT traversal.
+these legacy commands are not the persistent service. `mini service run` now
+provides bounded, mutually authenticated ongoing hosting with explicit peer
+allowlists and pinned remotes; see the [launch profile](native-forge-launch.md).
+There is still no automatic public discovery or NAT traversal.
 
 ## Keep a replaceable Git mirror
 
@@ -125,13 +131,17 @@ unsupported input and overwrite refusal; workspace roundtrips, exclusions and
 symlink rejection; exact-head JSON review with two reviewers; and saved-peer
 proposal transfer over loopback TCP between independent stores. Existing
 governance and developer/network collaboration suites remain regression checks.
-Public-host operations, arbitrary full-history Git migration, executable-mode
-roundtrips, daemon availability and external audit are separate remaining work.
+Persistent authenticated hosting, bounded history migration, executable-mode
+roundtrips and large paged inventories are covered by the follow-up software
+launch profile. Arbitrary Git/platform compatibility and external audit remain
+separate from this supported Unix developer workflow.
 
 The actual 1,161-file repository snapshot at Git commit
 `0b7b93afaa3ac5a65ac382b78d5f039bc747f53a` was imported and exported to a
 SHA-1 bare mirror: every path and blob ID matched, and `git fsck --full`
-passed. The explicitly permitted metadata loss affected 15 executable bits.
+passed. That earlier bounded slice explicitly permitted losing 15 executable bits.
+The follow-up implementation preserves them by default; the earlier result is
+retained as historical evidence, not the current format's behavior.
 The CLI test sources were also run through a temporary production-dependency
 harness excluding only the unused Wasmtime runner dev-dependency, avoiding
 compilation of the unrelated sandbox executor. Production CLI build and Clippy

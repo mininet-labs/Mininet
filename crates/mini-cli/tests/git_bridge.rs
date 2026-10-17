@@ -190,7 +190,7 @@ fn git_bridge_sha1_and_sha256_snapshot_export_preserve_content_and_provenance() 
 }
 
 #[test]
-fn git_bridge_mode_loss_requires_consent_and_unsupported_names_fail_before_identity() {
+fn git_bridge_preserves_executable_modes_and_rejects_unsupported_names_before_identity() {
     let temp = tempfile::tempdir().unwrap();
     let repo = temp.path().join("source");
     fixture(&repo, "sha1");
@@ -198,26 +198,23 @@ fn git_bridge_mode_loss_requires_consent_and_unsupported_names_fail_before_ident
     git_cmd(&repo, &["commit", "-m", "executable"]);
     let home = temp.path().join("home");
     let store = temp.path().join("store");
-    let result = dispatch(&home, &store, &["import-snapshot", repo.to_str().unwrap()]);
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("allow-executable-loss"));
-    assert!(matches!(
-        mini_cli::identity::load(&home),
-        Err(mini_cli::CliError::NotInitialized)
-    ));
-    let output = dispatch(
+    let output = dispatch(&home, &store, &["import-snapshot", repo.to_str().unwrap()]).unwrap();
+    assert!(output.contains("\"executable_modes_preserved\":true"));
+    let mirror = temp.path().join("executable-mirror.git");
+    dispatch(
         &home,
         &store,
         &[
-            "import-snapshot",
-            repo.to_str().unwrap(),
-            "--allow-executable-loss",
+            "export",
+            field(&output, "commit_id"),
+            "--to",
+            mirror.to_str().unwrap(),
+            "--object-format",
+            "sha1",
         ],
     )
     .unwrap();
-    assert!(output.contains("\"executable_mode_loss_allowed\":true"));
+    assert!(git_cmd(&mirror, &["ls-tree", "HEAD:src", "main.rs"]).starts_with("100755 blob "));
     fs::write(repo.join("space name.txt"), "unsupported").unwrap();
     git_cmd(&repo, &["add", "--all"]);
     git_cmd(&repo, &["commit", "-m", "unsupported path"]);
@@ -310,7 +307,7 @@ fn git_bridge_rejects_revision_expressions_option_injection_and_unsupported_mode
 }
 
 #[test]
-fn git_bridge_export_bounds_repeated_tree_work_before_creating_mirror() {
+fn git_bridge_export_memoizes_repeated_tree_dag() {
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
     let store_path = temp.path().join("store");
@@ -344,7 +341,13 @@ fn git_bridge_export_bounds_repeated_tree_work_before_creating_mirror() {
     )
     .unwrap();
     let mirror = temp.path().join("mirror.git");
-    let error = dispatch(
+    let (_, objects) = mini_forge::export_commit_chain(&store, commit.id()).unwrap();
+    assert_eq!(
+        objects.len(),
+        18,
+        "shared tree DAG converts each unique node once"
+    );
+    dispatch(
         &home,
         &store_path,
         &[
@@ -354,7 +357,122 @@ fn git_bridge_export_bounds_repeated_tree_work_before_creating_mirror() {
             mirror.to_str().unwrap(),
         ],
     )
-    .unwrap_err();
-    assert!(error.to_string().contains("traversal budget"));
+    .unwrap();
+    git_cmd(&mirror, &["fsck", "--full"]);
+}
+
+#[test]
+fn git_bridge_export_rejects_excessive_tree_depth_before_publication() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    let store_path = temp.path().join("store");
+    let identity = mini_cli::identity::init(&home).unwrap();
+    let mut store = mini_cli::store::open_store(&store_path).unwrap();
+    let mut target =
+        mini_forge::put_file(&mut store, &identity.human_did(), &identity.device, b"x").unwrap();
+    for level in 0..mini_forge::MAX_TREE_DEPTH + 2 {
+        target = mini_forge::put_tree(
+            &mut store,
+            &identity.human_did(),
+            &identity.device,
+            &[mini_forge::TreeEntry {
+                name: "nested".to_string(),
+                is_dir: level != 0,
+                target,
+            }],
+        )
+        .unwrap();
+    }
+    let commit = mini_forge::commit(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        "too deep",
+        &target,
+        &[],
+        1,
+        1,
+    )
+    .unwrap();
+    let mirror = temp.path().join("mirror.git");
+    assert!(dispatch(
+        &home,
+        &store_path,
+        &[
+            "export",
+            commit.id().as_str(),
+            "--to",
+            mirror.to_str().unwrap()
+        ]
+    )
+    .unwrap_err()
+    .to_string()
+    .contains("deep"));
     assert!(!mirror.exists());
+}
+
+#[test]
+fn git_bridge_exports_hundred_commit_history_with_one_shared_tree() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    let store_path = temp.path().join("store");
+    let identity = mini_cli::identity::init(&home).unwrap();
+    let mut store = mini_cli::store::open_store(&store_path).unwrap();
+    let file = mini_forge::put_file(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        b"shared content\n",
+    )
+    .unwrap();
+    let tree = mini_forge::put_tree(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        &[mini_forge::TreeEntry {
+            name: "shared.txt".to_string(),
+            is_dir: false,
+            target: file,
+        }],
+    )
+    .unwrap();
+    let mut tip = None;
+    for index in 0..100 {
+        let parents: Vec<_> = tip.into_iter().collect();
+        let commit = mini_forge::commit(
+            &mut store,
+            &identity.human_did(),
+            &identity.device,
+            &format!("Commit {index}"),
+            &tree,
+            &parents,
+            index + 1,
+            index + 1,
+        )
+        .unwrap();
+        tip = Some(commit.id().clone());
+    }
+    let tip = tip.unwrap();
+    let (_, objects) = mini_forge::export_commit_chain(&store, &tip).unwrap();
+    assert_eq!(objects.len(), 102);
+    let mirror = temp.path().join("history.git");
+    dispatch(
+        &home,
+        &store_path,
+        &[
+            "export",
+            tip.as_str(),
+            "--to",
+            mirror.to_str().unwrap(),
+            "--object-format",
+            "sha1",
+        ],
+    )
+    .unwrap();
+    assert_eq!(git_cmd(&mirror, &["rev-list", "--count", "HEAD"]), "100");
+    assert_eq!(
+        git_cmd(&mirror, &["show", "HEAD:shared.txt"]),
+        "shared content"
+    );
+    git_cmd(&mirror, &["fsck", "--full"]);
 }

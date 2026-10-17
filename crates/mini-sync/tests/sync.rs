@@ -366,3 +366,40 @@ fn orphan_root_carrier_is_absorbed_but_not_indexed() {
         IngestOutcome::AcceptedCarrier
     );
 }
+
+#[test]
+fn paged_sync_reconciles_more_than_one_id_frame() {
+    let (mut server_store, mut server_cache, _root, _device) = seeded(10, 4097);
+    let mut client_store = Store::new(MemoryBackend::new());
+    let mut client_cache = KelCache::new();
+    let (mut client_bearer, mut server_bearer) = pair();
+    let (mut client_channel, mut server_channel) = channels(&mut client_bearer, &mut server_bearer);
+    let server = thread::spawn(move || {
+        let report = mini_sync::sync_bidirectional_paged(
+            &mut server_bearer,
+            &mut server_channel,
+            &mut server_store,
+            &mut server_cache,
+            SyncRole::Responder,
+        )
+        .unwrap();
+        (server_store, report)
+    });
+    let report = mini_sync::sync_bidirectional_paged(
+        &mut client_bearer,
+        &mut client_channel,
+        &mut client_store,
+        &mut client_cache,
+        SyncRole::Initiator,
+    )
+    .unwrap();
+    let (server_store, server_report) = server.join().unwrap();
+    assert_eq!(report.accepted, 4097);
+    assert_eq!(report.carriers, 2);
+    assert_eq!(server_report.received, 0);
+    let mut client_ids = client_store.all_ids().unwrap();
+    let mut server_ids = server_store.all_ids().unwrap();
+    client_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    server_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    assert_eq!(client_ids, server_ids);
+}
