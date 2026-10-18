@@ -2809,10 +2809,12 @@ dependencies = [
  "mini-pipeline-protocol",
  "mini-presence",
  "mini-provenance",
+ "mini-resident",
  "mini-selftest",
  "mini-store",
  "mini-sync",
  "mini-windows-setup",
+ "serde_json",
  "tempfile",
  "zeroize",
 ]
@@ -2935,6 +2937,7 @@ dependencies = [
  "mini-media",
  "mini-messaging",
  "mini-objects",
+ "mini-resident",
  "mini-selftest",
  "mini-social",
  "mini-store",
@@ -3290,6 +3293,17 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-erasure",
+]
+
+[[package]]
+name = "mini-resident"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "mini-durable",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

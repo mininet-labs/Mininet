@@ -18,6 +18,7 @@ mod netsearch;
 mod network_session;
 mod peer_link;
 mod player;
+mod resident;
 mod theme;
 mod timeline;
 mod video;
@@ -74,6 +75,7 @@ enum View {
     Library,
     Earnings,
     System,
+    ResidentAI,
     Diagnostics,
     Updates,
     Privacy,
@@ -162,6 +164,7 @@ impl Default for PrivacyState {
 
 struct MininetApp {
     workspace: Option<Workspace>,
+    resident: resident::Panel,
     app_service: Option<app_service::Client>,
     app_status: Option<AccountStatus>,
     app_status_rx: Option<Receiver<Result<AppReply, String>>>,
@@ -1623,6 +1626,7 @@ impl Default for MininetApp {
             }
         };
         Self {
+            resident: resident::Panel::default(),
             workspace,
             app_service,
             app_status: None,
@@ -1908,6 +1912,7 @@ impl eframe::App for MininetApp {
                             View::Library => self.library(ui),
                             View::Earnings => self.earnings(ui),
                             View::System => self.system(ui),
+                            View::ResidentAI => self.resident.ui(ui, &resident::config_home()),
                             View::Diagnostics => self.diagnostics(ui),
                             View::Updates => self.updates(ui),
                             View::Privacy => self.privacy(ui),
@@ -2870,6 +2875,7 @@ impl MininetApp {
                 self.nav_button(ui, View::Connections, "🔗", "Connections");
                 self.nav_button(ui, View::Library, "📋", "Library");
                 self.nav_button(ui, View::Earnings, "💰", "Earnings");
+                self.nav_button(ui, View::ResidentAI, "✦", "Resident AI");
                 self.nav_button(ui, View::System, "🖥", "System & storage");
                 ui.add_space(12.0);
                 ui.separator();
@@ -4577,6 +4583,7 @@ No tracking. No forced updates.",
 
     fn header(&self, ui: &mut egui::Ui) {
         let (title, subtitle) = match self.view {
+            View::ResidentAI => ("Resident AI", "Owner-controlled local assistance. Preview the context you choose to share."),
             View::Onboarding => (
                 "Welcome to Mininet",
                 "Create your local root, then publish the public profile you choose to share.",
