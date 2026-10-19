@@ -407,6 +407,24 @@ impl Pool {
         let _lock = self.lock()?;
         self.load()?.status()
     }
+    /// Inspect one active lease, verifying only that object's exact public
+    /// bytes. Manifest accounting/physical lengths remain globally bounded and
+    /// fail closed, but unrelated objects are not read or hashed for a quote.
+    pub fn lease(&self, id: &str, now_ms: u64) -> Result<Lease> {
+        id_valid(id)?;
+        let _lock = self.lock()?;
+        let state = self.load()?;
+        let lease = state
+            .leases
+            .get(id)
+            .filter(|l| l.expires_at_ms > now_ms)
+            .ok_or_else(|| SeedError("object is not retained or its lease expired".into()))?;
+        validate_object(
+            &read_bounded(&self.root.join("objects").join(id), MAX_OBJECT_BYTES)?,
+            id,
+        )?;
+        Ok(lease.clone())
+    }
     pub fn inventory(&self, now_ms: u64) -> Result<Vec<Lease>> {
         let _lock = self.lock()?;
         let state = self.load()?;
@@ -469,6 +487,9 @@ mod tests {
             data.to_bytes()
         );
         assert!(pool.read(id, first.expires_at_ms).is_err());
+        assert_eq!(pool.lease(id, first.expires_at_ms - 1).unwrap(), first);
+        assert!(pool.lease(id, first.expires_at_ms).is_err());
+        assert!(pool.lease("../untrusted", 0).is_err());
         assert!(pool.inventory(first.expires_at_ms).unwrap().is_empty());
         assert_eq!(pool.status().unwrap().objects, 1); // expiry alone does not reclaim disk
         let renewed = pool.admit(&data, 2, first.expires_at_ms).unwrap();
@@ -514,12 +535,22 @@ mod tests {
         let pool = Pool::open(dir.path()).unwrap();
         pool.configure(1024 * 1024).unwrap();
         pool.admit(&data, 1, 0).unwrap();
+        let unrelated = object(b"another valid seed");
+        pool.admit(&unrelated, 1, 0).unwrap();
         let path = dir.path().join("objects").join(data.id().as_str());
         let mut bytes = fs::read(&path).unwrap();
         let last = bytes.len() - 1;
         bytes[last] ^= 1;
         fs::write(&path, bytes).unwrap();
         assert!(pool.read(data.id().as_str(), 0).is_err());
+        assert!(pool.lease(data.id().as_str(), 0).is_err());
+        // A targeted quote does not hash an unrelated same-size corrupt blob;
+        // it still verifies the requested object's exact bytes. Full inventory
+        // remains fail-closed for any advertised corrupt object.
+        assert_eq!(
+            pool.lease(unrelated.id().as_str(), 0).unwrap().id,
+            unrelated.id().as_str()
+        );
         assert!(pool.inventory(0).is_err());
         assert!(pool.admit(&data, 1, 0).is_err());
         data.payload = Payload::Encrypted(b"private".to_vec());

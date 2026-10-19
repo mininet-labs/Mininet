@@ -132,7 +132,7 @@ enum Request {
         witness_device: String,
         nonce: [u8; 32],
         max_micro: u64,
-        payment: Option<Vec<u8>>,
+        payment_digest: Option<[u8; 32]>,
     },
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -161,7 +161,7 @@ fn encode_sigs(s: &[IndexedSig]) -> Vec<Sig> {
         .collect()
 }
 fn decode_sigs(s: &[Sig]) -> Result<Vec<IndexedSig>> {
-    if s.is_empty() || s.len() > 16 {
+    if s.is_empty() || s.len() > did_mini::MAX_SIGNATURES {
         return Err(err("invalid receipt signature count"));
     }
     s.iter()
@@ -276,6 +276,8 @@ fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
         old.id == e.id
             || (old.host_device == e.host_device && old.host_nonce == e.host_nonce)
             || (old.witness_device == e.witness_device && old.witness_nonce == e.witness_nonce)
+            || (old.host_device == e.witness_device && old.host_nonce == e.witness_nonce)
+            || (old.witness_device == e.host_device && old.witness_nonce == e.host_nonce)
     }) {
         return Err(err("receipt replay"));
     }
@@ -332,12 +334,7 @@ fn reserve_payment(home: &Path, claim: &mini_settlement::PaymentClaim) -> Result
     mini_durable::atomic_replace(&dest, &claim.to_wire_bytes().map_err(err)?).map_err(err)
 }
 fn offer(home: &Path, id: &str) -> Result<Offer> {
-    let lease = pool(home)?
-        .inventory(now())
-        .map_err(err)?
-        .into_iter()
-        .find(|l| l.id == id)
-        .ok_or_else(|| err("object is not actively seeded"))?;
+    let lease = pool(home)?.lease(id, now()).map_err(err)?;
     let p = price(home)?;
     Ok(Offer {
         id: lease.id,
@@ -382,7 +379,7 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
             witness_device,
             nonce,
             max_micro,
-            payment,
+            payment_digest,
         } => {
             if peer == identity.human_did() {
                 return Err(err("self-serving cannot produce reward evidence"));
@@ -391,7 +388,11 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
             if o.amount_micro > max_micro {
                 return Err(err("price exceeds owner budget"));
             }
-            let claim = check_payment(payment.as_deref(), &o)?;
+            if (o.amount_micro > 0) != payment_digest.is_some() {
+                return Err(err(
+                    "paid offer requires a payment commitment; free offer rejects payment",
+                ));
+            }
             let cache = crate::store::build_kel_cache(home, &identity)?;
             let witness_device = Did::parse(&witness_device).map_err(err)?;
             let root = cache
@@ -409,9 +410,6 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
             let bytes = pool(home)?.read(&id, now()).map_err(err)?;
             if bytes.len() as u64 != o.bytes {
                 return Err(err("seed object changed after quote"));
-            }
-            if let Some(claim) = &claim {
-                reserve_payment(home, claim)?;
             }
             send(&mut b, &mut c, &o)?;
             for chunk in bytes.chunks(CHUNK) {
@@ -442,10 +440,20 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
                 at_ms: fields.at_ms,
                 host_sig: encode_sigs(&fields.sign(&identity.device)),
                 witness_sig: Vec::new(),
-                payment,
+                payment: None,
             };
             send(&mut b, &mut c, &e)?;
-            e.witness_sig = recv(&mut b, &mut c)?;
+            let ack: DeliveryAck = recv(&mut b, &mut c)?;
+            if ack.payment.as_deref().map(|p| *blake3::hash(p).as_bytes()) != payment_digest {
+                return Err(err("payment commitment mismatch"));
+            }
+            e.witness_sig = ack.witness_sig;
+            e.payment = ack.payment;
+            e.verify(home)?;
+            let claim = check_payment(e.payment.as_deref(), &o)?;
+            if let Some(claim) = &claim {
+                reserve_payment(home, claim)?;
+            }
             save_evidence(home, &e)?;
             send(
                 &mut b,
@@ -519,16 +527,30 @@ fn ingest(home: &Path, store: &Path, obj: &Object) -> Result<()> {
         )),
     }
 }
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeliveryAck {
+    witness_sig: Vec<Sig>,
+    payment: Option<Vec<u8>>,
+}
+struct FetchOptions {
+    max_micro: u64,
+    payment: Option<Vec<u8>>,
+    days: Option<u16>,
+}
 fn fetch(
     home: &Path,
     store: &Path,
     address: &str,
     peer: &Did,
     id: &str,
-    max_micro: u64,
-    payment: Option<Vec<u8>>,
-    days: Option<u16>,
+    options: FetchOptions,
 ) -> Result<Value> {
+    let FetchOptions {
+        max_micro,
+        payment,
+        days,
+    } = options;
     let identity = crate::identity::load(home)?;
     let nonce = mini_crypto::random_32().map_err(err)?;
     let mut s = connect(home, address, peer)?;
@@ -540,7 +562,7 @@ fn fetch(
             witness_device: identity.device_did().to_string(),
             nonce,
             max_micro,
-            payment: payment.clone(),
+            payment_digest: payment.as_deref().map(|p| *blake3::hash(p).as_bytes()),
         },
     )?;
     let o: Offer = recv(&mut s.bearer, &mut s.channel)?;
@@ -575,20 +597,25 @@ fn fetch(
         || e.witness_root != identity.human_did().as_str()
         || e.witness_device != identity.device_did().as_str()
         || e.witness_nonce != nonce
-        || e.payment != payment
+        || e.payment.is_some()
         || !e.witness_sig.is_empty()
     {
         return Err(err("receipt does not match verified received content"));
     }
+    e.payment = payment.clone();
     e.witness_sig = encode_sigs(&e.fields()?.sign(&identity.device));
     e.verify(home)?;
     // Save the content and the signed pending evidence before acknowledging delivery.
     crate::store::open_store(store)?.insert(&obj).map_err(err)?;
-    if let Some(days) = days {
-        pool(home)?.admit(&obj, days, now()).map_err(err)?;
-    }
     save_evidence(home, &e)?;
-    send(&mut s.bearer, &mut s.channel, &e.witness_sig)?;
+    send(
+        &mut s.bearer,
+        &mut s.channel,
+        &DeliveryAck {
+            witness_sig: e.witness_sig.clone(),
+            payment: payment.clone(),
+        },
+    )?;
     let ack: Value = recv(&mut s.bearer, &mut s.channel)?;
     if ack["receipt_id"] != e.id
         || ack["delivery_verified"] != true
@@ -598,8 +625,15 @@ fn fetch(
             "invalid provider acknowledgement; local evidence is retained",
         ));
     }
+    let reseed_error = days
+        .and_then(|days| {
+            pool(home)
+                .and_then(|p| p.admit(&obj, days, now()).map_err(err))
+                .err()
+        })
+        .map(|e| e.to_string());
     Ok(
-        json!({"object_id":id,"bytes":o.bytes,"receipt_id":e.id,"delivery_verified":true,"reseeded":days.is_some(),"payment_state":if payment.is_some(){"PendingCanonical"}else{"NoPayment"},"payment_final":false,"amount_micro":o.amount_micro}),
+        json!({"object_id":id,"bytes":o.bytes,"receipt_id":e.id,"delivery_verified":true,"reseeded":days.is_some() && reseed_error.is_none(),"reseed_error":reseed_error,"payment_state":if payment.is_some(){"PendingCanonical"}else{"NoPayment"},"payment_final":false,"amount_micro":o.amount_micro}),
     )
 }
 fn decode_hex(s: &str) -> Result<Vec<u8>> {
@@ -672,6 +706,98 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
             done(&args)?;
             json!({"items":pool(home)?.inventory(now()).map_err(err)?})
         }
+        "follow-stop" => {
+            done(&args)?;
+            safe_dir(home)?;
+            mini_durable::atomic_replace(&home.join("seed-follow.stop"), b"stop\n").map_err(err)?;
+            json!({"stop_requested":true,"note":"A running follow checks this between transfers/rounds; an in-flight bounded request may finish."})
+        }
+        "follow" => {
+            let resume = if let Some(i) = args.iter().position(|s| s == "--resume") {
+                args.remove(i);
+                true
+            } else {
+                false
+            };
+            let address = need(&mut args, "--addr")?;
+            let peer = Did::parse(&need(&mut args, "--peer")?).map_err(err)?;
+            let days = u16::try_from(number(&need(&mut args, "--days")?)?).map_err(err)?;
+            let rounds = number(&need(&mut args, "--rounds")?)?;
+            let interval = number(&need(&mut args, "--interval-ms")?)?;
+            let max = number(&need(&mut args, "--max-objects")?)?;
+            done(&args)?;
+            if !(1..=3650).contains(&days)
+                || !(1..=86400).contains(&rounds)
+                || !(1000..=60000).contains(&interval)
+                || !(1..=4096).contains(&max)
+            {
+                return Err(err("follow requires days1..3650, rounds1..86400, interval-ms1000..60000, max-objects1..4096"));
+            }
+            safe_dir(home)?;
+            let _follow =
+                mini_durable::try_lock_exclusive(&home.join("seed-follow.lock")).map_err(err)?;
+            if resume && home.join("seed-follow.stop").try_exists().map_err(err)? {
+                fs::remove_file(home.join("seed-follow.stop")).map_err(err)?;
+                mini_durable::sync_directory(home).map_err(err)?;
+            }
+            // Remember every object this run already holds/sees through expiry: polling
+            // must not redownload it to silently reset its chosen retention period.
+            let mut observed: std::collections::BTreeSet<_> = pool(home)?
+                .inventory(now())
+                .map_err(err)?
+                .into_iter()
+                .map(|l| l.id)
+                .collect();
+            let mut transfers = Vec::new();
+            for round in 0..rounds {
+                if home.join("seed-follow.stop").try_exists().map_err(err)? {
+                    break;
+                }
+                pool(home)?.prune(now()).map_err(err)?;
+                let inventory = remote_inventory(home, &address, &peer)?;
+                let existing: std::collections::BTreeSet<_> = pool(home)?
+                    .inventory(now())
+                    .map_err(err)?
+                    .into_iter()
+                    .map(|l| l.id)
+                    .collect();
+                for lease in inventory {
+                    if transfers.len() >= max as usize {
+                        break;
+                    }
+                    if !observed.contains(&lease.id) && !existing.contains(&lease.id) {
+                        observed.insert(lease.id.clone());
+                        let result = fetch(
+                            home,
+                            store,
+                            &address,
+                            &peer,
+                            &lease.id,
+                            FetchOptions {
+                                max_micro: 0,
+                                payment: None,
+                                days: Some(days),
+                            },
+                        )?;
+                        let failed = result["reseed_error"].is_string();
+                        transfers.push(result);
+                        if failed {
+                            return render(
+                                json!({"transfers":transfers,"complete":false,"reason":"reseed failed; delivery evidence retained"}),
+                                as_json,
+                            );
+                        }
+                    }
+                }
+                if transfers.len() >= max as usize {
+                    break;
+                }
+                if round + 1 < rounds {
+                    std::thread::sleep(Duration::from_millis(interval));
+                }
+            }
+            json!({"transfers":transfers,"complete":true,"paid_requests":0,"stop_requested":home.join("seed-follow.stop").try_exists().map_err(err)?,"note":"Explicit peer polling; no discovery, paid fetch or automatic lease renewal."})
+        }
         "price" => {
             let rate = number(&need(&mut args, "--micro-per-mib")?)?;
             let payee = decode_hex(&need(&mut args, "--payee-hex")?)?;
@@ -687,12 +813,12 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                 payee,
                 network_id,
             };
+            let encoded = serde_json::to_vec(&p).map_err(err)?;
+            if encoded.len() > 4096 {
+                return Err(err("price configuration exceeds4096 bytes"));
+            }
             safe_dir(home)?;
-            mini_durable::atomic_replace(
-                &home.join("seed-price.json"),
-                &serde_json::to_vec(&p).map_err(err)?,
-            )
-            .map_err(err)?;
+            mini_durable::atomic_replace(&home.join("seed-price.json"), &encoded).map_err(err)?;
             json!(p)
         }
         "peers" | "quote" | "fetch" => {
@@ -715,7 +841,18 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                     return Err(err("reseed-days must be1..3650"));
                 }
                 done(&args)?;
-                fetch(home, store, &address, &peer, &id, max, payment, days)?
+                fetch(
+                    home,
+                    store,
+                    &address,
+                    &peer,
+                    &id,
+                    FetchOptions {
+                        max_micro: max,
+                        payment,
+                        days,
+                    },
+                )?
             } else {
                 let request = if verb == "quote" {
                     Request::Quote {
@@ -786,4 +923,38 @@ fn render(value: Value, as_json: bool) -> Result<String> {
     } else {
         serde_json::to_string_pretty(&value).map_err(err)
     }
+}
+
+fn remote_inventory(home: &Path, address: &str, peer: &Did) -> Result<Vec<mini_seed::Lease>> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Page {
+        items: Vec<mini_seed::Lease>,
+        done: bool,
+    }
+    let mut s = connect(home, address, peer)?;
+    send(&mut s.bearer, &mut s.channel, &Request::Inventory)?;
+    let mut all = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for _ in 0..=32 {
+        let page: Page = recv(&mut s.bearer, &mut s.channel)?;
+        if page.items.len() > 128 || all.len() + page.items.len() > 4096 {
+            return Err(err("inventory exceeds limit"));
+        }
+        for item in page.items {
+            ObjectId::parse(&item.id).map_err(err)?;
+            if !seen.insert(item.id.clone())
+                || item.bytes == 0
+                || item.bytes > MAX_OBJECT as u64
+                || item.expires_at_ms <= now()
+            {
+                return Err(err("invalid inventory lease"));
+            }
+            all.push(item);
+        }
+        if page.done {
+            return Ok(all);
+        }
+    }
+    Err(err("inventory did not terminate"))
 }
