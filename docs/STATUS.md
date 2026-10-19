@@ -3189,3 +3189,14 @@ shared "community" list as one's own local rules (constitution principle
 convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
 still has its own separate `muted.txt`, and integrating both onto
 `mini-safety` is open follow-up.
+
+### Owner-controlled seed runtime (draft branch)
+
+The `mini-seed` pool and `mini seed` CLI connect owner-selected public signed
+objects to retention days, bounded quotas, authenticated seed-only serving,
+explicit-peer following and reseeding, and real mutually signed delivery
+receipts. Optional paid delivery accepts external wallet-signed settlement claims
+and exports their unchanged wire bytes as **pending**, never a finalized balance.
+No global discovery, automatic payout/finality reconciliation, fair-exchange
+escrow, public search/ranking integration, private-data seeding or remote deletion
+is claimed. This developer profile is documented in `docs/design/seed-network.md`.

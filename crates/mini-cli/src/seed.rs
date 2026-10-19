@@ -458,7 +458,7 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
             send(
                 &mut b,
                 &mut c,
-                &json!({"receipt_id":e.id,"delivery_verified":true,"payment_final":false,"payment_state":if claim.is_some(){"PendingCanonical"}else{"NoPayment"}}),
+                &json!({"receipt_id":e.id,"delivery_verified":true,"payment_final":false,"payment_state":if claim.is_some(){"AcceptedLocal"}else{"NoPayment"}}),
             )?;
         }
     }
@@ -633,7 +633,7 @@ fn fetch(
         })
         .map(|e| e.to_string());
     Ok(
-        json!({"object_id":id,"bytes":o.bytes,"receipt_id":e.id,"delivery_verified":true,"reseeded":days.is_some() && reseed_error.is_none(),"reseed_error":reseed_error,"payment_state":if payment.is_some(){"PendingCanonical"}else{"NoPayment"},"payment_final":false,"amount_micro":o.amount_micro}),
+        json!({"object_id":id,"bytes":o.bytes,"receipt_id":e.id,"delivery_verified":true,"reseeded":days.is_some() && reseed_error.is_none(),"reseed_error":reseed_error,"payment_state":if payment.is_some(){"AcceptedLocal"}else{"NoPayment"},"payment_final":false,"amount_micro":o.amount_micro}),
     )
 }
 fn decode_hex(s: &str) -> Result<Vec<u8>> {
@@ -889,8 +889,8 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
             done(&args)?;
             let all = records(home)?;
             let identity = crate::identity::load(home)?;
-            let items:Vec<_>=all.iter().filter(|e|e.host_root==identity.human_did().as_str()).map(|e|json!({"receipt_id":e.id,"object_id":e.content_id,"bytes":e.bytes,"payment_state":if e.payment.is_some(){"PendingCanonical"}else{"NoPayment"},"payment_final":false})).collect();
-            json!({"deliveries":items,"finalized_micro":0,"note":"Signed promises are not balances. Submit exported claims through canonical settlement; this journal never finalizes money."})
+            let items:Vec<_>=all.iter().filter(|e|e.host_root==identity.human_did().as_str()).map(|e|json!({"receipt_id":e.id,"object_id":e.content_id,"bytes":e.bytes,"payment_state":if e.payment.is_some(){"AcceptedLocal"}else{"NoPayment"},"payment_final":false})).collect();
+            json!({"deliveries":items,"finalized_micro":null,"canonical_status_checked":false,"note":"Signed promises are not balances. Submit exported claims through canonical settlement; this journal never finalizes money."})
         }
         "payment-export" => {
             let id = need(&mut args, "--receipt")?;
@@ -911,7 +911,7 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                 .open(&output)
                 .map_err(err)?;
             f.write_all(bytes).and_then(|_| f.sync_all()).map_err(err)?;
-            json!({"output":output,"payment_state":"PendingCanonical","payment_final":false})
+            json!({"output":output,"payment_state":"AcceptedLocal","payment_final":false})
         }
         _ => return Err(err("unknown seed command")),
     };

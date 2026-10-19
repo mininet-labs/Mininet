@@ -367,7 +367,7 @@ fn paid_delivery_exports_real_pending_claim_and_rejects_replay_and_budget() {
             path.to_str().unwrap(),
         ],
     );
-    assert_eq!(result["result"]["payment_state"], "PendingCanonical");
+    assert_eq!(result["result"]["payment_state"], "AcceptedLocal");
     let out = temp.path().join("submission.claim");
     run(
         &h[0],
@@ -405,7 +405,7 @@ fn paid_delivery_exports_real_pending_claim_and_rejects_replay_and_budget() {
     )
     .is_err());
     let earnings = run(&h[0], &s[0], &["seed", "earnings"]);
-    assert_eq!(earnings["result"]["finalized_micro"], 0);
+    assert!(earnings["result"]["finalized_micro"].is_null());
 }
 #[test]
 fn private_cold_untrusted_and_unauthorized_content_stays_out() {

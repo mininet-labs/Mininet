@@ -131,3 +131,8 @@ for the repeatable coding acceptance gate.
 context, local search/inspection, shipped diagnostics and explicitly confirmed
 patches. Hosting/fee commands plan from owner inputs without networking or
 payments. See [Resident AI](../../docs/design/resident-ai.md).
+
+Owner-controlled peer seeding is available through `mini seed`: explicit pool
+quotas, selected public-object retention, authenticated serving, live following,
+verified delivery receipts and optional wallet-supplied pending payment claims.
+See [seed network](../../docs/design/seed-network.md) for commands and payout limits.
