@@ -1,0 +1,20 @@
+[package]
+name = "mini-seed"
+version = "0.0.1"
+description = "Bounded owner-opt-in public object retention pool"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-durable = { path = "../mini-durable" }
+mini-objects = { path = "../mini-objects" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+did-mini = { path = "../did-mini" }

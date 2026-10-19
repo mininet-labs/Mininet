@@ -125,12 +125,14 @@ pub fn dispatch(home: &Path, store: &Path, args: Vec<String>, json: bool) -> Res
             let mut limit = 0u64;
             let mut timeout_ms = 30_000u64;
             let mut acknowledged = false;
+            let mut seed_only = false;
             let mut allowed_peers = Vec::new();
             let mut seen = std::collections::BTreeSet::new();
             let mut i = 1;
             while i < args.len() {
                 let flag = args[i].as_str();
                 if flag != "--allow-peer" && !seen.insert(flag) { return Err(usage("duplicate service flag")); }
+                if flag == "--seed-only" { seed_only = true; i += 1; continue; }
                 if flag == "--allow-store-sharing" { acknowledged = true; i += 1; continue; }
                 let value = args.get(i + 1).ok_or_else(|| usage("missing service flag value"))?;
                 match flag {
@@ -146,11 +148,11 @@ pub fn dispatch(home: &Path, store: &Path, args: Vec<String>, json: bool) -> Res
                 }
                 i += 2;
             }
-            if !acknowledged { return Err(usage("service run requires --allow-store-sharing: all stored objects are offered to allowed peers")); }
+            if !acknowledged && !seed_only { return Err(usage("service run requires --allow-store-sharing: all stored objects are offered to allowed peers")); }
             if !(50..=300_000).contains(&timeout_ms) { return Err(usage("idle-timeout-ms must be 50..300000")); }
             if allowed_peers.is_empty() { return Err(usage("service requires at least one --allow-peer DID")); }
             let addr: SocketAddr = address.parse().map_err(|_| usage("service requires a numeric IP:port"))?;
-            run(home, store, addr, limit, Duration::from_millis(timeout_ms), allowed_peers)?
+            run(home, store, addr, limit, Duration::from_millis(timeout_ms), allowed_peers, seed_only)?
         }
         _ => return Err(usage("service run [--addr <ip:port>] --allow-store-sharing --allow-peer DID [--max-connections N] [--idle-timeout-ms N] | status | stop")),
     };
@@ -164,6 +166,7 @@ fn run(
     limit: u64,
     idle: Duration,
     allowed_peers: Vec<did_mini::Did>,
+    seed_only: bool,
 ) -> Result<CommandResult> {
     crate::identity::load(home)?;
     // Serialize startup with stop/status so an acknowledged stop cannot be
@@ -238,8 +241,18 @@ fn run(
                             let allowed_peers = allowed_peers.clone();
                             let task = thread::Builder::new().name("mini-sync-peer".into()).spawn(
                                 move || {
-                                    crate::sync::serve_stream(&home, &store, stream, &allowed_peers)
+                                    if seed_only {
+                                        crate::seed::serve_stream(&home, stream, &allowed_peers)
+                                            .is_ok()
+                                    } else {
+                                        crate::sync::serve_stream(
+                                            &home,
+                                            &store,
+                                            stream,
+                                            &allowed_peers,
+                                        )
                                         .is_ok()
+                                    }
                                 },
                             )?;
                             Ok(Worker {
