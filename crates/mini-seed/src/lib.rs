@@ -427,6 +427,16 @@ impl Pool {
         )?;
         Ok(lease.clone())
     }
+    /// Metadata-only snapshot, including expired leases. Validates manifest
+    /// accounting and physical file lengths but never reads or hashes object
+    /// bodies. These are planning hints, not integrity or availability proofs.
+    /// Callers must filter expiry and use `read` to verify any bytes they use.
+    /// Reading this snapshot never renews retention.
+    pub fn leases(&self) -> Result<Vec<Lease>> {
+        let _lock = self.lock()?;
+        let state = self.load()?;
+        Ok(state.leases.into_values().collect())
+    }
     pub fn inventory(&self, now_ms: u64) -> Result<Vec<Lease>> {
         let _lock = self.lock()?;
         let state = self.load()?;
@@ -439,6 +449,52 @@ impl Pool {
             leases.push(lease.clone());
         }
         Ok(leases)
+    }
+    /// Read a bounded set of exact public objects with one manifest load and
+    /// pool lock. Validate the entire selection and aggregate size before any
+    /// body reads; output ordering matches the caller's unique ID ordering.
+    pub fn read_batch(&self, ids: &[String], now_ms: u64, max_bytes: u64) -> Result<Vec<Vec<u8>>> {
+        const MAX_BATCH_BYTES: u64 = 16 * 1024 * 1024;
+        if ids.len() > MAX_POOL_OBJECTS || max_bytes > MAX_BATCH_BYTES {
+            return Err(SeedError(
+                "batch exceeds 4096 objects or 16 MiB budget".into(),
+            ));
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for id in ids {
+            id_valid(id)?;
+            if !seen.insert(id) {
+                return Err(SeedError("duplicate batch object id".into()));
+            }
+        }
+        let _lock = self.lock()?;
+        let state = self.load()?;
+        let mut total = 0u64;
+        for id in ids {
+            let lease = state
+                .leases
+                .get(id)
+                .filter(|lease| lease.expires_at_ms > now_ms)
+                .ok_or_else(|| {
+                    SeedError("batch object is not retained or its lease expired".into())
+                })?;
+            total = total
+                .checked_add(lease.bytes)
+                .ok_or_else(|| SeedError("batch byte accounting overflow".into()))?;
+            if total > max_bytes {
+                return Err(SeedError("batch exceeds requested byte budget".into()));
+            }
+        }
+        let mut output = Vec::with_capacity(ids.len());
+        for id in ids {
+            let bytes = read_bounded(&self.root.join("objects").join(id), state.leases[id].bytes)?;
+            if bytes.len() as u64 != state.leases[id].bytes {
+                return Err(SeedError("batch object size changed".into()));
+            }
+            validate_object(&bytes, id)?;
+            output.push(bytes);
+        }
+        Ok(output)
     }
     pub fn read(&self, id: &str, now_ms: u64) -> Result<Vec<u8>> {
         id_valid(id)?;
@@ -494,6 +550,7 @@ mod tests {
         assert!(pool.lease("../untrusted", 0).is_err());
         assert!(pool.inventory(first.expires_at_ms).unwrap().is_empty());
         assert_eq!(pool.status().unwrap().objects, 1); // expiry alone does not reclaim disk
+        assert_eq!(pool.leases().unwrap(), vec![first.clone()]); // includes expiry without renewal
         let renewed = pool.admit(&data, 2, first.expires_at_ms).unwrap();
         assert_eq!(renewed.expires_at_ms, first.expires_at_ms + 2 * DAY_MS);
         assert_eq!(pool.status().unwrap().used_bytes, first.bytes);
@@ -546,6 +603,12 @@ mod tests {
         fs::write(&path, bytes).unwrap();
         assert!(pool.read(data.id().as_str(), 0).is_err());
         assert!(pool.lease(data.id().as_str(), 0).is_err());
+        let metadata = pool.leases().unwrap();
+        assert_eq!(metadata.len(), 2);
+        assert!(metadata.iter().any(|lease| lease.id == data.id().as_str()));
+        // Same-length body corruption is deliberately not authenticated by
+        // metadata planning. Only lease/read/inventory verify object bytes.
+        assert!(pool.read(data.id().as_str(), 0).is_err());
         // A targeted quote does not hash an unrelated same-size corrupt blob;
         // it still verifies the requested object's exact bytes. Full inventory
         // remains fail-closed for any advertised corrupt object.
@@ -599,6 +662,46 @@ mod tests {
         let remote = worker.join().unwrap();
         assert_ne!(local, remote);
         assert_eq!(pool.status().unwrap().objects, 1);
+    }
+
+    #[test]
+    fn batch_reads_are_ordered_bounded_and_expiry_checked() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = Pool::open(dir.path()).unwrap();
+        pool.configure(1024 * 1024).unwrap();
+        let one = object(b"one");
+        let two = object(b"two");
+        pool.admit(&one, 1, 0).unwrap();
+        pool.admit(&two, 2, 0).unwrap();
+        let ids = vec![two.id().as_str().into(), one.id().as_str().into()];
+        let total = (one.to_bytes().len() + two.to_bytes().len()) as u64;
+        assert_eq!(
+            pool.read_batch(&ids, 0, total).unwrap(),
+            vec![two.to_bytes(), one.to_bytes()]
+        );
+        assert!(pool.read_batch(&ids, 0, total - 1).is_err());
+        assert!(pool.read_batch(&ids, DAY_MS, total).is_err());
+        assert!(pool
+            .read_batch(&[ids[0].clone(), ids[0].clone()], 0, total)
+            .is_err());
+        assert!(pool.read_batch(&[], 0, 16 * 1024 * 1024 + 1).is_err());
+        assert!(pool
+            .read_batch(&vec![ids[0].clone(); MAX_POOL_OBJECTS + 1], 0, total)
+            .is_err());
+        let missing = object(b"not admitted");
+        assert!(pool
+            .read_batch(&[missing.id().as_str().into()], 0, total)
+            .is_err());
+        let path = dir.path().join("objects").join(one.id().as_str());
+        let mut bytes = one.to_bytes();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 1;
+        fs::write(path, bytes).unwrap();
+        assert!(pool.read_batch(&ids, 0, total).is_err());
+        assert_eq!(
+            pool.read_batch(&[ids[0].clone()], 0, total).unwrap(),
+            vec![two.to_bytes()]
+        );
     }
 
     #[cfg(unix)]

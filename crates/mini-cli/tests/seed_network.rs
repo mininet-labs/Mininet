@@ -680,3 +680,109 @@ fn contact_activation_and_public_announcement_are_explicit() {
             .is_empty()
     );
 }
+
+#[test]
+fn verified_search_deduplicates_providers_and_returns_continuations() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    let mut ids = Vec::new();
+    for text in [
+        "nebula history one",
+        "nebula history two",
+        "nebula history three",
+    ] {
+        let id = object(&h[0], &s[0], text);
+        add(&h[0], &s[0], &id);
+        ids.push(id);
+    }
+    let hidden = object(&h[0], &s[0], "nebula private unselected history");
+    let a = Service::start(&h[0], &s[0], &[root(&h[1]), root(&h[2])]);
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "fetch",
+            "--addr",
+            &a.address,
+            "--peer",
+            &root(&h[0]),
+            "--id",
+            &ids[0],
+            "--reseed-days",
+            "2",
+        ],
+    );
+    let b = Service::start(&h[1], &s[1], &[root(&h[2])]);
+    for (name, addr, peer) in [
+        ("a", a.address.as_str(), root(&h[0])),
+        ("b", b.address.as_str(), root(&h[1])),
+        ("z-offline", "127.0.0.1:1", root(&h[0])),
+    ] {
+        run(
+            &h[2],
+            &s[2],
+            &[
+                "seed", "contact", "add", "--name", name, "--addr", addr, "--peer", &peer,
+            ],
+        );
+    }
+    let found = run(&h[2], &s[2], &["seed", "search", "--query", "nebula"]);
+    let results = found["result"]["results"].as_array().unwrap();
+    assert_eq!(results.len(), 3);
+    assert_eq!(found["result"]["paid_ranking"], false);
+    assert_eq!(found["result"]["complete"], false);
+    assert_eq!(found["result"]["failures"].as_array().unwrap().len(), 1);
+    assert!(results.iter().all(|r| r["content_verified"] == true
+        && r["excerpt"].as_str().unwrap().contains("nebula")
+        && r["object_id"] != hidden));
+    assert_eq!(
+        results.iter().find(|r| r["object_id"] == ids[0]).unwrap()["contacts"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    let first = run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "search",
+            "--query",
+            "nebula",
+            "--contact",
+            "a",
+            "--limit",
+            "1",
+        ],
+    );
+    let cursor = first["result"]["continuations"][0]["after"]
+        .as_str()
+        .unwrap();
+    let next = run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "search",
+            "--query",
+            "nebula",
+            "--contact",
+            "a",
+            "--limit",
+            "1",
+            "--after",
+            cursor,
+        ],
+    );
+    assert_eq!(next["result"]["results"].as_array().unwrap().len(), 1);
+    assert!(next["result"]["results"][0]["object_id"].as_str().unwrap() > cursor);
+    assert!(cmd(
+        &h[2],
+        &s[2],
+        &["seed", "search", "--query", "nebula", "--after", cursor]
+    )
+    .is_err());
+    assert!(cmd(&h[2], &s[2], &["seed", "search", "--query", "\u{1b}danger"]).is_err());
+}

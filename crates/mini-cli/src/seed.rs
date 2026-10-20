@@ -10,7 +10,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 mod mesh;
 
@@ -127,6 +127,12 @@ fn cost(bytes: u64, p: &Price) -> Result<u64> {
 enum Request {
     Inventory,
     Advertisement,
+    Catalog,
+    Search {
+        query: String,
+        after: Option<String>,
+        limit: u16,
+    },
     Quote {
         id: String,
     },
@@ -369,6 +375,12 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
     crate::sync::send_session_proof(&mut b, &mut c, &identity, &transcript, b'r', &peer)?;
     match recv::<Request>(&mut b, &mut c)? {
         Request::Advertisement => mesh::advertise(home, &mut b, &mut c)?,
+        Request::Catalog => mesh::serve_catalog(home, &mut b, &mut c)?,
+        Request::Search {
+            query,
+            after,
+            limit,
+        } => mesh::serve_search(home, &mut b, &mut c, &query, after.as_deref(), limit)?,
         Request::Inventory => {
             let leases = pool(home)?.inventory(now()).map_err(err)?;
             // Bounded pagination avoids manufacturing one oversized advertisement.
@@ -474,10 +486,26 @@ struct Session {
     _cancel: std::sync::mpsc::Sender<()>,
 }
 fn connect(home: &Path, address: &str, peer: &Did) -> Result<Session> {
+    connect_until(
+        home,
+        address,
+        peer,
+        Instant::now() + Duration::from_secs(120),
+    )
+}
+fn remaining(deadline: Instant) -> Result<Duration> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .filter(|d| !d.is_zero())
+        .ok_or_else(|| err("operation deadline exhausted"))
+}
+fn connect_until(home: &Path, address: &str, peer: &Did, deadline: Instant) -> Result<Session> {
     let address = address
         .parse()
         .map_err(|_| err("numeric IP:port required"))?;
-    let stream = TcpStream::connect_timeout(&address, Duration::from_secs(10)).map_err(err)?;
+    let stream =
+        TcpStream::connect_timeout(&address, remaining(deadline)?.min(Duration::from_secs(10)))
+            .map_err(err)?;
     stream
         .set_read_timeout(Some(Duration::from_secs(30)))
         .map_err(err)?;
@@ -486,12 +514,11 @@ fn connect(home: &Path, address: &str, peer: &Did) -> Result<Session> {
         .map_err(err)?;
     let shutdown = stream.try_clone().map_err(err)?;
     let (cancel, wait) = std::sync::mpsc::channel::<()>();
+    let watchdog = remaining(deadline)?;
     std::thread::Builder::new()
         .name("mini-seed-deadline".into())
         .spawn(move || {
-            if wait.recv_timeout(Duration::from_secs(120))
-                == Err(std::sync::mpsc::RecvTimeoutError::Timeout)
-            {
+            if wait.recv_timeout(watchdog) == Err(std::sync::mpsc::RecvTimeoutError::Timeout) {
                 let _ = shutdown.shutdown(std::net::Shutdown::Both);
             }
         })
@@ -541,6 +568,7 @@ struct FetchOptions {
     max_micro: u64,
     payment: Option<Vec<u8>>,
     days: Option<u16>,
+    deadline: Option<Instant>,
 }
 fn fetch(
     home: &Path,
@@ -554,10 +582,16 @@ fn fetch(
         max_micro,
         payment,
         days,
+        deadline,
     } = options;
     let identity = crate::identity::load(home)?;
     let nonce = mini_crypto::random_32().map_err(err)?;
-    let mut s = connect(home, address, peer)?;
+    let mut s = connect_until(
+        home,
+        address,
+        peer,
+        deadline.unwrap_or_else(|| Instant::now() + Duration::from_secs(120)),
+    )?;
     send(
         &mut s.bearer,
         &mut s.channel,
@@ -656,7 +690,7 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
     let verb = args.remove(0);
     if matches!(
         verb.as_str(),
-        "contact" | "announce" | "unannounce" | "catalog" | "locate" | "retrieve"
+        "contact" | "announce" | "unannounce" | "catalog" | "locate" | "retrieve" | "search"
     ) {
         return render(mesh::dispatch(home, store, &verb, args)?, as_json);
     }
@@ -787,6 +821,7 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                                 max_micro: 0,
                                 payment: None,
                                 days: Some(days),
+                                deadline: None,
                             },
                         )?;
                         let failed = result["reseed_error"].is_string();
@@ -861,6 +896,7 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                         max_micro: max,
                         payment,
                         days,
+                        deadline: None,
                     },
                 )?
             } else {
