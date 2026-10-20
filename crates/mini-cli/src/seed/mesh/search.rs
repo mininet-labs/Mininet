@@ -138,6 +138,10 @@ fn ask(
             return Err(err("search continuation made no progress"));
         }
     }
+    let identity = crate::identity::load(home)?;
+    let source = crate::store::open_store(store)?;
+    let mut cache = crate::store::build_kel_cache(home, &identity)?;
+    cache.hydrate_from_store(&source).map_err(err)?;
     let mut hits = Vec::new();
     let mut seen = BTreeSet::new();
     for _ in 0..page.count {
@@ -157,7 +161,10 @@ fn ask(
         {
             return Err(err("search object exceeds continuation"));
         }
-        ingest(home, store, &obj)?;
+        match mini_sync::Ingest::check(&mut cache, &obj) {
+            mini_sync::IngestOutcome::Accepted | mini_sync::IngestOutcome::AcceptedCarrier => (),
+            _ => return Err(err("search object signature/provenance was not verified")),
+        }
         let mini_objects::Payload::Public(payload) = &obj.payload else {
             return Err(err("private search result rejected"));
         };

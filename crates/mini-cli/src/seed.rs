@@ -690,7 +690,14 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
     let verb = args.remove(0);
     if matches!(
         verb.as_str(),
-        "contact" | "announce" | "unannounce" | "catalog" | "locate" | "retrieve" | "search"
+        "contact"
+            | "announce"
+            | "unannounce"
+            | "catalog"
+            | "locate"
+            | "retrieve"
+            | "search"
+            | "mesh-follow"
     ) {
         return render(mesh::dispatch(home, store, &verb, args)?, as_json);
     }
@@ -806,6 +813,9 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                     .map(|l| l.id)
                     .collect();
                 for lease in inventory {
+                    if home.join("seed-follow.stop").try_exists().map_err(err)? {
+                        break;
+                    }
                     if transfers.len() >= max as usize {
                         break;
                     }

@@ -4,6 +4,9 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
+fn json_value(result: Value) -> Value {
+    serde_json::json!({"result":result})
+}
 fn cmd(h: &Path, s: &Path, args: &[&str]) -> Result<Value, String> {
     let mut a = vec![
         "--home".into(),
@@ -404,6 +407,28 @@ fn paid_delivery_exports_real_pending_claim_and_rejects_replay_and_budget() {
         ]
     )
     .is_err());
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "paid",
+            "--addr",
+            &provider.address,
+            "--peer",
+            &root(&h[0]),
+        ],
+    );
+    let search = run(
+        &h[1],
+        &s[1],
+        &["seed", "search", "--query", "retained", "--contact", "paid"],
+    );
+    assert!(search["result"]["results"].as_array().unwrap().is_empty());
+    assert_eq!(search["result"]["failures"].as_array().unwrap().len(), 1);
     let earnings = run(&h[0], &s[0], &["seed", "earnings"]);
     assert!(earnings["result"]["finalized_micro"].is_null());
 }
@@ -576,10 +601,71 @@ fn signed_provider_catalog_survives_restart_and_retrieval_falls_back() {
     assert_eq!(located["result"]["candidates"].as_array().unwrap().len(), 2);
     assert_eq!(located["result"]["availability_proven"], false);
     drop(first);
-    let got = run(&h[2], &s[2], &["seed", "retrieve", "--id", &id]);
+    let followed = run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "mesh-follow",
+            "--days",
+            "2",
+            "--rounds",
+            "1",
+            "--interval-ms",
+            "1000",
+            "--max-objects",
+            "1",
+        ],
+    );
+    assert_eq!(followed["result"]["automatic_paid_requests"], 0);
+    let got = json_value(followed["result"]["transfers"][0].clone());
     assert_eq!(got["result"]["retrieved"], true);
     assert_eq!(got["result"]["contact"], "b-backup");
     assert_eq!(got["result"]["failures"].as_array().unwrap().len(), 1);
+    run(&h[2], &s[2], &["seed", "follow-stop"]);
+    let stopped = run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "mesh-follow",
+            "--days",
+            "2",
+            "--rounds",
+            "1",
+            "--interval-ms",
+            "1000",
+            "--max-objects",
+            "1",
+        ],
+    );
+    assert_eq!(stopped["result"]["stop_requested"], true);
+    assert!(stopped["result"]["transfers"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    let resumed = run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "mesh-follow",
+            "--days",
+            "2",
+            "--rounds",
+            "1",
+            "--interval-ms",
+            "1000",
+            "--max-objects",
+            "1",
+            "--resume",
+        ],
+    );
+    assert_eq!(resumed["result"]["stop_requested"], false);
+    assert!(resumed["result"]["transfers"]
+        .as_array()
+        .unwrap()
+        .is_empty());
     run(&h[1], &s[1], &["seed", "revoke", "--id", &id]);
     run(
         &h[2],
@@ -785,4 +871,137 @@ fn verified_search_deduplicates_providers_and_returns_continuations() {
     )
     .is_err());
     assert!(cmd(&h[2], &s[2], &["seed", "search", "--query", "\u{1b}danger"]).is_err());
+}
+
+#[test]
+fn catalog_relay_preserves_provider_signatures_without_activating_endpoints() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    let id = object(&h[0], &s[0], "relay-discovered history");
+    add(&h[0], &s[0], &id);
+    let a = Service::start(&h[0], &s[0], &[root(&h[1]), root(&h[2])]);
+    run(
+        &h[0],
+        &s[0],
+        &[
+            "seed", "announce", "--addr", &a.address, "--ttl-ms", "60000",
+        ],
+    );
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "origin",
+            "--addr",
+            &a.address,
+            "--peer",
+            &root(&h[0]),
+        ],
+    );
+    run(&h[1], &s[1], &["seed", "catalog", "refresh"]);
+    let b = Service::start(&h[1], &s[1], &[root(&h[2])]);
+    run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "bootstrap",
+            "--addr",
+            &b.address,
+            "--peer",
+            &root(&h[1]),
+        ],
+    );
+    let report = run(
+        &h[2],
+        &s[2],
+        &["seed", "catalog", "pull", "--contact", "bootstrap"],
+    );
+    assert_eq!(report["result"]["endpoints_activated"], 0);
+    assert_eq!(
+        report["result"]["reports"][0]["report"]["accepted"][0],
+        root(&h[0])
+    );
+    assert_eq!(
+        run(&h[2], &s[2], &["seed", "catalog", "list"])["result"]["providers"][0]["provider"],
+        root(&h[0])
+    );
+    assert!(
+        run(&h[2], &s[2], &["seed", "locate", "--id", &id])["result"]["candidates"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "origin",
+            "--addr",
+            &a.address,
+            "--peer",
+            &root(&h[0]),
+        ],
+    );
+    assert_eq!(
+        run(&h[2], &s[2], &["seed", "retrieve", "--id", &id])["result"]["retrieved"],
+        true
+    );
+    let file = temp.path().join("advertisement.object");
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "catalog",
+            "export",
+            "--peer",
+            &root(&h[0]),
+            "--output",
+            file.to_str().unwrap(),
+        ],
+    );
+    run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "catalog",
+            "import",
+            "--file",
+            file.to_str().unwrap(),
+        ],
+    );
+    let mut bytes = std::fs::read(&file).unwrap();
+    let index = bytes.len() - 1;
+    bytes[index] ^= 1;
+    std::fs::write(&file, bytes).unwrap();
+    assert!(cmd(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "catalog",
+            "import",
+            "--file",
+            file.to_str().unwrap()
+        ]
+    )
+    .is_err());
+    run(&h[0], &s[0], &["seed", "unannounce"]);
+    assert_eq!(
+        run(&h[1], &s[1], &["seed", "catalog", "refresh"])["result"]["complete"],
+        false
+    );
 }

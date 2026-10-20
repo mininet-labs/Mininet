@@ -266,6 +266,7 @@ pub(super) fn dispatch(
 ) -> Result<Value> {
     match verb {
         "search" => search::run(home, store, args),
+        "mesh-follow" => follow_mesh(home, store, args),
         "contact" => {
             if args.is_empty() {
                 return Err(err("contact add | list | remove"));
@@ -570,5 +571,124 @@ fn pull_catalog(home: &Path, contact: &Contact, deadline: Instant) -> Result<Val
     }
     Ok(
         json!({"accepted":accepted,"rejected":rejected,"endpoints_activated":0,"availability_proven":false}),
+    )
+}
+
+fn follow_mesh(home: &Path, store: &Path, mut args: Vec<String>) -> Result<Value> {
+    let resume = if let Some(i) = args.iter().position(|a| a == "--resume") {
+        args.remove(i);
+        true
+    } else {
+        false
+    };
+    let days = u16::try_from(number(&need(&mut args, "--days")?)?).map_err(err)?;
+    let rounds = number(&need(&mut args, "--rounds")?)?;
+    let interval = number(&need(&mut args, "--interval-ms")?)?;
+    let max = number(&need(&mut args, "--max-objects")?)?;
+    done(&args)?;
+    if !(1..=3650).contains(&days)
+        || !(1..=86400).contains(&rounds)
+        || !(1000..=60000).contains(&interval)
+        || !(1..=4096).contains(&max)
+    {
+        return Err(err("mesh-follow requires days1..3650, rounds1..86400, interval-ms1000..60000, max-objects1..4096"));
+    }
+    safe_dir(home)?;
+    let _lock = mini_durable::try_lock_exclusive(&home.join("seed-follow.lock")).map_err(err)?;
+    if resume && home.join("seed-follow.stop").try_exists().map_err(err)? {
+        fs::remove_file(home.join("seed-follow.stop")).map_err(err)?;
+        mini_durable::sync_directory(home).map_err(err)?;
+    }
+    let mut observed: BTreeSet<_> = pool(home)?
+        .leases()
+        .map_err(err)?
+        .into_iter()
+        .filter(|l| l.expires_at_ms > now())
+        .map(|l| l.id)
+        .collect();
+    let mut transfers = Vec::new();
+    let mut failures = Vec::new();
+    let mut refreshed = 0;
+    for round in 0..rounds {
+        if home.join("seed-follow.stop").try_exists().map_err(err)? {
+            break;
+        }
+        let current = contacts(home)?;
+        if current.is_empty() || current.len() > 16 {
+            return Err(err("mesh-follow requires1..16 activated seed contacts"));
+        }
+        let selected: Vec<_> = current.into_iter().collect();
+        let active_roots: BTreeSet<_> = selected.iter().map(|(_, c)| c.peer.clone()).collect();
+        let report = refresh(home, &selected);
+        refreshed += report["refreshed"].as_array().map_or(0, Vec::len);
+        for failure in report["failures"].as_array().into_iter().flatten() {
+            if failures.len() < 64 {
+                failures.push(failure.clone());
+            }
+        }
+        if home.join("seed-follow.stop").try_exists().map_err(err)? {
+            break;
+        }
+        pool(home)?.prune(now()).map_err(err)?;
+        let (ads, rejected) = current_ads(home)?;
+        for rejection in rejected {
+            if failures.len() < 64 {
+                failures.push(rejection);
+            }
+        }
+        let ids: BTreeSet<_> = ads
+            .into_iter()
+            .filter(|a| active_roots.contains(&a.provider))
+            .flat_map(|a| a.entries.into_iter().map(|e| e.id))
+            .collect();
+        if ids.len() > 4096 {
+            return Err(err(
+                "mesh-follow union exceeds4096 object IDs; narrow activated contacts",
+            ));
+        }
+        let held: BTreeSet<_> = pool(home)?
+            .leases()
+            .map_err(err)?
+            .into_iter()
+            .filter(|l| l.expires_at_ms > now())
+            .map(|l| l.id)
+            .collect();
+        for id in ids {
+            if transfers.len() >= max as usize
+                || home.join("seed-follow.stop").try_exists().map_err(err)?
+            {
+                break;
+            }
+            if observed.contains(&id) {
+                continue;
+            }
+            let existing = held.contains(&id);
+            if existing {
+                observed.insert(id);
+                continue;
+            }
+            let result = retrieve(home, store, &id, Some(days))?;
+            if result["retrieved"] == true {
+                observed.insert(id);
+                let reseed_failed = result["delivery"]["reseed_error"].is_string();
+                transfers.push(result);
+                if reseed_failed {
+                    return Ok(
+                        json!({"transfers":transfers,"failures":failures,"complete":false,"reason":"optional reseed quota failed; completed delivery evidence retained"}),
+                    );
+                }
+            } else if failures.len() < 64 {
+                failures.push(json!({"object_id":id,"result":result}));
+            }
+        }
+        if transfers.len() >= max as usize {
+            break;
+        }
+        if round + 1 < rounds {
+            std::thread::sleep(Duration::from_millis(interval));
+        }
+    }
+    Ok(
+        json!({"transfers":transfers,"failures":failures,"advertisements_refreshed":refreshed,"complete":failures.is_empty(),"stop_requested":home.join("seed-follow.stop").try_exists().map_err(err)?,"automatic_paid_requests":0,"discovery_scope":"owner-activated contacts","note":"Retained IDs are not automatically renewed during this job. Advertisements remain availability hints."}),
     )
 }
