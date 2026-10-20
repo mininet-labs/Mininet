@@ -3198,5 +3198,15 @@ explicit-peer following and reseeding, and real mutually signed delivery
 receipts. Optional paid delivery accepts external wallet-signed settlement claims
 and exports their unchanged wire bytes as **pending**, never a finalized balance.
 No global discovery, automatic payout/finality reconciliation, fair-exchange
-escrow, public search/ranking integration, private-data seeding or remote deletion
+escrow, web search/ranking pipeline integration, private-data seeding or remote deletion
 is claimed. This developer profile is documented in `docs/design/seed-network.md`.
+
+The draft seed runtime now also includes explicit owner-local seed contacts,
+signed expiring provider snapshots, rollback-resistant bounded catalogues,
+original-signature relay/import/export, multi-provider fallback and live mesh
+following. `mini seed search` verifies returned signed public UTF-8 source
+objects and produces excerpts locally, with literal matching and stable ID order;
+it does not feed payments/replica counts into ranking. Current KELs are rechecked
+before cached hints are used. Neither advertisements nor contact activation create
+a canonical provider registry, personhood proof or automatic trust. Global DHT,
+NAT traversal, web-ranking integration and finalized payouts remain unfinished.

@@ -157,10 +157,123 @@ cargo test -p mini-seed --locked
 python3 tools/check_native_forge.py --tests seed_network native_service --offline
 ```
 
-Six core tests cover restart, expiry/renewal, quota, concurrent writers,
-corruption, encryption, symlinks and orphan recovery. Four real TCP seed tests
+Twelve core tests cover restart, expiry/renewal, quota, concurrent writers,
+corruption, encryption, symlinks, orphan recovery, signed catalogues, rollback,
+withdrawal and bounded batch reads. Eight real TCP seed tests
 cover three-node propagation and following, unselected/private/untrusted content,
 peer authorization, revocation without source loss, pending paid delivery/export,
-price caps, claim replay and optional reseed failure. The existing service test
+price caps, claim replay, optional reseed failure, signed discovery/relay/import,
+fallback mesh following, owner opt-out and verified paged search. The existing service test
 covers authentication, stop and restart regression. No hardware run, actual wallet
 funding, finalized payout, independent audit or Internet-scale benchmark is implied.
+
+## Signed discovery and a live multi-provider mesh
+
+Provider discovery now has an owner-local signed catalogue, rather than a
+mandatory registry. An explicitly enabled provider advertises a complete snapshot
+of its active seeded IDs, byte sizes and lease expiries, with its public endpoint,
+root/device signature, issue time and bounded expiry. Empty snapshots withdraw
+previous entries. A consumer verifies the exact author, current delegation and
+signature, rejects rollback or conflicting equal-time snapshots, and retains
+high-water marks across restart and explicit catalogue removal.
+
+```text
+mini --home <provider-home> seed announce --addr <reachable-ip>:7401 --ttl-ms 60000
+mini --home <reader-home> seed contact add --name first --addr <reachable-ip>:7401 --peer <trusted-provider-root>
+mini --home <reader-home> seed catalog refresh
+mini --home <reader-home> seed locate --id <object-id>
+mini --home <reader-home> seed retrieve --id <object-id> --reseed-days 3
+mini --home <reader-home> seed mesh-follow --days 3 --rounds 3600 --interval-ms 1000 --max-objects 100
+```
+
+Add other paired nodes as contacts to obtain fallback retrieval and continuous
+refresh/reseeding across those contacts. Retrieval tries candidate contacts in
+stable name order, verifies actual content/receipts and isolates failed peers.
+It never automatically pays. Paid providers require the explicit quote/fetch flow.
+`mesh-follow` reads current contacts each round, respects the shared `follow-stop`
+marker and `--resume`, prevents simultaneous follow jobs on one home, caps its
+transfer count and preserves existing lease durations during that run. Failure
+reports are bounded to 64 entries. Each round's candidate union is capped at
+4,096 IDs; narrow activated contacts if that profile is exceeded.
+
+Contacts are explicit **owner-local dial permissions**, not a provider licensing
+board or identity grant. A saved endpoint must name an already trusted root;
+changing it requires explicit removal and re-addition. Merely receiving a signed
+advertisement never activates its endpoint. Retrieval uses the configured contact
+address, even if the signed advertisement describes another address. The current
+trusted KEL/delegation is rechecked before using cached hints; encrypted session
+authentication and actual content verification remain independent requirements.
+
+```text
+mini --home <reader-home> seed catalog refresh --contact first
+mini --home <reader-home> seed catalog pull --contact bootstrap
+mini --home <reader-home> seed catalog list
+mini --home <reader-home> seed catalog export --peer <provider-root> --output <new-advertisement-file>
+mini --home <other-home> seed catalog import --file <advertisement-file>
+mini --home <reader-home> seed catalog remove --peer <provider-root>
+mini --home <reader-home> seed contact list
+mini --home <reader-home> seed contact remove --name first
+mini --home <provider-home> seed unannounce
+```
+
+`refresh` requests that contact's own new signed snapshot. `pull` relays the
+contact's cached original provider-signed snapshots, retaining their original
+attribution and requiring each signer's current trusted KELs. Partial acceptance
+and rejected snapshots are reported. Offline export/import uses the same signed
+bytes. Third-party discovery still requires explicit trust and endpoint activation
+before dialing; a relay cannot redirect a reader to arbitrary advertised hosts.
+Advertisements are public redistribution metadata once announced. Do not announce
+an endpoint or selected ID inventory that must remain private.
+
+`unannounce` shares the issuer's lock, so after it returns no new snapshot may be
+signed under the removed configuration. Already-issued snapshots/in-flight bytes
+may remain useful until expiry. Revoke content or stop serving to deny new actual
+reads. Metadata hints do not remotely delete content and never prove independent
+replication, future uptime or personhood.
+
+Bounds: advertisement TTL at most 15 minutes, future clock skew at most 30 seconds,
+4,096 unique entries and 1 MiB per signed object; the local catalogue is at most
+8 MiB and tracks 64 provider high-water marks, including removed providers.
+Tombstones intentionally do not free high-water slots. Contacts: 64 saved,
+16 automatically queried per operation. A relayed exchange has at most 64 objects
+and 8 MiB total bytes. Refresh, fallback retrieval and search each share one
+120-second network deadline across their selected contacts. No DNS or automatic
+third-party endpoint dialing is introduced.
+
+## Verified search of seeded public content
+
+```text
+mini --home <reader-home> seed search --query "history"
+mini --home <reader-home> seed search --query "history" --contact first --limit 4
+mini --home <reader-home> seed search --query "history" --contact first --limit 4 --after <returned-object-id>
+```
+
+This is a bounded **literal UTF-8 content search**, not the separate web ranking
+pipeline or a global index. Queries are explicitly disclosed to the selected
+contacts. The server searches only its public seed pool, excluding unselected,
+expired, private and cold source-store objects. It sends complete signed matching
+source objects, not unverifiable snippets; the reader verifies author/delegation,
+content ID and the literal match before generating the displayed excerpt locally.
+Search results are not automatically inserted in the ordinary store or reseeded.
+
+At most 16 selected contacts, eight hits per provider/page, 64 KiB per serialized
+source object, 16 MiB scanned source bytes per provider/page and a 256-byte query
+are permitted. Binary/large objects are outside this search profile. Incomplete
+pages return provider-specific continuation cursors; continuing requires exactly
+one selected contact. A provider may omit matches, so signatures establish returned
+content authenticity, not exhaustive search or truth. Offline/bad providers are
+reported without hiding other valid results. IDs are deduplicated and ordered by
+object ID; payments, replica counts and provider popularity never rank results.
+The cache/store verification context is loaded once per response and pool reads
+are batched under one manifest load to avoid repeated full metadata scans.
+
+Because this proof-carrying search transmits complete small source objects,
+providers with nonzero delivery prices refuse it. The explicit paid fetch flow
+remains necessary there; search cannot bypass their configured delivery price.
+This has no effect on free public protocol participation or organic web ranking.
+
+Still unfinished: open global peer discovery/DHT and NAT traversal, unpaired
+public-reader onboarding, media-chunk and linked-history expansion, integration
+with the existing web query/ranking system, desktop mesh controls and automated
+canonical payout/fair exchange. This remains a bounded developer profile, not a
+claim that the complete Internet replacement is ready to launch.

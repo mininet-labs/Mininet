@@ -136,3 +136,8 @@ Owner-controlled peer seeding is available through `mini seed`: explicit pool
 quotas, selected public-object retention, authenticated serving, live following,
 verified delivery receipts and optional wallet-supplied pending payment claims.
 See [seed network](../../docs/design/seed-network.md) for commands and payout limits.
+
+Seed mesh commands also support explicit contacts, signed expiring catalogues,
+relay/import/export, fallback retrieval, multi-contact following and verified
+literal search of selected public source objects. These remain owner-controlled
+operations; discovered hints never activate endpoints or spending automatically.

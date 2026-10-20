@@ -182,14 +182,19 @@ fn selected_contacts(home: &Path, args: &mut Vec<String>) -> Result<Vec<(String,
         Ok(all.into_iter().collect())
     }
 }
-fn refresh(home: &Path, selected: &[(String, Contact)]) -> Value {
+fn refresh(home: &Path, selected: &[(String, Contact)], stop_sensitive: bool) -> Value {
     let mut refreshed = Vec::new();
     let mut failures = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(120);
+    let mut stopped = false;
     for (name, c) in selected {
+        if stop_sensitive && home.join("seed-follow.stop").try_exists().unwrap_or(true) {
+            stopped = true;
+            break;
+        }
         match pull_ad(home,c,deadline){Ok(ad)=>refreshed.push(json!({"contact":name,"provider":ad.provider,"objects":ad.entries.len(),"expires_at_ms":ad.expires_at_ms})),Err(e)=>failures.push(json!({"contact":name,"error":e.to_string()}))}
     }
-    json!({"refreshed":refreshed,"failures":failures,"complete":failures.is_empty(),"availability_proven":false})
+    json!({"refreshed":refreshed,"failures":failures,"complete":failures.is_empty() && !stopped,"stop_requested":stopped,"availability_proven":false})
 }
 fn current_ads(home: &Path) -> Result<(Vec<Advertisement>, Vec<Value>)> {
     let identity = crate::identity::load(home)?;
@@ -228,10 +233,19 @@ fn candidates(home: &Path, id: &str) -> Result<Vec<(String, Contact, Advertiseme
     }
     Ok(results)
 }
-fn retrieve(home: &Path, store: &Path, id: &str, days: Option<u16>) -> Result<Value> {
+fn retrieve(
+    home: &Path,
+    store: &Path,
+    id: &str,
+    days: Option<u16>,
+    stop_sensitive: bool,
+) -> Result<Value> {
     let mut failures = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(120);
     for (name, c, _ad) in candidates(home, id)? {
+        if stop_sensitive && home.join("seed-follow.stop").try_exists().unwrap_or(true) {
+            break;
+        }
         let peer = Did::parse(&c.peer).map_err(err)?;
         match fetch(
             home,
@@ -380,16 +394,20 @@ pub(super) fn dispatch(
                     let selected = selected_contacts(home, &mut args)?;
                     done(&args)?;
                     let deadline = Instant::now() + Duration::from_secs(120);
+                    let mut all_accepted = true;
                     let mut reports = Vec::new();
                     let mut failures = Vec::new();
                     for (name, c) in selected {
                         match pull_catalog(home, &c, deadline) {
-                            Ok(r) => reports.push(json!({"contact":name,"report":r})),
+                            Ok(r) => {
+                                all_accepted &= r["rejected"].as_array().is_some_and(Vec::is_empty);
+                                reports.push(json!({"contact":name,"report":r}));
+                            }
                             Err(e) => failures.push(json!({"contact":name,"error":e.to_string()})),
                         }
                     }
                     Ok(
-                        json!({"reports":reports,"failures":failures,"complete":failures.is_empty(),"endpoints_activated":0}),
+                        json!({"reports":reports,"failures":failures,"complete":failures.is_empty() && all_accepted,"endpoints_activated":0}),
                     )
                 }
                 "import" => {
@@ -429,7 +447,7 @@ pub(super) fn dispatch(
                 "refresh" => {
                     let selected = selected_contacts(home, &mut args)?;
                     done(&args)?;
-                    Ok(refresh(home, &selected))
+                    Ok(refresh(home, &selected, false))
                 }
                 "list" => {
                     done(&args)?;
@@ -465,7 +483,7 @@ pub(super) fn dispatch(
                 return Err(err("reseed-days must be1..3650"));
             }
             done(&args)?;
-            retrieve(home, store, &id, days)
+            retrieve(home, store, &id, days, false)
         }
         _ => Err(err("unknown mesh command")),
     }
@@ -619,7 +637,7 @@ fn follow_mesh(home: &Path, store: &Path, mut args: Vec<String>) -> Result<Value
         }
         let selected: Vec<_> = current.into_iter().collect();
         let active_roots: BTreeSet<_> = selected.iter().map(|(_, c)| c.peer.clone()).collect();
-        let report = refresh(home, &selected);
+        let report = refresh(home, &selected, true);
         refreshed += report["refreshed"].as_array().map_or(0, Vec::len);
         for failure in report["failures"].as_array().into_iter().flatten() {
             if failures.len() < 64 {
@@ -667,7 +685,7 @@ fn follow_mesh(home: &Path, store: &Path, mut args: Vec<String>) -> Result<Value
                 observed.insert(id);
                 continue;
             }
-            let result = retrieve(home, store, &id, Some(days))?;
+            let result = retrieve(home, store, &id, Some(days), true)?;
             if result["retrieved"] == true {
                 observed.insert(id);
                 let reseed_failed = result["delivery"]["reseed_error"].is_string();
