@@ -516,3 +516,167 @@ fn completed_delivery_keeps_receipt_when_reseed_quota_is_full() {
         1
     );
 }
+
+#[test]
+fn signed_provider_catalog_survives_restart_and_retrieval_falls_back() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    let id = object(
+        &h[0],
+        &s[0],
+        "history available on independent configured endpoints",
+    );
+    add(&h[0], &s[0], &id);
+    let first = Service::start(&h[0], &s[0], &[root(&h[1]), root(&h[2])]);
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "fetch",
+            "--addr",
+            &first.address,
+            "--peer",
+            &root(&h[0]),
+            "--id",
+            &id,
+            "--reseed-days",
+            "3",
+        ],
+    );
+    let second = Service::start(&h[1], &s[1], &[root(&h[2])]);
+    for (index, address, name) in [
+        (0, &first.address, "a-primary"),
+        (1, &second.address, "b-backup"),
+    ] {
+        run(
+            &h[index],
+            &s[index],
+            &["seed", "announce", "--addr", address, "--ttl-ms", "60000"],
+        );
+        run(
+            &h[2],
+            &s[2],
+            &[
+                "seed",
+                "contact",
+                "add",
+                "--name",
+                name,
+                "--addr",
+                address,
+                "--peer",
+                &root(&h[index]),
+            ],
+        );
+    }
+    let refreshed = run(&h[2], &s[2], &["seed", "catalog", "refresh"]);
+    assert_eq!(refreshed["result"]["complete"], true);
+    let located = run(&h[2], &s[2], &["seed", "locate", "--id", &id]);
+    assert_eq!(located["result"]["candidates"].as_array().unwrap().len(), 2);
+    assert_eq!(located["result"]["availability_proven"], false);
+    drop(first);
+    let got = run(&h[2], &s[2], &["seed", "retrieve", "--id", &id]);
+    assert_eq!(got["result"]["retrieved"], true);
+    assert_eq!(got["result"]["contact"], "b-backup");
+    assert_eq!(got["result"]["failures"].as_array().unwrap().len(), 1);
+    run(&h[1], &s[1], &["seed", "revoke", "--id", &id]);
+    run(
+        &h[2],
+        &s[2],
+        &["seed", "catalog", "refresh", "--contact", "b-backup"],
+    );
+    run(
+        &h[2],
+        &s[2],
+        &["seed", "contact", "remove", "--name", "a-primary"],
+    );
+    assert!(
+        run(&h[2], &s[2], &["seed", "locate", "--id", &id])["result"]["candidates"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        run(&h[2], &s[2], &["seed", "retrieve", "--id", &id])["result"]["retrieved"],
+        false
+    );
+}
+
+#[test]
+fn contact_activation_and_public_announcement_are_explicit() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    assert!(cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "bad",
+            "--addr",
+            "0.0.0.0:42",
+            "--peer",
+            &root(&h[1])
+        ]
+    )
+    .is_err());
+    run(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "peer",
+            "--addr",
+            "127.0.0.1:1",
+            "--peer",
+            &root(&h[1]),
+        ],
+    );
+    assert!(cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "peer",
+            "--addr",
+            "127.0.0.1:2",
+            "--peer",
+            &root(&h[1])
+        ]
+    )
+    .is_err());
+    let server = Service::start(&h[1], &s[1], &[root(&h[2])]);
+    run(
+        &h[2],
+        &s[2],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "unannounced",
+            "--addr",
+            &server.address,
+            "--peer",
+            &root(&h[1]),
+        ],
+    );
+    let report = run(&h[2], &s[2], &["seed", "catalog", "refresh"]);
+    assert_eq!(report["result"]["complete"], false);
+    assert_eq!(report["result"]["refreshed"].as_array().unwrap().len(), 0);
+    assert!(
+        run(&h[2], &s[2], &["seed", "catalog", "list"])["result"]["providers"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

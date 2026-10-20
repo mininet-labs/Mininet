@@ -12,6 +12,8 @@ use std::net::TcpStream;
 use std::path::Path;
 use std::time::Duration;
 
+mod mesh;
+
 const AAD: &[u8] = b"MINI/SEED1";
 const MAX_RECORD: usize = 128 * 1024;
 const MAX_OBJECT: usize = 64 * 1024 * 1024;
@@ -124,6 +126,7 @@ fn cost(bytes: u64, p: &Price) -> Result<u64> {
 #[serde(tag = "op", deny_unknown_fields)]
 enum Request {
     Inventory,
+    Advertisement,
     Quote {
         id: String,
     },
@@ -365,6 +368,7 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
     }
     crate::sync::send_session_proof(&mut b, &mut c, &identity, &transcript, b'r', &peer)?;
     match recv::<Request>(&mut b, &mut c)? {
+        Request::Advertisement => mesh::advertise(home, &mut b, &mut c)?,
         Request::Inventory => {
             let leases = pool(home)?.inventory(now()).map_err(err)?;
             // Bounded pagination avoids manufacturing one oversized advertisement.
@@ -650,6 +654,12 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
         return Err(err("configure | add | revoke | prune | status | inventory | serve | peers | quote | fetch | price | earnings | payment-export"));
     }
     let verb = args.remove(0);
+    if matches!(
+        verb.as_str(),
+        "contact" | "announce" | "unannounce" | "catalog" | "locate" | "retrieve"
+    ) {
+        return render(mesh::dispatch(home, store, &verb, args)?, as_json);
+    }
     if verb == "serve" {
         args.insert(0, "--seed-only".into());
         args.insert(0, "run".into());

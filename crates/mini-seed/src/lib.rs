@@ -13,6 +13,8 @@
 //! callers must reload rather than infer state from an error.
 #![forbid(unsafe_code)]
 
+pub mod catalog;
+
 use mini_objects::{Object, ObjectId, Payload};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
