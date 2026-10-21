@@ -3223,3 +3223,9 @@ uses the same in-memory snapshot and requires an existing identity. Source-only
 confirmation does not bind project/branch/message/parent metadata, submit a
 proposal, change governance or imply checks have run. See
 `docs/design/reviewed-native-workspace.md` for the supported boundary.
+
+Native reviewed workspace commits now also have a full signing-plan preview and
+exact confirmation path binding source plus selected profile/store, signer DIDs,
+project/branch/message and captured governed context. This is proposed-commit
+construction, not canonical adoption, one-use authorization, distributed state
+locking, source test execution or release approval.

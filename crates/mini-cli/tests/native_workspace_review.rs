@@ -168,3 +168,160 @@ fn confirmation_rejects_stale_source_before_store_writes_and_never_initializes_i
     )
     .is_err());
 }
+
+#[test]
+fn full_commit_plan_binds_reviewed_source_and_signing_metadata_before_any_writes() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    let store = temp.path().join("store");
+    let root = temp.path().join("source");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("lib.rs"), "source").unwrap();
+    run(&home, &store, &["repo", "init", "plan-demo"]);
+    run(&home, &store, &["repo", "init", "other-demo"]);
+    let root_arg = root.to_str().unwrap();
+    let preview = |project: &str, branch: &str, message: &str| {
+        run(
+            &home,
+            &store,
+            &[
+                "repo",
+                "commit-preview",
+                project,
+                "--branch",
+                branch,
+                "--message",
+                message,
+                "--workspace",
+                root_arg,
+            ],
+        )
+    };
+    let before_home = state(&home);
+    let before_store = state(&store);
+    let plan = preview("plan-demo", "main", "reviewed message");
+    let id = plan["plan_id"].as_str().unwrap();
+    assert_eq!(plan["branch"], "main");
+    assert_eq!(plan["message"], "reviewed message");
+    assert!(plan["parent"].is_null());
+    assert!(plan["human_did"].as_str().unwrap().starts_with("did:mini:"));
+    assert!(plan["device_did"]
+        .as_str()
+        .unwrap()
+        .starts_with("did:mini:"));
+    assert_eq!(
+        preview("plan-demo", "main", "reviewed message")["plan_id"],
+        id
+    );
+    for (project, branch, message) in [
+        ("plan-demo", "feature", "reviewed message"),
+        ("plan-demo", "main", "different message"),
+        ("other-demo", "main", "reviewed message"),
+    ] {
+        let changed = preview(project, branch, message);
+        assert_ne!(changed["plan_id"], id);
+        assert_eq!(changed["snapshot_id"], plan["snapshot_id"]);
+        assert!(call(
+            &home,
+            &store,
+            &[
+                "repo",
+                "commit",
+                project,
+                "--branch",
+                branch,
+                "--message",
+                message,
+                "--workspace",
+                root_arg,
+                "--confirm-plan",
+                id
+            ],
+            true
+        )
+        .is_err());
+        assert_eq!(state(&store), before_store);
+        assert_eq!(state(&home), before_home);
+    }
+    fs::write(root.join("lib.rs"), "changed source").unwrap();
+    assert!(call(
+        &home,
+        &store,
+        &[
+            "repo",
+            "commit",
+            "plan-demo",
+            "--branch",
+            "main",
+            "--message",
+            "reviewed message",
+            "--workspace",
+            root_arg,
+            "--confirm-plan",
+            id
+        ],
+        true
+    )
+    .is_err());
+    assert_eq!(state(&store), before_store);
+    assert_eq!(state(&home), before_home);
+    fs::write(root.join("lib.rs"), "source").unwrap();
+    assert!(call(
+        &home,
+        &store,
+        &[
+            "repo",
+            "commit",
+            "plan-demo",
+            "--branch",
+            "main",
+            "--message",
+            "reviewed message",
+            "--workspace",
+            root_arg,
+            "--confirm-plan",
+            id,
+            "--confirm-snapshot",
+            plan["snapshot_id"].as_str().unwrap()
+        ],
+        true
+    )
+    .is_err());
+    assert_eq!(state(&store), before_store);
+    let accepted = run(
+        &home,
+        &store,
+        &[
+            "repo",
+            "commit",
+            "plan-demo",
+            "--branch",
+            "main",
+            "--message",
+            "reviewed message",
+            "--workspace",
+            root_arg,
+            "--confirm-plan",
+            id,
+        ],
+    );
+    assert_eq!(accepted["plan_id"], id);
+    assert_eq!(accepted["snapshot_id"], plan["snapshot_id"]);
+    let checkout = temp.path().join("result");
+    call(
+        &home,
+        &store,
+        &[
+            "repo",
+            "checkout",
+            accepted["commit_id"].as_str().unwrap(),
+            checkout.to_str().unwrap(),
+        ],
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        fs::read_to_string(checkout.join("lib.rs")).unwrap(),
+        "source"
+    );
+}

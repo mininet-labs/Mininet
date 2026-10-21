@@ -108,18 +108,34 @@ fn commit_snapshot(
     snapshot: &[Snapshot],
     existing_only: bool,
 ) -> Result<CommandResult> {
-    let identity = if existing_only {
-        crate::identity::load(home)?
+    let mode = if existing_only {
+        ContextMode::Existing
     } else {
-        crate::identity::load_or_init(home)?
+        ContextMode::Legacy
     };
-    let mut store = open_store(store_path)?;
-    let human = identity.human_did();
+    let mut context = capture_context(home, store_path, project_ref, branch, message, mode)?;
+    sign_snapshot(&mut context, snapshot)
+}
 
-    let project_id = project_alias::resolve(home, project_ref)?;
-    let oracle = build_oracle(home, &identity)?;
-    let state = resolve_project(&store, &oracle, &project_id)
-        .map_err(|e| CliError::Forge(e.to_string()))?;
+enum ContextMode {
+    Legacy,
+    Existing,
+    Reviewed,
+}
+struct CommitContext {
+    home: PathBuf,
+    store_path: PathBuf,
+    identity: crate::identity::Identity,
+    store: Store<FsBackend>,
+    project_id: ObjectId,
+    branch: String,
+    message: String,
+    parent: Option<ObjectId>,
+    governance_tip: ObjectId,
+    governance_state_digest: String,
+    forks_detected: bool,
+}
+fn validate_commit_metadata(branch: &str, message: &str) -> Result<()> {
     if branch.is_empty()
         || branch.len() > mini_forge::MAX_VERSION_BYTES
         || !branch
@@ -133,25 +149,135 @@ fn commit_snapshot(
     if message.len() > mini_forge::MAX_MESSAGE_BYTES {
         return Err(CliError::Usage("commit message exceeds forge limit".into()));
     }
-    let entries = store_snapshot(&mut store, &human, &identity.device, snapshot)?;
-    let tree = put_tree(&mut store, &human, &identity.device, &entries)
+    Ok(())
+}
+fn reviewed_directory(path: &Path) -> Result<PathBuf> {
+    let metadata = fs::symlink_metadata(path).map_err(|e| CliError::Io(e.to_string()))?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(CliError::Usage(
+            "reviewed node and store paths must be existing real directories".into(),
+        ));
+    }
+    let canonical = fs::canonicalize(path).map_err(|e| CliError::Io(e.to_string()))?;
+    let text = canonical
+        .to_str()
+        .ok_or_else(|| CliError::Usage("reviewed node and store paths must be UTF-8".into()))?;
+    if text.len() > 8192 || text.chars().any(char::is_control) {
+        return Err(CliError::Usage(
+            "reviewed node or store path exceeds bounds or contains controls".into(),
+        ));
+    }
+    Ok(canonical)
+}
+fn capture_context(
+    home: &Path,
+    store_path: &Path,
+    project_ref: &str,
+    branch: &str,
+    message: &str,
+    mode: ContextMode,
+) -> Result<CommitContext> {
+    validate_commit_metadata(branch, message)?;
+    let (home, store_path) = if matches!(mode, ContextMode::Reviewed) {
+        let home = reviewed_directory(home)?;
+        let store_path = reviewed_directory(store_path)?;
+        // FsBackend::open creates these directories if absent. A review must
+        // reject an incomplete store rather than silently initializing it.
+        reviewed_directory(&store_path.join("blobs"))?;
+        reviewed_directory(&store_path.join("meta"))?;
+        (home, store_path)
+    } else {
+        (home.to_owned(), store_path.to_owned())
+    };
+    let identity = if matches!(mode, ContextMode::Legacy) {
+        crate::identity::load_or_init(&home)?
+    } else {
+        crate::identity::load(&home)?
+    };
+    let store = open_store(&store_path)?;
+    let project_id = project_alias::resolve(&home, project_ref)?;
+    let oracle = build_oracle(&home, &identity)?;
+    let state = resolve_project(&store, &oracle, &project_id)
         .map_err(|e| CliError::Forge(e.to_string()))?;
-
-    // Raw author branch pointers are not scoped to a project. Only the
-    // governed project head is a valid default base for this snapshot.
     let parent = state
         .branches
         .iter()
         .find(|(name, _)| name == branch)
         .map(|(_, id)| id.clone());
-    let parents: Vec<ObjectId> = parent.into_iter().collect();
-
-    let seq = sequence::next(home, store_path)?;
-    let obj = commit(
-        &mut store,
+    let state_json = JsonValue::Object(vec![
+        ("tip".into(), JsonValue::str(state.tip.as_str())),
+        ("name".into(), JsonValue::str(state.name)),
+        ("entries".into(), JsonValue::num(state.entries as u64)),
+        (
+            "forks_detected".into(),
+            JsonValue::Bool(state.forks_detected),
+        ),
+        (
+            "min_approvals".into(),
+            JsonValue::num(state.policy.min_approvals as u64),
+        ),
+        (
+            "maintainers".into(),
+            JsonValue::strs(state.policy.maintainers.iter().map(|did| did.as_str())),
+        ),
+        (
+            "branches".into(),
+            JsonValue::Array(
+                state
+                    .branches
+                    .iter()
+                    .map(|(branch, head)| {
+                        JsonValue::Object(vec![
+                            ("branch".into(), JsonValue::str(branch)),
+                            ("head".into(), JsonValue::str(head.as_str())),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
+    ])
+    .render();
+    let mut digest = blake3::Hasher::new();
+    digest.update(b"MINI/COMMIT-GOVERNANCE-STATE/v1\0");
+    digest.update(state_json.as_bytes());
+    Ok(CommitContext {
+        home,
+        store_path,
+        identity,
+        store,
+        project_id,
+        branch: branch.into(),
+        message: message.into(),
+        parent,
+        governance_tip: state.tip,
+        governance_state_digest: digest.finalize().to_hex().to_string(),
+        forks_detected: state.forks_detected,
+    })
+}
+fn sign_snapshot(context: &mut CommitContext, snapshot: &[Snapshot]) -> Result<CommandResult> {
+    let human = context.identity.human_did();
+    let entries = store_snapshot(
+        &mut context.store,
         &human,
-        &identity.device,
-        message,
+        &context.identity.device,
+        snapshot,
+    )?;
+    let tree = put_tree(
+        &mut context.store,
+        &human,
+        &context.identity.device,
+        &entries,
+    )
+    .map_err(|e| CliError::Forge(e.to_string()))?;
+
+    let parents: Vec<ObjectId> = context.parent.iter().cloned().collect();
+
+    let seq = sequence::next(&context.home, &context.store_path)?;
+    let obj = commit(
+        &mut context.store,
+        &human,
+        &context.identity.device,
+        &context.message,
         &tree,
         &parents,
         sequence::now_ms(),
@@ -162,8 +288,8 @@ fn commit_snapshot(
     Ok(
         CommandResult::new(format!("commit created: {}", obj.id().as_str()))
             .field("commit_id", JsonValue::str(obj.id().as_str()))
-            .field("project_id", JsonValue::str(project_id.as_str()))
-            .field("branch", JsonValue::str(branch))
+            .field("project_id", JsonValue::str(context.project_id.as_str()))
+            .field("branch", JsonValue::str(&context.branch))
             .field("tree", JsonValue::str(tree.as_str()))
             .field(
                 "parents",
@@ -293,6 +419,151 @@ pub fn commit_workspace_confirmed(
                 JsonValue::str(root.to_str().expect("validated UTF-8 root")),
             )
     })
+}
+
+fn commit_plan_fields(
+    context: &CommitContext,
+    root: &Path,
+    snapshot_id: &str,
+) -> Vec<(&'static str, JsonValue)> {
+    vec![
+        (
+            "home",
+            JsonValue::str(context.home.to_str().expect("reviewed UTF-8 home")),
+        ),
+        (
+            "store",
+            JsonValue::str(context.store_path.to_str().expect("reviewed UTF-8 store")),
+        ),
+        (
+            "workspace",
+            JsonValue::str(root.to_str().expect("reviewed UTF-8 workspace")),
+        ),
+        ("snapshot_id", JsonValue::str(snapshot_id)),
+        ("project_id", JsonValue::str(context.project_id.as_str())),
+        ("branch", JsonValue::str(&context.branch)),
+        ("message", JsonValue::str(&context.message)),
+        (
+            "human_did",
+            JsonValue::str(context.identity.human_did().as_str()),
+        ),
+        (
+            "device_did",
+            JsonValue::str(context.identity.device_did().as_str()),
+        ),
+        (
+            "parent",
+            JsonValue::opt_str(context.parent.as_ref().map(|id| id.as_str())),
+        ),
+        (
+            "governance_tip",
+            JsonValue::str(context.governance_tip.as_str()),
+        ),
+        (
+            "governance_state_digest",
+            JsonValue::str(&context.governance_state_digest),
+        ),
+        ("forks_detected", JsonValue::Bool(context.forks_detected)),
+    ]
+}
+fn commit_plan_id(fields: &[(&str, JsonValue)]) -> String {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"MINI/WORKSPACE-COMMIT-PLAN/v1\0");
+    hasher.update(
+        JsonValue::Object(
+            fields
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+        )
+        .render()
+        .as_bytes(),
+    );
+    hasher.finalize().to_hex().to_string()
+}
+/// Review source plus the exact current signer, project, metadata and resolved
+/// governed parent. No keys, sequence or store objects are created. Existing
+/// identity locking metadata follows the ordinary identity loader's behavior.
+pub fn preview_workspace_commit(
+    home: &Path,
+    store: &Path,
+    project: &str,
+    branch: &str,
+    message: &str,
+    workspace: &Path,
+) -> Result<CommandResult> {
+    let (root, snapshot) = workspace_snapshot(workspace)?;
+    let summary = snapshot_summary(&root, &snapshot)?;
+    let context = capture_context(home, store, project, branch, message, ContextMode::Reviewed)?;
+    let fields = commit_plan_fields(&context, &root, &summary.id);
+    let plan_id = commit_plan_id(&fields);
+    let human = format!(
+        "commit plan: {plan_id}\n{}",
+        fields
+            .iter()
+            .map(|(key, value)| format!("{key}: {}\n", value.render()))
+            .collect::<String>()
+    );
+    let human = format!(
+        "{human}{} files, {} directories, {} bytes\n{}",
+        summary.files,
+        summary.directories,
+        summary.bytes,
+        summary
+            .entries
+            .iter()
+            .map(|(_, entry)| format!("{}\n", entry.render()))
+            .collect::<String>()
+    );
+    let mut result = CommandResult::new(human).field("plan_id", JsonValue::str(plan_id));
+    result.fields.extend(fields);
+    Ok(result
+        .field("files", JsonValue::num(summary.files))
+        .field("directories", JsonValue::num(summary.directories))
+        .field("bytes", JsonValue::num(summary.bytes))
+        .field(
+            "entries",
+            JsonValue::Array(
+                summary
+                    .entries
+                    .into_iter()
+                    .map(|(_, entry)| entry)
+                    .collect(),
+            ),
+        ))
+}
+/// Recompute one plan and then sign exactly its captured source and context.
+/// This is not a global compare-and-swap against unrelated store/identity
+/// writers racing after capture; it never re-resolves a different parent after
+/// the owner-confirmed plan comparison.
+pub fn commit_workspace_planned(
+    home: &Path,
+    store: &Path,
+    project: &str,
+    branch: &str,
+    message: &str,
+    workspace: &Path,
+    confirmation: &str,
+) -> Result<CommandResult> {
+    let (root, snapshot) = workspace_snapshot(workspace)?;
+    let summary = snapshot_summary(&root, &snapshot)?;
+    let mut context =
+        capture_context(home, store, project, branch, message, ContextMode::Reviewed)?;
+    let fields = commit_plan_fields(&context, &root, &summary.id);
+    let plan_id = commit_plan_id(&fields);
+    if confirmation != plan_id {
+        return Err(CliError::Usage(
+            "commit plan changed or confirmation does not match; review a fresh plan".into(),
+        ));
+    }
+    let mut result =
+        sign_snapshot(&mut context, &snapshot)?.field("plan_id", JsonValue::str(plan_id));
+    for (key, value) in fields {
+        if !result.fields.iter().any(|(existing, _)| *existing == key) {
+            result.fields.push((key, value));
+        }
+    }
+    Ok(result)
 }
 
 struct SnapshotSummary {
@@ -1137,5 +1408,273 @@ mod workspace_tests {
             .map(|index| Snapshot::Directory(format!("root{index}"), vec![deep(29)]))
             .collect::<Vec<_>>();
         assert!(snapshot_summary(root.path(), &long).is_err());
+    }
+
+    fn plan_id(result: &CommandResult) -> &str {
+        match &result
+            .fields
+            .iter()
+            .find(|(key, _)| *key == "plan_id")
+            .unwrap()
+            .1
+        {
+            JsonValue::String(id) => id,
+            _ => panic!("plan ID is not a string"),
+        }
+    }
+    #[test]
+    fn planned_commit_refuses_changed_metadata_project_profile_and_source_without_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        let store_path = dir.path().join("store");
+        init(&home, &store_path, "demo", vec![], 1).unwrap();
+        init(&home, &store_path, "other", vec![], 1).unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("code.rs"), b"source").unwrap();
+        let before_count = open_store(&store_path).unwrap().all_ids().unwrap().len();
+        let plan = preview_workspace_commit(&home, &store_path, "demo", "main", "message", &source)
+            .unwrap();
+        assert!(!home.join("sequence").exists());
+        assert_eq!(
+            open_store(&store_path).unwrap().all_ids().unwrap().len(),
+            before_count
+        );
+        for (project, branch, message) in [
+            ("demo", "feature", "message"),
+            ("demo", "main", "changed message"),
+            ("other", "main", "message"),
+        ] {
+            assert!(commit_workspace_planned(
+                &home,
+                &store_path,
+                project,
+                branch,
+                message,
+                &source,
+                plan_id(&plan)
+            )
+            .is_err());
+            assert_eq!(
+                open_store(&store_path).unwrap().all_ids().unwrap().len(),
+                before_count
+            );
+            assert!(!home.join("sequence").exists());
+        }
+        let original_alias = fs::read(home.join("projects/demo")).unwrap();
+        fs::copy(home.join("projects/other"), home.join("projects/demo")).unwrap();
+        assert!(commit_workspace_planned(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "message",
+            &source,
+            plan_id(&plan)
+        )
+        .is_err());
+        fs::write(home.join("projects/demo"), original_alias).unwrap();
+        let other_home = dir.path().join("other-home");
+        crate::identity::init(&other_home).unwrap();
+        let original = crate::identity::load(&home).unwrap();
+        crate::store::trust_kel(&other_home, original.human.kel()).unwrap();
+        crate::store::trust_kel(&other_home, original.device.kel()).unwrap();
+        let project = project_alias::resolve(&home, "demo").unwrap();
+        assert!(commit_workspace_planned(
+            &other_home,
+            &store_path,
+            project.as_str(),
+            "main",
+            "message",
+            &source,
+            plan_id(&plan)
+        )
+        .is_err());
+        fs::write(source.join("code.rs"), b"different source").unwrap();
+        assert!(commit_workspace_planned(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "message",
+            &source,
+            plan_id(&plan)
+        )
+        .is_err());
+        assert_eq!(
+            open_store(&store_path).unwrap().all_ids().unwrap().len(),
+            before_count
+        );
+        assert!(!home.join("sequence").exists() && !other_home.join("sequence").exists());
+    }
+    #[test]
+    fn commit_plan_preview_requires_existing_backend_and_never_initializes_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        crate::identity::init(&home).unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+        let store = dir.path().join("missing-store");
+        assert!(
+            preview_workspace_commit(&home, &store, "project", "main", "message", &source).is_err()
+        );
+        assert!(!store.exists());
+        fs::create_dir(&store).unwrap();
+        assert!(
+            preview_workspace_commit(&home, &store, "project", "main", "message", &source).is_err()
+        );
+        assert!(!store.join("blobs").exists() && !store.join("meta").exists());
+        assert!(!home.join("sequence").exists());
+    }
+    fn advance_governed_test_branch(home: &Path, store_path: &Path) -> ObjectId {
+        use did_mini::{Capabilities, Controller};
+        let owner = crate::identity::load(home).unwrap();
+        let mut contributor = Controller::incept_single_from_seeds(&[31; 32], &[32; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&contributor.did(), &[33; 32], &[34; 32])
+                .unwrap();
+        contributor
+            .delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        crate::store::trust_kel(home, contributor.kel()).unwrap();
+        crate::store::trust_kel(home, device.kel()).unwrap();
+        let project = project_alias::resolve(home, "demo").unwrap();
+        let mut store = open_store(store_path).unwrap();
+        let file = put_file(&mut store, &contributor.did(), &device, b"governed source").unwrap();
+        let tree = put_tree(
+            &mut store,
+            &contributor.did(),
+            &device,
+            &[TreeEntry {
+                name: "code.rs".into(),
+                is_dir: false,
+                target: file,
+            }],
+        )
+        .unwrap();
+        let head = commit(
+            &mut store,
+            &contributor.did(),
+            &device,
+            "upstream",
+            &tree,
+            &[],
+            0,
+            0,
+        )
+        .unwrap();
+        let proposal = mini_forge::propose(
+            &mut store,
+            &contributor.did(),
+            &device,
+            &project,
+            "main",
+            "upstream",
+            head.id(),
+            &project,
+            0,
+            0,
+        )
+        .unwrap();
+        mini_forge::approve(
+            &mut store,
+            &owner.human_did(),
+            &owner.device,
+            proposal.id(),
+            head.id(),
+            true,
+            0,
+            0,
+        )
+        .unwrap();
+        let entry = mini_forge::merge(
+            &mut store,
+            &owner.human_did(),
+            &owner.device,
+            &project,
+            &project,
+            proposal.id(),
+            0,
+            0,
+        )
+        .unwrap();
+        let state =
+            resolve_project(&store, &build_oracle(home, &owner).unwrap(), &project).unwrap();
+        assert_eq!(state.tip, *entry.id());
+        head.id().clone()
+    }
+    #[test]
+    fn plan_checks_governed_parent_and_signing_never_reresolves_captured_context() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        let store_path = dir.path().join("store");
+        init(&home, &store_path, "demo", vec![], 1).unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("code.rs"), b"reviewed").unwrap();
+        let old_plan =
+            preview_workspace_commit(&home, &store_path, "demo", "main", "message", &source)
+                .unwrap();
+        let (_, buffer) = workspace_snapshot(&source).unwrap();
+        let mut captured = capture_context(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "captured message",
+            ContextMode::Reviewed,
+        )
+        .unwrap();
+        assert!(captured.parent.is_none());
+        let governed_head = advance_governed_test_branch(&home, &store_path);
+        let before = open_store(&store_path).unwrap().all_ids().unwrap().len();
+        assert!(commit_workspace_planned(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "message",
+            &source,
+            plan_id(&old_plan)
+        )
+        .is_err());
+        assert_eq!(
+            open_store(&store_path).unwrap().all_ids().unwrap().len(),
+            before
+        );
+        assert!(!home.join("sequence").exists());
+        let current =
+            preview_workspace_commit(&home, &store_path, "demo", "main", "message", &source)
+                .unwrap();
+        let accepted = commit_workspace_planned(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "message",
+            &source,
+            plan_id(&current),
+        )
+        .unwrap();
+        assert_eq!(plan_id(&accepted), plan_id(&current));
+        let id = ObjectId::parse(accepted.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        let object = open_store(&store_path).unwrap().get(&id).unwrap();
+        assert!(object
+            .links
+            .iter()
+            .any(|link| link.rel == "parent" && link.target == governed_head));
+        // A store writer racing after plan capture is outside global-CAS scope,
+        // but cannot make this signing helper silently substitute new metadata.
+        fs::write(source.join("code.rs"), b"late external source edit").unwrap();
+        let frozen = sign_snapshot(&mut captured, &buffer).unwrap();
+        let id = ObjectId::parse(frozen.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        let store = open_store(&store_path).unwrap();
+        let object = store.get(&id).unwrap();
+        assert!(!object.links.iter().any(|link| link.rel == "parent"));
+        assert_eq!(
+            object.payload,
+            mini_objects::Payload::Public(b"captured message".to_vec())
+        );
+        assert_eq!(checkout_with_modes(&store, &id).unwrap()[0].1, b"reviewed");
     }
 }

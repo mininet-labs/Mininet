@@ -48,3 +48,37 @@ used for signing. Store I/O failures can leave verified intermediate objects;
 the feature does not introduce multi-object transaction atomicity or automatic
 rollback. Desktop handoff, signing-metadata review and native proposal submission
 remain separate integration work.
+
+## Review the full signing plan
+
+For the stronger workflow, review the source manifest and signing context together:
+
+```text
+mini --home /path/to/node --store /path/to/store --json repo commit-preview project-name --branch main --message "Reviewed source" --workspace /path/to/source
+mini --home /path/to/node --store /path/to/store --json repo commit project-name --branch main --message "Reviewed source" --workspace /path/to/source --confirm-plan EXACT_PLAN_ID
+```
+
+The plan displays and binds the canonical home/store/workspace paths, source
+snapshot ID, human/device signing DIDs, resolved project ID, branch, message and
+the captured governed parent and governance state. Preview needs an existing
+identity and initialized object store; it never initializes keys, allocates a
+sequence or signs/publishes objects. Identity lock metadata may be used by the
+existing load path. Inspect the entire manifest and the signing metadata before
+confirming the exact plan ID.
+
+Confirmation captures the current source and signing context, recomputes the
+plan ID and rejects a mismatch before signing/object/sequence writes. Successful
+execution uses that same source buffer and resolved signing context, rather than
+checking one context and reloading another. A changed signer/profile, project,
+message, branch, source or relevant governed state requires a fresh preview.
+`--confirm-plan` and the older source-only `--confirm-snapshot` cannot be combined,
+and both require workspace mode. Legacy/source-only workflows remain available.
+
+This confirms the displayed plan, not an exact future object ID or a one-use
+authorization token: sequence and creation time are allocated during execution.
+A repeated explicit invocation may create another proposed commit if the bound
+state is unchanged. It grants no merge, release or canonical-head authority.
+Capturing governed state is not a distributed compare-and-swap: an external writer
+can advance it after capture. Subsequent native exact-head review/merge must still
+validate current governed state, as before. Owner-controlled paths and ordinary
+store durability limits remain part of the supported profile.
