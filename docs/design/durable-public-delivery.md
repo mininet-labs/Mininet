@@ -75,3 +75,22 @@ seeds, sign objects, open sockets, or authorize a peer just because the panel
 opened. Service scheduling continues outside this view under the persisted grant
 and unlocked-identity requirement. GUI and Windows vault/device acceptance remain
 separate from the focused automated codec/retry checks.
+
+## Interrupting established sessions
+
+The service IPC reader holds a stop-only guard for forwarded lock, revoke, cancel,
+listener-change, networking-disable and shutdown requests until the authority
+thread processes them. Overlapping guards cannot clear each other. A full bounded
+IPC handoff also pauses delivery so control frames are not trapped behind a stalled
+exchange. Established-session I/O checks interruption in at most 100 ms socket
+timeout slices while retaining the absolute five-second deadline and byte bounds.
+A pending stop prevents another scheduling turn. EOF and invalid IPC input also
+stop active delivery before the host exits.
+
+Interruption cannot undo remote storage or a verified acknowledgement. An already
+verified receipt remains successful; failed work interrupted before receipt remains
+retryable until the control action applies. TCP dialing retains its five-second
+connect bound, and filesystem commit barriers are not preempted. The desktop IPC
+client's existing serialized forwarding remains a separate responsiveness limit;
+this seam acts once requests reach the service reader. No instantaneous end-to-end
+UI cancellation claim follows from the transport check alone.
