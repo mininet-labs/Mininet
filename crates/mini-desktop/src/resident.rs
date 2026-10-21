@@ -29,6 +29,8 @@ pub(crate) struct Panel {
     configured: bool,
     prompt: String,
     workspace_root: String,
+    workspace_candidate: String,
+    discard_workspace_edits: bool,
     file: String,
     preview: Vec<ContextItem>,
     include_preview: bool,
@@ -57,6 +59,12 @@ impl Panel {
         self.patches.is_writing()
     }
 
+    pub(crate) fn request_close(&mut self) -> bool {
+        self.patches.request_close()
+    }
+    pub(crate) fn close_dialog(&mut self, ctx: &egui::Context) {
+        self.patches.close_dialog(ctx);
+    }
     fn poll(&mut self) {
         match self.local_pending.as_ref().map(|rx| rx.try_recv()) {
             Some(Ok(result)) => {
@@ -238,14 +246,43 @@ impl Panel {
             if ui
                 .add_enabled(
                     !self.patches.is_busy(),
-                    egui::TextEdit::singleline(&mut self.workspace_root),
+                    egui::TextEdit::singleline(&mut self.workspace_candidate),
                 )
                 .changed()
             {
+                self.discard_workspace_edits = false;
+            }
+            if self.patches.has_unsaved_work() {
+                ui.add_enabled(
+                    !self.patches.is_busy(),
+                    egui::Checkbox::new(
+                        &mut self.discard_workspace_edits,
+                        "Changing workspace may discard unsaved edits",
+                    ),
+                );
+            }
+            if ui
+                .add_enabled(
+                    !self.patches.is_busy()
+                        && (!self.patches.has_unsaved_work() || self.discard_workspace_edits),
+                    egui::Button::new("Use this workspace"),
+                )
+                .clicked()
+            {
+                self.workspace_root = self.workspace_candidate.trim().into();
+                self.discard_workspace_edits = false;
                 self.preview.clear();
                 self.include_preview = false;
             }
         });
+        ui.small(format!(
+            "Active workspace: {}",
+            if self.workspace_root.is_empty() {
+                "none"
+            } else {
+                &self.workspace_root
+            }
+        ));
         egui::CollapsingHeader::new("Optional file context — preview before sharing").show(ui, |ui| {
             ui.label("Choose a source workspace and one relative UTF-8 file. Known secret paths, symlinks and oversized context are refused. Review the preview for sensitive content.");
             ui.horizontal(|ui| { ui.label("Relative file"); if ui.text_edit_singleline(&mut self.file).changed() { self.preview.clear(); self.include_preview = false; } });

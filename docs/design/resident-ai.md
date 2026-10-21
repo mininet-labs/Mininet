@@ -250,3 +250,11 @@ before retrying an uncertain result. Normal window close is deferred during
 save/removal as well as apply. Power loss, hostile local path races and multi-file
 source transaction atomicity remain outside the guarantees; saved drafts are not
 an automatic patch rollback journal or durable execution receipts.
+
+The desktop now marks staged edits as saved only when they match a successfully
+saved/resumed checkpoint. Unstaged editor changes remain unsaved even if an older
+staged draft was saved. Normal window close offers keep-editing/discard choices
+when work would be lost; it still defers all active writes. Changing the source
+workspace requires pressing **Use this workspace**, plus explicit acknowledgement
+when it would discard unsaved edits. Saved drafts remain in their original
+workspace. These guards do not intercept OS termination or a power failure.

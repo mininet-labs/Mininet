@@ -46,6 +46,8 @@ pub(crate) struct Panel {
     saved_info: Option<DraftInfo>,
     delete_confirmation: String,
     replace_unsaved: bool,
+    saved_edits: Option<Vec<PatchEdit>>,
+    close_requested: bool,
 }
 impl Panel {
     pub(crate) fn is_busy(&self) -> bool {
@@ -53,6 +55,60 @@ impl Panel {
     }
     pub(crate) fn is_writing(&self) -> bool {
         self.pending.as_ref().is_some_and(|p| p.writing)
+    }
+    fn editor_unstaged(&self) -> bool {
+        if !self.replacement_dirty {
+            return false;
+        }
+        let Some(loaded) = &self.loaded else {
+            return !self.replacement.is_empty();
+        };
+        if let Some(staged) = self.edits.iter().find(|e| e.edit.path == loaded.path) {
+            self.replacement != staged.edit.replacement
+        } else {
+            loaded
+                .original
+                .as_ref()
+                .is_none_or(|original| self.replacement != original.content)
+        }
+    }
+    pub(crate) fn has_unsaved_work(&self) -> bool {
+        self.editor_unstaged()
+            || (!self.edits.is_empty()
+                && self
+                    .saved_edits
+                    .as_ref()
+                    .is_none_or(|saved| saved.iter().ne(self.edits.iter().map(|e| &e.edit))))
+    }
+    pub(crate) fn request_close(&mut self) -> bool {
+        if self.is_writing() {
+            return true;
+        }
+        if self.has_unsaved_work() {
+            self.close_requested = true;
+            return true;
+        }
+        false
+    }
+    pub(crate) fn close_dialog(&mut self, ctx: &egui::Context) {
+        if !self.close_requested {
+            return;
+        }
+        egui::Window::new("Unsaved Resident edits").collapsible(false).resizable(false).show(ctx,|ui| {
+            ui.label("There are source edits that have not been saved. Saving a staged draft does not save unstaged editor text. Choose Keep editing, stage the intended text, and save before closing if you want to retain it.");
+            if ui.button("Keep editing to stage / save").clicked() { self.close_requested = false; }
+            if ui.add_enabled(!self.is_busy(),egui::Button::new("Close without saving in-memory edits")).clicked() {
+                self.discard_memory(); self.close_requested = false;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        });
+    }
+    fn discard_memory(&mut self) {
+        self.edits.clear();
+        self.loaded = None;
+        self.replacement.clear();
+        self.replacement_dirty = false;
+        self.invalidate();
     }
     fn invalidate(&mut self) {
         self.replace_unsaved = false;
@@ -64,6 +120,8 @@ impl Panel {
             return;
         }
         self.root = root.into();
+        self.saved_edits = None;
+        self.close_requested = false;
         self.loaded = None;
         self.replacement.clear();
         self.replacement_dirty = false;
@@ -153,6 +211,7 @@ impl Panel {
                 self.status = "Preview ready. Review every original and replacement; type the exact ID to authorize these writes.".into();
             }
             Ok(Outcome::Saved(saved)) => {
+                self.saved_edits = Some(saved.preview.edits.clone());
                 let id = saved.preview.id;
                 self.saved_info = Some(DraftInfo {
                     id: id.clone(),
@@ -172,6 +231,7 @@ impl Panel {
                 self.status = "Stored draft metadata inspected. This does not prove the source files still match; Resume performs those checks.".into();
             }
             Ok(Outcome::Cleared(id)) => {
+                self.saved_edits = None;
                 self.saved_info = None;
                 self.delete_confirmation.clear();
                 self.status = format!(
@@ -189,6 +249,7 @@ impl Panel {
         }
     }
     fn resume(&mut self, saved: SavedDraft) {
+        self.saved_edits = Some(saved.preview.edits.clone());
         self.saved_info = Some(DraftInfo {
             id: saved.preview.id.clone(),
             paths: saved.preview.edits.iter().map(|e| e.path.clone()).collect(),
@@ -236,7 +297,7 @@ impl Panel {
         self.status = "Staged replacement loaded into the editor. Changes remain unstaged until Stage this file is clicked; source is rechecked before preview/apply.".into();
     }
     fn can_resume(&self) -> bool {
-        self.replace_unsaved || (self.edits.is_empty() && !self.replacement_dirty)
+        self.replace_unsaved || !self.has_unsaved_work()
     }
     fn load(&mut self) {
         let (root, path, create) = (self.root.clone(), self.path.trim().to_owned(), self.create);
@@ -304,6 +365,7 @@ impl Panel {
         egui::CollapsingHeader::new("Reviewed local code edits").show(ui,|ui| {
             ui.label("Work in a clean owner-controlled workspace with a backup. Edit proposals stay local and are never sent to the model automatically. No shell, build, commit or network operation runs here.");
             ui.label(format!("Selected workspace: {}", self.root));
+            if self.has_unsaved_work() { ui.label("Unsaved edits: stage editor changes before saving. Only explicitly saved staged edits survive closing."); }
             let idle = !self.is_busy();
             ui.add_enabled_ui(idle,|ui| {
                 let changed = ui.horizontal(|ui| { ui.label("Relative UTF-8 source file"); ui.add(egui::TextEdit::singleline(&mut self.path).char_limit(1024)).changed() }).inner;
@@ -342,7 +404,7 @@ impl Panel {
                     let root=self.root.clone();
                     self.spawn(false,move || Workspace::open(Path::new(&root)).and_then(|w|w.draft_info()).map(Outcome::DraftInfo).map_err(|e|e.to_string()));
                 }
-                if !self.edits.is_empty() || self.replacement_dirty { ui.add_enabled(idle,egui::Checkbox::new(&mut self.replace_unsaved,"Resume may replace these in-memory staged edits and editor text")); }
+                if self.has_unsaved_work() { ui.add_enabled(idle,egui::Checkbox::new(&mut self.replace_unsaved,"Resume may replace these in-memory staged edits and editor text")); }
                 if ui.add_enabled(idle && self.can_resume() && !self.root.trim().is_empty(),egui::Button::new("Resume and revalidate stored staged edits")).clicked() {
                     self.replace_unsaved=false; self.invalidate(); let root=self.root.clone();
                     self.spawn(false,move || Workspace::open(Path::new(&root)).and_then(|w|w.load_draft()).map(Outcome::Resumed).map_err(|e|e.to_string()));
@@ -382,7 +444,7 @@ impl Panel {
                 self.invalidate(); let root = self.root.clone();
                 self.spawn(true,move || Workspace::open(Path::new(&root)).and_then(|w|w.apply_patch(&preview,&confirmation)).map(Outcome::Applied).map_err(|e|e.to_string()));
             }
-            if ui.add_enabled(idle,egui::Button::new("Discard in-memory edits and review")).clicked() { self.edits.clear(); self.loaded = None; self.replacement.clear(); self.replacement_dirty = false; self.invalidate(); self.status = "Unapplied edit drafts discarded.".into(); }
+            if ui.add_enabled(idle,egui::Button::new("Discard in-memory edits and review")).clicked() { self.discard_memory(); self.status = "Unapplied edit drafts discarded.".into(); }
             if let Some(pending) = &self.pending { ui.label(if pending.writing { "Completing the requested local write; do not close the application." } else { "Reading/validating locally…" }); }
             ui.label(&self.status);
         });
@@ -511,7 +573,7 @@ mod tests {
         assert_eq!(panel.edits[0].edit.path, "restored.rs");
         assert_eq!(panel.edits[0].original.as_deref(), Some("baseline"));
         assert!(panel.preview.is_none() && panel.confirmation.is_empty());
-        assert!(!panel.replace_unsaved && !panel.can_resume());
+        assert!(!panel.replace_unsaved && panel.can_resume());
         assert_eq!(panel.saved_info.as_ref().unwrap().id, "saved-id");
         panel.sync_root("other");
         assert!(panel.saved_info.is_none() && panel.delete_confirmation.is_empty());
@@ -532,5 +594,24 @@ mod tests {
         );
         assert_eq!(panel.edits[0].edit.replacement, "revised draft");
         assert!(panel.preview.is_none() && panel.confirmation.is_empty());
+    }
+    #[test]
+    fn close_guard_distinguishes_saved_staging_from_unsaved_editor_text() {
+        let mut panel = loaded_panel();
+        panel.stage().unwrap();
+        assert!(panel.has_unsaved_work() && panel.request_close());
+        panel.close_requested = false;
+        panel.saved_edits = Some(panel.edits.iter().map(|e| e.edit.clone()).collect());
+        assert!(!panel.has_unsaved_work() && !panel.request_close());
+        panel.replacement_dirty = true;
+        panel.replacement = "new unstaged text".into();
+        assert!(panel.editor_unstaged() && panel.request_close());
+        panel.stage().unwrap();
+        assert!(
+            panel.has_unsaved_work(),
+            "old saved checkpoint must not cover newly staged text"
+        );
+        panel.discard_memory();
+        assert!(!panel.has_unsaved_work());
     }
 }

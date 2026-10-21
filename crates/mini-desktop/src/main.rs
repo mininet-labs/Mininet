@@ -1806,6 +1806,11 @@ impl eframe::App for MininetApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             }
         }
+        if ctx.input(|i| i.viewport().close_requested()) && self.resident.request_close() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.view = View::ResidentAI;
+        }
+        self.resident.close_dialog(ctx);
         if !self.theme_applied {
             theme::apply(ctx);
             self.theme_applied = true;
