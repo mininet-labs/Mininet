@@ -144,3 +144,50 @@ provider exchange, local tools, fees, diagnostics and confirmed patches; desktop
 state tests cover attachment snapshots and cancelled late output. These tests
 verify implementation behavior, not a particular model's capability or output
 truth. No real model inference or hardware benchmark is implied.
+
+## Desktop reviewed edit composer
+
+**Reviewed local code edits** now provides an owner-operated path from a draft
+to local file changes. Select a source workspace in Resident AI, enter a relative
+UTF-8 source path and load its baseline. Choose creation explicitly for a new
+path; its parent must already exist. Edit the complete replacement and stage it.
+Up to 16 files and 256 KiB replacement bytes may be staged. An empty replacement
+writes an empty file; this composer does not delete paths or create directories.
+
+**Use answer as unapplied replacement draft** copies the model answer literally
+into the editor. It does not parse code fences, commands, tool calls or JSON.
+Remove explanation/fences yourself and inspect the exact replacement. Drafts and
+file reads stay local unless separately selected as model request context.
+
+Create a fresh preview and compare every original with its complete replacement.
+The ID binds the backend's canonical workspace root, paths, original content
+hashes and replacement bytes. Applying requires typing that exact ID. Changes to
+the workspace, composer or staged list clear preview confirmation. The backend
+revalidates source at apply time and refuses stale edits. Success reports exact
+paths and the preview ID; it does not imply a commit, tests, review approval,
+merge or publication. Model text never authorizes a filesystem write.
+
+Reads/preview/apply run in a worker. Source-root editing is disabled while the
+worker runs, results are polled even when the owner navigates elsewhere, and
+ordinary window-close requests are deferred during an apply. Writes cannot be
+cancelled halfway through. OS termination, power loss and another local writer
+are outside this UI guard: keep a clean owner-controlled workspace and backups.
+
+Cooperating Resident writers take a workspace lock. Replacements and independent
+rollback copies are staged and synced before publication. Existing files use
+rename replacement; unsupported filesystem/platform replacement fails without a
+truncate/delete fallback. New files use no-overwrite hard links and therefore
+require hard-link support. Existing portable permissions are retained. Detected
+publication errors trigger best-effort restoration from staged originals, while
+intervening changed destinations are left for manual recovery. Failed recovery
+reports retained original paths. Individual files are published atomically;
+multiple files are not one crash-atomic transaction and ordinary editors do not
+participate in the Resident lock. Inspect the workspace after any uncertain
+result rather than assuming all-or-nothing completion.
+
+`.resident*` lock/staging/recovery artifacts are excluded from Resident context,
+inspection/search and native Forge workspace snapshots. Stale recovery files
+are not automatically imported, sent to a model or swept away; inspect and
+recover them before an owner removes them. No shell/test execution, automatic
+commit, native proposal submission, model-generated multi-step agent loop or
+production readiness of the wider ecosystem is claimed by this feature.

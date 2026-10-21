@@ -3189,3 +3189,14 @@ shared "community" list as one's own local rules (constitution principle
 convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
 still has its own separate `muted.txt`, and integrating both onto
 `mini-safety` is open follow-up.
+
+### Resident desktop reviewed local edits (draft)
+
+The Resident AI desktop now composes bounded local file replacements, displays
+original/replacement review and requires an exact preview-ID confirmation before
+apply. Model answers are literal unapplied drafts. Cooperating patch writers are
+serialized; staged originals support non-truncating best-effort rollback, and new
+files use no-overwrite publication. Recovery artifacts are excluded from context
+and Forge snapshots. This is an owner-reviewed local edit workflow, not autonomous
+coding, test execution, proposal submission, multi-file crash atomicity or a
+statement that the wider Mininet platform is production-ready.

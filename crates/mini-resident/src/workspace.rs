@@ -36,7 +36,8 @@ fn blocked(segment: &str) -> bool {
             | "wallet"
             | "wallets"
             | "resident-provider.json"
-    ) || s.starts_with(".env")
+    ) || s.starts_with(".resident")
+        || s.starts_with(".env")
         || s.contains("seed")
         || s.contains("secret")
         || s.contains("credential")
@@ -396,71 +397,90 @@ impl Workspace {
     }
     /// Only a direct owner UI/CLI action may call this function. Provider text
     /// never dispatches tools; matching the exact preview ID is mandatory.
+    ///
+    /// An OS lock serializes cooperating Resident writers. Each file publication
+    /// is atomic where the filesystem supports rename/hard links; a multi-file
+    /// edit is NOT crash-atomic. Durable recovery copies can remain after a
+    /// crash or failed rollback and require owner inspection. Ordinary editors
+    /// do not take this lock: detected changes fail closed, but this is not an
+    /// atomic compare-and-swap against hostile directory or file replacement.
     pub fn apply_patch(
         &self,
         preview: &PatchPreview,
         owner_confirmation: &str,
     ) -> Result<PatchReceipt> {
+        self.apply_patch_inner(preview, owner_confirmation, |_| {})
+    }
+    fn apply_patch_inner(
+        &self,
+        preview: &PatchPreview,
+        owner_confirmation: &str,
+        mut before_publication: impl FnMut(usize),
+    ) -> Result<PatchReceipt> {
+        let lock = self.root.join(".resident-patch.lock");
+        match fs::symlink_metadata(&lock) {
+            Ok(meta) if !meta.is_file() || meta.file_type().is_symlink() => {
+                return Err(ResidentError(
+                    "Resident patch lock must be a regular file".into(),
+                ))
+            }
+            Ok(_) => (),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.into()),
+        }
+        let _guard = mini_durable::try_lock_exclusive(&lock).map_err(|e| {
+            ResidentError(format!(
+                "Resident patch workspace busy or lock unavailable: {e}"
+            ))
+        })?;
         let checked = self.preview_patch(&preview.edits)?;
         if preview != &checked || owner_confirmation != checked.id {
             return Err(ResidentError(
                 "owner confirmation must match the exact current patch preview".into(),
             ));
         }
-        let mut staged: Vec<(PathBuf, PathBuf, Option<Vec<u8>>)> = Vec::new();
-        let stage_result = (|| -> Result<()> {
-            for (index, edit) in preview.edits.iter().enumerate() {
-                let dest = self.path(&edit.path, edit.before_hash.is_none())?;
-                let original = if edit.before_hash.is_some() {
-                    Some(self.read(&edit.path)?.into_bytes())
-                } else {
-                    None
-                };
-                let parent = dest
-                    .parent()
-                    .ok_or_else(|| ResidentError("patch requires a parent directory".into()))?;
-                let temp = parent.join(format!(
-                    ".resident-patch-{}-{}-{index}",
-                    std::process::id(),
-                    &preview.id[..16]
-                ));
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(&temp)?;
-                staged.push((temp.clone(), dest.clone(), original));
-                file.write_all(edit.replacement.as_bytes())?;
-                if edit.before_hash.is_some() {
-                    fs::set_permissions(&temp, fs::metadata(&dest)?.permissions())?;
-                }
-                file.sync_all()?;
-            }
-            // Recheck all before-content hashes immediately before publication.
-            self.preview_patch(&preview.edits)?;
-            Ok(())
-        })();
-        if let Err(e) = stage_result {
-            for (temp, _, _) in &staged {
-                let _ = fs::remove_file(temp);
-            }
-            return Err(e);
+        static STAGE_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let sequence = STAGE_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let mut staged = Vec::new();
+        for (index, edit) in preview.edits.iter().enumerate() {
+            let dest = self.path(&edit.path, edit.before_hash.is_none())?;
+            let original = if edit.before_hash.is_some() {
+                Some((
+                    self.read(&edit.path)?.into_bytes(),
+                    fs::metadata(&dest)?.permissions(),
+                ))
+            } else {
+                None
+            };
+            staged.push(PatchStage::create(dest, edit, original, sequence, index)?);
         }
-        for (applied, (temp, dest, _)) in staged.iter().enumerate() {
-            if let Err(e) = fs::rename(temp, dest) {
-                let mut rollback_failed = false;
-                for (_, old_dest, original) in staged[..applied].iter().rev() {
-                    let restored = match original {
-                        Some(bytes) => fs::write(old_dest, bytes),
-                        None => fs::remove_file(old_dest),
-                    };
-                    rollback_failed |= restored.is_err();
+        self.preview_patch(&preview.edits)?;
+        for index in 0..staged.len() {
+            // Recheck immediately before each publication. The create path
+            // additionally uses hard_link, which cannot overwrite a late file.
+            let outcome = self
+                .preview_patch(std::slice::from_ref(&preview.edits[index]))
+                .and_then(|_| {
+                    before_publication(index);
+                    staged[index].publish().map_err(ResidentError::from)
+                });
+            if let Err(error) = outcome {
+                let mut rollback_errors = Vec::new();
+                for stage in staged[..=index].iter_mut().rev() {
+                    if let Err(rollback) = stage.rollback() {
+                        stage.keep_recovery = true;
+                        rollback_errors
+                            .push(format!("{}: {rollback}", stage.destination.display()));
+                    }
                 }
-                for (temp, _, _) in &staged {
-                    let _ = fs::remove_file(temp);
-                }
-                return Err(ResidentError(format!(
-                    "patch publication failed: {e}; rollback_failed={rollback_failed}"
-                )));
+                let recovery: Vec<_> = staged
+                    .iter()
+                    .filter(|s| s.keep_recovery)
+                    .filter_map(|s| s.original.as_ref())
+                    .filter(|p| p.exists())
+                    .map(|p| p.display().to_string())
+                    .collect();
+                return Err(ResidentError(format!("patch publication failed: {error}; rollback_errors={rollback_errors:?}; retained_recovery={recovery:?}. Inspect source state before retrying.")));
             }
         }
         Ok(PatchReceipt {
@@ -468,6 +488,114 @@ impl Workspace {
             patched_paths: preview.edits.iter().map(|e| e.path.clone()).collect(),
             provenance: AiProvenance::default(),
         })
+    }
+}
+
+/// Every path here is an artifact created with create_new by this call. Drop
+/// never removes a pre-existing artifact. Recovery files survive failed restore.
+struct PatchStage {
+    replacement: PathBuf,
+    destination: PathBuf,
+    original: Option<PathBuf>,
+    replacement_hash: String,
+    published: bool,
+    keep_recovery: bool,
+}
+fn new_stage(path: &Path) -> std::io::Result<fs::File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
+}
+impl PatchStage {
+    fn create(
+        destination: PathBuf,
+        edit: &PatchEdit,
+        original: Option<(Vec<u8>, fs::Permissions)>,
+        sequence: u64,
+        index: usize,
+    ) -> Result<Self> {
+        let parent = destination
+            .parent()
+            .ok_or_else(|| ResidentError("patch requires a parent directory".into()))?;
+        let name = format!(".resident-patch-{}-{sequence}-{index}", std::process::id());
+        let replacement = parent.join(format!("{name}.new"));
+        let mut file = new_stage(&replacement)?;
+        let mut stage = Self {
+            replacement,
+            destination: destination.clone(),
+            original: None,
+            replacement_hash: content_hash(edit.replacement.as_bytes()),
+            published: false,
+            keep_recovery: false,
+        };
+        file.write_all(edit.replacement.as_bytes())?;
+        if let Some((bytes, permissions)) = original {
+            file.set_permissions(permissions.clone())?;
+            let backup = parent.join(format!("{name}.old"));
+            let mut recovery = new_stage(&backup)?;
+            stage.original = Some(backup);
+            recovery.write_all(&bytes)?;
+            recovery.set_permissions(permissions)?;
+            recovery.sync_all()?;
+        }
+        file.sync_all()?;
+        // Persist both stage names before replacing any original source entry.
+        mini_durable::sync_parent(&stage.replacement)?;
+        Ok(stage)
+    }
+    fn publish(&mut self) -> std::io::Result<()> {
+        if self.original.is_some() {
+            // No truncate/remove fallback: unsupported replacement (including
+            // platform read-only-file restrictions) fails without deleting old data.
+            fs::rename(&self.replacement, &self.destination)?;
+            self.published = true;
+        } else {
+            fs::hard_link(&self.replacement, &self.destination)?;
+            self.published = true;
+            fs::remove_file(&self.replacement)?;
+        }
+        mini_durable::sync_parent(&self.destination)
+    }
+    fn rollback(&mut self) -> std::io::Result<()> {
+        if !self.published {
+            return Ok(());
+        }
+        // Do not clobber an ordinary editor's intervening replacement during
+        // best-effort rollback. Retain original bytes for manual recovery.
+        let metadata = fs::symlink_metadata(&self.destination)?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
+            return Err(std::io::Error::other("destination changed during rollback"));
+        }
+        let mut bytes = Vec::new();
+        fs::File::open(&self.destination)?
+            .take(MAX_FILE_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)?;
+        if content_hash(&bytes) != self.replacement_hash {
+            return Err(std::io::Error::other(
+                "destination content changed during rollback",
+            ));
+        }
+        if let Some(original) = &self.original {
+            fs::rename(original, &self.destination)?;
+        } else {
+            fs::remove_file(&self.destination)?;
+        }
+        mini_durable::sync_parent(&self.destination)
+    }
+}
+impl Drop for PatchStage {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.replacement);
+        if !self.keep_recovery {
+            if let Some(original) = &self.original {
+                let _ = fs::remove_file(original);
+            }
+        }
     }
 }
 
@@ -533,5 +661,186 @@ mod tests {
                 replacement: "new".into()
             }])
             .is_err());
+    }
+
+    #[test]
+    fn late_new_file_collision_never_overwrites_and_rolls_back_prior_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("existing.rs"), "original").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let preview = workspace
+            .preview_patch(&[
+                PatchEdit {
+                    path: "existing.rs".into(),
+                    before_hash: Some(content_hash(b"original")),
+                    replacement: "replacement".into(),
+                },
+                PatchEdit {
+                    path: "new.rs".into(),
+                    before_hash: None,
+                    replacement: "planned new file".into(),
+                },
+            ])
+            .unwrap();
+        let result = workspace.apply_patch_inner(&preview, &preview.id, |index| {
+            // Simulate an ordinary editor creating the path in the narrow
+            // interval after validation and before publication.
+            if index == 1 {
+                fs::write(dir.path().join("new.rs"), "late owner content").unwrap();
+            }
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read(dir.path().join("new.rs")).unwrap(),
+            b"late owner content"
+        );
+        assert_eq!(
+            fs::read(dir.path().join("existing.rs")).unwrap(),
+            b"original"
+        );
+        assert!(fs::read_dir(dir.path()).unwrap().all(|e| !e
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .ends_with(".old")));
+        // Explicitly previewing a different, still-absent name succeeds.
+        let create = workspace
+            .preview_patch(&[PatchEdit {
+                path: "created.rs".into(),
+                before_hash: None,
+                replacement: "created".into(),
+            }])
+            .unwrap();
+        workspace.apply_patch(&create, &create.id).unwrap();
+        assert_eq!(fs::read(dir.path().join("created.rs")).unwrap(), b"created");
+    }
+
+    #[test]
+    fn patch_lock_serializes_writers_and_recovery_artifacts_are_never_context() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("code.rs"), "old").unwrap();
+        fs::write(
+            dir.path().join(".resident-patch-recovery.old"),
+            "recovery bytes",
+        )
+        .unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let preview = workspace
+            .preview_patch(&[PatchEdit {
+                path: "code.rs".into(),
+                before_hash: Some(content_hash(b"old")),
+                replacement: "new".into(),
+            }])
+            .unwrap();
+        let guard =
+            mini_durable::try_lock_exclusive(&dir.path().join(".resident-patch.lock")).unwrap();
+        let second = workspace.clone();
+        let pending = preview.clone();
+        let error =
+            std::thread::spawn(move || second.apply_patch(&pending, &pending.id).unwrap_err())
+                .join()
+                .unwrap();
+        assert!(error.0.contains("busy or lock unavailable"));
+        assert_eq!(fs::read(dir.path().join("code.rs")).unwrap(), b"old");
+        assert_eq!(workspace.inspect().unwrap().files.len(), 1);
+        assert!(workspace
+            .context(&[".resident-patch-recovery.old".into()])
+            .is_err());
+        drop(guard);
+        workspace.apply_patch(&preview, &preview.id).unwrap();
+        assert_eq!(fs::read(dir.path().join("code.rs")).unwrap(), b"new");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn executable_permissions_survive_publication_and_atomic_rollback() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("run.sh");
+        fs::write(&path, "old").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o751)).unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let preview = workspace
+            .preview_patch(&[PatchEdit {
+                path: "run.sh".into(),
+                before_hash: Some(content_hash(b"old")),
+                replacement: "new".into(),
+            }])
+            .unwrap();
+        workspace.apply_patch(&preview, &preview.id).unwrap();
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o751
+        );
+        let rollback = workspace
+            .preview_patch(&[
+                PatchEdit {
+                    path: "run.sh".into(),
+                    before_hash: Some(content_hash(b"new")),
+                    replacement: "again".into(),
+                },
+                PatchEdit {
+                    path: "collision.rs".into(),
+                    before_hash: None,
+                    replacement: "planned".into(),
+                },
+            ])
+            .unwrap();
+        assert!(workspace
+            .apply_patch_inner(&rollback, &rollback.id, |index| {
+                if index == 1 {
+                    fs::write(dir.path().join("collision.rs"), "late").unwrap();
+                }
+            })
+            .is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"new");
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o751
+        );
+    }
+
+    #[test]
+    fn failed_rollback_retains_original_without_clobbering_later_owner_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("first.rs"), "original").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let preview = workspace
+            .preview_patch(&[
+                PatchEdit {
+                    path: "first.rs".into(),
+                    before_hash: Some(content_hash(b"original")),
+                    replacement: "patch".into(),
+                },
+                PatchEdit {
+                    path: "second.rs".into(),
+                    before_hash: None,
+                    replacement: "new".into(),
+                },
+            ])
+            .unwrap();
+        let result = workspace
+            .apply_patch_inner(&preview, &preview.id, |index| {
+                if index == 1 {
+                    fs::write(dir.path().join("first.rs"), "later owner edit").unwrap();
+                    fs::write(dir.path().join("second.rs"), "late collision").unwrap();
+                }
+            })
+            .unwrap_err();
+        assert!(result
+            .0
+            .contains("destination content changed during rollback"));
+        assert_eq!(
+            fs::read(dir.path().join("first.rs")).unwrap(),
+            b"later owner edit"
+        );
+        let backups: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|s| s == "old"))
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(fs::read(&backups[0]).unwrap(), b"original");
+        assert_eq!(workspace.inspect().unwrap().files.len(), 2);
     }
 }
