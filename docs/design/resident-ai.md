@@ -188,6 +188,8 @@ result rather than assuming all-or-nothing completion.
 `.resident*` lock/staging/recovery artifacts are excluded from Resident context,
 inspection/search and native Forge workspace snapshots. Stale recovery files
 are not automatically imported, sent to a model or swept away; inspect and
-recover them before an owner removes them. No shell/test execution, automatic
+recover them before an owner removes them. Add `.resident-patch*` to `.gitignore`
+in any Git-backed workspace before mirroring it (this repository includes the
+rule); native Forge snapshots exclude these artifacts independently. No shell/test execution, automatic
 commit, native proposal submission, model-generated multi-step agent loop or
 production readiness of the wider ecosystem is claimed by this feature.

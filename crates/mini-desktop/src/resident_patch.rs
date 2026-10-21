@@ -217,7 +217,7 @@ impl Panel {
             ui.label(format!("Selected workspace: {}", self.root));
             let idle = !self.is_busy();
             ui.add_enabled_ui(idle,|ui| {
-                let changed = ui.horizontal(|ui| { ui.label("Relative UTF-8 source file"); ui.text_edit_singleline(&mut self.path).changed() }).inner;
+                let changed = ui.horizontal(|ui| { ui.label("Relative UTF-8 source file"); ui.add(egui::TextEdit::singleline(&mut self.path).char_limit(1024)).changed() }).inner;
                 let changed = ui.checkbox(&mut self.create,"Create a new file (parent directory must exist)").changed() || changed;
                 if changed { self.loaded = None; self.replacement.clear(); self.replacement_dirty = false; self.invalidate(); }
                 if ui.add_enabled(!self.root.trim().is_empty() && !self.path.trim().is_empty(),egui::Button::new("Load / validate file baseline")).clicked() { self.load(); }
@@ -320,5 +320,41 @@ mod tests {
         assert!(panel.edits.is_empty() && panel.loaded.is_none());
         assert!(panel.preview.is_none() && panel.confirmation.is_empty());
         assert!(panel.replacement.is_empty());
+    }
+    #[test]
+    fn loading_baseline_preserves_an_explicit_model_draft_without_staging_it() {
+        let mut panel = Panel::default();
+        panel.draft_reply("workspace", "replacement chosen from model output");
+        let (sender, receiver) = mpsc::channel();
+        sender
+            .send(Ok(Outcome::Loaded(Loaded {
+                path: "src.rs".into(),
+                original: Some(ContextItem {
+                    path: "src.rs".into(),
+                    content: "old source".into(),
+                    hash: mini_resident::content_hash(b"old source"),
+                }),
+            })))
+            .unwrap();
+        panel.pending = Some(Pending {
+            receiver,
+            applying: false,
+            root: "workspace".into(),
+        });
+        panel.poll();
+        assert_eq!(panel.replacement, "replacement chosen from model output");
+        assert_eq!(
+            panel
+                .loaded
+                .as_ref()
+                .unwrap()
+                .original
+                .as_ref()
+                .unwrap()
+                .content,
+            "old source"
+        );
+        assert!(panel.edits.is_empty() && panel.preview.is_none());
+        assert!(panel.pending.is_none());
     }
 }
