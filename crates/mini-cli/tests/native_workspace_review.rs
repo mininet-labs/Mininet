@@ -325,3 +325,122 @@ fn full_commit_plan_binds_reviewed_source_and_signing_metadata_before_any_writes
         "source"
     );
 }
+
+#[test]
+fn proposal_plan_handoff_binds_metadata_without_approving_or_merging() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    let store = temp.path().join("store");
+    let root = temp.path().join("source");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("lib.rs"), "reviewed source").unwrap();
+    run(&home, &store, &["repo", "init", "handoff"]);
+    let source = root.to_str().unwrap();
+    let plan = run(
+        &home,
+        &store,
+        &[
+            "repo",
+            "commit-preview",
+            "handoff",
+            "--branch",
+            "main",
+            "--message",
+            "source",
+            "--workspace",
+            source,
+        ],
+    );
+    let commit = run(
+        &home,
+        &store,
+        &[
+            "repo",
+            "commit",
+            "handoff",
+            "--branch",
+            "main",
+            "--message",
+            "source",
+            "--workspace",
+            source,
+            "--confirm-plan",
+            plan["plan_id"].as_str().unwrap(),
+        ],
+    );
+    let head = commit["commit_id"].as_str().unwrap();
+    let before_home = state(&home);
+    let before_store = state(&store);
+    let proposal = run(
+        &home,
+        &store,
+        &[
+            "pr",
+            "propose-preview",
+            "handoff",
+            "--branch",
+            "main",
+            "--title",
+            "Reviewed contribution",
+            "--head",
+            head,
+        ],
+    );
+    let id = proposal["plan_id"].as_str().unwrap();
+    assert_eq!(proposal["head"], head);
+    assert_eq!(before_home, state(&home));
+    assert_eq!(before_store, state(&store));
+    for (branch, title) in [
+        ("feature", "Reviewed contribution"),
+        ("main", "Changed title"),
+    ] {
+        assert!(call(
+            &home,
+            &store,
+            &[
+                "pr",
+                "propose",
+                "handoff",
+                "--branch",
+                branch,
+                "--title",
+                title,
+                "--head",
+                head,
+                "--confirm-plan",
+                id
+            ],
+            true
+        )
+        .is_err());
+        assert_eq!(before_home, state(&home));
+        assert_eq!(before_store, state(&store));
+    }
+    let submitted = run(
+        &home,
+        &store,
+        &[
+            "pr",
+            "propose",
+            "handoff",
+            "--branch",
+            "main",
+            "--title",
+            "Reviewed contribution",
+            "--head",
+            head,
+            "--confirm-plan",
+            id,
+        ],
+    );
+    assert_eq!(submitted["plan_id"], id);
+    let view = run(
+        &home,
+        &store,
+        &["pr", "show", submitted["pr_id"].as_str().unwrap()],
+    );
+    assert_eq!(view["proposal"]["head"], head);
+    assert_eq!(view["proposal"]["approvals"], 0);
+    assert_eq!(view["proposal"]["quorum_met"], false);
+    assert!(view["proposal"]["current_branch_head"].is_null());
+}

@@ -3229,3 +3229,11 @@ exact confirmation path binding source plus selected profile/store, signer DIDs,
 project/branch/message and captured governed context. This is proposed-commit
 construction, not canonical adoption, one-use authorization, distributed state
 locking, source test execution or release approval.
+
+Native proposal handoff now previews and confirms a plan binding exact commit
+head, signer, project, title, branch and governed base/context. The reviewed path
+checks head provenance and bounded checkout shape before sequence allocation,
+rejects stale plans, and signs from the captured context. It creates a local
+proposal only; replication, approval, quorum and merge remain explicit. Focused
+CLI and unit checks cover end-to-end handoff, stale metadata/governance, untrusted
+head provenance and missing-store refusal. No hardware or production claim.

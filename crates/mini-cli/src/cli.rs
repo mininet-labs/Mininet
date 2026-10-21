@@ -408,7 +408,7 @@ fn dispatch_pr(
 ) -> Result<String> {
     let noun = next(&mut args, "pr")?;
     let result = match noun.as_str() {
-        "propose" => {
+        "propose" | "propose-preview" => {
             let project = next(&mut args, "pr propose")?;
             let branch = extract_flag(&mut args, "--branch")
                 .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
@@ -417,18 +417,46 @@ fn dispatch_pr(
             let head = extract_flag(&mut args, "--head")
                 .ok_or_else(|| CliError::Usage("--head required".to_string()))?;
             let base = extract_flag(&mut args, "--base");
+            let confirmation = if noun == "propose" {
+                extract_flag(&mut args, "--confirm-plan")
+            } else {
+                None
+            };
             if !args.is_empty() {
                 return Err(CliError::Usage("unexpected pr arguments".into()));
             }
-            pr::propose_pr(
-                home,
-                store_path,
-                &project,
-                &branch,
-                &title,
-                &head,
-                base.as_deref(),
-            )
+            if noun == "propose-preview" {
+                pr::preview_proposal(
+                    home,
+                    store_path,
+                    &project,
+                    &branch,
+                    &title,
+                    &head,
+                    base.as_deref(),
+                )
+            } else if let Some(plan) = confirmation {
+                pr::propose_planned(
+                    home,
+                    store_path,
+                    &project,
+                    &branch,
+                    &title,
+                    &head,
+                    base.as_deref(),
+                    &plan,
+                )
+            } else {
+                pr::propose_pr(
+                    home,
+                    store_path,
+                    &project,
+                    &branch,
+                    &title,
+                    &head,
+                    base.as_deref(),
+                )
+            }
         }
         "review" => {
             let id = next(&mut args, "pr review")?;

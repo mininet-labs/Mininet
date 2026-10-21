@@ -151,7 +151,7 @@ fn validate_commit_metadata(branch: &str, message: &str) -> Result<()> {
     }
     Ok(())
 }
-fn reviewed_directory(path: &Path) -> Result<PathBuf> {
+pub(crate) fn reviewed_directory(path: &Path) -> Result<PathBuf> {
     let metadata = fs::symlink_metadata(path).map_err(|e| CliError::Io(e.to_string()))?;
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
         return Err(CliError::Usage(

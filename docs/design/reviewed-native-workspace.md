@@ -46,8 +46,8 @@ filesystem snapshot against editors racing individual reads. Its guarantee is
 that the accepted bytes match the reviewed manifest ID and the immutable buffer
 used for signing. Store I/O failures can leave verified intermediate objects;
 the feature does not introduce multi-object transaction atomicity or automatic
-rollback. Desktop handoff, signing-metadata review and native proposal submission
-remain separate integration work.
+rollback. Desktop handoff remains separate integration work. The full signing-plan and
+local proposal workflows below extend the source-only confirmation.
 
 ## Review the full signing plan
 
@@ -82,3 +82,22 @@ Capturing governed state is not a distributed compare-and-swap: an external writ
 can advance it after capture. Subsequent native exact-head review/merge must still
 validate current governed state, as before. Owner-controlled paths and ordinary
 store durability limits remain part of the supported profile.
+
+## Hand a reviewed commit to a native proposal
+
+Use the returned `commit_id` to review the proposal context before signing it:
+
+```text
+mini --home /path/to/node --store /path/to/store --json pr propose-preview project-name --branch main --title "Reviewed contribution" --head COMMIT_ID
+mini --home /path/to/node --store /path/to/store --json pr propose project-name --branch main --title "Reviewed contribution" --head COMMIT_ID --confirm-plan EXACT_PROPOSAL_PLAN_ID
+```
+
+The proposal plan binds the signer, canonical home/store paths, project, branch,
+title, exact commit head, governed base and current governance state. It checks
+head commit provenance and the bounded checkout closure; it does not claim to
+verify every child object's authorship. Changed context requires a fresh preview.
+An explicit `--base` must match the current governed tip in this reviewed workflow.
+Execution signs from the same captured context that matched the plan. This remains
+a local proposal: replication is explicit, and approval, quorum and merge remain
+separate governed actions. Plans are repeatable confirmations, not one-use tokens
+or distributed locks; concurrent governance changes can still require new review.
