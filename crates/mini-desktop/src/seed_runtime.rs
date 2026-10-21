@@ -630,4 +630,60 @@ mod tests {
         drop(child);
         assert!(!PathBuf::from(format!("/proc/{pid}")).exists());
     }
+    /// Exercises the actual installed helper without pulling mini-cli (and its
+    /// separate dependency graph) into the desktop renderer.
+    #[test]
+    #[ignore = "requires MININET_SEED_CLI pointing to the built mini executable"]
+    fn real_cli_profile_actions_round_trip() {
+        struct TestHome(PathBuf);
+        impl Drop for TestHome {
+            fn drop(&mut self) {
+                let _ = fs::remove_dir_all(&self.0);
+            }
+        }
+        let program =
+            PathBuf::from(std::env::var_os("MININET_SEED_CLI").expect("set MININET_SEED_CLI"))
+                .canonicalize()
+                .unwrap();
+        let random = mini_crypto::random_32().unwrap();
+        let tag: String = random.iter().map(|b| format!("{b:02x}")).collect();
+        let home = TestHome(std::env::temp_dir().join(format!("mininet-desktop-seed-test-{tag}")));
+        fs::create_dir(&home.0).unwrap();
+        let initialized = Command::new(&program)
+            .arg("--home")
+            .arg(&home.0)
+            .args(["identity", "init"])
+            .output()
+            .unwrap();
+        assert!(
+            initialized.status.success(),
+            "{}",
+            String::from_utf8_lossy(&initialized.stderr)
+        );
+        let node = Node {
+            program,
+            home: home.0.clone(),
+            store: home.0.join("source"),
+        };
+        for action in [
+            Action::NodeIdentity,
+            Action::Status,
+            Action::Configure { max_bytes: 1024 },
+            Action::Inventory,
+            Action::ContactList,
+            Action::ServiceStatus,
+        ] {
+            let mut job = Job::start(node.clone(), action).unwrap();
+            let deadline = Instant::now() + Duration::from_secs(15);
+            let result = loop {
+                if let Some(result) = job.poll() {
+                    break result.unwrap();
+                }
+                assert!(Instant::now() < deadline, "CLI action timed out");
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            assert_eq!(result["ok"], true);
+            assert!(job.poll().is_none(), "result must be delivered once");
+        }
+    }
 }

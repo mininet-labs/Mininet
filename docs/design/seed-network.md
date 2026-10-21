@@ -408,3 +408,18 @@ these are not installed background services. Cancellation is not rollback: write
 already completed remain, and status should be refreshed before retrying. Finite
 operations have a 150-second adapter timeout and bounded captured output. No
 wallet keys, automatic payments, canonical balances or global discovery are added.
+
+Desktop adapter validation (no GUI or hardware required):
+
+```sh
+cargo test -p mini-desktop --bin mininet-desktop seed_ --locked --offline
+cargo build -p mini-cli --bin mini --locked --offline
+MININET_SEED_CLI="$PWD/target/debug/mini" cargo test -p mini-desktop \
+  --bin mininet-desktop real_cli_profile_actions_round_trip --locked --offline -- --ignored
+```
+
+The opt-in round-trip test initializes a temporary test-only node, exercises six
+real helper actions through the adapter, checks single result delivery, and
+removes its own test profile. It never uses the owner's existing identity/store.
+Windows can set `MININET_SEED_CLI` to the built `mini.exe` path before the last
+Cargo command. Window rendering and hardware/network deployment remain separate.
