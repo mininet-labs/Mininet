@@ -3207,3 +3207,9 @@ revalidates current source, rebuilds original review text and restores no apply
 authorization. Private bounded source checkpoints are excluded from model context,
 Forge snapshots and Git staging rules in this repository. Unstaged editor text,
 autosave, durable execution receipts and automatic crash recovery are not added.
+
+Resident drafts now protect unsaved work on ordinary close/workspace changes,
+use compare-and-save in the desktop to reject competing checkpoint replacement,
+and expose stale replacement/current-source comparison for explicitly acknowledged
+manual repair. Recovery loads only an unstaged editor draft with the accepted
+current baseline; it never silently rebases, stages, applies or restores approval.

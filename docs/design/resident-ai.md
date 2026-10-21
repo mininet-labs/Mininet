@@ -258,3 +258,46 @@ when work would be lost; it still defers all active writes. Changing the source
 workspace requires pressing **Use this workspace**, plus explicit acknowledgement
 when it would discard unsaved edits. Saved drafts remain in their original
 workspace. These guards do not intercept OS termination or a power failure.
+
+## Saved-draft conflicts and manual stale repair
+
+Desktop saves now compare the last inspected/saved/resumed draft ID while holding
+the workspace patch lock. If no checkpoint has been inspected, save creates one
+only if absent. If another cooperating window replaces it first, save refuses
+instead of silently losing that window's draft. Inspect the current stored ID
+and decide which staged version to retain before retrying. This is coordination
+between cooperating Resident writers, not a filesystem sandbox against external
+editors or administrators.
+
+A stale checkpoint can now be opened with **Compare saved replacements with
+current files**, even when normal Resume refuses. It shows each saved before hash,
+the current file or its absence, whether the baseline matches, and the saved
+replacement text. No old original text is invented: checkpoints store hashes,
+not complete original files. Missing parent directories, symlinks, nonregular
+files, oversized/binary text and other unsafe inputs still fail closed.
+
+Select one file and inspect its current content beside the saved replacement.
+Only the explicit acknowledgement **Replace the editor text and use this displayed
+current file state as the repair baseline** enables loading it for manual repair.
+That loads an *unstaged* replacement against the displayed current snapshot; it
+does not merge text, change the checkpoint, stage/apply a patch, or restore any
+confirmation. Reconcile your edits manually, stage the file, create a fresh
+preview, review it and confirm normally. A source change after comparison is
+rejected by the normal before-hash validation. If the file currently exists, it
+becomes a replacement; if its final path is absent, it becomes an explicit new
+file. Other staged files remain staged independently.
+
+CLI equivalents for coordinated saves and recovery-only comparisons:
+
+```text
+mini --json resident draft-save --workspace <root> --edits edits.json --create-only
+mini --json resident draft-save --workspace <root> --edits edits.json --expect <last-inspected-draft-id>
+mini --json resident draft-review --workspace <root>
+```
+
+`draft-review` returns saved edit data and fresh current snapshots with baseline
+match flags; it returns no apply-ready preview and performs no rebase or source
+write. It may expose source plaintext on stdout by this explicit local request.
+The legacy CLI/API save without either condition still means an explicitly
+requested unconditional replacement; the desktop always uses the conditional
+API. `--expect` and `--create-only` are mutually exclusive.

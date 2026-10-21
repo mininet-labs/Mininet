@@ -81,7 +81,7 @@ pub fn dispatch(
     as_json: bool,
 ) -> Result<String> {
     if args.is_empty() {
-        return Err(usage("resident status | configure | ask | inspect | search | check | hosting | fees | patch-preview | patch-apply | draft-save | draft-inspect | draft-resume | draft-clear"));
+        return Err(usage("resident status | configure | ask | inspect | search | check | hosting | fees | patch-preview | patch-apply | draft-save | draft-inspect | draft-review | draft-resume | draft-clear"));
     }
     let command = args.remove(0);
     let (human, value): (String, Value) = match command.as_str() {
@@ -228,11 +228,35 @@ pub fn dispatch(
         "draft-save" => {
             let workspace = workspace(&mut args)?;
             let edits_path = PathBuf::from(required(&mut args, "--edits")?);
+            let expected = take(&mut args, "--expect")?;
+            let create_only =
+                if let Some(index) = args.iter().position(|arg| arg == "--create-only") {
+                    args.remove(index);
+                    true
+                } else {
+                    false
+                };
+            if create_only && expected.is_some() {
+                return Err(usage("choose --create-only or --expect, not both"));
+            }
             no_more(&args)?;
             let edits: Vec<PatchEdit> =
                 serde_json::from_slice(&read_document(&edits_path)?).map_err(error)?;
-            let saved = workspace.save_draft(&edits).map_err(error)?;
+            let saved = if create_only || expected.is_some() {
+                workspace.save_draft_if(&edits, expected.as_deref())
+            } else {
+                workspace.save_draft(&edits)
+            }
+            .map_err(error)?;
             (format!("Saved staged draft {} privately in .resident-draft.json. No source changed; confirmation was not saved.",saved.preview.id),json!({"draft_id":saved.preview.id,"paths":saved.preview.edits.iter().map(|e|&e.path).collect::<Vec<_>>(),"saved":true,"source_changed":false,"confirmation_saved":false}))
+        }
+        "draft-review" => {
+            let workspace = workspace(&mut args)?;
+            no_more(&args)?;
+            let review = workspace.review_saved_draft().map_err(error)?;
+            let files=review.files.iter().map(|file|json!({"edit":file.edit,"current":file.current,"matches_baseline":file.matches_baseline})).collect::<Vec<_>>();
+            let value = json!({"draft_id":review.id,"files":files,"source_changed":false,"rebased":false,"applied":false});
+            (serde_json::to_string_pretty(&value).map_err(error)?, value)
         }
         "draft-inspect" => {
             let workspace = workspace(&mut args)?;

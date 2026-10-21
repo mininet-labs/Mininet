@@ -192,6 +192,21 @@ impl Workspace {
         }
         String::from_utf8(bytes).map_err(|_| ResidentError("context file is not UTF-8".into()))
     }
+    /// A review-only snapshot. Only a genuinely absent final component is
+    /// represented as None; missing parents and rejected paths remain errors.
+    pub(crate) fn optional_context(&self, relative: &str) -> Result<Option<ContextItem>> {
+        let path = self.path(relative, true)?;
+        match fs::symlink_metadata(&path) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+            Ok(_) => self
+                .context(&[relative.to_owned()])?
+                .into_iter()
+                .next()
+                .map(Some)
+                .ok_or_else(|| ResidentError("source review returned no context".into())),
+        }
+    }
     /// Hash an explicitly granted regular file for local hosting planning.
     /// Bytes are streamed locally and never attached to a model request.
     pub fn file_summary(&self, relative: &str) -> Result<FileSummary> {

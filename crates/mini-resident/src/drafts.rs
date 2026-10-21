@@ -23,6 +23,24 @@ pub struct DraftInfo {
     pub id: String,
     pub paths: Vec<String>,
 }
+/// Recovery-only source comparison. This is not an apply-ready PatchPreview
+/// and conveys no approval, rebasing or source modification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DraftReview {
+    pub id: String,
+    pub files: Vec<DraftFileReview>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DraftFileReview {
+    pub edit: PatchEdit,
+    pub current: Option<ContextItem>,
+    pub matches_baseline: bool,
+}
+enum SaveCondition<'a> {
+    Overwrite,
+    Create,
+    Replace(&'a str),
+}
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Document {
@@ -223,7 +241,45 @@ impl Workspace {
     /// and persists no owner confirmation. Existing saved draft replacement is
     /// atomic where supported; errors after publication may have committed.
     pub fn save_draft(&self, edits: &[PatchEdit]) -> Result<SavedDraft> {
+        self.save_draft_inner(edits, SaveCondition::Overwrite)
+    }
+    /// Compare-and-save under the shared patch writer lock. None means create
+    /// only; Some(id) replaces only that exact structurally valid stored draft.
+    /// The source still must match the newly submitted edits. This coordinates
+    /// cooperating writers; it does not serialize arbitrary filesystem editors.
+    pub fn save_draft_if(&self, edits: &[PatchEdit], expected: Option<&str>) -> Result<SavedDraft> {
+        self.save_draft_inner(
+            edits,
+            match expected {
+                None => SaveCondition::Create,
+                Some(id) => SaveCondition::Replace(id),
+            },
+        )
+    }
+    fn save_draft_inner(
+        &self,
+        edits: &[PatchEdit],
+        condition: SaveCondition<'_>,
+    ) -> Result<SavedDraft> {
         let _guard = self.patch_lock()?;
+        match condition {
+            SaveCondition::Overwrite => (),
+            SaveCondition::Create => {
+                if check_file(&self.root_path().join(NAME))?.is_some() {
+                    return Err(ResidentError(
+                        "saved draft already exists; inspect its exact ID before replacing it"
+                            .into(),
+                    ));
+                }
+            }
+            SaveCondition::Replace(expected) => {
+                if read_document(self)?.preview.id != expected {
+                    return Err(ResidentError(
+                        "saved draft changed; inspect it again before replacement".into(),
+                    ));
+                }
+            }
+        }
         let saved = fresh_draft(self, self.preview_patch(edits)?)?;
         let document = Document {
             version: 1,
@@ -242,6 +298,31 @@ impl Workspace {
     pub fn load_draft(&self) -> Result<SavedDraft> {
         let _guard = self.patch_lock()?;
         fresh_draft(self, read_document(self)?.preview)
+    }
+    /// Recover saved replacement text with current local source snapshots.
+    /// Baseline mismatches are reported, never rebased. This performs no source
+    /// writes and returns no apply-ready preview or persisted confirmation.
+    pub fn review_saved_draft(&self) -> Result<DraftReview> {
+        let _guard = self.patch_lock()?;
+        let document = read_document(self)?;
+        let mut files = Vec::with_capacity(document.preview.edits.len());
+        for edit in document.preview.edits {
+            let current = self.optional_context(&edit.path)?;
+            let matches_baseline = match (&edit.before_hash, &current) {
+                (None, None) => true,
+                (Some(expected), Some(current)) => expected == &current.hash,
+                _ => false,
+            };
+            files.push(DraftFileReview {
+                edit,
+                current,
+                matches_baseline,
+            });
+        }
+        Ok(DraftReview {
+            id: document.preview.id,
+            files,
+        })
     }
     /// Inspect structurally verified draft metadata without implying that the
     /// current source still matches. This enables exact-ID stale-draft removal.
@@ -443,8 +524,178 @@ mod tests {
         let _guard = workspace.patch_lock().unwrap();
         assert!(workspace.save_draft(&edits()).is_err());
         assert!(workspace.load_draft().is_err());
+        assert!(workspace
+            .save_draft_if(&edits(), Some(&saved.preview.id))
+            .is_err());
+        assert!(workspace.review_saved_draft().is_err());
         assert!(workspace.draft_info().is_err());
         assert!(workspace.clear_draft(&saved.preview.id).is_err());
         assert_eq!(fs::read(dir.path().join(NAME)).unwrap(), bytes);
+    }
+    #[test]
+    fn compare_and_save_refuses_stale_or_missing_expectations_and_serializes_races() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("code.rs"), "original").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        assert!(workspace
+            .save_draft_if(&edits(), Some("missing-id"))
+            .is_err());
+        assert!(!dir.path().join(NAME).exists());
+        let first = workspace.save_draft_if(&edits(), None).unwrap();
+        assert!(workspace.save_draft_if(&edits(), None).is_err());
+        let mut replacement = edits();
+        replacement[0].replacement = "second draft".into();
+        let second = workspace
+            .save_draft_if(&replacement, Some(&first.preview.id))
+            .unwrap();
+        let bytes = fs::read(dir.path().join(NAME)).unwrap();
+        assert!(workspace
+            .save_draft_if(&edits(), Some(&first.preview.id))
+            .is_err());
+        assert_eq!(fs::read(dir.path().join(NAME)).unwrap(), bytes);
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let mut tasks = Vec::new();
+        for text in ["concurrent one", "concurrent two"] {
+            let (workspace, expected, barrier) = (
+                workspace.clone(),
+                second.preview.id.clone(),
+                barrier.clone(),
+            );
+            let mut replacement = edits();
+            replacement[0].replacement = text.into();
+            tasks.push(std::thread::spawn(move || {
+                barrier.wait();
+                workspace.save_draft_if(&replacement, Some(&expected))
+            }));
+        }
+        let outcomes: Vec<_> = tasks.into_iter().map(|task| task.join().unwrap()).collect();
+        assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
+        let winner = outcomes
+            .into_iter()
+            .find_map(std::result::Result::ok)
+            .unwrap();
+        assert_eq!(workspace.load_draft().unwrap(), winner);
+        assert_eq!(fs::read(dir.path().join("code.rs")).unwrap(), b"original");
+        // Explicit legacy callers retain their intentionally unconditional save.
+        assert_eq!(
+            workspace.save_draft(&edits()).unwrap().preview,
+            first.preview
+        );
+    }
+
+    #[test]
+    fn stale_review_preserves_replacements_and_reports_current_missing_and_new_collisions() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("code.rs"), "original").unwrap();
+        fs::write(dir.path().join("removed.rs"), "old removed source").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let changes = vec![
+            edits()[0].clone(),
+            PatchEdit {
+                path: "removed.rs".into(),
+                before_hash: Some(content_hash(b"old removed source")),
+                replacement: "replacement for removed".into(),
+            },
+            PatchEdit {
+                path: "collision.rs".into(),
+                before_hash: None,
+                replacement: "planned creation".into(),
+            },
+            PatchEdit {
+                path: "absent.rs".into(),
+                before_hash: None,
+                replacement: "still absent".into(),
+            },
+        ];
+        let saved = workspace.save_draft_if(&changes, None).unwrap();
+        let stored = fs::read(dir.path().join(NAME)).unwrap();
+        fs::write(dir.path().join("code.rs"), "owner revision").unwrap();
+        fs::remove_file(dir.path().join("removed.rs")).unwrap();
+        fs::write(dir.path().join("collision.rs"), "owner created this").unwrap();
+        let review = workspace.review_saved_draft().unwrap();
+        assert_eq!(review.id, saved.preview.id);
+        assert_eq!(
+            review
+                .files
+                .iter()
+                .map(|file| file.edit.clone())
+                .collect::<Vec<_>>(),
+            changes
+        );
+        assert!(!review.files[0].matches_baseline);
+        assert_eq!(
+            review.files[0].current.as_ref().unwrap().content,
+            "owner revision"
+        );
+        assert_eq!(
+            review.files[0].current.as_ref().unwrap().hash,
+            content_hash(b"owner revision")
+        );
+        assert!(review.files[1].current.is_none());
+        assert!(!review.files[1].matches_baseline);
+        assert_eq!(
+            review.files[2].current.as_ref().unwrap().content,
+            "owner created this"
+        );
+        assert!(!review.files[2].matches_baseline);
+        assert!(review.files[3].current.is_none() && review.files[3].matches_baseline);
+        assert!(workspace.load_draft().is_err());
+        assert!(workspace
+            .apply_patch(&saved.preview, &saved.preview.id)
+            .is_err());
+        assert_eq!(fs::read(dir.path().join(NAME)).unwrap(), stored);
+        assert_eq!(
+            fs::read(dir.path().join("code.rs")).unwrap(),
+            b"owner revision"
+        );
+        assert!(!dir.path().join("absent.rs").exists());
+    }
+
+    #[test]
+    fn draft_review_does_not_treat_missing_parents_or_nonregular_source_as_missing_final_files() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        fs::write(dir.path().join("sub/code.rs"), "original").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        workspace
+            .save_draft(&[PatchEdit {
+                path: "sub/code.rs".into(),
+                before_hash: Some(content_hash(b"original")),
+                replacement: "proposal".into(),
+            }])
+            .unwrap();
+        fs::remove_file(dir.path().join("sub/code.rs")).unwrap();
+        fs::remove_dir(dir.path().join("sub")).unwrap();
+        assert!(workspace.review_saved_draft().is_err());
+        fs::create_dir_all(dir.path().join("sub/code.rs")).unwrap();
+        assert!(workspace.review_saved_draft().is_err());
+        fs::remove_dir(dir.path().join("sub/code.rs")).unwrap();
+        fs::write(dir.path().join("sub/code.rs"), vec![b'x'; 256 * 1024 + 1]).unwrap();
+        assert!(workspace.review_saved_draft().is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stale_review_refuses_a_source_replaced_with_an_outside_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("code.rs"), "original").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        workspace.save_draft(&edits()).unwrap();
+        let stored = fs::read(dir.path().join(NAME)).unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join("other"), "not granted").unwrap();
+        fs::remove_file(dir.path().join("code.rs")).unwrap();
+        std::os::unix::fs::symlink(outside.path().join("other"), dir.path().join("code.rs"))
+            .unwrap();
+        assert!(workspace
+            .review_saved_draft()
+            .unwrap_err()
+            .0
+            .contains("symlinks"));
+        assert_eq!(fs::read(dir.path().join(NAME)).unwrap(), stored);
+        assert_eq!(
+            fs::read(outside.path().join("other")).unwrap(),
+            b"not granted"
+        );
     }
 }

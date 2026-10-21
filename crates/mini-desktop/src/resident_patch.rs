@@ -2,7 +2,8 @@
 //! filesystem writes require a current preview and a separate exact confirmation.
 use eframe::egui;
 use mini_resident::{
-    ContextItem, DraftInfo, PatchEdit, PatchPreview, PatchReceipt, SavedDraft, Workspace,
+    ContextItem, DraftInfo, DraftReview, PatchEdit, PatchPreview, PatchReceipt, SavedDraft,
+    Workspace,
 };
 use std::path::Path;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
@@ -24,6 +25,7 @@ enum Outcome {
     Resumed(SavedDraft),
     DraftInfo(DraftInfo),
     Cleared(String),
+    Recovery(DraftReview),
 }
 struct Pending {
     receiver: Receiver<Result<Outcome, String>>,
@@ -48,6 +50,9 @@ pub(crate) struct Panel {
     replace_unsaved: bool,
     saved_edits: Option<Vec<PatchEdit>>,
     close_requested: bool,
+    recovery: Option<DraftReview>,
+    recovery_index: Option<usize>,
+    accept_recovery: bool,
 }
 impl Panel {
     pub(crate) fn is_busy(&self) -> bool {
@@ -65,6 +70,8 @@ impl Panel {
         };
         if let Some(staged) = self.edits.iter().find(|e| e.edit.path == loaded.path) {
             self.replacement != staged.edit.replacement
+                || loaded.original.as_ref().map(|file| &file.hash)
+                    != staged.edit.before_hash.as_ref()
         } else {
             loaded
                 .original
@@ -111,6 +118,9 @@ impl Panel {
         self.invalidate();
     }
     fn invalidate(&mut self) {
+        self.recovery = None;
+        self.recovery_index = None;
+        self.accept_recovery = false;
         self.replace_unsaved = false;
         self.preview = None;
         self.confirmation.clear();
@@ -210,6 +220,15 @@ impl Panel {
                 self.preview = Some(preview);
                 self.status = "Preview ready. Review every original and replacement; type the exact ID to authorize these writes.".into();
             }
+            Ok(Outcome::Recovery(review)) => {
+                self.invalidate();
+                self.saved_info = Some(DraftInfo {
+                    id: review.id.clone(),
+                    paths: review.files.iter().map(|f| f.edit.path.clone()).collect(),
+                });
+                self.recovery = Some(review);
+                self.status="Saved replacements recovered for comparison only. Select a file, inspect the current source, and explicitly accept its current baseline before loading a repair draft.".into();
+            }
             Ok(Outcome::Saved(saved)) => {
                 self.saved_edits = Some(saved.preview.edits.clone());
                 let id = saved.preview.id;
@@ -226,6 +245,13 @@ impl Panel {
                 self.status = "Saved edits resumed with fresh baseline checks. Inspect the staged files and create a fresh preview; no confirmation or apply was restored.".into();
             }
             Ok(Outcome::DraftInfo(info)) => {
+                if self
+                    .saved_info
+                    .as_ref()
+                    .is_some_and(|old| old.id != info.id)
+                {
+                    self.saved_edits = None;
+                }
                 self.saved_info = Some(info);
                 self.delete_confirmation.clear();
                 self.status = "Stored draft metadata inspected. This does not prove the source files still match; Resume performs those checks.".into();
@@ -295,6 +321,29 @@ impl Panel {
         self.replacement_dirty = true;
         self.invalidate();
         self.status = "Staged replacement loaded into the editor. Changes remain unstaged until Stage this file is clicked; source is rechecked before preview/apply.".into();
+    }
+    fn recover_file(&mut self) -> Result<(), String> {
+        if !self.accept_recovery {
+            return Err("Explicitly accept the displayed current baseline first".into());
+        }
+        let index = self.recovery_index.ok_or("Choose a saved file first")?;
+        let file = self
+            .recovery
+            .as_ref()
+            .and_then(|review| review.files.get(index))
+            .cloned()
+            .ok_or("Refresh saved-file comparison")?;
+        self.path = file.edit.path.clone();
+        self.create = file.current.is_none();
+        self.loaded = Some(Loaded {
+            path: file.edit.path,
+            original: file.current,
+        });
+        self.replacement = file.edit.replacement;
+        self.replacement_dirty = true;
+        self.invalidate();
+        self.status="Saved replacement loaded as an unstaged repair draft against the explicitly accepted current baseline. Edit, stage and create a fresh exact preview. Source is unchanged.".into();
+        Ok(())
     }
     fn can_resume(&self) -> bool {
         self.replace_unsaved || !self.has_unsaved_work()
@@ -395,10 +444,10 @@ impl Panel {
                 }
             });
             egui::CollapsingHeader::new("Save and resume staged edits locally").show(ui, |ui| {
-                ui.label("Save writes staged edits to .resident-draft.json in this workspace, replacing its previous saved draft. Unstaged editor text is not saved. The file contains source replacements in plaintext: keep it private. Saving does not change source files or authorize applying them.");
+                ui.label("Save writes staged edits to .resident-draft.json in this workspace. A new checkpoint is created only if absent; replacing one requires inspecting its current ID first. Another window changing that ID causes save to refuse. Unstaged editor text is not saved. The file contains source replacements in plaintext: keep it private. Saving does not change source files or authorize applying them.");
                 if ui.add_enabled(idle && !self.edits.is_empty(), egui::Button::new("Save / replace stored staged draft")).clicked() {
-                    self.invalidate(); let root=self.root.clone(); let edits=self.edits.iter().map(|e|e.edit.clone()).collect::<Vec<_>>();
-                    self.spawn(true,move || Workspace::open(Path::new(&root)).and_then(|w|w.save_draft(&edits)).map(Outcome::Saved).map_err(|e|e.to_string()));
+                    self.invalidate(); let root=self.root.clone(); let expected=self.saved_info.as_ref().map(|info|info.id.clone()); let edits=self.edits.iter().map(|e|e.edit.clone()).collect::<Vec<_>>();
+                    self.spawn(true,move || Workspace::open(Path::new(&root)).and_then(|w|w.save_draft_if(&edits,expected.as_deref())).map(Outcome::Saved).map_err(|e|e.to_string()));
                 }
                 if ui.add_enabled(idle && !self.root.trim().is_empty(),egui::Button::new("Inspect stored draft metadata")).clicked() {
                     let root=self.root.clone();
@@ -409,6 +458,26 @@ impl Panel {
                     self.replace_unsaved=false; self.invalidate(); let root=self.root.clone();
                     self.spawn(false,move || Workspace::open(Path::new(&root)).and_then(|w|w.load_draft()).map(Outcome::Resumed).map_err(|e|e.to_string()));
                 }
+                if ui.add_enabled(idle && !self.root.trim().is_empty(),egui::Button::new("Compare saved replacements with current files")).clicked() {
+                    self.invalidate(); let root=self.root.clone();
+                    self.spawn(false,move || Workspace::open(Path::new(&root)).and_then(|w|w.review_saved_draft()).map(Outcome::Recovery).map_err(|e|e.to_string()));
+                }
+                if let Some(review)=&self.recovery {
+                    ui.label(format!("Recovery comparison of saved draft {} (no source writes or rebase)",review.id));
+                    for (index,file) in review.files.iter().enumerate() {
+                        if ui.add_enabled(idle,egui::Button::new(format!("{} — baseline matches: {}",file.edit.path,file.matches_baseline)).selected(self.recovery_index == Some(index))).clicked() { self.recovery_index=Some(index); self.accept_recovery=false; }
+                    }
+                    if let Some(file)=self.recovery_index.and_then(|index|review.files.get(index)) {
+                        ui.label(format!("Saved before hash: {}",file.edit.before_hash.as_deref().unwrap_or("path expected absent")));
+                        ui.label(format!("Current hash: {}",file.current.as_ref().map(|c|c.hash.as_str()).unwrap_or("path currently absent")));
+                        ui.label("Current source"); let mut current=file.current.as_ref().map(|c|c.content.as_str()).unwrap_or("(path currently absent)");
+                        ui.add(egui::TextEdit::multiline(&mut current).code_editor().desired_rows(5).desired_width(f32::INFINITY).interactive(false));
+                        ui.label("Saved replacement (has not been merged with current source)"); let mut replacement=file.edit.replacement.as_str();
+                        ui.add(egui::TextEdit::multiline(&mut replacement).code_editor().desired_rows(5).desired_width(f32::INFINITY).interactive(false));
+                        ui.add_enabled(idle,egui::Checkbox::new(&mut self.accept_recovery,"Replace the editor text and use this displayed current file state as the repair baseline"));
+                    }
+                }
+                if ui.add_enabled(idle && self.accept_recovery,egui::Button::new("Load selected replacement for manual repair")).clicked() { if let Err(error)=self.recover_file() { self.status=error; } }
                 let mut remove=None;
                 if let Some(info)=&self.saved_info {
                     ui.label(format!("Stored draft ID: {}",info.id));
@@ -604,6 +673,27 @@ mod tests {
         panel.saved_edits = Some(panel.edits.iter().map(|e| e.edit.clone()).collect());
         assert!(!panel.has_unsaved_work() && !panel.request_close());
         panel.replacement_dirty = true;
+        panel
+            .loaded
+            .as_mut()
+            .unwrap()
+            .original
+            .as_mut()
+            .unwrap()
+            .hash = mini_resident::content_hash(b"new baseline");
+        assert!(
+            panel.editor_unstaged(),
+            "accepted new baseline must be staged even if replacement text is unchanged"
+        );
+        panel
+            .loaded
+            .as_mut()
+            .unwrap()
+            .original
+            .as_mut()
+            .unwrap()
+            .hash = mini_resident::content_hash(b"before");
+        panel.replacement_dirty = true;
         panel.replacement = "new unstaged text".into();
         assert!(panel.editor_unstaged() && panel.request_close());
         panel.stage().unwrap();
@@ -613,5 +703,45 @@ mod tests {
         );
         panel.discard_memory();
         assert!(!panel.has_unsaved_work());
+    }
+    #[test]
+    fn stale_repair_requires_acceptance_and_only_loads_an_unstaged_current_baseline() {
+        use mini_resident::DraftFileReview;
+        let old_hash = mini_resident::content_hash(b"old");
+        let current_hash = mini_resident::content_hash(b"owners new version");
+        let mut panel = Panel::default();
+        panel.recovery = Some(DraftReview {
+            id: "stored-id".into(),
+            files: vec![DraftFileReview {
+                edit: PatchEdit {
+                    path: "lib.rs".into(),
+                    before_hash: Some(old_hash),
+                    replacement: "saved replacement".into(),
+                },
+                current: Some(ContextItem {
+                    path: "lib.rs".into(),
+                    content: "owners new version".into(),
+                    hash: current_hash.clone(),
+                }),
+                matches_baseline: false,
+            }],
+        });
+        panel.recovery_index = Some(0);
+        assert!(panel.recover_file().is_err());
+        panel.accept_recovery = true;
+        panel.recover_file().unwrap();
+        assert!(panel.edits.is_empty() && panel.preview.is_none() && panel.confirmation.is_empty());
+        assert_eq!(panel.replacement, "saved replacement");
+        assert!(!panel.create && panel.has_unsaved_work());
+        panel.stage().unwrap();
+        assert_eq!(
+            panel.edits[0].edit.before_hash.as_deref(),
+            Some(current_hash.as_str())
+        );
+        assert_eq!(
+            panel.edits[0].original.as_deref(),
+            Some("owners new version")
+        );
+        assert!(panel.recovery.is_none() && !panel.accept_recovery);
     }
 }

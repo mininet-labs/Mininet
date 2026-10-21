@@ -345,3 +345,90 @@ fn saved_drafts_require_fresh_source_and_never_persist_apply_confirmation() {
         "owner changed it"
     );
 }
+
+#[test]
+fn draft_compare_and_save_refuses_lost_updates_and_review_does_not_rebase() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("node");
+    let root = temp.path().join("code");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("lib.rs"), "old").unwrap();
+    let root_arg = root.to_str().unwrap();
+    let edits = temp.path().join("edits.json");
+    let edits_arg = edits.to_str().unwrap();
+    let before = mini_resident::content_hash(b"old");
+    fs::write(
+        &edits,
+        json!([{"path":"lib.rs","before_hash":before,"replacement":"first"}]).to_string(),
+    )
+    .unwrap();
+    let first = run(
+        &home,
+        &[
+            "draft-save",
+            "--workspace",
+            root_arg,
+            "--edits",
+            edits_arg,
+            "--create-only",
+        ],
+    );
+    let first_id = first["draft_id"].as_str().unwrap();
+    assert!(call(
+        &home,
+        &[
+            "draft-save",
+            "--workspace",
+            root_arg,
+            "--edits",
+            edits_arg,
+            "--create-only"
+        ]
+    )
+    .is_err());
+    fs::write(
+        &edits,
+        json!([{"path":"lib.rs","before_hash":before,"replacement":"second"}]).to_string(),
+    )
+    .unwrap();
+    let second = run(
+        &home,
+        &[
+            "draft-save",
+            "--workspace",
+            root_arg,
+            "--edits",
+            edits_arg,
+            "--expect",
+            first_id,
+        ],
+    );
+    assert_ne!(second["draft_id"], first_id);
+    let saved = fs::read(root.join(".resident-draft.json")).unwrap();
+    assert!(call(
+        &home,
+        &[
+            "draft-save",
+            "--workspace",
+            root_arg,
+            "--edits",
+            edits_arg,
+            "--expect",
+            first_id
+        ]
+    )
+    .is_err());
+    assert_eq!(fs::read(root.join(".resident-draft.json")).unwrap(), saved);
+    fs::write(root.join("lib.rs"), "owner edit").unwrap();
+    let review = run(&home, &["draft-review", "--workspace", root_arg]);
+    assert_eq!(review["rebased"], false);
+    assert_eq!(review["applied"], false);
+    assert_eq!(review["files"][0]["edit"]["before_hash"], before);
+    assert_eq!(review["files"][0]["current"]["content"], "owner edit");
+    assert_eq!(review["files"][0]["matches_baseline"], false);
+    assert_eq!(fs::read(root.join(".resident-draft.json")).unwrap(), saved);
+    assert_eq!(
+        fs::read_to_string(root.join("lib.rs")).unwrap(),
+        "owner edit"
+    );
+}
