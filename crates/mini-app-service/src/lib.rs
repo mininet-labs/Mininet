@@ -25,13 +25,14 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
     ProfileView, PublishedObject, Reply, ServiceError, ServiceEvent, ServiceEventKind,
-    MAX_DID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES,
-    MAX_PROFILE_NAME_BYTES,
+    MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES,
+    MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
 };
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
-    build_follow, build_post, build_profile, comments, feed, following, reaction_counts,
-    resolve_post, resolve_profile, FeedFilter, FeedReason as SocialFeedReason, PostKind,
+    build_follow, build_post, build_profile, build_reaction, comments, feed, following,
+    reaction_counts, resolve_post, resolve_profile, FeedFilter, FeedReason as SocialFeedReason,
+    PostKind,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_windows_vault::{SeedPair, VaultError};
@@ -235,6 +236,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::SetLike {
+                operation_id,
+                target_id,
+                active,
+            } => self
+                .set_like(&operation_id, &target_id, active)
+                .map(Reply::Published),
             Command::SetFollow {
                 operation_id,
                 target_did,
@@ -480,6 +488,61 @@ impl<V: IdentityVault> Core<V> {
             build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
+            input,
+            objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn set_like(
+        &mut self,
+        operation_id: &str,
+        target_id: &str,
+        active: bool,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        if target_id.is_empty() || target_id.len() > MAX_OBJECT_ID_BYTES {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "like target ID exceeds limits",
+            ));
+        }
+        let target = ObjectId::parse(target_id)
+            .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
+        let input = MutationInput::Like {
+            target_id: target.as_str().into(),
+            active,
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Reaction);
+        }
+        self.ensure_signing_available()?;
+        let content = self.store.get(&target).map_err(storage_error)?;
+        if !matches!(content.object_type, ObjectType::POST | ObjectType::COMMENT)
+            || !matches!(&content.payload, Payload::Public(_))
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "likes require an existing public post or comment",
+            ));
+        }
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object = build_reaction(
+            human,
+            device,
+            &target,
+            mini_social::ReactionKind::Like,
+            active,
+            now_ms(),
+            sequence,
+        )
+        .map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
             input,
             objects: vec![object.to_bytes()],
         };
@@ -911,6 +974,7 @@ enum MutationInput {
     Profile { display_name: String, bio: String },
     Post { text: String },
     Follow { target_did: String, following: bool },
+    Like { target_id: String, active: bool },
 }
 
 impl MutationInput {
@@ -919,6 +983,7 @@ impl MutationInput {
             Self::Profile { .. } => ObjectKind::Profile,
             Self::Post { .. } => ObjectKind::Post,
             Self::Follow { .. } => ObjectKind::Follow,
+            Self::Like { .. } => ObjectKind::Reaction,
         }
     }
 }
@@ -1150,6 +1215,33 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::Like { target_id, active } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "like journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let (target, kind, state) =
+                mini_social::decode_reaction(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || target.as_str() != target_id
+                || kind != mini_social::ReactionKind::Like
+                || state != *active
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "like journal does not match mutation input",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Reaction,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Follow {
             target_did,
             following,
@@ -1303,6 +1395,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
         ObjectKind::Profile => 0,
         ObjectKind::Post => 1,
         ObjectKind::Follow => 2,
+        ObjectKind::Reaction => 3,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -1317,6 +1410,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
         0 => ObjectKind::Profile,
         1 => ObjectKind::Post,
         2 => ObjectKind::Follow,
+        3 => ObjectKind::Reaction,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -1458,6 +1552,11 @@ impl JournalEncoder {
                 self.string(display_name, MAX_PROFILE_NAME_BYTES)?;
                 self.string(bio, MAX_PROFILE_BIO_BYTES)?;
             }
+            MutationInput::Like { target_id, active } => {
+                self.u8(3);
+                self.string(target_id, MAX_OBJECT_ID_BYTES)?;
+                self.u8(u8::from(*active));
+            }
             MutationInput::Follow {
                 target_did,
                 following,
@@ -1561,6 +1660,21 @@ impl<'a> JournalDecoder<'a> {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
             }),
+            3 => {
+                let target_id = self.string(MAX_OBJECT_ID_BYTES)?;
+                ObjectId::parse(&target_id).map_err(storage_error)?;
+                let active = match self.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => {
+                        return Err(ServiceError::new(
+                            ErrorCode::Storage,
+                            "invalid journal like action",
+                        ))
+                    }
+                };
+                Ok(MutationInput::Like { target_id, active })
+            }
             2 => {
                 let target_did = self.string(MAX_DID_BYTES)?;
                 Did::parse(&target_did).map_err(storage_error)?;
@@ -2300,6 +2414,182 @@ mod tests {
                 };
                 assert!(reply.duplicate);
                 assert_eq!(reply.object_id, object_id.as_str());
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
+    }
+    fn like_count(core: &Core<MemoryVault>, target: &ObjectId) -> usize {
+        reaction_counts(&core.store, target)
+            .unwrap()
+            .into_iter()
+            .find(|(kind, _)| *kind == mini_social::ReactionKind::Like)
+            .map(|(_, count)| count)
+            .unwrap_or(0)
+    }
+    #[test]
+    fn like_unlike_counts_and_locked_retry_keep_exact_bytes_without_reviving_stale_like() {
+        let path = temp_root("likes");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let Reply::Published(post) = core
+            .handle(Command::PublishPost {
+                operation_id: "post:target".into(),
+                text: "target".into(),
+            })
+            .unwrap()
+        else {
+            panic!("wrong reply")
+        };
+        let target = ObjectId::parse(&post.object_id).unwrap();
+        let command = Command::SetLike {
+            operation_id: "like:1".into(),
+            target_id: target.as_str().into(),
+            active: true,
+        };
+        let Reply::Published(liked) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(liked.kind, ObjectKind::Reaction);
+        assert_eq!(like_count(&core, &target), 1);
+        let id = ObjectId::parse(&liked.object_id).unwrap();
+        let bytes = core.store.get(&id).unwrap().to_bytes();
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let Reply::Published(retry) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, liked.object_id);
+        assert_eq!(core.store.get(&id).unwrap().to_bytes(), bytes);
+        assert!(core
+            .handle(Command::SetLike {
+                operation_id: "new:locked".into(),
+                target_id: target.as_str().into(),
+                active: false
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::SetLike {
+                operation_id: "like:1".into(),
+                target_id: target.as_str().into(),
+                active: false
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        core.unlock().unwrap();
+        core.handle(Command::SetLike {
+            operation_id: "unlike:1".into(),
+            target_id: target.as_str().into(),
+            active: false,
+        })
+        .unwrap();
+        assert_eq!(like_count(&core, &target), 0);
+        let Reply::Published(stale) = core.handle(command).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(stale.duplicate);
+        assert_eq!(like_count(&core, &target), 0);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn missing_private_and_noncontent_like_targets_never_reserve_sequence() {
+        let path = temp_root("like-targets");
+        let mut core = Core::open_inner(path.clone(), MemoryVault::seeded(), false).unwrap();
+        core.unlock().unwrap();
+        let (human, device) = core.signing_identity().unwrap();
+        let private = mini_objects::ObjectBuilder::new(ObjectType::POST)
+            .payload(Payload::Encrypted(vec![1]))
+            .sign(human, device)
+            .unwrap();
+        let other = mini_objects::ObjectBuilder::new(ObjectType::PROFILE)
+            .payload(Payload::Public(vec![]))
+            .sign(human, device)
+            .unwrap();
+        let missing = build_post(human, device, "missing", 1, 1).unwrap();
+        core.store.insert(&private).unwrap();
+        core.store.insert(&other).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        for (index, target) in [private.id(), other.id(), missing.id()].iter().enumerate() {
+            assert!(core
+                .handle(Command::SetLike {
+                    operation_id: format!("bad-target:{index}"),
+                    target_id: target.as_str().into(),
+                    active: true
+                })
+                .is_err());
+        }
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        assert!(core
+            .store
+            .by_type(&ObjectType::REACTION)
+            .unwrap()
+            .is_empty());
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn pending_like_recovers_exact_bytes_and_refuses_tampered_action_or_kind() {
+        for mode in 0..3 {
+            let path = temp_root("like-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let (human, device) = core.signing_identity().unwrap();
+            let target = build_post(human, device, "target", 1, 1).unwrap();
+            let reaction = build_reaction(
+                human,
+                device,
+                target.id(),
+                if mode == 2 {
+                    mini_social::ReactionKind::Love
+                } else {
+                    mini_social::ReactionKind::Like
+                },
+                true,
+                77,
+                9,
+            )
+            .unwrap();
+            let id = reaction.id().clone();
+            core.store.insert(&target).unwrap();
+            let record = PendingMutation {
+                operation_id: "like:recover".into(),
+                input: MutationInput::Like {
+                    target_id: target.id().as_str().into(),
+                    active: mode != 1,
+                },
+                objects: vec![reaction.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(&id).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(core.store.get(&id).unwrap().to_bytes(), reaction.to_bytes());
+                let Reply::Published(reply) = core
+                    .handle(Command::SetLike {
+                        operation_id: "like:recover".into(),
+                        target_id: target.id().as_str().into(),
+                        active: true,
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                assert_eq!(reply.object_id, id.as_str());
                 drop(core);
             }
             fs::remove_dir_all(path).unwrap();

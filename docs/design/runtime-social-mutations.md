@@ -1,6 +1,6 @@
 # Social mutations through the application runtime
 
-Follow/unfollow now joins profile and plain-post publication behind the existing
+Follow/unfollow and public Likes now join profile and plain-post publication behind the existing
 application core. Desktop channel, People, suggestion, connection-card and manual
 follow actions send `SetFollow { operation_id, target_did, following }` over typed
 IPC. Those actions no longer unlock renderer-held keys or allocate a renderer
@@ -39,7 +39,7 @@ those new records and must not delete them to force a downgrade.
 
 This migration does not make follows private messages, deliver FOLLOW objects via
 the exact-post outbox, authenticate the legacy nearby sync path, or remove every
-legacy renderer signer. Reactions, comments, profile details, media and other
+legacy renderer signer. Comments, profile details, media and other
 mutations still need their own service migrations. The shared runtime and beta
 acceptance register remains in [integrated beta delivery](../planning/integrated-beta-delivery.md).
 
@@ -47,3 +47,20 @@ Focused checks cover legacy wire parity, bounded protocol round trips, feed and
 follow state, locked restart receipts, conflicting/invalid inputs without sequence
 writes, valid/tampered pending recovery, stable desktop retry intent and stale
 nearby-send refusal. Installed-device acceptance remains separate.
+
+## Public Likes
+
+Timeline, media and discussion Like controls now send
+`SetLike { operation_id, target_id, active }` to the core. The service signs only
+the Like reaction kind in this API. New operations require an existing public POST
+or COMMENT target and an unlocked identity; private, missing and unrelated target
+types are refused before sequence allocation. Exact signed bytes, target and
+active state are journaled before insertion, with the same receipt/restart rules
+as follows. A stale successful Like retry cannot allocate a newer sequence and
+revive a later removed Like.
+
+The shared reaction builder preserves the legacy wire format and other kinds for
+existing library callers. The core command does not expose Save/bookmark markers:
+the legacy Save reaction encoding is public and cannot provide private bookmarks.
+Renderer Like paths no longer load/unlock keys or allocate sequences. Comments,
+profile details, media and other mutations remain separate migrations.
