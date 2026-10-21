@@ -25,10 +25,10 @@ mod profile_photo;
 use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
-    ProfileView, PublicProfileDetails, PublishedObject, Reply, ServiceError, ServiceEvent,
-    ServiceEventKind, MAX_COMMENT_BYTES, MAX_COMMUNITY_CHARTER_BYTES, MAX_COMMUNITY_NAME_BYTES,
-    MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES,
-    MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
+    ProfileView, PublicProfileDetails, PublicWallDraft, PublishedObject, Reply, ServiceError,
+    ServiceEvent, ServiceEventKind, MAX_COMMENT_BYTES, MAX_COMMUNITY_CHARTER_BYTES,
+    MAX_COMMUNITY_NAME_BYTES, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES,
+    MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
 };
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
@@ -238,6 +238,12 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::PublishWall {
+                operation_id,
+                draft,
+            } => self
+                .publish_wall(&operation_id, draft)
+                .map(Reply::Published),
             Command::PublishProfileWithPhoto {
                 operation_id,
                 draft,
@@ -544,6 +550,55 @@ impl<V: IdentityVault> Core<V> {
             operation_id: operation_id.to_string(),
             input,
             objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn publish_wall(
+        &mut self,
+        operation_id: &str,
+        draft: PublicWallDraft,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        draft.validate().map_err(storage_or_social)?;
+        let input = MutationInput::Wall {
+            draft: draft.clone(),
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Wall);
+        }
+        self.ensure_signing_available()?;
+        let sequence = self.reserve_sequence()?;
+        let (owner, device) = self.signing_identity()?;
+        let links = draft
+            .public_links
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let visibility = match draft.visibility {
+            mini_app_protocol::WallVisibility::Public => mini_social::VisibilityPolicy::Public,
+            mini_app_protocol::WallVisibility::Unlisted => mini_social::VisibilityPolicy::Unlisted,
+        };
+        let (wall, head) = mini_social::build_wall(
+            owner,
+            device,
+            &draft.display_name,
+            &draft.bio,
+            None,
+            &links,
+            &[],
+            visibility,
+            now_ms(),
+            sequence,
+        )
+        .map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
+            input,
+            objects: vec![wall.to_bytes(), head.to_bytes()],
         };
         self.journal.write_pending(&record)?;
         let published = self.journal.commit_and_complete(&mut self.store, &record)?;
@@ -1272,6 +1327,9 @@ fn storage_or_social(error: impl core::fmt::Display) -> ServiceError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MutationInput {
+    Wall {
+        draft: PublicWallDraft,
+    },
     PhotoProfile {
         draft: PublicProfileDetails,
         photo_digest: [u8; 32],
@@ -1313,6 +1371,7 @@ impl MutationInput {
     fn kind(&self) -> ObjectKind {
         match self {
             Self::ProfileDetails { .. } | Self::PhotoProfile { .. } => ObjectKind::Profile,
+            Self::Wall { .. } => ObjectKind::Wall,
             Self::Profile { .. } => ObjectKind::Profile,
             Self::Post { .. } => ObjectKind::Post,
             Self::Follow { .. } => ObjectKind::Follow,
@@ -1605,6 +1664,54 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::Wall { draft } => {
+            draft.validate().map_err(storage_or_social)?;
+            if record.objects.len() != 2 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "wall journal has wrong object count",
+                ));
+            }
+            let wall = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let head = Object::from_bytes(&record.objects[1]).map_err(storage_error)?;
+            let decoded = mini_social::decode_wall(&wall).map_err(storage_or_social)?;
+            let visibility = match draft.visibility {
+                mini_app_protocol::WallVisibility::Public => mini_social::VisibilityPolicy::Public,
+                mini_app_protocol::WallVisibility::Unlisted => {
+                    mini_social::VisibilityPolicy::Unlisted
+                }
+            };
+            if wall.to_bytes() != record.objects[0]
+                || head.to_bytes() != record.objects[1]
+                || decoded.display_name != draft.display_name
+                || decoded.bio != draft.bio
+                || decoded.public_links != draft.public_links
+                || decoded.visibility != visibility
+                || decoded.avatar.is_some()
+                || !decoded.pinned.is_empty()
+                || head.object_type != ObjectType::HEAD
+                || head.links.len() != 1
+                || head.links[0].rel != "target"
+                || head.links[0].target != *wall.id()
+                || !matches!(&head.payload,Payload::Public(bytes) if bytes.as_slice()==b"wall")
+                || wall.author_human != head.author_human
+                || wall.author_device != head.author_device
+                || wall.sequence != head.sequence
+                || wall.timestamp_ms != head.timestamp_ms
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "wall journal differs from exact public draft and wall head",
+                ));
+            }
+            store.insert(&wall).map_err(storage_error)?;
+            store.apply_head(&head).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Wall,
+                object_id: wall.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::PhotoProfile {
             draft,
             photo_digest,
@@ -1924,6 +2031,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
         ObjectKind::Comment => 4,
         ObjectKind::Membership => 5,
         ObjectKind::Community => 6,
+        ObjectKind::Wall => 7,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -1942,6 +2050,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
         4 => ObjectKind::Comment,
         5 => ObjectKind::Membership,
         6 => ObjectKind::Community,
+        7 => ObjectKind::Wall,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -2107,6 +2216,20 @@ impl JournalEncoder {
     }
     fn input(&mut self, input: &MutationInput) -> Result<(), ServiceError> {
         match input {
+            MutationInput::Wall { draft } => {
+                draft.validate().map_err(storage_or_social)?;
+                self.u8(9);
+                self.string(&draft.display_name, mini_app_protocol::MAX_WALL_NAME_BYTES)?;
+                self.string(&draft.bio, mini_app_protocol::MAX_WALL_BIO_BYTES)?;
+                self.u8(match draft.visibility {
+                    mini_app_protocol::WallVisibility::Public => 0,
+                    mini_app_protocol::WallVisibility::Unlisted => 1,
+                });
+                self.u8(draft.public_links.len() as u8);
+                for link in &draft.public_links {
+                    self.string(link, mini_app_protocol::MAX_WALL_LINK_BYTES)?;
+                }
+            }
             MutationInput::Profile { display_name, bio } => {
                 self.u8(0);
                 self.string(display_name, MAX_PROFILE_NAME_BYTES)?;
@@ -2297,6 +2420,36 @@ impl<'a> JournalDecoder<'a> {
     }
     fn input(&mut self) -> Result<MutationInput, ServiceError> {
         match self.u8()? {
+            9 => {
+                let display_name = self.string(mini_app_protocol::MAX_WALL_NAME_BYTES)?;
+                let bio = self.string(mini_app_protocol::MAX_WALL_BIO_BYTES)?;
+                let visibility = match self.u8()? {
+                    0 => mini_app_protocol::WallVisibility::Public,
+                    1 => mini_app_protocol::WallVisibility::Unlisted,
+                    _ => {
+                        return Err(ServiceError::new(
+                            ErrorCode::Storage,
+                            "invalid journal wall visibility",
+                        ))
+                    }
+                };
+                let count = self.u8()? as usize;
+                if count > mini_app_protocol::MAX_WALL_LINKS {
+                    return Err(ServiceError::new(ErrorCode::Storage, "too many wall links"));
+                }
+                let mut public_links = Vec::with_capacity(count);
+                for _ in 0..count {
+                    public_links.push(self.string(mini_app_protocol::MAX_WALL_LINK_BYTES)?);
+                }
+                let draft = PublicWallDraft {
+                    display_name,
+                    bio,
+                    public_links,
+                    visibility,
+                };
+                draft.validate().map_err(storage_or_social)?;
+                Ok(MutationInput::Wall { draft })
+            }
             0 => Ok(MutationInput::Profile {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
@@ -4421,5 +4574,200 @@ mod tests {
         assert_eq!(fs::read(&core.journal.sequence).unwrap(), before);
         drop(core);
         fs::remove_dir_all(path).unwrap();
+    }
+    fn wall_test_draft() -> PublicWallDraft {
+        PublicWallDraft {
+            display_name: "Wall".into(),
+            bio: "Bio".into(),
+            public_links: vec!["https://example.test".into()],
+            visibility: mini_app_protocol::WallVisibility::Public,
+        }
+    }
+    #[test]
+    fn wall_public_and_unlisted_heads_keep_locked_exact_receipts_and_no_profile_confusion() {
+        let path = temp_root("wall");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        let initial = fs::read(&core.journal.sequence).unwrap();
+        assert!(core
+            .handle(Command::PublishWall {
+                operation_id: "wall:locked".into(),
+                draft: wall_test_draft()
+            })
+            .is_err());
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), initial);
+        core.unlock().unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        assert!(core
+            .handle(Command::PublishWall {
+                operation_id: "wall:invalid".into(),
+                draft: PublicWallDraft {
+                    display_name: String::new(),
+                    ..wall_test_draft()
+                }
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        let command = Command::PublishWall {
+            operation_id: "wall:public".into(),
+            draft: wall_test_draft(),
+        };
+        let Reply::Published(first) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(first.kind, ObjectKind::Wall);
+        let id = ObjectId::parse(&first.object_id).unwrap();
+        let bytes = core.store.get(&id).unwrap().to_bytes();
+        let owner = core.human.clone().unwrap();
+        assert_eq!(
+            mini_social::resolve_wall(&core.store, &owner)
+                .unwrap()
+                .unwrap()
+                .visibility,
+            mini_social::VisibilityPolicy::Public
+        );
+        core.handle(Command::PublishWall {
+            operation_id: "wall:unlisted".into(),
+            draft: PublicWallDraft {
+                visibility: mini_app_protocol::WallVisibility::Unlisted,
+                ..wall_test_draft()
+            },
+        })
+        .unwrap();
+        let current = mini_social::resolve_wall(&core.store, &owner)
+            .unwrap()
+            .unwrap();
+        assert_eq!(current.visibility, mini_social::VisibilityPolicy::Unlisted);
+        assert!(mini_social::resolve_profile(&core.store, &owner)
+            .unwrap()
+            .is_none());
+        let Reply::Published(stale) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(stale.duplicate);
+        assert_eq!(
+            mini_social::resolve_wall(&core.store, &owner)
+                .unwrap()
+                .unwrap()
+                .wall_id,
+            current.wall_id
+        );
+        assert!(core
+            .handle(Command::PreviewPublicDelivery {
+                object_id: first.object_id.clone()
+            })
+            .is_err());
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let Reply::Published(retry) = core.handle(command).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, first.object_id);
+        assert_eq!(core.store.get(&id).unwrap().to_bytes(), bytes);
+        assert!(core
+            .handle(Command::PublishWall {
+                operation_id: "wall:public".into(),
+                draft: PublicWallDraft {
+                    bio: "changed".into(),
+                    ..wall_test_draft()
+                }
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn pending_wall_checks_visibility_header_links_head_label_and_time_before_any_insert() {
+        for mode in 0..5 {
+            let path = temp_root("wall-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let mut draft = wall_test_draft();
+            let (owner, device) = core.signing_identity().unwrap();
+            let (base, normal_head) = mini_social::build_wall(
+                owner,
+                device,
+                &draft.display_name,
+                &draft.bio,
+                None,
+                &["https://example.test"],
+                &[],
+                mini_social::VisibilityPolicy::Public,
+                77,
+                9,
+            )
+            .unwrap();
+            let wall = if mode == 2 {
+                mini_objects::ObjectBuilder::new(ObjectType::WALL)
+                    .sequence(9)
+                    .timestamp_ms(77)
+                    .link("extra", base.id().clone())
+                    .payload(base.payload.clone())
+                    .sign(owner, device)
+                    .unwrap()
+            } else {
+                base
+            };
+            let head = if mode >= 3 || mode == 2 {
+                mini_objects::ObjectBuilder::new(ObjectType::HEAD)
+                    .sequence(9)
+                    .timestamp_ms(if mode == 4 { 78 } else { 77 })
+                    .link("target", wall.id().clone())
+                    .payload(Payload::Public(if mode == 3 {
+                        b"profile".to_vec()
+                    } else {
+                        b"wall".to_vec()
+                    }))
+                    .sign(owner, device)
+                    .unwrap()
+            } else {
+                normal_head
+            };
+            if mode == 1 {
+                draft.visibility = mini_app_protocol::WallVisibility::Unlisted;
+            }
+            let record = PendingMutation {
+                operation_id: "wall:recover".into(),
+                input: MutationInput::Wall {
+                    draft: draft.clone(),
+                },
+                objects: vec![wall.to_bytes(), head.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(wall.id()).is_err());
+                assert!(store.get(head.id()).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(
+                    core.store.get(wall.id()).unwrap().to_bytes(),
+                    wall.to_bytes()
+                );
+                let Reply::Published(reply) = core
+                    .handle(Command::PublishWall {
+                        operation_id: "wall:recover".into(),
+                        draft,
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
     }
 }

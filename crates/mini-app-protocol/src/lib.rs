@@ -31,12 +31,44 @@ pub const MAX_DID_BYTES: usize = 256;
 pub const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
 pub const MAX_LOCATION_BYTES: usize = 128;
+pub const MAX_WALL_NAME_BYTES: usize = 64;
+pub const MAX_WALL_BIO_BYTES: usize = 1024;
+pub const MAX_WALL_LINKS: usize = 16;
+pub const MAX_WALL_LINK_BYTES: usize = 256;
 pub const MAX_PROFILE_PHOTO_BYTES: usize = 96 * 1024;
 pub const MAX_PROFILE_FIELDS: usize = 16;
 pub const MAX_PROFILE_FIELD_LABEL_BYTES: usize = 32;
 pub const MAX_PROFILE_FIELD_VALUE_BYTES: usize = 256;
 const MAX_FEED_BODY_BYTES: usize = MAX_POST_BYTES;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WallVisibility {
+    Public,
+    Unlisted,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicWallDraft {
+    pub display_name: String,
+    pub bio: String,
+    pub public_links: Vec<String>,
+    pub visibility: WallVisibility,
+}
+impl PublicWallDraft {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self.display_name.len() > MAX_WALL_NAME_BYTES
+            || self.display_name.trim().is_empty()
+            || self.bio.len() > MAX_WALL_BIO_BYTES
+            || self.public_links.len() > MAX_WALL_LINKS
+            || self
+                .public_links
+                .iter()
+                .any(|value| value.len() > MAX_WALL_LINK_BYTES)
+        {
+            return Err(ProtocolError::LimitExceeded("public wall draft"));
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProfileField {
     pub label: String,
@@ -106,6 +138,7 @@ pub enum ObjectKind {
     Comment,
     Membership,
     Community,
+    Wall,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -262,6 +295,13 @@ impl Request {
                 if bio.len() > MAX_PROFILE_BIO_BYTES {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
+            }
+            Command::PublishWall {
+                operation_id,
+                draft,
+            } => {
+                validate_operation_id(operation_id)?;
+                draft.validate()?;
             }
             Command::PublishProfileWithPhoto {
                 operation_id,
@@ -435,6 +475,10 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishWall {
+        operation_id: String,
+        draft: PublicWallDraft,
+    },
     PublishProfileWithPhoto {
         operation_id: String,
         draft: PublicProfileDetails,
@@ -816,6 +860,23 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::PublishWall {
+            operation_id,
+            draft,
+        } => {
+            encoder.u8(32);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(&draft.display_name, MAX_WALL_NAME_BYTES)?;
+            encoder.string(&draft.bio, MAX_WALL_BIO_BYTES)?;
+            encoder.u8(match draft.visibility {
+                WallVisibility::Public => 0,
+                WallVisibility::Unlisted => 1,
+            });
+            encoder.u8(draft.public_links.len() as u8);
+            for link in &draft.public_links {
+                encoder.string(link, MAX_WALL_LINK_BYTES)?;
+            }
+        }
         Command::PublishProfileWithPhoto {
             operation_id,
             draft,
@@ -1002,6 +1063,33 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        32 => {
+            let operation_id = decoder.string(MAX_OPERATION_ID_BYTES)?;
+            let display_name = decoder.string(MAX_WALL_NAME_BYTES)?;
+            let bio = decoder.string(MAX_WALL_BIO_BYTES)?;
+            let visibility = match decoder.u8()? {
+                0 => WallVisibility::Public,
+                1 => WallVisibility::Unlisted,
+                _ => return Err(ProtocolError::Decode("invalid wall visibility".into())),
+            };
+            let count = decoder.u8()? as usize;
+            if count > MAX_WALL_LINKS {
+                return Err(ProtocolError::LimitExceeded("wall link count"));
+            }
+            let mut public_links = Vec::with_capacity(count);
+            for _ in 0..count {
+                public_links.push(decoder.string(MAX_WALL_LINK_BYTES)?);
+            }
+            Ok(Command::PublishWall {
+                operation_id,
+                draft: PublicWallDraft {
+                    display_name,
+                    bio,
+                    public_links,
+                    visibility,
+                },
+            })
+        }
         31 => Ok(Command::PublishProfileWithPhoto {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             draft: decode_profile_details(decoder)?,
@@ -1119,9 +1207,9 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
                 ObjectKind::Comment => 4,
                 ObjectKind::Membership => 5,
                 ObjectKind::Community => 6,
-                ObjectKind::Profile => {
+                ObjectKind::Profile | ObjectKind::Wall => {
                     return Err(ProtocolError::InvalidRequest(
-                        "profile delivery is unsupported".into(),
+                        "profile and wall delivery are unsupported".into(),
                     ))
                 }
             });
@@ -1471,6 +1559,7 @@ fn encode_published(
         ObjectKind::Comment => 4,
         ObjectKind::Membership => 5,
         ObjectKind::Community => 6,
+        ObjectKind::Wall => 7,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1486,6 +1575,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
         4 => ObjectKind::Comment,
         5 => ObjectKind::Membership,
         6 => ObjectKind::Community,
+        7 => ObjectKind::Wall,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1520,6 +1610,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
                 ObjectKind::Comment => 4,
                 ObjectKind::Membership => 5,
                 ObjectKind::Community => 6,
+                ObjectKind::Wall => 7,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1550,6 +1641,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
                 4 => ObjectKind::Comment,
                 5 => ObjectKind::Membership,
                 6 => ObjectKind::Community,
+                7 => ObjectKind::Wall,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -2643,5 +2735,106 @@ mod profile_photo_protocol_tests {
             )
             .is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod wall_protocol_tests {
+    use super::*;
+    fn draft() -> PublicWallDraft {
+        PublicWallDraft {
+            display_name: "Wall".into(),
+            bio: "Bio".into(),
+            public_links: vec!["https://example.test".into()],
+            visibility: WallVisibility::Public,
+        }
+    }
+    #[test]
+    fn wall_visibility_round_trips_and_all_draft_bounds_are_checked() {
+        for visibility in [WallVisibility::Public, WallVisibility::Unlisted] {
+            let request = Request::new(
+                27,
+                Command::PublishWall {
+                    operation_id: "wall:1".into(),
+                    draft: PublicWallDraft {
+                        visibility,
+                        ..draft()
+                    },
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Wall,
+                object_id: "wall".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 6,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Wall,
+                    object_id: "wall".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(27, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for invalid in [
+            PublicWallDraft {
+                display_name: "x".repeat(MAX_WALL_NAME_BYTES + 1),
+                ..draft()
+            },
+            PublicWallDraft {
+                display_name: " ".into(),
+                ..draft()
+            },
+            PublicWallDraft {
+                bio: "x".repeat(MAX_WALL_BIO_BYTES + 1),
+                ..draft()
+            },
+            PublicWallDraft {
+                public_links: vec![String::new(); MAX_WALL_LINKS + 1],
+                ..draft()
+            },
+            PublicWallDraft {
+                public_links: vec!["x".repeat(MAX_WALL_LINK_BYTES + 1)],
+                ..draft()
+            },
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishWall {
+                    operation_id: "wall:1".into(),
+                    draft: invalid
+                }
+            )
+            .validate()
+            .is_err());
+        }
+        assert!(write_response(
+            &mut Vec::new(),
+            &Response::ok(
+                1,
+                Reply::PublicDeliveryObject(DeliveryObjectView {
+                    object_id: "wall".into(),
+                    kind: ObjectKind::Wall,
+                    summary: "wall".into(),
+                    targets: Vec::new()
+                })
+            )
+        )
+        .is_err());
     }
 }

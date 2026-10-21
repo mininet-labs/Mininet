@@ -197,3 +197,29 @@ unchanged original snapshot. This migrates profile photo signing, not general
 media uploads or authenticated transfer of avatars to other devices. Existing
 media exchange remains a separate transport workflow; hardware acceptance and
 installed-device lifecycle checks remain open.
+
+## Public wall publication
+
+`PublishWall { operation_id, draft }` journals a distinct WALL and `wall` HEAD,
+not a profile update. The draft contains name, bio, ordered public links and Public
+or Unlisted visibility. The current desktop scope has no avatar or pinned-object
+fields. The shared builder preserves those existing library capabilities without
+expanding the command. The core validates bounded nonblank input before sequence
+reservation and requires an already unlocked identity. Canonical recovery binds
+both objects, all draft fields/visibility, author/device/time/sequence and the
+exact `wall` head label/target before either filesystem insertion. Exact receipts
+survive locked restart and reject conflicting operation-ID reuse.
+
+The editor shows the current account signing DID; this action does not create a
+separate pseudonym or a linkage to another identity. Unlisted requests discovery
+opt-out while remaining public plaintext, readable and shareable by anyone with
+the identifier. No directory request, link fetch, advertisement or network grant
+is performed by publication. WALL objects remain outside the authenticated
+outbox allowlist and its recent-publication picker.
+
+Desktop retries retain the exact visibility, link order and public text intent.
+All editor values remain intact on late success or failure. Signing confirmation
+is cleared after the matching receipt; no renderer key unlock or sequence
+allocation remains in this path. Publishing does not grant votes, standing or
+governance authority. General media publishing and other remaining signers still
+require their own runtime migrations.

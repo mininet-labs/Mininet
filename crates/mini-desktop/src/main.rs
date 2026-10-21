@@ -24,6 +24,7 @@ mod public_delivery;
 mod theme;
 mod timeline;
 mod video;
+mod wall_editor;
 
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
@@ -37,10 +38,10 @@ use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
-    community_members, followers, following, known_profiles, publish_media_post, publish_wall,
-    resolve_community, resolve_profile, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner,
-    MembershipMode, NearbyProfile, PublicProfileField, VisibilityPolicy, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    community_members, followers, following, known_profiles, publish_media_post, resolve_community,
+    resolve_profile, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
+    NearbyProfile, PublicProfileField, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
+    MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 #[cfg(all(test, windows))]
 use mini_social::{publish_profile, publish_profile_details, set_follow, PublicProfileDraft};
@@ -108,6 +109,9 @@ enum CoreAction {
         parent: String,
         text: String,
         draft: CommentDraft,
+    },
+    PublishWall {
+        draft: mini_app_protocol::PublicWallDraft,
     },
     PublishProfileWithPhoto {
         draft: PublicProfileDetails,
@@ -235,6 +239,7 @@ struct MininetApp {
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
     profile_details_operation: Option<(profile_editor::Intent, String)>,
+    wall_operation: Option<(mini_app_protocol::PublicWallDraft, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
@@ -678,58 +683,6 @@ impl Workspace {
             return Err("profile photo manifest is not a bounded image".to_string());
         }
         assemble(&self.store, &manifest).map_err(|error| error.to_string())
-    }
-
-    fn publish_public_wall(
-        &mut self,
-        name: &str,
-        bio: &str,
-        links: &[&str],
-        unlisted: bool,
-    ) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_wall(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            bio,
-            None,
-            links,
-            &[],
-            if unlisted {
-                VisibilityPolicy::Unlisted
-            } else {
-                VisibilityPolicy::Public
-            },
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(2);
-        Ok(())
-    }
-
-    fn publish_public_wall_confirmed(
-        &mut self,
-        name: &str,
-        bio: &str,
-        links: &[&str],
-        unlisted: bool,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.publish_public_wall(name, bio, links, unlisted);
-        if relock {
-            self.lock();
-        }
-        result
     }
 
     fn publish_media_post(
@@ -1525,6 +1478,7 @@ impl Default for MininetApp {
             post_operation: None,
             profile_operation: None,
             profile_details_operation: None,
+            wall_operation: None,
             follow_operation: None,
             community_operation: None,
             membership_operation: None,
@@ -2136,6 +2090,21 @@ impl MininetApp {
                 self.reload_workspace();
                 self.view = View::Creator;
                 self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
+            }
+            (CoreAction::PublishWall { draft }, Ok(AppReply::Published(published)))
+                if published.kind == mini_app_protocol::ObjectKind::Wall =>
+            {
+                if self
+                    .wall_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| old == &draft)
+                {
+                    self.wall_operation = None;
+                }
+                // Keep editor values, including any newer visibility or link edits.
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = format!("Wall '{}' saved through the application core. Editor values preserved; no directory was contacted.", draft.display_name);
             }
             (
                 CoreAction::PublishProfileWithPhoto {
@@ -8174,7 +8143,9 @@ No tracking. No forced updates.",
         ui.add_space(12.0);
         theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Public wall").strong());
-            ui.label("A voluntary public-facing surface separate from your profile. It does not reveal another root unless you explicitly publish a linkage object.");
+            ui.label("Publish a wall under your current account identity. This does not create a separate pseudonym or link another identity.");
+            if let Some(did) = self.app_status.as_ref().and_then(|status| status.human_did.as_deref()) { ui.small(format!("Signing identity: {did}")); }
+            ui.label("Unlisted walls remain public plaintext: anyone with the identifier can read or share them. Unlisted requests discovery opt-out, not confidentiality.");
             ui.label("Wall name");
             ui.text_edit_singleline(&mut self.wall_name);
             ui.label("Wall bio");
@@ -8192,35 +8163,19 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed public wall",
             );
-            if ui.button("Publish wall locally").clicked() {
-                let link_values: Vec<String> = self
-                    .wall_links
-                    .lines()
-                    .map(str::trim)
-                    .filter(|link| !link.is_empty())
-                    .map(str::to_string)
-                    .collect();
-                let link_refs: Vec<&str> = link_values.iter().map(String::as_str).collect();
-                self.notice = if self.wall_name.trim().is_empty() {
-                    "A wall name is required.".to_string()
-                } else if !self.signing_confirmation {
-                    "Confirm signing before publishing the wall.".to_string()
-                } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_public_wall_confirmed(
-                        self.wall_name.trim(),
-                        self.wall_bio.trim(),
-                        &link_refs,
-                        self.wall_unlisted,
-                    ) {
-                        Ok(()) => {
-                            self.signing_confirmation = false;
-                            "Public wall written locally. No directory was contacted.".to_string()
-                        }
-                        Err(error) => format!("Could not publish public wall: {error}"),
-                    }
+            if ui.add_enabled(self.app_action.is_none(), egui::Button::new("Publish wall locally")).clicked() {
+                if !self.signing_confirmation {
+                    self.notice = "Confirm signing before publishing the wall.".into();
                 } else {
-                    "Local workspace unavailable.".to_string()
-                };
+                    let snapshot = wall_editor::Snapshot { name: self.wall_name.clone(), bio: self.wall_bio.clone(), links: self.wall_links.clone(), unlisted: self.wall_unlisted };
+                    match snapshot.draft() {
+                        Ok(draft) => {
+                            let operation_id = wall_editor::request_id(&mut self.wall_operation, &draft);
+                            self.start_core_action(CoreAction::PublishWall { draft: draft.clone() }, AppCommand::PublishWall { operation_id, draft });
+                        }
+                        Err(error) => self.notice = error,
+                    }
+                }
             }
         });
         ui.add_space(12.0);

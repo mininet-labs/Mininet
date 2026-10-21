@@ -53,9 +53,9 @@ pub use pairing::{
 };
 
 pub use wall::{
-    publish_wall, publish_wall_linkage, resolve_wall, resolve_wall_linkage, PublicWall,
-    VisibilityPolicy, MAX_WALL_BIO_BYTES, MAX_WALL_LINKS, MAX_WALL_LINK_BYTES, MAX_WALL_NAME_BYTES,
-    MAX_WALL_PINNED,
+    build_wall, decode_wall, publish_wall, publish_wall_linkage, resolve_wall,
+    resolve_wall_linkage, PublicWall, VisibilityPolicy, MAX_WALL_BIO_BYTES, MAX_WALL_LINKS,
+    MAX_WALL_LINK_BYTES, MAX_WALL_NAME_BYTES, MAX_WALL_PINNED,
 };
 
 use did_mini::{Controller, Did};
