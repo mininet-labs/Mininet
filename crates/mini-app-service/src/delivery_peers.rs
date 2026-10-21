@@ -5,6 +5,7 @@ use mini_app_protocol::{
     Request, ServiceError, MAX_DELIVERY_KEL_BYTES, MAX_DELIVERY_PEERS,
 };
 use std::{
+    cell::Cell,
     fs,
     io::Read,
     net::SocketAddr,
@@ -35,6 +36,7 @@ impl Peer {
 #[derive(Debug)]
 pub(crate) struct PeerBook {
     root: PathBuf,
+    poisoned: Cell<bool>,
 }
 fn bad(message: &str) -> ServiceError {
     ServiceError::new(ErrorCode::BadRequest, message)
@@ -129,6 +131,16 @@ fn extends(old: &Kel, new: &Kel) -> bool {
             .is_ok_and(|state| new.event_digest_at(state.sn).ok() == old.head_digest().ok())
 }
 impl PeerBook {
+    pub(crate) fn ensure_healthy(&self) -> Result<(), ServiceError> {
+        if self.poisoned.get() {
+            Err(ServiceError::new(
+                ErrorCode::Storage,
+                "peer book requires reopen after a failed durable write",
+            ))
+        } else {
+            Ok(())
+        }
+    }
     pub fn open(root: PathBuf) -> Result<Self, ServiceError> {
         let root = if root.is_absolute() {
             root
@@ -160,11 +172,15 @@ impl PeerBook {
             }
             Err(e) => return Err(io(e)),
         }
-        let book = Self { root };
+        let book = Self {
+            root,
+            poisoned: Cell::new(false),
+        };
         book.list()?;
         Ok(book)
     }
     pub fn list(&self) -> Result<Vec<Peer>, ServiceError> {
+        self.ensure_healthy()?;
         let mut peers = Vec::new();
         let mut orphans = Vec::new();
         for (index, entry) in fs::read_dir(&self.root).map_err(io)?.enumerate() {
@@ -223,6 +239,7 @@ impl PeerBook {
         Ok(peers)
     }
     pub fn get(&self, id: &str) -> Result<Option<Peer>, ServiceError> {
+        self.ensure_healthy()?;
         validate_id(id)?;
         let path = self.root.join(name(id));
         match fs::symlink_metadata(&path) {
@@ -237,6 +254,10 @@ impl PeerBook {
         Ok(Some(peer))
     }
     fn write(&self, peer: &Peer) -> Result<(), ServiceError> {
+        self.ensure_healthy()?;
+        // A failed write may have renamed successfully but failed parent fsync.
+        // Refuse all authority reads until a fresh validated reopen resolves it.
+        self.poisoned.set(true);
         let path = self.root.join(name(&peer.id));
         if let Ok(meta) = fs::symlink_metadata(&path) {
             if !meta.is_file() || meta.file_type().is_symlink() {
@@ -253,7 +274,9 @@ impl PeerBook {
         };
         write_request(&mut bytes, &Request::new(0, command)).map_err(io)?;
         decode(&bytes)?;
-        mini_durable::atomic_replace(&path, &bytes).map_err(io)
+        mini_durable::atomic_replace(&path, &bytes).map_err(io)?;
+        self.poisoned.set(false);
+        Ok(())
     }
     pub fn authorize(
         &self,
@@ -262,6 +285,7 @@ impl PeerBook {
         root_bytes: &[u8],
         device_bytes: &[u8],
     ) -> Result<Peer, ServiceError> {
+        self.ensure_healthy()?;
         validate_id(id)?;
         if root_bytes.len() > MAX_DELIVERY_KEL_BYTES {
             return Err(bad("peer KEL exceeds pairing limit"));
@@ -522,6 +546,31 @@ mod tests {
         assert!(book.get("peer00").unwrap().is_none());
         fs::remove_dir_all(&dir.0).unwrap();
         assert!(book.list().is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn failed_peer_write_poison_blocks_authority_until_validated_reopen() {
+        use std::os::unix::fs::symlink;
+        let dir = Directory::new();
+        let book = PeerBook::open(dir.0.join("book")).unwrap();
+        let (root, device) = identity(15);
+        let peer = authorize(&book, "friend", &root, &device).unwrap();
+        let path = book.root.join(name("friend"));
+        let original = fs::read(&path).unwrap();
+        let outside = dir.0.join("outside");
+        fs::write(&outside, b"untouched").unwrap();
+        fs::remove_file(&path).unwrap();
+        symlink(&outside, &path).unwrap();
+        assert!(book.write(&peer).is_err());
+        fs::remove_file(&path).unwrap();
+        fs::write(&path, original).unwrap();
+        assert!(book.get("friend").is_err());
+        assert!(book.list().is_err());
+        assert!(authorize(&book, "friend", &root, &device).is_err());
+        assert!(book.revoke("friend").is_err());
+        assert_eq!(fs::read(&outside).unwrap(), b"untouched");
+        let reopened = PeerBook::open(book.root.clone()).unwrap();
+        assert!(reopened.get("friend").unwrap().unwrap().enabled);
     }
     #[cfg(unix)]
     #[test]

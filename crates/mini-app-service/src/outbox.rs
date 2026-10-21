@@ -314,10 +314,11 @@ impl Outbox {
             .ok_or_else(|| storage("outbox requires reopen after a failed durable write"))?;
         Ok(cache
             .iter()
-            .find(|(_, (state, at))| {
+            .filter(|(_, (state, at))| {
                 matches!(state, DeliveryState::Queued | DeliveryState::RetryWaiting)
                     && *at <= now_ms
             })
+            .min_by_key(|(id, (_, at))| (*at, *id))
             .map(|(id, _)| id.clone()))
     }
     pub fn enqueue(
@@ -655,6 +656,33 @@ mod tests {
         drop(outbox);
         let outbox = Outbox::open(dir.0.clone()).unwrap();
         assert_eq!(outbox.get("post:1").unwrap().unwrap(), delivered);
+    }
+    #[test]
+    fn earliest_due_operation_prevents_lexical_retry_starvation() {
+        let dir = Directory::new();
+        let outbox = Outbox::open(dir.0.clone()).unwrap();
+        let object = object(false);
+        let bytes = object.to_bytes();
+        for id in ["a", "z", "y"] {
+            outbox
+                .enqueue(id, "peer", object.id().as_str(), &bytes)
+                .unwrap();
+        }
+        assert_eq!(outbox.next_due(0).unwrap().as_deref(), Some("a"));
+        outbox.begin_attempt("a", 0).unwrap();
+        outbox.retry("a", 0, DeliveryFailure::Unavailable).unwrap();
+        // Even when the early lexical retry becomes due, older queued work wins.
+        assert_eq!(outbox.next_due(1000).unwrap().as_deref(), Some("y"));
+        for id in ["y", "z"] {
+            outbox.begin_attempt(id, 1000).unwrap();
+            outbox
+                .retry(id, 1000, DeliveryFailure::Unavailable)
+                .unwrap();
+        }
+        assert_eq!(outbox.next_due(2000).unwrap().as_deref(), Some("a"));
+        outbox.begin_attempt("a", 2000).unwrap();
+        outbox.cancel("a").unwrap();
+        assert_eq!(outbox.next_due(2000).unwrap().as_deref(), Some("y"));
     }
     #[test]
     fn retry_backoff_and_terminal_transitions_are_bounded_and_saturating() {

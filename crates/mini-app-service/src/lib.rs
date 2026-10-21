@@ -257,6 +257,7 @@ impl<V: IdentityVault> Core<V> {
                 Ok(Reply::DeliveryPeers(vec![peer.view()]))
             }
             Command::RevokeDeliveryPeer { peer_id } => {
+                self.delivery_listener = None;
                 self.peers.revoke(&peer_id)?;
                 self.delivery_listener = None;
                 Ok(Reply::Ack)

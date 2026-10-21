@@ -208,6 +208,18 @@ impl<V: IdentityVault> Core<V> {
             self.delivery_listener = None;
             return Ok(());
         }
+        // Refuse sockets before touching them when durable state is uncertain.
+        if let Err(error) = self.peers.ensure_healthy() {
+            self.delivery_listener = None;
+            return Err(error);
+        }
+        let due = match self.outbox.next_due(crate::now_ms()) {
+            Ok(due) => due,
+            Err(error) => {
+                self.delivery_listener = None;
+                return Err(error);
+            }
+        };
         let incoming = (|| {
             if let Some((peer_id, address)) = self.delivery_policy.listener.clone() {
                 if let Ok(peer) = self.authorized_delivery_peer(&peer_id) {
@@ -253,7 +265,7 @@ impl<V: IdentityVault> Core<V> {
             }
             Ok(())
         })();
-        if let Some(id) = self.outbox.next_due(crate::now_ms())? {
+        if let Some(id) = due {
             self.attempt_delivery(&id, crate::now_ms())?;
         }
         incoming
