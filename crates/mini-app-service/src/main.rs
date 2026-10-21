@@ -168,8 +168,11 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
         assert!(interrupt.is_stopped());
-        receiver.recv().unwrap();
-        let (_, stop) = receiver.recv().unwrap();
+        let (first, first_stop) = receiver.recv().unwrap();
+        assert!(matches!(first, Ok(Some(request)) if request.request_id == 1));
+        assert!(first_stop.is_none());
+        let (second, stop) = receiver.recv().unwrap();
+        assert!(matches!(second, Ok(Some(request)) if request.request_id == 2));
         assert!(worker.join().unwrap());
         assert!(interrupt.is_stopped());
         drop(stop);
