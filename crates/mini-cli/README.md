@@ -141,3 +141,9 @@ Seed mesh commands also support explicit contacts, signed expiring catalogues,
 relay/import/export, fallback retrieval, multi-contact following and verified
 literal search of selected public source objects. These remain owner-controlled
 operations; discovered hints never activate endpoints or spending automatically.
+
+Use `seed collection-preview` and `collection-add --confirm` to review and share
+bounded linked history/media collections atomically. `collection-fetch` resumes
+verified graph retrieval within explicit object/byte/attempt windows; `media-export`
+reconstructs digest-verified bytes to a new file. Downloaded graphs are not
+automatically reseeded. See the seed-network runbook for command examples.

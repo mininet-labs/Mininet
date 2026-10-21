@@ -157,13 +157,14 @@ cargo test -p mini-seed --locked
 python3 tools/check_native_forge.py --tests seed_network native_service --offline
 ```
 
-Twelve core tests cover restart, expiry/renewal, quota, concurrent writers,
+Sixteen core tests cover restart, expiry/renewal, quota, concurrent writers,
 corruption, encryption, symlinks, orphan recovery, signed catalogues, rollback,
-withdrawal and bounded batch reads. Eight real TCP seed tests
+withdrawal, bounded batch reads and atomic collection admission. Twelve real TCP seed tests
 cover three-node propagation and following, unselected/private/untrusted content,
 peer authorization, revocation without source loss, pending paid delivery/export,
 price caps, claim replay, optional reseed failure, signed discovery/relay/import,
-fallback mesh following, owner opt-out and verified paged search. The existing service test
+fallback mesh following, owner opt-out, verified paged search, exact collection
+confirmation, resumable media reconstruction and graph-expansion refusal. The existing service test
 covers authentication, stop and restart regression. No hardware run, actual wallet
 funding, finalized payout, independent audit or Internet-scale benchmark is implied.
 
@@ -273,7 +274,112 @@ remains necessary there; search cannot bypass their configured delivery price.
 This has no effect on free public protocol participation or organic web ranking.
 
 Still unfinished: open global peer discovery/DHT and NAT traversal, unpaired
-public-reader onboarding, media-chunk and linked-history expansion, integration
+public-reader onboarding, integration
 with the existing web query/ranking system, desktop mesh controls and automated
 canonical payout/fair exchange. This remains a bounded developer profile, not a
 claim that the complete Internet replacement is ready to launch.
+
+## Reviewed linked history and media collections
+
+A node can now select a complete linked collection, review exactly what it will
+share and admit the selection atomically. This closes the earlier single-object
+limitation for bounded native commit history and chunked media.
+
+```text
+mini --home <node-home> --store <source-store> seed collection-preview --root <tip-commit-id> --kind history --days 7 --output <new-preview.json>
+mini --home <node-home> --store <source-store> seed collection-add --preview <preview.json> --confirm <exact-preview-id>
+mini --home <node-home> --store <source-store> seed collection-preview --root <manifest-or-superblock-id> --kind media --days 3 --output <new-media-preview.json>
+```
+
+The preview file lists exact signed object IDs, types and serialized sizes; its
+BLAKE3 ID binds owner identity, canonical local home/store paths, root, collection
+kind, retention days and the full deduplicated selection. Media previews also
+show reconstructed payload bytes. Both the preview file and export staging file
+start owner-only on Unix. Confirmation recomputes the current plan and repeats
+signature/provenance, public-payload and source-tier checks. Private/cold source
+objects and encrypted data are refused, even if public parents link to them.
+There is no implicit decryption, approval, merge, branch move or network start.
+
+Collection kinds:
+
+- `history` follows canonical commit tree/parent links, typed native trees and
+  ordinary/executable file blobs. It rejects malformed/duplicate-parent commits,
+  payload/link mismatches, conflicting dependency types, excessive tree depth
+  and expanded checkout fanout/bytes. Shared history objects are admitted once.
+- `media` follows strict manifest/superblock/chunk links. Whole-payload length
+  and BLAKE3 checks run through the existing streaming media assembler before
+  admission. Unknown extra relations and malformed chunk types fail closed.
+- `links` is an explicit general public-object link closure. It does not infer
+  application semantics, recursive web resources, canonical governance or paid
+  authority. Review this wider selection particularly carefully.
+
+The pool validates the whole selection and combined quota/count before writing
+new blobs. It loads at most one source object at a time in each of two passes,
+revalidates exact content and only then commits one new manifest. Until that
+publication succeeds, new blobs are unadvertised orphans; restart safely cleans
+recognized orphan files. Existing leases remain unchanged on earlier failures.
+As with the underlying durable primitive, an error after final manifest rename
+(e.g. a failed directory flush) can mean the state already committed: reload to
+inspect rather than treating any returned error as proof nothing happened.
+Explicit collection application renews every selected pool lease from apply time
+for the chosen duration; it does not modify the original source-store objects.
+
+## Resumable collection retrieval and verified media export
+
+Configure trusted seed contacts and refresh their signed catalogues first:
+
+```text
+mini --home <reader-home> seed catalog refresh
+mini --home <reader-home> --store <reader-store> seed collection-fetch --root <root-id> --kind media --max-objects 1024 --max-bytes 268435456 --max-downloads 64
+mini --home <reader-home> --store <reader-store> seed media-export --root <manifest-or-superblock-id> --output <new-output-file>
+```
+
+Use `--kind history` with a tip commit for native source history. Retrieval walks
+verified links iteratively, reuses already held verified objects, fetches missing
+IDs from activated advertised providers with fallback, and shares one 120-second
+network deadline. `complete:false` plus an error/progress report explicitly
+requires another run. Repeating the same command resumes from verified ordinary
+store objects, rather than re-downloading successful chunks. A peer/acknowledgement
+failure can leave a verified object locally; the next run re-verifies and reuses
+it. Every actual successful exchange still produces the existing delivery receipt.
+
+This command never reseeds an unreviewed graph. After retrieval, use collection
+preview and exact confirmation if you choose to share it. The ordinary retrieved
+store remains separate from expiring pool copies.
+
+The required window flags are genuine, conservative limits:
+
+- `--max-objects`: 1..4,096 unique graph objects.
+- `--max-bytes`: 1..1 GiB, bounding verified serialized graph bytes, aggregate
+  received object-body bytes across retries in this invocation, and reconstructed
+  media output. It is not just raw file size; signed envelopes add overhead.
+- `--max-downloads`: 1..4,096 candidate network attempts, including failed/offline
+  candidates, not only successfully received IDs. Increase the window or remove
+  stale contacts if a small window is consumed before a healthy fallback.
+
+Offers are rejected before content transfer when they exceed the advertised
+receiver window. Received framed body chunks debit the shared byte allowance even
+when a later check fails. Reports include `attempts_used` and `received_body_bytes`.
+These are application body limits, not OS traffic accounting: handshake, encrypted
+framing, metadata and hostile invalid/oversized frames have their separate existing
+protocol/bearer bounds. Bounded-window fetch requires a provider understanding
+this draft extension; ordinary default-size fetch keeps the prior request shape.
+
+For every collection, each object is at most 64 MiB and the deduplicated graph at
+most 1 GiB/4,096 objects. Media additionally caps reconstructed output at 1 GiB and
+expanded chunk references at 4,096, so repeated part/chunk references cannot turn
+small metadata into an enormous reconstruction/hash job. History uses native
+checkout limits: tree depth 32, at most 100,000 expanded files and 256 MiB expanded
+file bytes per tree. Work is computed over the DAG without materializing those
+files. All bounds remain explicit developer-profile limits, not an Internet-scale
+availability guarantee.
+
+`media-export` verifies all referenced public source signatures and streams through
+a bounded staging writer. It checks the whole manifest/superblock digest before
+publishing, creates a new destination without overwriting a concurrently created
+file/symlink, and only removes staging files this operation actually created. A
+failed digest leaves no final file; an existing output is never overwritten. It
+writes bytes only and does not execute or automatically open the output. Filesystem
+hard-link support is required for this no-overwrite publication path. A crash may
+leave an unpublished staging file; final publication/flush errors require checking
+the destination before retrying.

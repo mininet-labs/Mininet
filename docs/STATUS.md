@@ -3210,3 +3210,13 @@ it does not feed payments/replica counts into ranking. Current KELs are rechecke
 before cached hints are used. Neither advertisements nor contact activation create
 a canonical provider registry, personhood proof or automatic trust. Global DHT,
 NAT traversal, web-ranking integration and finalized payouts remain unfinished.
+
+The seed runtime now supports bounded reviewed collections: typed native commit
+history and shared trees/blobs, strict media manifests/superblocks/chunks, or an
+explicit general public link closure. Exact previews bind the full owner/home/store
+selection and days; atomic pool admission publishes one manifest after all quota
+and source checks. Collection retrieval resumes from verified ordinary-store
+objects with shared attempt/body-byte windows, and media export streams verified
+whole-digest bytes without overwriting an existing destination. Reconstructed
+media and expanded source-tree work have independent bounds. Graph retrieval never
+automatically shares downloaded material or alters governance/canonical state.

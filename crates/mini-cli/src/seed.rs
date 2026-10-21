@@ -123,6 +123,12 @@ fn cost(bytes: u64, p: &Price) -> Result<u64> {
         .checked_mul(p.micro_per_mib)
         .ok_or_else(|| err("price overflow"))
 }
+fn default_fetch_bytes() -> u64 {
+    MAX_OBJECT as u64
+}
+fn default_fetch_window(bytes: &u64) -> bool {
+    *bytes == MAX_OBJECT as u64
+}
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "op", deny_unknown_fields)]
 enum Request {
@@ -143,6 +149,10 @@ enum Request {
         nonce: [u8; 32],
         max_micro: u64,
         payment_digest: Option<[u8; 32]>,
+        #[serde(
+            default = "default_fetch_bytes",
+            skip_serializing_if = "default_fetch_window"
+        )]
         max_bytes: u64,
     },
 }
@@ -712,7 +722,7 @@ fn decode_hex(s: &str) -> Result<Vec<u8>> {
 }
 pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool) -> Result<String> {
     if args.is_empty() {
-        return Err(err("configure | add | revoke | prune | status | inventory | serve | peers | quote | fetch | price | earnings | payment-export"));
+        return Err(err("configure | add | collection-preview | collection-add | collection-fetch | media-export | revoke | prune | status | inventory | serve | contact | announce | catalog | locate | retrieve | search | follow | mesh-follow | follow-stop | peers | quote | fetch | price | earnings | payment-export"));
     }
     let verb = args.remove(0);
     if matches!(
