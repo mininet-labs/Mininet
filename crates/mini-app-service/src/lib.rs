@@ -25,14 +25,14 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
     ProfileView, PublishedObject, Reply, ServiceError, ServiceEvent, ServiceEventKind,
-    MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES,
+    MAX_COMMENT_BYTES, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES,
     MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
 };
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
-    build_follow, build_post, build_profile, build_reaction, comments, feed, following,
-    reaction_counts, resolve_post, resolve_profile, FeedFilter, FeedReason as SocialFeedReason,
-    PostKind,
+    build_comment, build_follow, build_post, build_profile, build_reaction, comments, feed,
+    following, reaction_counts, resolve_post, resolve_profile, FeedFilter,
+    FeedReason as SocialFeedReason, PostKind,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_windows_vault::{SeedPair, VaultError};
@@ -236,6 +236,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::PublishComment {
+                operation_id,
+                parent_id,
+                text,
+            } => self
+                .publish_comment(&operation_id, &parent_id, &text)
+                .map(Reply::Published),
             Command::SetLike {
                 operation_id,
                 target_id,
@@ -488,6 +495,55 @@ impl<V: IdentityVault> Core<V> {
             build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
+            input,
+            objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn publish_comment(
+        &mut self,
+        operation_id: &str,
+        parent_id: &str,
+        text: &str,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        if parent_id.is_empty()
+            || parent_id.len() > MAX_OBJECT_ID_BYTES
+            || text.len() > MAX_COMMENT_BYTES
+            || text.trim().is_empty()
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "comment parent or text exceeds limits or is empty",
+            ));
+        }
+        let parent = ObjectId::parse(parent_id)
+            .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
+        let input = MutationInput::Comment {
+            parent_id: parent.as_str().into(),
+            text: text.into(),
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Comment);
+        }
+        self.ensure_signing_available()?;
+        let content = self.store.get(&parent).map_err(storage_error)?;
+        if !matches!(&content.payload, Payload::Public(_)) {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "comments require an existing public parent",
+            ));
+        }
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object = build_comment(human, device, &parent, text, now_ms(), sequence)
+            .map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
             input,
             objects: vec![object.to_bytes()],
         };
@@ -975,6 +1031,7 @@ enum MutationInput {
     Post { text: String },
     Follow { target_did: String, following: bool },
     Like { target_id: String, active: bool },
+    Comment { parent_id: String, text: String },
 }
 
 impl MutationInput {
@@ -984,6 +1041,7 @@ impl MutationInput {
             Self::Post { .. } => ObjectKind::Post,
             Self::Follow { .. } => ObjectKind::Follow,
             Self::Like { .. } => ObjectKind::Reaction,
+            Self::Comment { .. } => ObjectKind::Comment,
         }
     }
 }
@@ -1215,6 +1273,32 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::Comment { parent_id, text } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "comment journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let comment = mini_social::decode_comment(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || comment.parent.as_str() != parent_id
+                || comment.text != *text
+                || text.trim().is_empty()
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "comment journal does not match mutation input",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Comment,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Like { target_id, active } => {
             if record.objects.len() != 1 {
                 return Err(ServiceError::new(
@@ -1396,6 +1480,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
         ObjectKind::Post => 1,
         ObjectKind::Follow => 2,
         ObjectKind::Reaction => 3,
+        ObjectKind::Comment => 4,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -1411,6 +1496,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
         1 => ObjectKind::Post,
         2 => ObjectKind::Follow,
         3 => ObjectKind::Reaction,
+        4 => ObjectKind::Comment,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -1552,6 +1638,11 @@ impl JournalEncoder {
                 self.string(display_name, MAX_PROFILE_NAME_BYTES)?;
                 self.string(bio, MAX_PROFILE_BIO_BYTES)?;
             }
+            MutationInput::Comment { parent_id, text } => {
+                self.u8(4);
+                self.string(parent_id, MAX_OBJECT_ID_BYTES)?;
+                self.string(text, MAX_COMMENT_BYTES)?;
+            }
             MutationInput::Like { target_id, active } => {
                 self.u8(3);
                 self.string(target_id, MAX_OBJECT_ID_BYTES)?;
@@ -1660,6 +1751,18 @@ impl<'a> JournalDecoder<'a> {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
             }),
+            4 => {
+                let parent_id = self.string(MAX_OBJECT_ID_BYTES)?;
+                ObjectId::parse(&parent_id).map_err(storage_error)?;
+                let text = self.string(MAX_COMMENT_BYTES)?;
+                if text.trim().is_empty() {
+                    return Err(ServiceError::new(
+                        ErrorCode::Storage,
+                        "empty journal comment",
+                    ));
+                }
+                Ok(MutationInput::Comment { parent_id, text })
+            }
             3 => {
                 let target_id = self.string(MAX_OBJECT_ID_BYTES)?;
                 ObjectId::parse(&target_id).map_err(storage_error)?;
@@ -2583,6 +2686,208 @@ mod tests {
                         operation_id: "like:recover".into(),
                         target_id: target.id().as_str().into(),
                         active: true,
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                assert_eq!(reply.object_id, id.as_str());
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
+    }
+    #[test]
+    fn public_comments_thread_and_custom_parents_keep_locked_receipts_after_parent_removal() {
+        let path = temp_root("comments");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let Reply::Published(post) = core
+            .handle(Command::PublishPost {
+                operation_id: "comment:parent".into(),
+                text: "parent".into(),
+            })
+            .unwrap()
+        else {
+            panic!("wrong reply")
+        };
+        let command = Command::PublishComment {
+            operation_id: "comment:1".into(),
+            parent_id: post.object_id.clone(),
+            text: "first reply".into(),
+        };
+        let Reply::Published(comment) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(comment.kind, ObjectKind::Comment);
+        core.handle(Command::PublishComment {
+            operation_id: "comment:thread".into(),
+            parent_id: comment.object_id.clone(),
+            text: "nested reply".into(),
+        })
+        .unwrap();
+        assert_eq!(
+            comments(&core.store, &ObjectId::parse(&post.object_id).unwrap()).unwrap()[0].text,
+            "first reply"
+        );
+        assert_eq!(
+            comments(&core.store, &ObjectId::parse(&comment.object_id).unwrap()).unwrap()[0].text,
+            "nested reply"
+        );
+        for (index, kind) in [
+            ObjectType::COMMUNITY,
+            ObjectType::Custom("example/public-topic".into()),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let (human, device) = core.signing_identity().unwrap();
+            let parent = mini_objects::ObjectBuilder::new(kind)
+                .payload(Payload::Public(vec![1]))
+                .sign(human, device)
+                .unwrap();
+            core.store.insert(&parent).unwrap();
+            core.handle(Command::PublishComment {
+                operation_id: format!("comment:topic:{index}"),
+                parent_id: parent.id().as_str().into(),
+                text: "topic reply".into(),
+            })
+            .unwrap();
+            assert_eq!(comments(&core.store, parent.id()).unwrap().len(), 1);
+        }
+        let id = ObjectId::parse(&comment.object_id).unwrap();
+        let bytes = core.store.get(&id).unwrap().to_bytes();
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let parent_path = path
+            .join("blobs")
+            .join(&post.object_id[..2])
+            .join(&post.object_id);
+        fs::remove_file(parent_path).unwrap();
+        let Reply::Published(retry) = core.handle(command).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, comment.object_id);
+        assert_eq!(core.store.get(&id).unwrap().to_bytes(), bytes);
+        assert!(core
+            .handle(Command::PublishComment {
+                operation_id: "comment:new-locked".into(),
+                parent_id: comment.object_id.clone(),
+                text: "locked".into()
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::PublishComment {
+                operation_id: "comment:1".into(),
+                parent_id: post.object_id,
+                text: "changed".into()
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn invalid_private_missing_or_blank_new_comments_never_reserve_sequence() {
+        let path = temp_root("comment-invalid");
+        let mut core = Core::open_inner(path.clone(), MemoryVault::seeded(), false).unwrap();
+        core.unlock().unwrap();
+        let (human, device) = core.signing_identity().unwrap();
+        let private = mini_objects::ObjectBuilder::new(ObjectType::POST)
+            .payload(Payload::Encrypted(vec![1]))
+            .sign(human, device)
+            .unwrap();
+        let missing = build_post(human, device, "missing", 1, 1).unwrap();
+        core.store.insert(&private).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        for (index, (parent_id, text)) in [
+            (private.id().as_str().to_string(), "reply".to_string()),
+            (missing.id().as_str().into(), "reply".into()),
+            ("invalid-id".into(), "reply".into()),
+            (private.id().as_str().into(), "  \n\t".into()),
+            (
+                private.id().as_str().into(),
+                "x".repeat(MAX_COMMENT_BYTES + 1),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert!(core
+                .handle(Command::PublishComment {
+                    operation_id: format!("comment:bad:{index}"),
+                    parent_id,
+                    text
+                })
+                .is_err());
+        }
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        assert!(core.store.by_type(&ObjectType::COMMENT).unwrap().is_empty());
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn pending_comments_recover_exactly_and_reject_text_parent_link_or_type_tampering() {
+        for mode in 0..5 {
+            let path = temp_root("comment-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let (human, device) = core.signing_identity().unwrap();
+            let parent = build_post(human, device, "parent", 1, 1).unwrap();
+            let other = build_post(human, device, "other", 1, 2).unwrap();
+            let base = build_comment(human, device, parent.id(), "exact", 77, 9).unwrap();
+            let object = match mode {
+                3 => mini_objects::ObjectBuilder::new(ObjectType::COMMENT)
+                    .link("re", parent.id().clone())
+                    .link("extra", other.id().clone())
+                    .payload(base.payload.clone())
+                    .sign(human, device)
+                    .unwrap(),
+                4 => build_post(human, device, "exact", 77, 9).unwrap(),
+                _ => base,
+            };
+            let id = object.id().clone();
+            core.store.insert(&parent).unwrap();
+            let record = PendingMutation {
+                operation_id: "comment:recover".into(),
+                input: MutationInput::Comment {
+                    parent_id: if mode == 2 {
+                        other.id().as_str().into()
+                    } else {
+                        parent.id().as_str().into()
+                    },
+                    text: if mode == 1 {
+                        "changed".into()
+                    } else {
+                        "exact".into()
+                    },
+                },
+                objects: vec![object.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(&id).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(core.store.get(&id).unwrap().to_bytes(), object.to_bytes());
+                let Reply::Published(reply) = core
+                    .handle(Command::PublishComment {
+                        operation_id: "comment:recover".into(),
+                        parent_id: parent.id().as_str().into(),
+                        text: "exact".into(),
                     })
                     .unwrap()
                 else {

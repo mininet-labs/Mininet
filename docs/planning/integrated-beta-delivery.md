@@ -8,7 +8,7 @@ The goal is an installed Mininet application whose identity, contacts, public fe
 
 | Area | Implemented in this slice | Acceptance still outstanding |
 | --- | --- | --- |
-| **A — Shared application runtime** | Single-writer application-service Core; bounded typed stdio IPC; identity/profile/post/feed and journaled follow/unfollow and public Like commands; durable exact-public-post outbox, peer grants and coarse delivery events. | Follow/unfollow and Like desktop surfaces now use this authority; route the remaining everyday mutations through it; remove competing writers; verify reconnect, cancellation, migrations and error recovery across installed app/service boundaries. |
+| **A — Shared application runtime** | Single-writer application-service Core; bounded typed stdio IPC; identity/profile/post/feed and journaled follow/unfollow public Like and comment commands; durable exact-public-post outbox, peer grants and coarse delivery events. | Follow/unfollow, Like and comment desktop surfaces now use this authority; route the remaining everyday mutations through it; remove competing writers; verify reconnect, cancellation, migrations and error recovery across installed app/service boundaries. |
 | **B — Everyday reachability** | Owner-authorized numeric TCP peers; channel-bound mutual authentication; explicit default-off network grant; one expected-peer listener; bounded dial/session deadlines and retries. | Authenticated discovery/rendezvous, direct and relay routes, NAT handling, reconnect and endpoint updates; demonstrate ordinary devices finding each other without manual reachable-IP setup. |
 | **C — Secure asynchronous messaging** | Public text-post delivery only. Durable acknowledgements and retry identity are exercised; these do not constitute a private messaging protocol. | Prekeys, ratchets, multi-device behavior, revocation and mailbox delivery; verify confidentiality, offline/reordered delivery and recovery without silent downgrade or duplicate messages. |
 | **D — Calling** | No calling implementation or activation in this slice. | Establish authenticated 1:1 audio first, with explicit microphone permission, incoming-call controls, device selection, interruption/reconnect and usable teardown. |
@@ -33,7 +33,7 @@ This journey requires reachable numeric TCP addresses and external owner verific
 
 Native coding collaboration remains a parallel contributor program. [PR #378](https://github.com/mininet-labs/mininet/pull/378) covers reviewed workspace snapshots and native commit/proposal handoff; it does not implement the messaging/calling/reachability beta. [PR #377](https://github.com/mininet-labs/mininet/pull/377) supplies contributor welcome material. Neither proposal automatically authorizes code adoption, approvals, merges or governance changes.
 
-The next social runtime slice migrates all desktop follow/unfollow signing to the
+The social runtime slices migrate desktop follow/unfollow, Like and comment signing to the
 core, with durable intent-bound receipts and no renderer-key fallback. See
 [social mutation recovery](../design/runtime-social-mutations.md). This is progress
-on A and H; comment/media and other signers plus the broader journeys remain open.
+on A and H; profile details, media and other signers plus the broader journeys remain open.
