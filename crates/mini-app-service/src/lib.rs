@@ -20,6 +20,7 @@ mod delivery_peers;
 mod delivery_runtime;
 mod delivery_transport;
 mod outbox;
+mod profile_photo;
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
@@ -237,6 +238,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::PublishProfileWithPhoto {
+                operation_id,
+                draft,
+                photo,
+            } => self
+                .publish_profile_with_photo(&operation_id, draft, &photo)
+                .map(Reply::Published),
             Command::PublishProfileDetails {
                 operation_id,
                 draft,
@@ -536,6 +544,47 @@ impl<V: IdentityVault> Core<V> {
             operation_id: operation_id.to_string(),
             input,
             objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn publish_profile_with_photo(
+        &mut self,
+        operation_id: &str,
+        draft: PublicProfileDetails,
+        photo: &[u8],
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        draft.validate().map_err(storage_or_social)?;
+        if draft.avatar.is_some()
+            || photo.is_empty()
+            || photo.len() > mini_app_protocol::MAX_PROFILE_PHOTO_BYTES
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "photo profile requires a bounded new JPEG and no existing avatar",
+            ));
+        }
+        let input = MutationInput::PhotoProfile {
+            draft: draft.clone(),
+            photo_digest: profile_photo::digest(photo),
+            photo_len: photo.len() as u32,
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Profile);
+        }
+        self.ensure_signing_available()?;
+        profile_photo::validate(photo)?;
+        let base = self.reserve_sequences(2)?;
+        let (human, device) = self.signing_identity()?;
+        let objects = profile_photo::build(human, device, &draft, photo, base, now_ms())?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
+            input,
+            objects,
         };
         self.journal.write_pending(&record)?;
         let published = self.journal.commit_and_complete(&mut self.store, &record)?;
@@ -926,14 +975,22 @@ impl<V: IdentityVault> Core<V> {
     }
 
     fn reserve_sequence(&mut self) -> Result<u64, ServiceError> {
-        if let Some(human) = self.human.as_ref() {
-            let store_next = next_object_sequence(&self.store, Some(human))?;
-            if store_next > self.next_sequence {
-                self.next_sequence = self.journal.ensure_sequence_floor(store_next)?;
-            }
+        self.reserve_sequences(1)
+    }
+    fn reserve_sequences(&mut self, count: u64) -> Result<u64, ServiceError> {
+        if count == 0 {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "empty sequence reservation",
+            ));
         }
-        let sequence = self.next_sequence;
-        let next = sequence.checked_add(1).ok_or_else(|| {
+        let store_next = if let Some(human) = self.human.as_ref() {
+            next_object_sequence(&self.store, Some(human))?
+        } else {
+            0
+        };
+        let sequence = self.next_sequence.max(store_next);
+        let next = sequence.checked_add(count).ok_or_else(|| {
             ServiceError::new(
                 ErrorCode::Storage,
                 "local object sequence space is exhausted",
@@ -1215,20 +1272,47 @@ fn storage_or_social(error: impl core::fmt::Display) -> ServiceError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MutationInput {
-    ProfileDetails { draft: PublicProfileDetails },
-    Profile { display_name: String, bio: String },
-    Post { text: String },
-    Follow { target_did: String, following: bool },
-    Like { target_id: String, active: bool },
-    Comment { parent_id: String, text: String },
-    Membership { community_id: String, joined: bool },
-    Community { name: String, charter: String },
+    PhotoProfile {
+        draft: PublicProfileDetails,
+        photo_digest: [u8; 32],
+        photo_len: u32,
+    },
+    ProfileDetails {
+        draft: PublicProfileDetails,
+    },
+    Profile {
+        display_name: String,
+        bio: String,
+    },
+    Post {
+        text: String,
+    },
+    Follow {
+        target_did: String,
+        following: bool,
+    },
+    Like {
+        target_id: String,
+        active: bool,
+    },
+    Comment {
+        parent_id: String,
+        text: String,
+    },
+    Membership {
+        community_id: String,
+        joined: bool,
+    },
+    Community {
+        name: String,
+        charter: String,
+    },
 }
 
 impl MutationInput {
     fn kind(&self) -> ObjectKind {
         match self {
-            Self::ProfileDetails { .. } => ObjectKind::Profile,
+            Self::ProfileDetails { .. } | Self::PhotoProfile { .. } => ObjectKind::Profile,
             Self::Profile { .. } => ObjectKind::Profile,
             Self::Post { .. } => ObjectKind::Post,
             Self::Follow { .. } => ObjectKind::Follow,
@@ -1483,11 +1567,61 @@ fn profile_details_values(
     Ok((avatar, fields))
 }
 
+fn validate_profile_details_pair(
+    profile: &Object,
+    head: &Object,
+    draft: &PublicProfileDetails,
+) -> Result<(), ServiceError> {
+    let (avatar, fields) = profile_details_values(draft)?;
+    let decoded = mini_social::decode_profile(profile).map_err(storage_or_social)?;
+    if !profile.links.is_empty()
+        || !matches!(&profile.payload,Payload::Public(bytes) if bytes.starts_with(b"MINIPROF2"))
+        || head.object_type != ObjectType::HEAD
+        || head.links.len() != 1
+        || head.links[0].rel != "target"
+        || head.links[0].target != *profile.id()
+        || !matches!(&head.payload,Payload::Public(bytes) if bytes==b"profile")
+        || profile.author_human != head.author_human
+        || profile.author_device != head.author_device
+        || profile.sequence != head.sequence
+        || profile.timestamp_ms != head.timestamp_ms
+        || decoded.display_name != draft.display_name
+        || decoded.bio != draft.bio
+        || decoded.avatar != avatar
+        || decoded.location != draft.location
+        || decoded.age != draft.age
+        || decoded.fields != fields
+    {
+        return Err(ServiceError::new(
+            ErrorCode::Storage,
+            "profile details journal does not match exact draft and head",
+        ));
+    }
+    Ok(())
+}
+
 fn commit_record(
     store: &mut Store<FsBackend>,
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::PhotoProfile {
+            draft,
+            photo_digest,
+            photo_len,
+        } => {
+            let objects =
+                profile_photo::validate_record(draft, photo_digest, *photo_len, &record.objects)?;
+            for object in &objects[..3] {
+                store.insert(object).map_err(storage_error)?;
+            }
+            store.apply_head(&objects[3]).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Profile,
+                object_id: objects[2].id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::ProfileDetails { draft } => {
             if record.objects.len() != 2 {
                 return Err(ServiceError::new(
@@ -1495,35 +1629,15 @@ fn commit_record(
                     "profile details journal has wrong object count",
                 ));
             }
-            let (avatar, fields) = profile_details_values(draft)?;
             let profile = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
             let head = Object::from_bytes(&record.objects[1]).map_err(storage_error)?;
-            let decoded = mini_social::decode_profile(&profile).map_err(storage_or_social)?;
-            if profile.to_bytes() != record.objects[0]
-                || head.to_bytes() != record.objects[1]
-                || !profile.links.is_empty()
-                || !matches!(&profile.payload,Payload::Public(bytes) if bytes.starts_with(b"MINIPROF2"))
-                || head.object_type != ObjectType::HEAD
-                || head.links.len() != 1
-                || head.links[0].rel != "target"
-                || head.links[0].target != *profile.id()
-                || !matches!(&head.payload,Payload::Public(bytes) if bytes==b"profile")
-                || profile.author_human != head.author_human
-                || profile.author_device != head.author_device
-                || profile.sequence != head.sequence
-                || profile.timestamp_ms != head.timestamp_ms
-                || decoded.display_name != draft.display_name
-                || decoded.bio != draft.bio
-                || decoded.avatar != avatar
-                || decoded.location != draft.location
-                || decoded.age != draft.age
-                || decoded.fields != fields
-            {
+            if profile.to_bytes() != record.objects[0] || head.to_bytes() != record.objects[1] {
                 return Err(ServiceError::new(
                     ErrorCode::Storage,
-                    "profile details journal does not match exact draft and head",
+                    "noncanonical profile objects",
                 ));
             }
+            validate_profile_details_pair(&profile, &head, draft)?;
             store.insert(&profile).map_err(storage_error)?;
             store.apply_head(&head).map_err(storage_error)?;
             Ok(PublishedObject {
@@ -1749,7 +1863,13 @@ fn encode_pending(record: &PendingMutation) -> Result<Vec<u8>, ServiceError> {
     let mut encoder = JournalEncoder::new(PENDING_MAGIC);
     encoder.string(&record.operation_id, MAX_OPERATION_ID_BYTES)?;
     encoder.input(&record.input)?;
-    if record.objects.len() > 2 {
+    if record.objects.len()
+        > if matches!(record.input, MutationInput::PhotoProfile { .. }) {
+            4
+        } else {
+            2
+        }
+    {
         return Err(ServiceError::new(
             ErrorCode::Storage,
             "too many signed objects in one journal record",
@@ -1768,7 +1888,13 @@ fn decode_pending(bytes: &[u8]) -> Result<PendingMutation, ServiceError> {
     validate_operation(&operation_id)?;
     let input = decoder.input()?;
     let count = usize::from(decoder.u8()?);
-    if count > 2 {
+    if count
+        > if matches!(input, MutationInput::PhotoProfile { .. }) {
+            4
+        } else {
+            2
+        }
+    {
         return Err(ServiceError::new(
             ErrorCode::Storage,
             "journal object count exceeds the service limit",
@@ -1950,6 +2076,35 @@ impl JournalEncoder {
         Ok(())
     }
 
+    fn details(&mut self, draft: &PublicProfileDetails) -> Result<(), ServiceError> {
+        draft.validate().map_err(storage_or_social)?;
+        self.string(&draft.display_name, MAX_PROFILE_NAME_BYTES)?;
+        self.string(&draft.bio, MAX_PROFILE_BIO_BYTES)?;
+        self.u8(u8::from(draft.avatar.is_some()));
+        if let Some(value) = &draft.avatar {
+            self.string(value, MAX_OBJECT_ID_BYTES)?;
+        }
+        self.u8(u8::from(draft.location.is_some()));
+        if let Some(value) = &draft.location {
+            self.string(value, mini_app_protocol::MAX_LOCATION_BYTES)?;
+        }
+        self.u8(u8::from(draft.age.is_some()));
+        if let Some(value) = draft.age {
+            self.u8(value);
+        }
+        self.u8(draft.fields.len() as u8);
+        for field in &draft.fields {
+            self.string(
+                &field.label,
+                mini_app_protocol::MAX_PROFILE_FIELD_LABEL_BYTES,
+            )?;
+            self.string(
+                &field.value,
+                mini_app_protocol::MAX_PROFILE_FIELD_VALUE_BYTES,
+            )?;
+        }
+        Ok(())
+    }
     fn input(&mut self, input: &MutationInput) -> Result<(), ServiceError> {
         match input {
             MutationInput::Profile { display_name, bio } => {
@@ -1958,33 +2113,18 @@ impl JournalEncoder {
                 self.string(bio, MAX_PROFILE_BIO_BYTES)?;
             }
             MutationInput::ProfileDetails { draft } => {
-                draft.validate().map_err(storage_or_social)?;
                 self.u8(7);
-                self.string(&draft.display_name, MAX_PROFILE_NAME_BYTES)?;
-                self.string(&draft.bio, MAX_PROFILE_BIO_BYTES)?;
-                self.u8(u8::from(draft.avatar.is_some()));
-                if let Some(value) = &draft.avatar {
-                    self.string(value, MAX_OBJECT_ID_BYTES)?;
-                }
-                self.u8(u8::from(draft.location.is_some()));
-                if let Some(value) = &draft.location {
-                    self.string(value, mini_app_protocol::MAX_LOCATION_BYTES)?;
-                }
-                self.u8(u8::from(draft.age.is_some()));
-                if let Some(value) = draft.age {
-                    self.u8(value);
-                }
-                self.u8(draft.fields.len() as u8);
-                for field in &draft.fields {
-                    self.string(
-                        &field.label,
-                        mini_app_protocol::MAX_PROFILE_FIELD_LABEL_BYTES,
-                    )?;
-                    self.string(
-                        &field.value,
-                        mini_app_protocol::MAX_PROFILE_FIELD_VALUE_BYTES,
-                    )?;
-                }
+                self.details(draft)?;
+            }
+            MutationInput::PhotoProfile {
+                draft,
+                photo_digest,
+                photo_len,
+            } => {
+                self.u8(8);
+                self.details(draft)?;
+                self.bytes.extend_from_slice(photo_digest);
+                self.u32(*photo_len);
             }
             MutationInput::Community { name, charter } => {
                 self.u8(6);
@@ -2106,6 +2246,45 @@ impl<'a> JournalDecoder<'a> {
         Ok(self.take(length)?.to_vec())
     }
 
+    fn details(&mut self) -> Result<PublicProfileDetails, ServiceError> {
+        let display_name = self.string(MAX_PROFILE_NAME_BYTES)?;
+        let bio = self.string(MAX_PROFILE_BIO_BYTES)?;
+        let avatar = if self.flag()? {
+            Some(self.string(MAX_OBJECT_ID_BYTES)?)
+        } else {
+            None
+        };
+        let location = if self.flag()? {
+            Some(self.string(mini_app_protocol::MAX_LOCATION_BYTES)?)
+        } else {
+            None
+        };
+        let age = if self.flag()? { Some(self.u8()?) } else { None };
+        let count = self.u8()? as usize;
+        if count > mini_app_protocol::MAX_PROFILE_FIELDS {
+            return Err(ServiceError::new(
+                ErrorCode::Storage,
+                "too many journal profile fields",
+            ));
+        }
+        let mut fields = Vec::with_capacity(count);
+        for _ in 0..count {
+            fields.push(mini_app_protocol::ProfileField {
+                label: self.string(mini_app_protocol::MAX_PROFILE_FIELD_LABEL_BYTES)?,
+                value: self.string(mini_app_protocol::MAX_PROFILE_FIELD_VALUE_BYTES)?,
+            });
+        }
+        let draft = PublicProfileDetails {
+            display_name,
+            bio,
+            avatar,
+            location,
+            age,
+            fields,
+        };
+        draft.validate().map_err(storage_or_social)?;
+        Ok(draft)
+    }
     fn flag(&mut self) -> Result<bool, ServiceError> {
         match self.u8()? {
             0 => Ok(false),
@@ -2122,44 +2301,27 @@ impl<'a> JournalDecoder<'a> {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
             }),
-            7 => {
-                let display_name = self.string(MAX_PROFILE_NAME_BYTES)?;
-                let bio = self.string(MAX_PROFILE_BIO_BYTES)?;
-                let avatar = if self.flag()? {
-                    Some(self.string(MAX_OBJECT_ID_BYTES)?)
-                } else {
-                    None
-                };
-                let location = if self.flag()? {
-                    Some(self.string(mini_app_protocol::MAX_LOCATION_BYTES)?)
-                } else {
-                    None
-                };
-                let age = if self.flag()? { Some(self.u8()?) } else { None };
-                let count = self.u8()? as usize;
-                if count > mini_app_protocol::MAX_PROFILE_FIELDS {
+            7 => Ok(MutationInput::ProfileDetails {
+                draft: self.details()?,
+            }),
+            8 => {
+                let draft = self.details()?;
+                let photo_digest = self.take(32)?.try_into().map_err(storage_or_social)?;
+                let photo_len = self.u32()?;
+                if draft.avatar.is_some()
+                    || photo_len == 0
+                    || photo_len as usize > mini_app_protocol::MAX_PROFILE_PHOTO_BYTES
+                {
                     return Err(ServiceError::new(
                         ErrorCode::Storage,
-                        "too many journal profile fields",
+                        "invalid photo draft journal",
                     ));
                 }
-                let mut fields = Vec::with_capacity(count);
-                for _ in 0..count {
-                    fields.push(mini_app_protocol::ProfileField {
-                        label: self.string(mini_app_protocol::MAX_PROFILE_FIELD_LABEL_BYTES)?,
-                        value: self.string(mini_app_protocol::MAX_PROFILE_FIELD_VALUE_BYTES)?,
-                    });
-                }
-                let draft = PublicProfileDetails {
-                    display_name,
-                    bio,
-                    avatar,
-                    location,
-                    age,
-                    fields,
-                };
-                draft.validate().map_err(storage_or_social)?;
-                Ok(MutationInput::ProfileDetails { draft })
+                Ok(MutationInput::PhotoProfile {
+                    draft,
+                    photo_digest,
+                    photo_len,
+                })
             }
             6 => {
                 let name = self.string(MAX_COMMUNITY_NAME_BYTES)?;
@@ -4073,5 +4235,191 @@ mod tests {
             }
             fs::remove_dir_all(path).unwrap();
         }
+    }
+    #[test]
+    fn profile_photo_publishes_exact_four_objects_and_locked_receipt_while_invalid_input_does_not_reserve(
+    ) {
+        let path = temp_root("profile-photo");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let draft = details_test_draft();
+        let photo = profile_photo::test_jpeg(2, 2);
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        for (details, bytes) in [
+            (draft.clone(), b"not jpeg".to_vec()),
+            (draft.clone(), profile_photo::test_jpeg(257, 1)),
+            (
+                draft.clone(),
+                vec![0; mini_app_protocol::MAX_PROFILE_PHOTO_BYTES + 1],
+            ),
+            (
+                PublicProfileDetails {
+                    avatar: Some("existing".into()),
+                    ..draft.clone()
+                },
+                photo.clone(),
+            ),
+        ] {
+            assert!(core
+                .handle(Command::PublishProfileWithPhoto {
+                    operation_id: "photo:invalid".into(),
+                    draft: details,
+                    photo: bytes
+                })
+                .is_err());
+        }
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        let command = Command::PublishProfileWithPhoto {
+            operation_id: "photo:1".into(),
+            draft: draft.clone(),
+            photo: photo.clone(),
+        };
+        let Reply::Published(published) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        let id = ObjectId::parse(&published.object_id).unwrap();
+        let object = core.store.get(&id).unwrap();
+        let profile = mini_social::decode_profile(&object).unwrap();
+        assert_eq!(profile.location, draft.location);
+        assert_eq!(profile.age, draft.age);
+        assert_eq!(profile.fields[0].label, draft.fields[0].label);
+        let avatar = profile.avatar.unwrap();
+        let media = mini_media::read_manifest(&core.store.get(&avatar).unwrap()).unwrap();
+        assert_eq!(mini_media::assemble(&core.store, &media).unwrap(), photo);
+        assert_eq!(core.next_sequence, next + 2);
+        assert_eq!(core.store.all_ids().unwrap().len(), 4);
+        let receipt_bytes = fs::read(core.journal.receipt_path("photo:1")).unwrap();
+        assert!(receipt_bytes.len() < 4096);
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let media_id = avatar.as_str();
+        fs::remove_file(path.join("blobs").join(&media_id[..2]).join(media_id)).unwrap();
+        let Reply::Published(retry) = core.handle(command).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, published.object_id);
+        assert_eq!(core.store.get(&id).unwrap().to_bytes(), object.to_bytes());
+        assert!(core
+            .handle(Command::PublishProfileWithPhoto {
+                operation_id: "photo:1".into(),
+                draft,
+                photo: profile_photo::test_jpeg(3, 3)
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn photo_profile_pending_recovery_validates_every_object_before_inserting() {
+        for mode in 0..4 {
+            let path = temp_root("photo-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let draft = details_test_draft();
+            let photo = profile_photo::test_jpeg(2, 2);
+            let (human, device) = core.signing_identity().unwrap();
+            let mut objects = profile_photo::build(human, device, &draft, &photo, 10, 77).unwrap();
+            if mode == 1 {
+                objects[0] = mini_objects::ObjectBuilder::new(ObjectType::Custom(
+                    mini_media::CHUNK_TYPE.into(),
+                ))
+                .sequence(10)
+                .timestamp_ms(77)
+                .payload(Payload::Public(profile_photo::test_jpeg(3, 3)))
+                .sign(human, device)
+                .unwrap()
+                .to_bytes();
+            }
+            if mode == 2 {
+                let original = Object::from_bytes(&objects[1]).unwrap();
+                objects[1] = mini_objects::ObjectBuilder::new(ObjectType::MEDIA_MANIFEST)
+                    .sequence(11)
+                    .timestamp_ms(77)
+                    .link(
+                        "chunk",
+                        Object::from_bytes(&objects[0]).unwrap().id().clone(),
+                    )
+                    .payload(original.payload)
+                    .sign(human, device)
+                    .unwrap()
+                    .to_bytes();
+            }
+            if mode == 3 {
+                objects[3] = mini_objects::ObjectBuilder::new(ObjectType::HEAD)
+                    .sequence(11)
+                    .timestamp_ms(78)
+                    .link(
+                        "target",
+                        Object::from_bytes(&objects[2]).unwrap().id().clone(),
+                    )
+                    .payload(Payload::Public(b"profile".to_vec()))
+                    .sign(human, device)
+                    .unwrap()
+                    .to_bytes();
+            }
+            let ids = objects
+                .iter()
+                .map(|bytes| Object::from_bytes(bytes).unwrap().id().clone())
+                .collect::<Vec<_>>();
+            let record = PendingMutation {
+                operation_id: "photo:recover".into(),
+                input: MutationInput::PhotoProfile {
+                    draft: draft.clone(),
+                    photo_digest: profile_photo::digest(&photo),
+                    photo_len: photo.len() as u32,
+                },
+                objects,
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                for id in ids {
+                    assert!(store.get(&id).is_err());
+                }
+            } else {
+                let mut core = recovered.unwrap();
+                for (id, bytes) in ids.iter().zip(&record.objects) {
+                    assert_eq!(core.store.get(id).unwrap().to_bytes(), *bytes);
+                }
+                let Reply::Published(reply) = core
+                    .handle(Command::PublishProfileWithPhoto {
+                        operation_id: "photo:recover".into(),
+                        draft,
+                        photo,
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
+    }
+    #[test]
+    fn photo_sequence_range_overflow_never_partially_reserves() {
+        let path = temp_root("photo-overflow");
+        let mut core = Core::open_inner(path.clone(), MemoryVault::seeded(), false).unwrap();
+        core.unlock().unwrap();
+        core.next_sequence = u64::MAX - 1;
+        let before = fs::read(&core.journal.sequence).unwrap();
+        assert!(core.reserve_sequences(2).is_err());
+        assert_eq!(core.next_sequence, u64::MAX - 1);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), before);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
     }
 }
