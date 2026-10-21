@@ -13,9 +13,16 @@ struct Edit {
     edit: PatchEdit,
     original: Option<String>,
 }
+#[derive(Clone)]
 struct Loaded {
     path: String,
     original: Option<ContextItem>,
+}
+struct EditorDraft {
+    path: String,
+    create: bool,
+    loaded: Option<Loaded>,
+    replacement: String,
 }
 enum Outcome {
     Loaded(Loaded),
@@ -53,10 +60,11 @@ pub(crate) struct Panel {
     recovery: Option<DraftReview>,
     recovery_index: Option<usize>,
     accept_recovery: bool,
+    pending_editor: Option<EditorDraft>,
 }
 impl Panel {
     pub(crate) fn is_busy(&self) -> bool {
-        self.pending.is_some()
+        self.pending.is_some() || self.pending_editor.is_some()
     }
     pub(crate) fn is_writing(&self) -> bool {
         self.pending.as_ref().is_some_and(|p| p.writing)
@@ -130,6 +138,7 @@ impl Panel {
             return;
         }
         self.root = root.into();
+        self.pending_editor = None;
         self.saved_edits = None;
         self.close_requested = false;
         self.loaded = None;
@@ -153,10 +162,39 @@ impl Panel {
             self.status = "Reply exceeds the replacement size limit.".into();
             return;
         }
-        self.replacement = text.into();
+        let target = EditorDraft {
+            path: self.path.clone(),
+            create: self.create,
+            loaded: self.loaded.clone(),
+            replacement: text.into(),
+        };
+        self.request_editor(target);
+    }
+    fn request_editor(&mut self, target: EditorDraft) {
+        if self.editor_unstaged() {
+            self.pending_editor = Some(target);
+        } else {
+            self.install_editor(target);
+        }
+    }
+    fn install_editor(&mut self, target: EditorDraft) {
+        self.path = target.path;
+        self.create = target.create;
+        self.loaded = target.loaded;
+        self.replacement = target.replacement;
         self.replacement_dirty = true;
         self.invalidate();
-        self.status = "Model answer copied literally into an unapplied replacement draft. Review prose/code fences and choose/load the intended file before staging.".into();
+        self.status="Selected text loaded literally into an unapplied editor draft. Existing staged files are unchanged; review and stage this text separately.".into();
+    }
+    fn resolve_editor(&mut self, replace: bool) {
+        if let Some(target) = self.pending_editor.take() {
+            if replace {
+                self.install_editor(target);
+            } else {
+                self.status =
+                    "Kept existing editor text. The selected replacement was not loaded.".into();
+            }
+        }
     }
     fn spawn(
         &mut self,
@@ -303,24 +341,24 @@ impl Panel {
     }
     fn edit_staged(&mut self, index: usize) {
         let entry = &self.edits[index];
-        self.path = entry.edit.path.clone();
-        self.create = entry.edit.before_hash.is_none();
-        self.loaded = Some(Loaded {
-            path: self.path.clone(),
-            original: entry.original.as_ref().map(|content| ContextItem {
-                path: self.path.clone(),
-                content: content.clone(),
-                hash: entry
-                    .edit
-                    .before_hash
-                    .clone()
-                    .expect("existing baseline has hash"),
+        let target = EditorDraft {
+            path: entry.edit.path.clone(),
+            create: entry.edit.before_hash.is_none(),
+            loaded: Some(Loaded {
+                path: entry.edit.path.clone(),
+                original: entry.original.as_ref().map(|content| ContextItem {
+                    path: entry.edit.path.clone(),
+                    content: content.clone(),
+                    hash: entry
+                        .edit
+                        .before_hash
+                        .clone()
+                        .expect("existing baseline has hash"),
+                }),
             }),
-        });
-        self.replacement = entry.edit.replacement.clone();
-        self.replacement_dirty = true;
-        self.invalidate();
-        self.status = "Staged replacement loaded into the editor. Changes remain unstaged until Stage this file is clicked; source is rechecked before preview/apply.".into();
+            replacement: entry.edit.replacement.clone(),
+        };
+        self.request_editor(target);
     }
     fn recover_file(&mut self) -> Result<(), String> {
         if !self.accept_recovery {
@@ -411,6 +449,13 @@ impl Panel {
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui, root: &str) {
         self.sync_root(root);
         self.poll();
+        if self.pending_editor.is_some() {
+            egui::Window::new("Keep unsaved editor text?").collapsible(false).resizable(false).show(ui.ctx(),|ui| {
+                ui.label("Loading this selection would replace unstaged editor text. Existing staged edits and stored checkpoints are not changed by this choice.");
+                if ui.button("Keep existing editor text").clicked() { self.resolve_editor(false); }
+                if ui.button("Replace editor text with selected draft").clicked() { self.resolve_editor(true); }
+            });
+        }
         egui::CollapsingHeader::new("Reviewed local code edits").show(ui,|ui| {
             ui.label("Work in a clean owner-controlled workspace with a backup. Edit proposals stay local and are never sent to the model automatically. No shell, build, commit or network operation runs here.");
             ui.label(format!("Selected workspace: {}", self.root));
@@ -419,7 +464,7 @@ impl Panel {
             ui.add_enabled_ui(idle,|ui| {
                 let changed = ui.horizontal(|ui| { ui.label("Relative UTF-8 source file"); ui.add(egui::TextEdit::singleline(&mut self.path).char_limit(1024)).changed() }).inner;
                 let changed = ui.checkbox(&mut self.create,"Create a new file (parent directory must exist)").changed() || changed;
-                if changed { self.loaded = None; self.replacement.clear(); self.replacement_dirty = false; self.invalidate(); }
+                if changed { let keep_text=self.editor_unstaged(); self.loaded = None; if !keep_text { self.replacement.clear(); self.replacement_dirty = false; } self.invalidate(); }
                 if ui.add_enabled(!self.root.trim().is_empty() && !self.path.trim().is_empty(),egui::Button::new("Load / validate file baseline")).clicked() { self.load(); }
                 ui.label("Complete replacement text (an empty replacement creates an empty file; it does not delete the path)");
                 if ui.add(egui::TextEdit::multiline(&mut self.replacement).code_editor().desired_rows(8).desired_width(f32::INFINITY).char_limit(mini_resident::MAX_CONTEXT_BYTES)).changed() { self.replacement_dirty = true; self.invalidate(); }
@@ -517,7 +562,7 @@ impl Panel {
             if let Some(pending) = &self.pending { ui.label(if pending.writing { "Completing the requested local write; do not close the application." } else { "Reading/validating locally…" }); }
             ui.label(&self.status);
         });
-        if self.is_busy() {
+        if self.pending.is_some() {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(100));
         }
@@ -652,7 +697,10 @@ mod tests {
         let mut panel = loaded_panel();
         panel.stage().unwrap();
         panel.replacement = "unrelated unsaved text".into();
+        panel.replacement_dirty = true;
         panel.edit_staged(0);
+        assert!(panel.pending_editor.is_some());
+        panel.resolve_editor(true);
         assert_eq!(panel.replacement, "after");
         panel.replacement = "revised draft".into();
         assert_eq!(panel.edits[0].edit.replacement, "after");
@@ -743,5 +791,20 @@ mod tests {
             Some("owners new version")
         );
         assert!(panel.recovery.is_none() && !panel.accept_recovery);
+    }
+    #[test]
+    fn selecting_model_text_cannot_silently_replace_unstaged_editor_work() {
+        let mut panel = loaded_panel();
+        panel.replacement_dirty = true;
+        panel.draft_reply("workspace", "new model suggestion");
+        assert_eq!(panel.replacement, "after");
+        assert!(panel.pending_editor.is_some() && panel.is_busy());
+        panel.resolve_editor(false);
+        assert_eq!(panel.replacement, "after");
+        panel.draft_reply("workspace", "new model suggestion");
+        panel.resolve_editor(true);
+        assert_eq!(panel.replacement, "new model suggestion");
+        assert!(panel.edits.is_empty() && panel.preview.is_none());
+        assert!(panel.has_unsaved_work());
     }
 }

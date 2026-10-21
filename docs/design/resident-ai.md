@@ -301,3 +301,11 @@ write. It may expose source plaintext on stdout by this explicit local request.
 The legacy CLI/API save without either condition still means an explicitly
 requested unconditional replacement; the desktop always uses the conditional
 API. `--expect` and `--create-only` are mutually exclusive.
+
+Selecting a model answer or another staged replacement now preserves unstaged
+editor text until the owner chooses keep/replace. The candidate selection is
+held separately, does not change staged/saved content, and carries no apply
+authorization. Changing the relative filename or create mode retains actual
+unstaged replacement text while clearing its old file baseline; loading a new
+baseline and normal stage/preview confirmation remain required. These protections
+do not autosave editor text or make it part of an older saved checkpoint.
