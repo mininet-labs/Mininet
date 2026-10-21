@@ -328,6 +328,7 @@ impl<V: IdentityVault> Core<V> {
         object_id: &str,
     ) -> Result<mini_app_protocol::DeliveryView, ServiceError> {
         self.ensure_signing_available()?;
+        self.authorized_delivery_peer(peer_id)?;
         let id = ObjectId::parse(object_id).map_err(storage_or_social)?;
         let object = self.store.get(&id).map_err(storage_or_social)?;
         let identity = self.identity.as_ref().expect("checked unlocked identity");
@@ -346,6 +347,7 @@ impl<V: IdentityVault> Core<V> {
         }
         mini_objects::verify_provenance(&object, &identity.root.kel(), &identity.device.kel())
             .map_err(storage_or_social)?;
+        mini_social::decode_post(&object).map_err(storage_or_social)?;
         let record = self
             .outbox
             .enqueue(operation_id, peer_id, object_id, &object.to_bytes())?;
@@ -1535,6 +1537,223 @@ mod tests {
     }
 
     #[test]
+    fn offline_delivery_recovers_and_reports_verified_remote_receipt_without_new_signature() {
+        let sender_root = temp_root("sender-runtime");
+        let receiver_root = temp_root("receiver-runtime");
+        let sender_vault = MemoryVault::seeded();
+        let receiver_vault = MemoryVault {
+            root: Some(SeedPair {
+                current: [21; 32],
+                next: [22; 32],
+            }),
+            device: Some(SeedPair {
+                current: [23; 32],
+                next: [24; 32],
+            }),
+        };
+        let mut sender =
+            Core::open_inner(sender_root.clone(), sender_vault.clone(), false).unwrap();
+        let mut recipient =
+            Core::open_inner(receiver_root.clone(), receiver_vault.clone(), false).unwrap();
+        sender.handle(Command::UnlockIdentity).unwrap();
+        recipient.handle(Command::UnlockIdentity).unwrap();
+        let Reply::DeliveryIdentity(sender_public) =
+            sender.handle(Command::ExportDeliveryIdentity).unwrap()
+        else {
+            panic!("identity reply");
+        };
+        let Reply::DeliveryIdentity(recipient_public) =
+            recipient.handle(Command::ExportDeliveryIdentity).unwrap()
+        else {
+            panic!("identity reply");
+        };
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = probe.local_addr().unwrap();
+        drop(probe);
+        sender
+            .handle(Command::AuthorizeDeliveryPeer {
+                peer_id: "recipient".into(),
+                endpoint: address.to_string(),
+                root_kel: recipient_public.root_kel,
+                device_kel: recipient_public.device_kel,
+            })
+            .unwrap();
+        recipient
+            .handle(Command::AuthorizeDeliveryPeer {
+                peer_id: "sender".into(),
+                endpoint: address.to_string(),
+                root_kel: sender_public.root_kel,
+                device_kel: sender_public.device_kel,
+            })
+            .unwrap();
+        let Reply::Published(post) = sender
+            .handle(Command::PublishPost {
+                operation_id: "post:once".into(),
+                text: "survives an offline recipient".into(),
+            })
+            .unwrap()
+        else {
+            panic!("post reply");
+        };
+        let sequence_after_publication = sender.next_sequence;
+        sender
+            .handle(Command::QueuePublicDelivery {
+                operation_id: "send:once".into(),
+                peer_id: "recipient".into(),
+                object_id: post.object_id.clone(),
+            })
+            .unwrap();
+        assert!(sender
+            .handle(Command::AttemptDelivery {
+                operation_id: "send:once".into()
+            })
+            .is_err());
+        assert_eq!(sender.outbox.get("send:once").unwrap().unwrap().attempts, 0);
+        sender
+            .handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        let failed = sender.attempt_delivery("send:once", now_ms()).unwrap();
+        assert_eq!(failed.state, mini_app_protocol::DeliveryState::RetryWaiting);
+        let exact_bytes = sender
+            .outbox
+            .get("send:once")
+            .unwrap()
+            .unwrap()
+            .object_bytes;
+        drop(sender);
+        let mut sender = Core::open_inner(sender_root.clone(), sender_vault, false).unwrap();
+        assert!(sender.delivery_policy.enabled);
+        sender.poll_delivery().unwrap();
+        assert_eq!(sender.outbox.get("send:once").unwrap().unwrap().attempts, 1);
+        assert!(sender.delivery_listener.is_none());
+        sender.handle(Command::UnlockIdentity).unwrap();
+        recipient
+            .handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        recipient
+            .handle(Command::SetDeliveryListener {
+                peer_id: "sender".into(),
+                endpoint: address.to_string(),
+            })
+            .unwrap();
+        let listener = std::net::TcpListener::bind(address).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        recipient.delivery_listener = Some(listener);
+        let expected_id = ObjectId::parse(&post.object_id).unwrap();
+        let remote_id = expected_id.clone();
+        let worker = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+            while std::time::Instant::now() < deadline {
+                recipient.poll_delivery().unwrap();
+                if recipient.store.get(&remote_id).is_ok() {
+                    return recipient;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            panic!("recipient did not ingest queued post");
+        });
+        let delivered = sender
+            .attempt_delivery("send:once", failed.next_attempt_ms)
+            .unwrap();
+        assert_eq!(delivered.state, mini_app_protocol::DeliveryState::Delivered);
+        assert_eq!(delivered.attempts, 2);
+        assert_eq!(sender.next_sequence, sequence_after_publication);
+        let recipient = worker.join().unwrap();
+        assert_eq!(
+            recipient.store.get(&expected_id).unwrap().to_bytes(),
+            exact_bytes
+        );
+        assert_eq!(
+            recipient.store.by_type(&ObjectType::POST).unwrap(),
+            vec![expected_id.clone()]
+        );
+        assert_eq!(
+            sender.attempt_delivery("send:once", now_ms()).unwrap(),
+            delivered
+        );
+        drop(sender);
+        drop(recipient);
+        let mut sender =
+            Core::open_inner(sender_root.clone(), MemoryVault::seeded(), false).unwrap();
+        assert_eq!(
+            sender
+                .handle(Command::DeliveryStatus {
+                    operation_id: "send:once".into()
+                })
+                .unwrap(),
+            Reply::Delivery(delivered)
+        );
+        let recipient = Core::open_inner(receiver_root.clone(), receiver_vault, false).unwrap();
+        assert_eq!(
+            recipient.store.get(&expected_id).unwrap().to_bytes(),
+            exact_bytes
+        );
+        drop(sender);
+        drop(recipient);
+        fs::remove_dir_all(sender_root).unwrap();
+        fs::remove_dir_all(receiver_root).unwrap();
+    }
+
+    #[test]
+    fn revoked_recipient_never_connects_and_locked_identity_stops_listener() {
+        let root = temp_root("delivery-permissions");
+        let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+        core.handle(Command::UnlockIdentity).unwrap();
+        let Reply::DeliveryIdentity(public) = core.handle(Command::ExportDeliveryIdentity).unwrap()
+        else {
+            panic!("identity reply");
+        };
+        core.handle(Command::AuthorizeDeliveryPeer {
+            peer_id: "peer".into(),
+            endpoint: "127.0.0.1:9".into(),
+            root_kel: public.root_kel,
+            device_kel: public.device_kel,
+        })
+        .unwrap();
+        let Reply::Published(post) = core
+            .handle(Command::PublishPost {
+                operation_id: "post:1".into(),
+                text: "public".into(),
+            })
+            .unwrap()
+        else {
+            panic!("post reply");
+        };
+        core.handle(Command::QueuePublicDelivery {
+            operation_id: "send:1".into(),
+            peer_id: "peer".into(),
+            object_id: post.object_id,
+        })
+        .unwrap();
+        core.handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        core.handle(Command::RevokeDeliveryPeer {
+            peer_id: "peer".into(),
+        })
+        .unwrap();
+        let attempt = core.attempt_delivery("send:1", now_ms()).unwrap();
+        assert_eq!(
+            attempt.last_failure,
+            Some(mini_app_protocol::DeliveryFailure::Rejected)
+        );
+        assert_eq!(
+            attempt.state,
+            mini_app_protocol::DeliveryState::RetryWaiting
+        );
+        core.delivery_listener = Some(std::net::TcpListener::bind("127.0.0.1:0").unwrap());
+        core.handle(Command::LockIdentity).unwrap();
+        assert!(core.delivery_listener.is_none());
+        core.poll_delivery().unwrap();
+        assert_eq!(core.outbox.get("send:1").unwrap().unwrap().attempts, 1);
+        core.handle(Command::CancelDelivery {
+            operation_id: "send:1".into(),
+        })
+        .unwrap();
+        drop(core);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn queued_public_post_survives_locked_restart_and_cancellation_without_resigning() {
         let root = temp_root("durable-outbox");
         let vault = MemoryVault::seeded();
@@ -1549,6 +1768,16 @@ mod tests {
         else {
             panic!("publication reply");
         };
+        let identity = core.identity.as_ref().unwrap();
+        let root_kel = identity.root.kel().to_bytes();
+        let device_kel = identity.device.kel().to_bytes();
+        core.handle(Command::AuthorizeDeliveryPeer {
+            peer_id: "recipient".into(),
+            endpoint: "127.0.0.1:9".into(),
+            root_kel,
+            device_kel,
+        })
+        .unwrap();
         let next_sequence = core.next_sequence;
         let queue = Command::QueuePublicDelivery {
             operation_id: "send:1".into(),

@@ -8,7 +8,7 @@ use std::{
     fs,
     io::Read,
     net::SocketAddr,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 const MAGIC: &[u8; 8] = b"MINIDP01";
@@ -86,6 +86,7 @@ fn decode(bytes: &[u8]) -> Result<Peer, ServiceError> {
     else {
         return Err(bad("invalid peer record command"));
     };
+    validate_id(&peer_id)?;
     let root = Kel::from_bytes(&root_kel).map_err(io)?;
     let device = Kel::from_bytes(&device_kel).map_err(io)?;
     root.verify().map_err(io)?;
@@ -129,6 +130,26 @@ fn extends(old: &Kel, new: &Kel) -> bool {
 }
 impl PeerBook {
     pub fn open(root: PathBuf) -> Result<Self, ServiceError> {
+        let root = if root.is_absolute() {
+            root
+        } else {
+            std::env::current_dir().map_err(io)?.join(root)
+        };
+        let mut checked = PathBuf::new();
+        for component in root.components() {
+            if component == Component::ParentDir {
+                return Err(bad("peer book cannot contain parent traversal"));
+            }
+            checked.push(component);
+            match fs::symlink_metadata(&checked) {
+                Ok(meta) if !meta.is_dir() || meta.file_type().is_symlink() => {
+                    return Err(bad("peer book components must be real directories"))
+                }
+                Ok(_) => (),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+                Err(error) => return Err(io(error)),
+            }
+        }
         match fs::symlink_metadata(&root) {
             Ok(meta) if !meta.is_dir() || meta.file_type().is_symlink() => {
                 return Err(bad("peer book must be a real directory"))
@@ -160,6 +181,12 @@ impl PeerBook {
                 let peer = decode(&read(&path)?)?;
                 if filename != name(&peer.id) || peers.len() >= usize::from(MAX_DELIVERY_PEERS) {
                     return Err(bad("invalid peer record filename or count"));
+                }
+                if peers
+                    .iter()
+                    .any(|old: &Peer| old.root.did() == peer.root.did())
+                {
+                    return Err(bad("duplicate root identity in delivery peer book"));
                 }
                 peers.push(peer);
             } else if let Some((base, suffix)) = filename.split_once(".peer.") {
@@ -236,25 +263,56 @@ impl PeerBook {
         device_bytes: &[u8],
     ) -> Result<Peer, ServiceError> {
         validate_id(id)?;
-        if root_bytes.len() > MAX_DELIVERY_KEL_BYTES || device_bytes.len() > MAX_DELIVERY_KEL_BYTES
-        {
+        if root_bytes.len() > MAX_DELIVERY_KEL_BYTES {
             return Err(bad("peer KEL exceeds pairing limit"));
         }
         let root = Kel::from_bytes(root_bytes).map_err(io)?;
-        let device = Kel::from_bytes(device_bytes).map_err(io)?;
         root.verify().map_err(io)?;
-        device.verify().map_err(io)?;
-        if device.delegator() != Some(root.did()) {
-            return Err(bad("peer device belongs to another root"));
-        }
-        if let Some(old) = self.get(id)? {
-            if !extends(&old.root, &root) || !extends(&old.device, &device) {
+        let old = self.get(id)?;
+        if let Some(old) = &old {
+            if !extends(&old.root, &root) {
                 return Err(bad(
                     "peer label cannot change identity or roll back/fork trusted KEL history",
                 ));
             }
-        } else if self.list()?.len() >= usize::from(MAX_DELIVERY_PEERS) {
-            return Err(bad("delivery peer limit reached"));
+            // Authentic extending root evidence can revoke the already trusted
+            // device independently of any supplied device/address parameter.
+            // Persist that evidence first, retaining known-good device history
+            // and endpoint; invalid device input must never preserve an old grant.
+            if verify_delegation(&root, &old.device).is_err() {
+                let disabled = Peer {
+                    id: old.id.clone(),
+                    endpoint: old.endpoint,
+                    root,
+                    device: old.device.clone(),
+                    enabled: false,
+                };
+                self.write(&disabled)?;
+                return Ok(disabled);
+            }
+        }
+        if device_bytes.len() > MAX_DELIVERY_KEL_BYTES {
+            return Err(bad("peer KEL exceeds pairing limit"));
+        }
+        let device = Kel::from_bytes(device_bytes).map_err(io)?;
+        device.verify().map_err(io)?;
+        if device.delegator() != Some(root.did()) {
+            return Err(bad("peer device belongs to another root"));
+        }
+        if let Some(old) = old {
+            if !extends(&old.device, &device) {
+                return Err(bad(
+                    "peer label cannot change identity or roll back/fork trusted KEL history",
+                ));
+            }
+        } else {
+            let peers = self.list()?;
+            if peers.iter().any(|peer| peer.root.did() == root.did()) {
+                return Err(bad("delivery root already has a peer label; multiple devices/aliases are unsupported"));
+            }
+            if peers.len() >= usize::from(MAX_DELIVERY_PEERS) {
+                return Err(bad("delivery peer limit reached"));
+            }
         }
         // A newer authentic root that revoked this device must disable the old
         // grant, rather than leaving it active after a rejected update.
@@ -272,5 +330,213 @@ impl PeerBook {
         let mut peer = self.get(id)?.ok_or_else(|| bad("unknown delivery peer"))?;
         peer.enabled = false;
         self.write(&peer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use did_mini::{Capabilities, Controller};
+    struct Directory(PathBuf);
+    impl Directory {
+        fn new() -> Self {
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let root = fs::canonicalize(std::env::temp_dir())
+                .unwrap()
+                .join(format!(
+                    "mini-peerbook-{}-{}-{}",
+                    std::process::id(),
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos(),
+                    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                ));
+            fs::create_dir(&root).unwrap();
+            Self(root)
+        }
+    }
+    impl Drop for Directory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+    fn identity(seed: u8) -> (Controller, Controller) {
+        let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+        let device = Controller::incept_device_single_from_seeds(
+            &root.did(),
+            &[seed + 2; 32],
+            &[seed + 3; 32],
+        )
+        .unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        (root, device)
+    }
+    fn authorize(
+        book: &PeerBook,
+        id: &str,
+        root: &Controller,
+        device: &Controller,
+    ) -> Result<Peer, ServiceError> {
+        book.authorize(
+            id,
+            "127.0.0.1:7400",
+            &root.kel().to_bytes(),
+            &device.kel().to_bytes(),
+        )
+    }
+    #[test]
+    fn explicit_authorization_restart_revoke_preserve_label_identity() {
+        let dir = Directory::new();
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        let (root, device) = identity(10);
+        let (other, other_device) = identity(30);
+        let peer = authorize(&book, "friend", &root, &device).unwrap();
+        assert!(peer.enabled);
+        assert!(authorize(&book, "friend", &other, &other_device).is_err());
+        drop(book);
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        assert_eq!(book.get("friend").unwrap().unwrap().view(), peer.view());
+        book.revoke("friend").unwrap();
+        book.revoke("friend").unwrap();
+        drop(book);
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        let disabled = book.get("friend").unwrap().unwrap();
+        assert!(!disabled.enabled);
+        assert_eq!(disabled.root.did(), root.did());
+        assert!(book.revoke("missing").is_err());
+        assert!(book.get("missing").unwrap().is_none());
+    }
+    #[test]
+    fn kel_prefixes_are_monotonic_and_authentic_revocation_disables_durably() {
+        let dir = Directory::new();
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        let (mut root, mut device) = identity(11);
+        let (mut fork, old_device) = identity(11);
+        authorize(&book, "friend", &root, &device).unwrap();
+        root.rotate().unwrap();
+        device.rotate().unwrap();
+        authorize(&book, "friend", &root, &device).unwrap();
+        assert!(authorize(&book, "friend", &fork, &old_device).is_err());
+        let (_, mut fork_device) = identity(11);
+        fork_device.rotate().unwrap();
+        assert!(authorize(&book, "friend", &root, &fork_device).is_err());
+        fork.revoke_device(&old_device.did()).unwrap();
+        assert!(authorize(&book, "friend", &fork, &old_device).is_err());
+        root.revoke_device(&device.did()).unwrap();
+        let disabled = authorize(&book, "friend", &root, &device).unwrap();
+        assert!(!disabled.enabled);
+        drop(book);
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        assert!(!book.get("friend").unwrap().unwrap().enabled);
+        assert!(authorize(&book, "friend", &fork, &old_device).is_err());
+    }
+    #[test]
+    fn root_aliases_cannot_bypass_learned_revocation() {
+        let dir = Directory::new();
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        let (mut root, device) = identity(14);
+        let stale = root.kel().to_bytes();
+        authorize(&book, "friend", &root, &device).unwrap();
+        assert!(authorize(&book, "alias", &root, &device).is_err());
+        root.revoke_device(&device.did()).unwrap();
+        authorize(&book, "friend", &root, &device).unwrap();
+        assert!(book
+            .authorize("alias", "127.0.0.1:7400", &stale, &device.kel().to_bytes())
+            .is_err());
+        // Simulate a preexisting on-disk alias: reopening also refuses it.
+        let mut duplicate = book.get("friend").unwrap().unwrap();
+        duplicate.id = "alias".into();
+        book.write(&duplicate).unwrap();
+        assert!(PeerBook::open(dir.0.clone()).is_err());
+    }
+    #[test]
+    fn extending_root_revocation_persists_despite_invalid_device_parameters() {
+        for mode in 0..4 {
+            let dir = Directory::new();
+            let book = PeerBook::open(dir.0.clone()).unwrap();
+            let (mut root, mut device) = identity(13);
+            let (_, mut fork_device) = identity(13);
+            let stale = device.kel().to_bytes();
+            device.rotate().unwrap();
+            fork_device.rotate().unwrap();
+            authorize(&book, "friend", &root, &device).unwrap();
+            root.revoke_device(&device.did()).unwrap();
+            let supplied = match mode {
+                0 => stale,
+                1 => fork_device.kel().to_bytes(),
+                2 => vec![0xff],
+                _ => vec![0; MAX_DELIVERY_KEL_BYTES + 1],
+            };
+            let disabled = book
+                .authorize(
+                    "friend",
+                    "invalid endpoint",
+                    &root.kel().to_bytes(),
+                    &supplied,
+                )
+                .unwrap();
+            assert!(!disabled.enabled);
+            assert_eq!(disabled.device.to_bytes(), device.kel().to_bytes());
+            drop(book);
+            let book = PeerBook::open(dir.0.clone()).unwrap();
+            assert!(!book.get("friend").unwrap().unwrap().enabled);
+            assert_eq!(
+                book.get("friend").unwrap().unwrap().root.to_bytes(),
+                root.kel().to_bytes()
+            );
+        }
+    }
+    #[test]
+    fn malformed_oversized_and_missing_records_fail_closed_and_tombstones_count() {
+        let dir = Directory::new();
+        let book = PeerBook::open(dir.0.clone()).unwrap();
+        let (root, device) = identity(12);
+        assert!(book
+            .authorize(
+                "bad",
+                "localhost:7400",
+                &root.kel().to_bytes(),
+                &device.kel().to_bytes()
+            )
+            .is_err());
+        for index in 0..MAX_DELIVERY_PEERS {
+            let (peer_root, peer_device) = identity(index as u8 + 60);
+            authorize(&book, &format!("peer{index:02}"), &peer_root, &peer_device).unwrap();
+        }
+        book.revoke("peer00").unwrap();
+        assert!(authorize(&book, "overflow", &root, &device).is_err());
+        assert_eq!(book.list().unwrap().len(), usize::from(MAX_DELIVERY_PEERS));
+        let path = dir.0.join(name("peer00"));
+        let original = fs::read(&path).unwrap();
+        fs::write(&path, b"broken").unwrap();
+        assert!(book.get("peer00").is_err());
+        assert!(PeerBook::open(dir.0.clone()).is_err());
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(MAX_RECORD as u64 + 1).unwrap();
+        assert!(book.get("peer00").is_err());
+        drop(file);
+        fs::write(&path, &original).unwrap();
+        fs::remove_file(&path).unwrap();
+        assert!(book.get("peer00").unwrap().is_none());
+        fs::remove_dir_all(&dir.0).unwrap();
+        assert!(book.list().is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn symlink_records_and_ancestor_directories_are_not_followed() {
+        use std::os::unix::fs::symlink;
+        let dir = Directory::new();
+        let book = PeerBook::open(dir.0.join("book")).unwrap();
+        let outside = dir.0.join("outside");
+        fs::write(&outside, b"untouched").unwrap();
+        symlink(&outside, book.root.join(name("friend"))).unwrap();
+        assert!(book.get("friend").is_err());
+        assert!(book.list().is_err());
+        assert_eq!(fs::read(&outside).unwrap(), b"untouched");
+        symlink(&book.root, dir.0.join("link")).unwrap();
+        assert!(PeerBook::open(dir.0.join("link/newbook")).is_err());
+        assert!(!book.root.join("newbook").exists());
     }
 }

@@ -1343,6 +1343,80 @@ mod tests {
     use super::*;
 
     #[test]
+    fn delivery_peer_and_runtime_capabilities_round_trip_with_bounded_public_material() {
+        let commands = vec![
+            Command::ExportDeliveryIdentity,
+            Command::AuthorizeDeliveryPeer {
+                peer_id: "alice".into(),
+                endpoint: "127.0.0.1:7773".into(),
+                root_kel: vec![1, 2],
+                device_kel: vec![3, 4],
+            },
+            Command::RevokeDeliveryPeer {
+                peer_id: "alice".into(),
+            },
+            Command::DeliveryPeers,
+            Command::AttemptDelivery {
+                operation_id: "delivery:1".into(),
+            },
+            Command::SetDeliveryEnabled { enabled: true },
+            Command::SetDeliveryListener {
+                peer_id: "alice".into(),
+                endpoint: "0.0.0.0:7773".into(),
+            },
+            Command::StopDeliveryListener,
+            Command::DeliveryRuntimeStatus,
+        ];
+        for command in commands {
+            let request = Request::new(3, command);
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::DeliveryIdentity(DeliveryIdentity {
+                root_kel: vec![1, 2],
+                device_kel: vec![3, 4],
+            }),
+            Reply::DeliveryPeers(vec![DeliveryPeerView {
+                peer_id: "alice".into(),
+                endpoint: "127.0.0.1:7773".into(),
+                root_did: "root".into(),
+                device_did: "device".into(),
+                enabled: false,
+            }]),
+            Reply::DeliveryRuntime(DeliveryRuntimeView {
+                enabled: false,
+                listener_peer: Some("alice".into()),
+                listener_endpoint: Some("0.0.0.0:7773".into()),
+                listening: false,
+            }),
+        ] {
+            let response = Response::ok(3, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        assert!(Request::new(
+            3,
+            Command::AuthorizeDeliveryPeer {
+                peer_id: "alice".into(),
+                endpoint: "127.0.0.1:7773".into(),
+                root_kel: vec![0; MAX_DELIVERY_KEL_BYTES + 1],
+                device_kel: vec![3]
+            }
+        )
+        .validate()
+        .is_err());
+    }
+
+    #[test]
     fn durable_delivery_contract_round_trips_and_rejects_unbounded_lists() {
         let commands = vec![
             Command::QueuePublicDelivery {

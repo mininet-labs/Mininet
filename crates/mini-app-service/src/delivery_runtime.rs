@@ -166,11 +166,13 @@ impl<V: IdentityVault> Core<V> {
         ) {
             return Ok(delivery_view(&current));
         }
-        let peer = self.authorized_delivery_peer(&current.peer_id)?;
         let record = self.outbox.begin_attempt(id, now_ms)?;
         self.emit(ServiceEventKind::DeliveryChanged(delivery_view(&record)));
         let identity = self.identity.as_ref().expect("checked unlocked identity");
         let result = (|| {
+            let peer = self
+                .authorized_delivery_peer(&current.peer_id)
+                .map_err(|_| DeliveryFailure::Rejected)?;
             let routing = mini_crypto::AgreementSecretKey::generate()
                 .map_err(|_| DeliveryFailure::Unavailable)?
                 .public_key();
@@ -206,52 +208,54 @@ impl<V: IdentityVault> Core<V> {
             self.delivery_listener = None;
             return Ok(());
         }
-        if let Some((peer_id, address)) = self.delivery_policy.listener.clone() {
-            if let Ok(peer) = self.authorized_delivery_peer(&peer_id) {
-                if self.delivery_listener.is_none() {
-                    let listener = TcpListener::bind(address).map_err(io)?;
-                    listener.set_nonblocking(true).map_err(io)?;
-                    self.delivery_listener = Some(listener);
-                }
-                let accepted = self
-                    .delivery_listener
-                    .as_ref()
-                    .expect("bound listener")
-                    .accept();
-                match accepted {
-                    Ok((stream, _)) => {
-                        let identity = self.identity.as_ref().expect("unlocked");
-                        let routing = mini_crypto::AgreementSecretKey::generate()
-                            .map_err(io)?
-                            .public_key();
-                        let local = mini_transport_security::LocalSessionIdentity::new(
-                            identity.root.did(),
-                            &identity.device,
-                            routing,
-                        );
-                        if delivery_transport::receive(
-                            stream,
-                            local,
-                            &peer.root,
-                            &peer.device,
-                            &mut self.store,
-                            crate::now_ms(),
-                        )
-                        .is_ok()
-                        {
+        let incoming = (|| {
+            if let Some((peer_id, address)) = self.delivery_policy.listener.clone() {
+                if let Ok(peer) = self.authorized_delivery_peer(&peer_id) {
+                    if self.delivery_listener.is_none() {
+                        let listener = TcpListener::bind(address).map_err(io)?;
+                        listener.set_nonblocking(true).map_err(io)?;
+                        self.delivery_listener = Some(listener);
+                    }
+                    let accepted = self
+                        .delivery_listener
+                        .as_ref()
+                        .expect("bound listener")
+                        .accept();
+                    match accepted {
+                        Ok((stream, _)) => {
+                            let identity = self.identity.as_ref().expect("unlocked");
+                            let routing = mini_crypto::AgreementSecretKey::generate()
+                                .map_err(io)?
+                                .public_key();
+                            let local = mini_transport_security::LocalSessionIdentity::new(
+                                identity.root.did(),
+                                &identity.device,
+                                routing,
+                            );
+                            let _ = delivery_transport::receive(
+                                stream,
+                                local,
+                                &peer.root,
+                                &peer.device,
+                                &mut self.store,
+                                crate::now_ms(),
+                            );
+                            // Storage may have committed even when the ack was lost.
+                            // Refreshing the feed makes no delivery/read receipt claim.
                             self.emit(ServiceEventKind::FeedChanged);
                         }
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => (),
+                        Err(error) => return Err(io(error)),
                     }
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => (),
-                    Err(error) => return Err(io(error)),
+                } else {
+                    self.delivery_listener = None;
                 }
-            } else {
-                self.delivery_listener = None;
             }
-        }
+            Ok(())
+        })();
         if let Some(id) = self.outbox.next_due(crate::now_ms())? {
             self.attempt_delivery(&id, crate::now_ms())?;
         }
-        Ok(())
+        incoming
     }
 }

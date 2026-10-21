@@ -133,6 +133,7 @@ fn validate_object(bytes: &[u8]) -> Result<Object, DeliveryFailure> {
         return Err(DeliveryFailure::Rejected);
     }
     object.verify_integrity(object.id()).map_err(rejected)?;
+    mini_social::decode_post(&object).map_err(rejected)?;
     Ok(object)
 }
 fn establish(
@@ -217,6 +218,19 @@ pub(crate) fn receive(
     let bytes = message
         .strip_prefix(POST)
         .ok_or(DeliveryFailure::Rejected)?;
+    let id = ingest_post(peer_root, peer_device, store, bytes)?;
+    let mut receipt = ACK.to_vec();
+    receipt.extend_from_slice(id.as_bytes());
+    connection.send(&receipt, AAD).map_err(unavailable)?;
+    Ok(id)
+}
+
+fn ingest_post(
+    peer_root: &Kel,
+    peer_device: &Kel,
+    store: &mut Store<FsBackend>,
+    bytes: &[u8],
+) -> Result<String, DeliveryFailure> {
     let object = validate_object(bytes)?;
     if object.author_human != peer_root.did() || object.author_device != peer_device.did() {
         return Err(DeliveryFailure::Rejected);
@@ -226,9 +240,6 @@ pub(crate) fn receive(
     if store.get(object.id()).map_err(unavailable)?.to_bytes() != bytes {
         return Err(DeliveryFailure::Rejected);
     }
-    let mut receipt = ACK.to_vec();
-    receipt.extend_from_slice(object.id().as_str().as_bytes());
-    connection.send(&receipt, AAD).map_err(unavailable)?;
     Ok(object.id().as_str().to_string())
 }
 
@@ -260,15 +271,12 @@ mod tests {
         )
     }
     fn post(root: &Controller, device: &Controller) -> Vec<u8> {
-        ObjectBuilder::new(ObjectType::POST)
-            .sequence(1)
-            .payload(Payload::Public(b"one public post".to_vec()))
-            .sign(&root.did(), device)
+        mini_social::build_post(&root.did(), device, "one public post", 1000, 1)
             .unwrap()
             .to_bytes()
     }
     #[test]
-    fn authenticated_exact_post_retries_are_one_content_addressed_object() {
+    fn lost_and_forged_acknowledgements_never_deliver_and_retry_is_one_exact_object() {
         let (sender, sender_device) = identity(10);
         let (receiver, receiver_device) = identity(30);
         let bytes = post(&sender, &sender_device);
@@ -291,8 +299,36 @@ mod tests {
         let expected = bytes.clone();
         let worker = thread::spawn(move || {
             let mut store = Store::new(FsBackend::open(&path).unwrap());
-            for _ in 0..2 {
+            for round in 0..4 {
                 let (stream, _) = listener.accept().unwrap();
+                if round < 2 {
+                    let mut connection = establish(
+                        stream,
+                        local(&receiver, &receiver_device),
+                        &sender_root_kel,
+                        &sender_device_kel,
+                        1000,
+                        false,
+                    )
+                    .unwrap();
+                    let message = connection.recv(AAD).unwrap();
+                    ingest_post(
+                        &sender_root_kel,
+                        &sender_device_kel,
+                        &mut store,
+                        message.strip_prefix(POST).unwrap(),
+                    )
+                    .unwrap();
+                    if round == 1 {
+                        let mut wrong = ACK.to_vec();
+                        wrong.extend_from_slice(b"wrong-object-id");
+                        connection.send(&wrong, AAD).unwrap();
+                    }
+                    // Round zero deliberately loses the ACK after durable insert.
+                    drop(connection);
+                    assert_eq!(store.all_ids().unwrap(), vec![expected_id.clone()]);
+                    continue;
+                }
                 assert_eq!(
                     receive(
                         stream,
@@ -306,18 +342,23 @@ mod tests {
                     expected_id.as_str()
                 );
                 assert_eq!(store.get(&expected_id).unwrap().to_bytes(), expected);
+                assert_eq!(store.all_ids().unwrap(), vec![expected_id.clone()]);
             }
         });
-        for _ in 0..2 {
-            send(
+        for round in 0..4 {
+            let result = send(
                 TcpStream::connect(address).unwrap(),
                 local(&sender, &sender_device),
                 &receiver_root_kel,
                 &receiver_device_kel,
                 &bytes,
                 1000,
-            )
-            .unwrap();
+            );
+            if round < 2 {
+                assert!(result.is_err());
+            } else {
+                result.unwrap();
+            }
         }
         worker.join().unwrap();
         std::fs::remove_dir_all(cleanup).unwrap();
@@ -361,6 +402,12 @@ mod tests {
             .unwrap()
             .to_bytes();
         assert!(validate_object(&encrypted).is_err());
+        let malformed_text = ObjectBuilder::new(ObjectType::POST)
+            .payload(Payload::Public(vec![0xff]))
+            .sign(&sender.did(), &sender_device)
+            .unwrap()
+            .to_bytes();
+        assert!(validate_object(&malformed_text).is_err());
     }
     #[test]
     fn bounded_bearer_rejects_length_budget_and_absolute_dribble_deadline() {
