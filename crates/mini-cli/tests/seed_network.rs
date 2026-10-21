@@ -1357,6 +1357,37 @@ fn media_reference_expansion_and_history_tree_depth_fail_before_publication() {
     )
     .unwrap();
     let template = source.get(&empty.id).unwrap();
+    let Payload::Public(mut payload) = template.payload.clone() else {
+        panic!("fixture must be public")
+    };
+    let last = payload.len() - 1;
+    payload[last] ^= 1;
+    let wrong = ObjectBuilder::new(ObjectType::MEDIA_MANIFEST)
+        .payload(Payload::Public(payload))
+        .link("chunk", empty.chunks[0].clone())
+        .sign(&identity.human_did(), &identity.device)
+        .unwrap();
+    source.insert(&wrong).unwrap();
+    let wrong_output = temp.path().join("wrong-digest.bin");
+    assert!(cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "media-export",
+            "--root",
+            wrong.id().as_str(),
+            "--output",
+            wrong_output.to_str().unwrap()
+        ]
+    )
+    .is_err());
+    assert!(!wrong_output.exists());
+    assert!(!std::fs::read_dir(temp.path()).unwrap().any(|e| e
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .starts_with(".mininet-media-")));
     let mut builder =
         ObjectBuilder::new(ObjectType::MEDIA_MANIFEST).payload(template.payload.clone());
     for _ in 0..256 {
@@ -1451,4 +1482,81 @@ fn media_reference_expansion_and_history_tree_depth_fail_before_publication() {
         .leases()
         .unwrap()
         .is_empty());
+}
+
+#[test]
+fn shared_history_tree_fanout_is_bounded_without_materializing_files() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    let identity = mini_cli::identity::load(&h[0]).unwrap();
+    let mut source = mini_cli::store::open_store(&s[0]).unwrap();
+    let file =
+        mini_forge::put_file(&mut source, &identity.human_did(), &identity.device, b"").unwrap();
+    let entries: Vec<_> = (0..200)
+        .map(|n| mini_forge::TreeEntry {
+            name: format!("f{n:03}"),
+            is_dir: false,
+            target: file.clone(),
+        })
+        .collect();
+    let leaf = mini_forge::put_tree(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        &entries,
+    )
+    .unwrap();
+    let directories: Vec<_> = (0..200)
+        .map(|n| mini_forge::TreeEntry {
+            name: format!("d{n:03}"),
+            is_dir: true,
+            target: leaf.clone(),
+        })
+        .collect();
+    let middle = mini_forge::put_tree(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        &directories,
+    )
+    .unwrap();
+    let top: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|name| mini_forge::TreeEntry {
+            name: (*name).into(),
+            is_dir: true,
+            target: middle.clone(),
+        })
+        .collect();
+    let tree =
+        mini_forge::put_tree(&mut source, &identity.human_did(), &identity.device, &top).unwrap();
+    let commit = mini_forge::commit(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "fanout",
+        &tree,
+        &[],
+        0,
+        0,
+    )
+    .unwrap();
+    let error = cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-preview",
+            "--root",
+            commit.id().as_str(),
+            "--kind",
+            "history",
+            "--days",
+            "1",
+            "--output",
+            temp.path().join("fanout.json").to_str().unwrap(),
+        ],
+    )
+    .unwrap_err();
+    assert!(error.contains("expanded checkout"), "{error}");
 }

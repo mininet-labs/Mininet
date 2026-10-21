@@ -170,7 +170,8 @@ where
     ObjectId::parse(root).map_err(err)?;
     let mut queue = VecDeque::from([root.to_string()]);
     let mut expected = BTreeMap::from([(root.to_string(), root_expected(kind))]);
-    let mut trees: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut trees: BTreeMap<String, Vec<(String, bool)>> = BTreeMap::new();
+    let mut file_sizes = BTreeMap::new();
     let mut entries = BTreeMap::new();
     let mut total = 0u64;
     while let Some(id) = queue.pop_front() {
@@ -199,10 +200,19 @@ where
                 id.clone(),
                 dependencies
                     .iter()
-                    .filter(|(_, kind)| *kind == Expected::History(SourceNodeKind::Tree))
-                    .map(|(id, _)| id.as_str().to_string())
+                    .map(|(id, k)| {
+                        (
+                            id.as_str().to_string(),
+                            *k == Expected::History(SourceNodeKind::Tree),
+                        )
+                    })
                     .collect(),
             );
+        }
+        if expected[&id] == Expected::History(SourceNodeKind::File) {
+            if let mini_objects::Payload::Public(bytes) = &obj.payload {
+                file_sizes.insert(id.clone(), bytes.len() as u64);
+            }
         }
         entries.insert(
             id.clone(),
@@ -227,39 +237,75 @@ where
             }
         }
     }
-    check_tree_depth(&trees)?;
+    check_tree_work(&trees, &file_sizes)?;
     Ok((entries.into_values().collect(), total))
 }
-fn check_tree_depth(trees: &BTreeMap<String, Vec<String>>) -> Result<()> {
-    let mut heights: BTreeMap<String, usize> = BTreeMap::new();
+fn check_tree_work(
+    trees: &BTreeMap<String, Vec<(String, bool)>>,
+    file_sizes: &BTreeMap<String, u64>,
+) -> Result<()> {
+    #[derive(Clone, Copy)]
+    struct Work {
+        height: usize,
+        files: usize,
+        bytes: u64,
+    }
+    let mut work: BTreeMap<String, Work> = BTreeMap::new();
     let mut active = std::collections::BTreeSet::new();
     for root in trees.keys() {
         let mut stack = vec![(root.clone(), false)];
         while let Some((id, exit)) = stack.pop() {
-            if heights.contains_key(&id) {
+            if work.contains_key(&id) {
                 continue;
             }
             let children = trees
                 .get(&id)
                 .ok_or_else(|| err("missing tree dependency"))?;
             if exit {
-                let height = 1 + children
-                    .iter()
-                    .map(|c| heights.get(c).copied().unwrap_or(0))
-                    .max()
-                    .unwrap_or(0);
-                if height > mini_forge::MAX_TREE_DEPTH + 1 {
-                    return Err(err("history exceeds native tree depth"));
+                let mut total = Work {
+                    height: 1,
+                    files: 0,
+                    bytes: 0,
+                };
+                for (child, is_dir) in children {
+                    let next = if *is_dir {
+                        *work.get(child).ok_or_else(|| err("incomplete tree work"))?
+                    } else {
+                        Work {
+                            height: 0,
+                            files: 1,
+                            bytes: *file_sizes
+                                .get(child)
+                                .ok_or_else(|| err("missing file dependency"))?,
+                        }
+                    };
+                    total.height = total.height.max(next.height + 1);
+                    total.files = total
+                        .files
+                        .checked_add(next.files)
+                        .ok_or_else(|| err("checkout file count overflow"))?;
+                    total.bytes = total
+                        .bytes
+                        .checked_add(next.bytes)
+                        .ok_or_else(|| err("checkout byte count overflow"))?;
+                    if total.height > mini_forge::MAX_TREE_DEPTH + 1 {
+                        return Err(err("history exceeds native tree depth"));
+                    }
+                    if total.files > mini_forge::MAX_CHECKOUT_FILES
+                        || total.bytes > mini_forge::MAX_CHECKOUT_BYTES as u64
+                    {
+                        return Err(err("history exceeds native expanded checkout limits"));
+                    }
                 }
-                heights.insert(id.clone(), height);
+                work.insert(id.clone(), total);
                 active.remove(&id);
             } else {
                 if !active.insert(id.clone()) {
                     return Err(err("source tree cycle"));
                 }
                 stack.push((id, true));
-                for child in children {
-                    if !heights.contains_key(child) {
+                for (child, is_dir) in children {
+                    if *is_dir && !work.contains_key(child) {
                         stack.push((child.clone(), false));
                     }
                 }
@@ -351,6 +397,13 @@ fn media_check(
         .map_err(err)
     }
 }
+fn canonical_path(path: &Path) -> Result<String> {
+    path.canonicalize()
+        .map_err(err)?
+        .to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| err("collection path must be valid UTF-8"))
+}
 fn plan(home: &Path, path: &Path, root: &str, kind: Kind, days: u16) -> Result<Preview> {
     if !(1..=3650).contains(&days) {
         return Err(err("days must be1..3650"));
@@ -368,8 +421,8 @@ fn plan(home: &Path, path: &Path, root: &str, kind: Kind, days: u16) -> Result<P
     let plan = Plan {
         version: 1,
         owner,
-        home: home.canonicalize().map_err(err)?.to_string_lossy().into(),
-        source: path.canonicalize().map_err(err)?.to_string_lossy().into(),
+        home: canonical_path(home)?,
+        source: canonical_path(path)?,
         root: root.into(),
         kind,
         days,
@@ -390,11 +443,14 @@ fn create_document(path: &Path, bytes: &[u8]) -> Result<()> {
     if bytes.len() > MAX_PREVIEW {
         return Err(err("collection document exceeds bound"));
     }
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(err)?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path).map_err(err)?;
     file.write_all(bytes)
         .and_then(|_| file.sync_all())
         .map_err(err)?;
@@ -557,7 +613,7 @@ pub(super) fn dispatch(
                 &serde_json::to_vec_pretty(&preview).map_err(err)?,
             )?;
             Ok(
-                json!({"preview_id":preview.id,"output":output,"objects":preview.plan.objects.len(),"bytes":preview.plan.total_bytes,"days":days,"sharing_started":false,"note":"Confirmation selects every listed public object and resets its pool retention from apply time."}),
+                json!({"preview_id":preview.id,"output":output,"objects":preview.plan.objects.len(),"bytes":preview.plan.total_bytes,"days":days,"reconstructed_bytes":preview.plan.reconstructed_bytes,"sharing_started":false,"note":"Confirmation selects every listed public object and resets its pool retention from apply time."}),
             )
         }
         "collection-add" => {
