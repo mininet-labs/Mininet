@@ -54,7 +54,7 @@ impl Panel {
         self.patches.poll();
     }
     pub(crate) fn edit_in_progress(&self) -> bool {
-        self.patches.is_applying()
+        self.patches.is_writing()
     }
 
     fn poll(&mut self) {

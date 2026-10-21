@@ -55,14 +55,18 @@ fn read_document(path: &Path) -> Result<Vec<u8>> {
     Ok(data)
 }
 fn write_new(path: &Path, data: &[u8]) -> Result<()> {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(error)?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path).map_err(error)?;
     file.write_all(data)
         .and_then(|_| file.sync_all())
-        .map_err(error)
+        .map_err(error)?;
+    mini_durable::sync_parent(path).map_err(error)
 }
 fn number(args: &mut Vec<String>, flag: &str) -> Result<u64> {
     required(args, flag)?
@@ -77,7 +81,7 @@ pub fn dispatch(
     as_json: bool,
 ) -> Result<String> {
     if args.is_empty() {
-        return Err(usage("resident status | configure | ask | inspect | search | check | hosting | fees | patch-preview | patch-apply"));
+        return Err(usage("resident status | configure | ask | inspect | search | check | hosting | fees | patch-preview | patch-apply | draft-save | draft-inspect | draft-resume | draft-clear"));
     }
     let command = args.remove(0);
     let (human, value): (String, Value) = match command.as_str() {
@@ -220,6 +224,49 @@ pub fn dispatch(
                 .ok_or_else(|| usage("fee estimate overflow"))?;
             let value = json!({"estimated_units":units,"within_owner_budget":units<=cap,"max_units":cap,"price_source":"owner supplied arithmetic inputs","network_quote_verified":false,"currency_authorized":false,"funds_spent":0});
             (serde_json::to_string_pretty(&value).map_err(error)?, value)
+        }
+        "draft-save" => {
+            let workspace = workspace(&mut args)?;
+            let edits_path = PathBuf::from(required(&mut args, "--edits")?);
+            no_more(&args)?;
+            let edits: Vec<PatchEdit> =
+                serde_json::from_slice(&read_document(&edits_path)?).map_err(error)?;
+            let saved = workspace.save_draft(&edits).map_err(error)?;
+            (format!("Saved staged draft {} privately in .resident-draft.json. No source changed; confirmation was not saved.",saved.preview.id),json!({"draft_id":saved.preview.id,"paths":saved.preview.edits.iter().map(|e|&e.path).collect::<Vec<_>>(),"saved":true,"source_changed":false,"confirmation_saved":false}))
+        }
+        "draft-inspect" => {
+            let workspace = workspace(&mut args)?;
+            no_more(&args)?;
+            let info = workspace.draft_info().map_err(error)?;
+            (
+                format!(
+                    "Stored draft {}: {}. Current source has not been validated.",
+                    info.id,
+                    info.paths.join(", ")
+                ),
+                json!({"draft_id":info.id,"paths":info.paths,"source_validated":false,"applied":false}),
+            )
+        }
+        "draft-resume" => {
+            let workspace = workspace(&mut args)?;
+            let output = PathBuf::from(required(&mut args, "--output")?);
+            no_more(&args)?;
+            let saved = workspace.load_draft().map_err(error)?;
+            write_new(
+                &output,
+                &serde_json::to_vec_pretty(&saved.preview).map_err(error)?,
+            )?;
+            (format!("Saved draft revalidated and exported to {}. Review the full preview and type its exact ID to apply; no source changed.",output.display()),json!({"preview":saved.preview,"output":output,"source_validated":true,"applied":false}))
+        }
+        "draft-clear" => {
+            let workspace = workspace(&mut args)?;
+            let confirmation = required(&mut args, "--confirm")?;
+            no_more(&args)?;
+            workspace.clear_draft(&confirmation).map_err(error)?;
+            (
+                format!("Removed stored draft {confirmation}. Source files unchanged."),
+                json!({"draft_id":confirmation,"removed":true,"source_changed":false}),
+            )
         }
         "patch-preview" => {
             let workspace = workspace(&mut args)?;

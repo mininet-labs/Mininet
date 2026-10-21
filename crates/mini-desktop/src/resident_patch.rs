@@ -1,7 +1,9 @@
 //! Owner-reviewed edits. Provider output enters only as an editable draft;
 //! filesystem writes require a current preview and a separate exact confirmation.
 use eframe::egui;
-use mini_resident::{ContextItem, PatchEdit, PatchPreview, PatchReceipt, Workspace};
+use mini_resident::{
+    ContextItem, DraftInfo, PatchEdit, PatchPreview, PatchReceipt, SavedDraft, Workspace,
+};
 use std::path::Path;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
@@ -18,10 +20,14 @@ enum Outcome {
     Loaded(Loaded),
     Preview(PatchPreview),
     Applied(PatchReceipt),
+    Saved(SavedDraft),
+    Resumed(SavedDraft),
+    DraftInfo(DraftInfo),
+    Cleared(String),
 }
 struct Pending {
     receiver: Receiver<Result<Outcome, String>>,
-    applying: bool,
+    writing: bool,
     root: String,
 }
 #[derive(Default)]
@@ -37,15 +43,19 @@ pub(crate) struct Panel {
     confirmation: String,
     pending: Option<Pending>,
     status: String,
+    saved_info: Option<DraftInfo>,
+    delete_confirmation: String,
+    replace_unsaved: bool,
 }
 impl Panel {
     pub(crate) fn is_busy(&self) -> bool {
         self.pending.is_some()
     }
-    pub(crate) fn is_applying(&self) -> bool {
-        self.pending.as_ref().is_some_and(|p| p.applying)
+    pub(crate) fn is_writing(&self) -> bool {
+        self.pending.as_ref().is_some_and(|p| p.writing)
     }
     fn invalidate(&mut self) {
+        self.replace_unsaved = false;
         self.preview = None;
         self.confirmation.clear();
     }
@@ -58,6 +68,9 @@ impl Panel {
         self.replacement.clear();
         self.replacement_dirty = false;
         self.edits.clear();
+        self.saved_info = None;
+        self.delete_confirmation.clear();
+        self.replace_unsaved = false;
         self.invalidate();
         self.status =
             "Workspace changed. Draft files, review and confirmation were cleared.".into();
@@ -79,7 +92,7 @@ impl Panel {
     }
     fn spawn(
         &mut self,
-        applying: bool,
+        writing: bool,
         work: impl FnOnce() -> Result<Outcome, String> + Send + 'static,
     ) {
         if self.is_busy() {
@@ -94,10 +107,10 @@ impl Panel {
             Ok(_) => {
                 self.pending = Some(Pending {
                     receiver,
-                    applying,
+                    writing,
                     root: self.root.clone(),
                 });
-                self.status = if applying { "Applying the exact reviewed edit. This write cannot be cancelled; wait for its receipt." } else { "Reading and validating the selected workspace locally…" }.into();
+                self.status = if writing { "Completing the requested local write. It cannot be cancelled halfway through; wait for its result." } else { "Reading and validating the selected workspace locally…" }.into();
             }
             Err(e) => self.status = e.to_string(),
         }
@@ -139,6 +152,32 @@ impl Panel {
                 self.preview = Some(preview);
                 self.status = "Preview ready. Review every original and replacement; type the exact ID to authorize these writes.".into();
             }
+            Ok(Outcome::Saved(saved)) => {
+                let id = saved.preview.id;
+                self.saved_info = Some(DraftInfo {
+                    id: id.clone(),
+                    paths: saved.preview.edits.iter().map(|e| e.path.clone()).collect(),
+                });
+                self.delete_confirmation.clear();
+                self.invalidate();
+                self.status = format!("Saved staged draft {id} privately in .resident-draft.json. Source files are unchanged. Review again before applying.");
+            }
+            Ok(Outcome::Resumed(saved)) => {
+                self.resume(saved);
+                self.status = "Saved edits resumed with fresh baseline checks. Inspect the staged files and create a fresh preview; no confirmation or apply was restored.".into();
+            }
+            Ok(Outcome::DraftInfo(info)) => {
+                self.saved_info = Some(info);
+                self.delete_confirmation.clear();
+                self.status = "Stored draft metadata inspected. This does not prove the source files still match; Resume performs those checks.".into();
+            }
+            Ok(Outcome::Cleared(id)) => {
+                self.saved_info = None;
+                self.delete_confirmation.clear();
+                self.status = format!(
+                    "Removed stored draft {id}. Source files and in-memory edits were not changed."
+                );
+            }
             Ok(Outcome::Applied(receipt)) => {
                 self.edits.clear();
                 self.loaded = None;
@@ -148,6 +187,56 @@ impl Panel {
                 self.status = format!("Applied preview {} to workspace {}: {}. {}. This is a local file edit, not a commit, test result, approval or publication.",receipt.preview_id,pending.root,receipt.patched_paths.join(", "),receipt.provenance.label);
             }
         }
+    }
+    fn resume(&mut self, saved: SavedDraft) {
+        self.saved_info = Some(DraftInfo {
+            id: saved.preview.id.clone(),
+            paths: saved.preview.edits.iter().map(|e| e.path.clone()).collect(),
+        });
+        self.edits = saved
+            .preview
+            .edits
+            .into_iter()
+            .map(|edit| {
+                let original = saved
+                    .originals
+                    .iter()
+                    .find(|f| f.path == edit.path)
+                    .map(|f| f.content.clone());
+                Edit { edit, original }
+            })
+            .collect();
+        self.path.clear();
+        self.loaded = None;
+        self.replacement.clear();
+        self.replacement_dirty = false;
+        self.replace_unsaved = false;
+        self.delete_confirmation.clear();
+        self.invalidate();
+    }
+    fn edit_staged(&mut self, index: usize) {
+        let entry = &self.edits[index];
+        self.path = entry.edit.path.clone();
+        self.create = entry.edit.before_hash.is_none();
+        self.loaded = Some(Loaded {
+            path: self.path.clone(),
+            original: entry.original.as_ref().map(|content| ContextItem {
+                path: self.path.clone(),
+                content: content.clone(),
+                hash: entry
+                    .edit
+                    .before_hash
+                    .clone()
+                    .expect("existing baseline has hash"),
+            }),
+        });
+        self.replacement = entry.edit.replacement.clone();
+        self.replacement_dirty = true;
+        self.invalidate();
+        self.status = "Staged replacement loaded into the editor. Changes remain unstaged until Stage this file is clicked; source is rechecked before preview/apply.".into();
+    }
+    fn can_resume(&self) -> bool {
+        self.replace_unsaved || (self.edits.is_empty() && !self.replacement_dirty)
     }
     fn load(&mut self) {
         let (root, path, create) = (self.root.clone(), self.path.trim().to_owned(), self.create);
@@ -223,16 +312,52 @@ impl Panel {
                 if ui.add_enabled(!self.root.trim().is_empty() && !self.path.trim().is_empty(),egui::Button::new("Load / validate file baseline")).clicked() { self.load(); }
                 ui.label("Complete replacement text (an empty replacement creates an empty file; it does not delete the path)");
                 if ui.add(egui::TextEdit::multiline(&mut self.replacement).code_editor().desired_rows(8).desired_width(f32::INFINITY).char_limit(mini_resident::MAX_CONTEXT_BYTES)).changed() { self.replacement_dirty = true; self.invalidate(); }
-                if ui.add_enabled(self.loaded.is_some(),egui::Button::new("Stage this file for review")).clicked() { self.status = match self.stage() { Ok(())=>"File staged. Create a fresh preview before applying.".into(),Err(e)=>e }; }
+                if ui.add_enabled(self.loaded.is_some(),egui::Button::new("Stage this file for review")).clicked() { self.status = match self.stage() { Ok(())=>"File staged. Create a fresh preview before writing.".into(),Err(e)=>e }; }
                 ui.separator();
                 ui.label(format!("{} staged files (maximum 16 / 256 KiB replacement bytes)",self.edits.len()));
                 let mut remove = None;
-                for (index,entry) in self.edits.iter().enumerate() { ui.horizontal(|ui| { ui.monospace(format!("{} — {} bytes",entry.edit.path,entry.edit.replacement.len())); if ui.button("Remove").clicked() { remove = Some(index); } }); }
+                let mut edit_index = None;
+                for (index, entry) in self.edits.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.monospace(format!("{} — {} bytes", entry.edit.path, entry.edit.replacement.len()));
+                        if ui.button("Edit staged replacement").clicked() { edit_index = Some(index); }
+                        if ui.button("Remove").clicked() { remove = Some(index); }
+                    });
+                }
+                if let Some(index) = edit_index { self.edit_staged(index); }
                 if let Some(index) = remove { self.edits.remove(index); self.invalidate(); }
                 if ui.add_enabled(!self.edits.is_empty(),egui::Button::new("Validate and preview all staged edits")).clicked() {
                     self.invalidate();
                     let root = self.root.clone(); let edits = self.edits.iter().map(|e|e.edit.clone()).collect::<Vec<_>>();
                     self.spawn(false, move || Workspace::open(Path::new(&root)).and_then(|w|w.preview_patch(&edits)).map(Outcome::Preview).map_err(|e|e.to_string()));
+                }
+            });
+            egui::CollapsingHeader::new("Save and resume staged edits locally").show(ui, |ui| {
+                ui.label("Save writes staged edits to .resident-draft.json in this workspace, replacing its previous saved draft. Unstaged editor text is not saved. The file contains source replacements in plaintext: keep it private. Saving does not change source files or authorize applying them.");
+                if ui.add_enabled(idle && !self.edits.is_empty(), egui::Button::new("Save / replace stored staged draft")).clicked() {
+                    self.invalidate(); let root=self.root.clone(); let edits=self.edits.iter().map(|e|e.edit.clone()).collect::<Vec<_>>();
+                    self.spawn(true,move || Workspace::open(Path::new(&root)).and_then(|w|w.save_draft(&edits)).map(Outcome::Saved).map_err(|e|e.to_string()));
+                }
+                if ui.add_enabled(idle && !self.root.trim().is_empty(),egui::Button::new("Inspect stored draft metadata")).clicked() {
+                    let root=self.root.clone();
+                    self.spawn(false,move || Workspace::open(Path::new(&root)).and_then(|w|w.draft_info()).map(Outcome::DraftInfo).map_err(|e|e.to_string()));
+                }
+                if !self.edits.is_empty() || self.replacement_dirty { ui.add_enabled(idle,egui::Checkbox::new(&mut self.replace_unsaved,"Resume may replace these in-memory staged edits and editor text")); }
+                if ui.add_enabled(idle && self.can_resume() && !self.root.trim().is_empty(),egui::Button::new("Resume and revalidate stored staged edits")).clicked() {
+                    self.replace_unsaved=false; self.invalidate(); let root=self.root.clone();
+                    self.spawn(false,move || Workspace::open(Path::new(&root)).and_then(|w|w.load_draft()).map(Outcome::Resumed).map_err(|e|e.to_string()));
+                }
+                let mut remove=None;
+                if let Some(info)=&self.saved_info {
+                    ui.label(format!("Stored draft ID: {}",info.id));
+                    for path in &info.paths { ui.monospace(path); }
+                    ui.label("Remove only the stored draft by typing its exact ID. This leaves source and in-memory edits intact, and can remove a stale draft.");
+                    ui.add_enabled(idle,egui::TextEdit::singleline(&mut self.delete_confirmation));
+                    if ui.add_enabled(idle && self.delete_confirmation == info.id,egui::Button::new("Remove this stored draft")).clicked() { remove=Some(info.id.clone()); }
+                }
+                if let Some(id)=remove {
+                    self.delete_confirmation.clear(); let root=self.root.clone();
+                    self.spawn(true,move || { Workspace::open(Path::new(&root)).and_then(|w|w.clear_draft(&id)).map_err(|e|e.to_string())?; Ok(Outcome::Cleared(id)) });
                 }
             });
             let mut apply = None;
@@ -257,8 +382,8 @@ impl Panel {
                 self.invalidate(); let root = self.root.clone();
                 self.spawn(true,move || Workspace::open(Path::new(&root)).and_then(|w|w.apply_patch(&preview,&confirmation)).map(Outcome::Applied).map_err(|e|e.to_string()));
             }
-            if ui.add_enabled(idle,egui::Button::new("Discard all edit drafts and review")).clicked() { self.edits.clear(); self.loaded = None; self.replacement.clear(); self.replacement_dirty = false; self.invalidate(); self.status = "Unapplied edit drafts discarded.".into(); }
-            if let Some(pending) = &self.pending { ui.label(if pending.applying { "Writing the exact approved local patch; do not close the application." } else { "Reading/validating locally…" }); }
+            if ui.add_enabled(idle,egui::Button::new("Discard in-memory edits and review")).clicked() { self.edits.clear(); self.loaded = None; self.replacement.clear(); self.replacement_dirty = false; self.invalidate(); self.status = "Unapplied edit drafts discarded.".into(); }
+            if let Some(pending) = &self.pending { ui.label(if pending.writing { "Completing the requested local write; do not close the application." } else { "Reading/validating locally…" }); }
             ui.label(&self.status);
         });
         if self.is_busy() {
@@ -338,7 +463,7 @@ mod tests {
             .unwrap();
         panel.pending = Some(Pending {
             receiver,
-            applying: false,
+            writing: false,
             root: "workspace".into(),
         });
         panel.poll();
@@ -356,5 +481,56 @@ mod tests {
         );
         assert!(panel.edits.is_empty() && panel.preview.is_none());
         assert!(panel.pending.is_none());
+    }
+    #[test]
+    fn resumed_edits_never_restore_apply_authorization_or_replace_without_acknowledgement() {
+        let mut panel = loaded_panel();
+        panel.stage().unwrap();
+        assert!(!panel.can_resume());
+        panel.replace_unsaved = true;
+        assert!(panel.can_resume());
+        panel.confirmation = "old-authorization".into();
+        let edit = PatchEdit {
+            path: "restored.rs".into(),
+            before_hash: Some(mini_resident::content_hash(b"baseline")),
+            replacement: "saved edit".into(),
+        };
+        panel.resume(SavedDraft {
+            preview: PatchPreview {
+                id: "saved-id".into(),
+                edits: vec![edit],
+                provenance: Default::default(),
+            },
+            originals: vec![ContextItem {
+                path: "restored.rs".into(),
+                content: "baseline".into(),
+                hash: mini_resident::content_hash(b"baseline"),
+            }],
+        });
+        assert_eq!(panel.edits.len(), 1);
+        assert_eq!(panel.edits[0].edit.path, "restored.rs");
+        assert_eq!(panel.edits[0].original.as_deref(), Some("baseline"));
+        assert!(panel.preview.is_none() && panel.confirmation.is_empty());
+        assert!(!panel.replace_unsaved && !panel.can_resume());
+        assert_eq!(panel.saved_info.as_ref().unwrap().id, "saved-id");
+        panel.sync_root("other");
+        assert!(panel.saved_info.is_none() && panel.delete_confirmation.is_empty());
+    }
+    #[test]
+    fn editing_a_resumed_file_keeps_the_original_hash_and_requires_restaging() {
+        let mut panel = loaded_panel();
+        panel.stage().unwrap();
+        panel.replacement = "unrelated unsaved text".into();
+        panel.edit_staged(0);
+        assert_eq!(panel.replacement, "after");
+        panel.replacement = "revised draft".into();
+        assert_eq!(panel.edits[0].edit.replacement, "after");
+        panel.stage().unwrap();
+        assert_eq!(
+            panel.edits[0].edit.before_hash.as_deref(),
+            Some(mini_resident::content_hash(b"before").as_str())
+        );
+        assert_eq!(panel.edits[0].edit.replacement, "revised draft");
+        assert!(panel.preview.is_none() && panel.confirmation.is_empty());
     }
 }

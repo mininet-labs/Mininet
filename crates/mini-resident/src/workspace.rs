@@ -411,12 +411,10 @@ impl Workspace {
     ) -> Result<PatchReceipt> {
         self.apply_patch_inner(preview, owner_confirmation, |_| {})
     }
-    fn apply_patch_inner(
-        &self,
-        preview: &PatchPreview,
-        owner_confirmation: &str,
-        mut before_publication: impl FnMut(usize),
-    ) -> Result<PatchReceipt> {
+    pub(crate) fn root_path(&self) -> &Path {
+        &self.root
+    }
+    pub(crate) fn patch_lock(&self) -> Result<fs::File> {
         let lock = self.root.join(".resident-patch.lock");
         match fs::symlink_metadata(&lock) {
             Ok(meta) if !meta.is_file() || meta.file_type().is_symlink() => {
@@ -428,11 +426,19 @@ impl Workspace {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
             Err(e) => return Err(e.into()),
         }
-        let _guard = mini_durable::try_lock_exclusive(&lock).map_err(|e| {
+        mini_durable::try_lock_exclusive(&lock).map_err(|e| {
             ResidentError(format!(
                 "Resident patch workspace busy or lock unavailable: {e}"
             ))
-        })?;
+        })
+    }
+    fn apply_patch_inner(
+        &self,
+        preview: &PatchPreview,
+        owner_confirmation: &str,
+        mut before_publication: impl FnMut(usize),
+    ) -> Result<PatchReceipt> {
+        let _guard = self.patch_lock()?;
         let checked = self.preview_patch(&preview.edits)?;
         if preview != &checked || owner_confirmation != checked.id {
             return Err(ResidentError(

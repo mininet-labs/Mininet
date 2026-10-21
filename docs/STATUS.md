@@ -3200,3 +3200,10 @@ files use no-overwrite publication. Recovery artifacts are excluded from context
 and Forge snapshots. This is an owner-reviewed local edit workflow, not autonomous
 coding, test execution, proposal submission, multi-file crash atomicity or a
 statement that the wider Mininet platform is production-ready.
+
+Resident reviewed edits now have explicit workspace-local staged-draft save,
+resume, metadata inspection and exact-ID removal in desktop and CLI. Resume
+revalidates current source, rebuilds original review text and restores no apply
+authorization. Private bounded source checkpoints are excluded from model context,
+Forge snapshots and Git staging rules in this repository. Unstaged editor text,
+autosave, durable execution receipts and automatic crash recovery are not added.

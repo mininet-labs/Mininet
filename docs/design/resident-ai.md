@@ -193,3 +193,60 @@ in any Git-backed workspace before mirroring it (this repository includes the
 rule); native Forge snapshots exclude these artifacts independently. No shell/test execution, automatic
 commit, native proposal submission, model-generated multi-step agent loop or
 production readiness of the wider ecosystem is claimed by this feature.
+
+## Save and resume staged edits
+
+The desktop edit composer now has **Save and resume staged edits locally**.
+Saving explicitly writes the staged file list into the selected workspace's
+`.resident-draft.json`, replacing that workspace's previous saved draft.
+Unstaged replacement text is not saved. This is one checkpoint per workspace,
+not an edit-history database. Nothing is saved automatically on navigation,
+conversation changes or application exit.
+
+The checkpoint contains replacement source text, original hashes, exact workspace
+binding and advisory provenance. It is plaintext: keep the workspace private.
+Unix files are created with mode 0600 and permissive or hard-linked saved files
+are refused; Windows inherits the owner-controlled workspace's ACL, with no
+keychain/encryption guarantee. Both saved files and their publication temporaries
+are excluded from Resident context/search and native Forge workspace snapshots.
+Add `.resident-draft*` to Git-backed workspaces' ignore rules (included here).
+Explicit preview exports likewise use private Unix creation and never overwrite
+an existing output.
+
+**Resume and revalidate stored staged edits** verifies the strict bounded saved
+schema, canonical workspace binding, exact preview hash, advisory provenance and
+current source baselines. Originals shown in review are read fresh from the
+workspace and matched to the saved hashes. A stale/foreign/tampered draft is
+refused without discarding it or altering source. Resuming replaces in-memory
+edits only after the owner's explicit acknowledgement when staged edits or editor
+text exist. It restores neither an apply confirmation nor an authorized preview:
+create a fresh preview and confirm normally before writing source.
+
+**Inspect stored draft metadata** displays its exact ID and file paths without
+claiming current source still matches. This allows stale drafts to be removed
+inside Mininet: type that exact ID to remove only the stored checkpoint. The ID
+is rechecked under the same workspace lock as saves/applies. Removal changes no
+source files or in-memory edits, and applying a patch does not silently erase its
+saved checkpoint. Corrupt/unsupported/permissive artifacts fail closed and need
+owner inspection outside this workflow. Saved bytes are bounded to 2 MiB, staged
+replacement bytes to 256 KiB/16 edits, and fresh original review bytes to at most
+16 individually bounded 256 KiB files.
+
+Equivalent owner-invoked CLI operations:
+
+```text
+mini --json resident draft-save --workspace <root> --edits edits.json
+mini --json resident draft-inspect --workspace <root>
+mini --json resident draft-resume --workspace <root> --output new-preview.json
+mini --json resident patch-apply --workspace <root> --preview new-preview.json --confirm <exact-preview-id>
+mini --json resident draft-clear --workspace <root> --confirm <exact-draft-id>
+```
+
+`draft-resume` creates a new private preview document and never applies it.
+Metadata inspection and clearing remain available for stale source. Saves and
+removal use the cooperative patch lock and durable publication barriers. A flush
+error can follow a completed publication/removal, so inspect stored metadata
+before retrying an uncertain result. Normal window close is deferred during
+save/removal as well as apply. Power loss, hostile local path races and multi-file
+source transaction atomicity remain outside the guarantees; saved drafts are not
+an automatic patch rollback journal or durable execution receipts.

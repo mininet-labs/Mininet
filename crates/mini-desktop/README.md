@@ -254,3 +254,9 @@ stage complete replacements and require an exact preview ID before writing up to
 run off the UI thread; normal window close is deferred during apply. See the
 [edit composer runbook](../../docs/design/resident-ai.md#desktop-reviewed-edit-composer)
 for stale-source checks, recovery artifacts and filesystem limitations.
+
+The edit composer can explicitly save staged edits to a private local checkpoint
+and resume them after restarting. Resume rechecks current source and requires a
+new preview/confirmation. Stored-draft inspection and exact-ID removal also work
+when source has become stale. Unstaged text is not saved; no autosave or automatic
+apply runs. See [saved drafts](../../docs/design/resident-ai.md#save-and-resume-staged-edits).
