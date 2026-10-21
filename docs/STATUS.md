@@ -3220,3 +3220,11 @@ objects with shared attempt/body-byte windows, and media export streams verified
 whole-digest bytes without overwriting an existing destination. Reconstructed
 media and expanded source-tree work have independent bounds. Graph retrieval never
 automatically shares downloaded material or alters governance/canonical state.
+
+The draft desktop Seed network view now exposes the existing CLI node's pool,
+contacts/catalogues, verified search/retrieval, reviewed collection retention,
+bounded resumable fetch/export, authenticated hosting and explicit mesh following.
+It uses typed subprocess actions against an owner-selected existing CLI profile,
+separate from the desktop vault; view entry starts no jobs. This is a coding
+checkpoint, with desktop/hardware launch validation still pending. See the
+owner-control section in `docs/design/seed-network.md`.

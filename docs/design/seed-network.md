@@ -383,3 +383,28 @@ writes bytes only and does not execute or automatically open the output. Filesys
 hard-link support is required for this no-overwrite publication path. A crash may
 leave an unpublished staging file; final publication/flush errors require checking
 the destination before retrying.
+
+### Desktop owner controls
+
+The desktop **Seed network** view runs the installed `mini` command tool through
+explicit typed actions. Select an existing CLI node folder and source store, and
+use **Node identity** to inspect that profile. This is separate from the desktop's
+locked vault identity: the panel does not copy keys or initialize a node. Install
+`mini` beside the desktop binary or select its absolute executable path. The
+selected helper is trusted executable code, not a sandboxed plugin.
+
+Owners can inspect quotas/inventory, manage contacts and announcements, refresh
+catalogues, search verified source excerpts, retrieve objects, preview and confirm
+whole collections, resume bounded collection fetches, and export verified media.
+A collection requires the full reviewed plan and exact preview ID; editing its
+profile/root/kind/days/output invalidates the confirmation. Partial fetches remain
+explicitly resumable. Continuation buttons fill fields; they do not send requests.
+
+Hosting requires allowed peer roots and explicit acknowledgement; following uses
+explicit windows. Neither starts when the view opens. Hosting/following have
+separate background operation slots so status and stop requests remain available.
+Closing the panel's owning application requests termination of its child jobs;
+these are not installed background services. Cancellation is not rollback: writes
+already completed remain, and status should be refreshed before retrying. Finite
+operations have a 150-second adapter timeout and bounded captured output. No
+wallet keys, automatic payments, canonical balances or global discovery are added.
