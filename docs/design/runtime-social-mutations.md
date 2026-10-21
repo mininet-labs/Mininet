@@ -86,3 +86,21 @@ parent and original raw fields still match, preserving edits or a newly selected
 thread made while waiting. These objects are saved locally; the public-post
 outbox does not yet deliver COMMENT objects. Updated journal tags require the
 updated service, and no private messaging protocol is implied.
+
+## Community membership
+
+Community join/leave controls use `SetMembership { operation_id, community_id,
+joined }` through the same signing authority. A new request requires an unlocked
+identity and a locally available, valid public COMMUNITY card before sequence
+reservation. Joining is available for Open communities. ApprovalRequired joins
+are refused and shown as unavailable in the desktop until an admission protocol
+exists; a signed declaration alone is not proof of admission. Leaving remains
+available for either mode.
+
+Membership objects preserve the legacy public boolean payload and single
+`community` link. Exact input-bound journal recovery and completed receipts follow
+the same rules as other social mutations, including locked receipt retries after
+parent-cache removal. Desktop retries reuse only the same community/state intent;
+there is no renderer key unlock or sequence allocation. A stale join receipt
+cannot create a newer join after a leave. Community creation, admission decisions,
+private groups and transport of membership objects remain separate work.

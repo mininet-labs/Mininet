@@ -30,8 +30,8 @@ use mini_app_protocol::{
 };
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
-    build_comment, build_follow, build_post, build_profile, build_reaction, comments, feed,
-    following, reaction_counts, resolve_post, resolve_profile, FeedFilter,
+    build_comment, build_follow, build_membership, build_post, build_profile, build_reaction,
+    comments, feed, following, reaction_counts, resolve_post, resolve_profile, FeedFilter,
     FeedReason as SocialFeedReason, PostKind,
 };
 use mini_store::{Backend, FsBackend, Store};
@@ -236,6 +236,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::SetMembership {
+                operation_id,
+                community_id,
+                joined,
+            } => self
+                .set_membership(&operation_id, &community_id, joined)
+                .map(Reply::Published),
             Command::PublishComment {
                 operation_id,
                 parent_id,
@@ -495,6 +502,52 @@ impl<V: IdentityVault> Core<V> {
             build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
+            input,
+            objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn set_membership(
+        &mut self,
+        operation_id: &str,
+        community_id: &str,
+        joined: bool,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        if community_id.is_empty() || community_id.len() > MAX_OBJECT_ID_BYTES {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "membership community ID exceeds limits",
+            ));
+        }
+        let community = ObjectId::parse(community_id)
+            .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
+        let input = MutationInput::Membership {
+            community_id: community.as_str().into(),
+            joined,
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Membership);
+        }
+        self.ensure_signing_available()?;
+        let card =
+            mini_social::resolve_community(&self.store, &community).map_err(storage_or_social)?;
+        if joined && card.membership != mini_social::MembershipMode::Open {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "community requires approval; publishing a join is not an admission decision",
+            ));
+        }
+        let sequence = self.reserve_sequence()?;
+        let (member, device) = self.signing_identity()?;
+        let object = build_membership(member, device, &community, joined, now_ms(), sequence)
+            .map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
             input,
             objects: vec![object.to_bytes()],
         };
@@ -1032,6 +1085,7 @@ enum MutationInput {
     Follow { target_did: String, following: bool },
     Like { target_id: String, active: bool },
     Comment { parent_id: String, text: String },
+    Membership { community_id: String, joined: bool },
 }
 
 impl MutationInput {
@@ -1042,6 +1096,7 @@ impl MutationInput {
             Self::Follow { .. } => ObjectKind::Follow,
             Self::Like { .. } => ObjectKind::Reaction,
             Self::Comment { .. } => ObjectKind::Comment,
+            Self::Membership { .. } => ObjectKind::Membership,
         }
     }
 }
@@ -1273,6 +1328,35 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::Membership {
+            community_id,
+            joined,
+        } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "membership journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let (target, state) =
+                mini_social::decode_membership(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || target.as_str() != community_id
+                || state != *joined
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "membership journal does not match mutation input",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Membership,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Comment { parent_id, text } => {
             if record.objects.len() != 1 {
                 return Err(ServiceError::new(
@@ -1481,6 +1565,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
         ObjectKind::Follow => 2,
         ObjectKind::Reaction => 3,
         ObjectKind::Comment => 4,
+        ObjectKind::Membership => 5,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -1497,6 +1582,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
         2 => ObjectKind::Follow,
         3 => ObjectKind::Reaction,
         4 => ObjectKind::Comment,
+        5 => ObjectKind::Membership,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -1638,6 +1724,14 @@ impl JournalEncoder {
                 self.string(display_name, MAX_PROFILE_NAME_BYTES)?;
                 self.string(bio, MAX_PROFILE_BIO_BYTES)?;
             }
+            MutationInput::Membership {
+                community_id,
+                joined,
+            } => {
+                self.u8(5);
+                self.string(community_id, MAX_OBJECT_ID_BYTES)?;
+                self.u8(u8::from(*joined));
+            }
             MutationInput::Comment { parent_id, text } => {
                 self.u8(4);
                 self.string(parent_id, MAX_OBJECT_ID_BYTES)?;
@@ -1751,6 +1845,24 @@ impl<'a> JournalDecoder<'a> {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
             }),
+            5 => {
+                let community_id = self.string(MAX_OBJECT_ID_BYTES)?;
+                ObjectId::parse(&community_id).map_err(storage_error)?;
+                let joined = match self.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => {
+                        return Err(ServiceError::new(
+                            ErrorCode::Storage,
+                            "invalid journal membership action",
+                        ))
+                    }
+                };
+                Ok(MutationInput::Membership {
+                    community_id,
+                    joined,
+                })
+            }
             4 => {
                 let parent_id = self.string(MAX_OBJECT_ID_BYTES)?;
                 ObjectId::parse(&parent_id).map_err(storage_error)?;
@@ -2888,6 +3000,170 @@ mod tests {
                         operation_id: "comment:recover".into(),
                         parent_id: parent.id().as_str().into(),
                         text: "exact".into(),
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                assert_eq!(reply.object_id, id.as_str());
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
+    }
+    fn membership_test_card(
+        core: &mut Core<MemoryVault>,
+        mode: mini_social::MembershipMode,
+    ) -> Object {
+        let mut owner = Controller::incept_single_from_seeds(&[61; 32], &[62; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&owner.did(), &[63; 32], &[64; 32])
+                .unwrap();
+        owner
+            .delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        mini_social::publish_community(
+            &mut core.store,
+            &owner.did(),
+            &device,
+            "Community",
+            "Charter",
+            mode,
+            1,
+            1,
+        )
+        .unwrap()
+    }
+    #[test]
+    fn membership_open_join_leave_policy_and_locked_deleted_card_retry_are_exact() {
+        let path = temp_root("membership");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let member = core.human.clone().unwrap();
+        let card = membership_test_card(&mut core, mini_social::MembershipMode::Open);
+        let approval =
+            membership_test_card(&mut core, mini_social::MembershipMode::ApprovalRequired);
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        assert!(core
+            .handle(Command::SetMembership {
+                operation_id: "membership:approval".into(),
+                community_id: approval.id().as_str().into(),
+                joined: true
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        core.handle(Command::SetMembership {
+            operation_id: "membership:approval-leave".into(),
+            community_id: approval.id().as_str().into(),
+            joined: false,
+        })
+        .unwrap();
+        let join = Command::SetMembership {
+            operation_id: "membership:join".into(),
+            community_id: card.id().as_str().into(),
+            joined: true,
+        };
+        core.handle(join.clone()).unwrap();
+        assert_eq!(
+            mini_social::community_members(&core.store, card.id()).unwrap(),
+            vec![member]
+        );
+        let leave = Command::SetMembership {
+            operation_id: "membership:leave".into(),
+            community_id: card.id().as_str().into(),
+            joined: false,
+        };
+        let Reply::Published(published) = core.handle(leave.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(published.kind, ObjectKind::Membership);
+        assert!(mini_social::community_members(&core.store, card.id())
+            .unwrap()
+            .is_empty());
+        let Reply::Published(stale) = core.handle(join).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(stale.duplicate);
+        assert!(mini_social::community_members(&core.store, card.id())
+            .unwrap()
+            .is_empty());
+        let id = ObjectId::parse(&published.object_id).unwrap();
+        let bytes = core.store.get(&id).unwrap().to_bytes();
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let parent = card.id().as_str();
+        fs::remove_file(path.join("blobs").join(&parent[..2]).join(parent)).unwrap();
+        let Reply::Published(retry) = core.handle(leave).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, published.object_id);
+        assert_eq!(core.store.get(&id).unwrap().to_bytes(), bytes);
+        assert!(core
+            .handle(Command::SetMembership {
+                operation_id: "membership:locked".into(),
+                community_id: approval.id().as_str().into(),
+                joined: false
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::SetMembership {
+                operation_id: "membership:leave".into(),
+                community_id: card.id().as_str().into(),
+                joined: true
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn pending_membership_recovers_exactly_and_refuses_action_or_target_tampering() {
+        for mode in 0..3 {
+            let path = temp_root("membership-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let card = membership_test_card(&mut core, mini_social::MembershipMode::Open);
+            let other =
+                membership_test_card(&mut core, mini_social::MembershipMode::ApprovalRequired);
+            let (member, device) = core.signing_identity().unwrap();
+            let object = build_membership(member, device, card.id(), true, 77, 9).unwrap();
+            let id = object.id().clone();
+            let record = PendingMutation {
+                operation_id: "membership:recover".into(),
+                input: MutationInput::Membership {
+                    community_id: if mode == 2 {
+                        other.id().as_str().into()
+                    } else {
+                        card.id().as_str().into()
+                    },
+                    joined: mode != 1,
+                },
+                objects: vec![object.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(&id).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(core.store.get(&id).unwrap().to_bytes(), object.to_bytes());
+                let Reply::Published(reply) = core
+                    .handle(Command::SetMembership {
+                        operation_id: "membership:recover".into(),
+                        community_id: card.id().as_str().into(),
+                        joined: true,
                     })
                     .unwrap()
                 else {

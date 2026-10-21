@@ -56,6 +56,7 @@ pub enum ObjectKind {
     Follow,
     Reaction,
     Comment,
+    Membership,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -204,6 +205,16 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::SetMembership {
+                operation_id,
+                community_id,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                if community_id.is_empty() || community_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("membership community ID"));
+                }
+            }
             Command::PublishComment {
                 operation_id,
                 parent_id,
@@ -327,6 +338,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    SetMembership {
+        operation_id: String,
+        community_id: String,
+        joined: bool,
+    },
     PublishComment {
         operation_id: String,
         parent_id: String,
@@ -631,6 +647,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::SetMembership {
+            operation_id,
+            community_id,
+            joined,
+        } => {
+            encoder.u8(27);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(community_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(u8::from(*joined));
+        }
         Command::PublishComment {
             operation_id,
             parent_id,
@@ -775,6 +801,15 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        27 => Ok(Command::SetMembership {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            community_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            joined: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid membership action".into())),
+            },
+        }),
         26 => Ok(Command::PublishComment {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             parent_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
@@ -1160,6 +1195,7 @@ fn encode_published(
         ObjectKind::Follow => 2,
         ObjectKind::Reaction => 3,
         ObjectKind::Comment => 4,
+        ObjectKind::Membership => 5,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1173,6 +1209,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
         2 => ObjectKind::Follow,
         3 => ObjectKind::Reaction,
         4 => ObjectKind::Comment,
+        5 => ObjectKind::Membership,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1205,6 +1242,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
                 ObjectKind::Follow => 2,
                 ObjectKind::Reaction => 3,
                 ObjectKind::Comment => 4,
+                ObjectKind::Membership => 5,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1233,6 +1271,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
                 2 => ObjectKind::Follow,
                 3 => ObjectKind::Reaction,
                 4 => ObjectKind::Comment,
+                5 => ObjectKind::Membership,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -1943,6 +1982,70 @@ mod comment_protocol_tests {
                     operation_id,
                     parent_id,
                     text
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod membership_protocol_tests {
+    use super::*;
+    #[test]
+    fn membership_commands_publications_events_round_trip_and_bounds_reject() {
+        for joined in [true, false] {
+            let request = Request::new(
+                22,
+                Command::SetMembership {
+                    operation_id: "membership:1".into(),
+                    community_id: "community".into(),
+                    joined,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+            *bytes.last_mut().unwrap() = 2;
+            assert!(read_request(&mut bytes.as_slice()).is_err());
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Membership,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 4,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Membership,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(22, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, community_id) in [
+            ("../bad".into(), "community".into()),
+            ("valid".into(), String::new()),
+            ("valid".into(), "x".repeat(MAX_OBJECT_ID_BYTES + 1)),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::SetMembership {
+                    operation_id,
+                    community_id,
+                    joined: true
                 }
             )
             .validate()
