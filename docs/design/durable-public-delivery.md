@@ -103,7 +103,10 @@ stdout reader keep responses independent of forwarding. Exact request IDs route
 responses to their callers, including out-of-order replies. Unknown or duplicate
 IDs retire the child session; retired-session events cannot complete new work.
 
-A fatal write, EOF, decode or correlation failure fails pending calls as uncertain,
+An immutable 30-second monotonic deadline bounds each forwarded request; other
+responses cannot extend it. The supervisor checks deadlines before draining new
+events, so continuous traffic cannot starve timeout handling. A fatal write, EOF,
+decode, correlation failure or expired request deadline fails pending calls as uncertain,
 terminates/reaps the child and joins its I/O threads. Pending requests are not
 automatically replayed. Future work can spawn a fresh locked core; callers retain
 their original operation IDs for explicit retries against durable receipts.

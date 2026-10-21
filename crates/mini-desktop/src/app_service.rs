@@ -10,14 +10,15 @@ use std::{
     process::{Child, Command as ProcessCommand, Stdio},
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        mpsc::{self, Receiver, SyncSender, TrySendError},
+        mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError},
         Arc,
     },
     thread::{self, JoinHandle},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 const COMMAND_QUEUE: usize = 32;
 const MAX_INFLIGHT: usize = 16;
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(2);
 type ReplySender = mpsc::Sender<Result<Reply, String>>;
 #[derive(Default)]
@@ -75,6 +76,7 @@ impl Drop for Permit {
     }
 }
 struct Pending {
+    deadline: Instant,
     response: ReplySender,
     _permit: Permit,
 }
@@ -99,14 +101,25 @@ impl Client {
         Self::spawn_for(&service_executable()?)
     }
     fn spawn_for(executable: &Path) -> Result<Self, String> {
+        Self::spawn_for_timeout(executable, REQUEST_TIMEOUT)
+    }
+    fn spawn_for_timeout(executable: &Path, timeout: Duration) -> Result<Self, String> {
         let (sender, receiver) = mpsc::sync_channel(COMMAND_QUEUE);
         let initial = Session::spawn(executable, sender.clone(), 1)?;
         let running = Arc::new(AtomicBool::new(true));
         let worker_running = running.clone();
         let executable = executable.to_path_buf();
         let events = sender.clone();
-        let supervisor =
-            thread::spawn(move || worker(executable, initial, receiver, events, worker_running));
+        let supervisor = thread::spawn(move || {
+            worker(
+                executable,
+                initial,
+                receiver,
+                events,
+                worker_running,
+                timeout,
+            )
+        });
         Ok(Self {
             sender,
             running,
@@ -271,12 +284,28 @@ impl Session {
         }
     }
 }
-#[derive(Default)]
 struct PendingRequests {
+    timeout: Duration,
     next: u64,
     entries: BTreeMap<u64, Pending>,
 }
+impl Default for PendingRequests {
+    fn default() -> Self {
+        Self {
+            timeout: REQUEST_TIMEOUT,
+            next: 0,
+            entries: BTreeMap::new(),
+        }
+    }
+}
 impl PendingRequests {
+    fn next_deadline(&self) -> Option<Instant> {
+        self.entries.values().map(|entry| entry.deadline).min()
+    }
+    fn expired(&self, now: Instant) -> bool {
+        self.next_deadline().is_some_and(|deadline| deadline <= now)
+    }
+
     fn forward(
         &mut self,
         work: Work,
@@ -301,6 +330,7 @@ impl PendingRequests {
         self.entries.insert(
             id,
             Pending {
+                deadline: Instant::now() + self.timeout,
                 response: work.response,
                 _permit: work.permit,
             },
@@ -333,14 +363,42 @@ fn worker(
     receiver: Receiver<Event>,
     events: SyncSender<Event>,
     running: Arc<AtomicBool>,
+    timeout: Duration,
 ) {
     let mut generation = initial.generation;
     let mut session = Some(initial);
-    let mut pending = PendingRequests::default();
+    let mut pending = PendingRequests {
+        timeout,
+        ..Default::default()
+    };
     while running.load(Ordering::Acquire) {
-        let Ok(event) = receiver.recv() else {
-            break;
+        // Check before each dequeue as well as after a timed wait: a stream of
+        // unrelated events must never extend an earlier request's deadline.
+        if pending.expired(Instant::now()) {
+            pending.fail_all("application core response deadline expired");
+            if let Some(active) = session.take() {
+                active.abort();
+            }
+        }
+        let event = match pending.next_deadline() {
+            Some(deadline) => {
+                match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                    Ok(event) => event,
+                    Err(RecvTimeoutError::Timeout) => continue,
+                    Err(RecvTimeoutError::Disconnected) => break,
+                }
+            }
+            None => match receiver.recv() {
+                Ok(event) => event,
+                Err(_) => break,
+            },
         };
+        if pending.expired(Instant::now()) {
+            pending.fail_all("application core response deadline expired");
+            if let Some(active) = session.take() {
+                active.abort();
+            }
+        }
         if !running.load(Ordering::Acquire) {
             if let Event::Work(work) = event {
                 let _ = work.response.send(Err(
@@ -524,6 +582,52 @@ mod tests {
         }
         assert!(Permit::acquire(&budget, &Command::Status).is_ok());
         assert!(Permit::acquire(&budget, &Command::LockIdentity).is_ok());
+    }
+    #[test]
+    fn immutable_earliest_deadline_survives_other_completions_and_releases_permits() {
+        let budget = Arc::new(Budget::default());
+        let mut pending = PendingRequests::default();
+        let (first, first_reply) = work(Command::Status, &budget);
+        pending.forward(first, |_| Ok(())).unwrap();
+        let first_deadline = pending.next_deadline().unwrap();
+        let (second, second_reply) = work(Command::LockIdentity, &budget);
+        pending.forward(second, |_| Ok(())).unwrap();
+        pending.entries.get_mut(&2).unwrap().deadline = first_deadline + Duration::from_secs(1);
+        assert!(!pending.expired(first_deadline - Duration::from_millis(1)));
+        pending.complete(Response::ok(2, Reply::Ack)).unwrap();
+        assert_eq!(second_reply.recv().unwrap().unwrap(), Reply::Ack);
+        assert_eq!(pending.next_deadline(), Some(first_deadline));
+        assert!(pending.expired(first_deadline));
+        pending.fail_all("response deadline expired");
+        assert!(first_reply
+            .recv()
+            .unwrap()
+            .unwrap_err()
+            .contains("may have completed"));
+        assert_eq!(pending.next_deadline(), None);
+        assert_eq!(budget.normal.load(Ordering::Acquire), 0);
+        assert_eq!(budget.control.load(Ordering::Acquire), 0);
+    }
+    #[cfg(unix)]
+    #[test]
+    fn partial_child_response_expires_and_future_work_respawns_without_replay() {
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/stalled-app-service.py");
+        let client = Client::spawn_for_timeout(&executable, Duration::from_millis(120)).unwrap();
+        for _ in 0..2 {
+            let started = Instant::now();
+            let response = client.request(Command::Status).unwrap();
+            let error = response
+                .recv_timeout(Duration::from_secs(2))
+                .unwrap()
+                .unwrap_err();
+            assert!(error.contains("deadline expired"));
+            assert!(error.contains("may have completed"));
+            assert!(started.elapsed() < Duration::from_secs(2));
+        }
+        // Drop joins the supervisor and both reader/writer threads even when
+        // the retired child's stdout stopped halfway through a response frame.
+        drop(client);
     }
     #[test]
     fn allocation_exhaustion_never_wraps_or_forwards() {
