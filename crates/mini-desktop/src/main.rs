@@ -34,16 +34,16 @@ use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
-#[cfg(all(test, windows))]
-use mini_social::publish_profile;
 use mini_social::{
     community_members, followers, following, known_profiles, publish_comment, publish_community,
     publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
-    set_follow, set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer,
-    LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField,
-    ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner,
+    MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind,
+    VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
+    MAX_PROFILE_FIELD_VALUE_BYTES,
 };
+#[cfg(all(test, windows))]
+use mini_social::{publish_profile, set_follow};
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{kel_carrier, KelCache};
 use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
@@ -97,8 +97,19 @@ enum CoreAction {
     UnlockIdentity,
     LockIdentity,
     LockAfterProfile,
-    PublishProfile { display_name: String, bio: String },
-    PublishPost { text: String },
+    PublishProfile {
+        display_name: String,
+        bio: String,
+    },
+    PublishPost {
+        text: String,
+    },
+    SetFollow {
+        target: String,
+        following: bool,
+        name: String,
+        nearby: Option<(String, Instant)>,
+    },
 }
 
 /// One row of the Messages conversation list.
@@ -172,6 +183,7 @@ struct MininetApp {
     app_events_due: Instant,
     app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
+    follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
     view: View,
     privacy: PrivacyState,
@@ -583,18 +595,6 @@ impl Workspace {
                 .as_ref()
                 .and_then(|human| followers(&self.store, human).ok())
                 .is_some_and(|people| people.iter().any(|person| person == target))
-    }
-
-    fn set_follow_target_confirmed(&mut self, target: &str, active: bool) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.set_follow_target(target, active);
-        if relock {
-            self.lock();
-        }
-        result
     }
 
     /// Assemble a complete manifest or collection into memory, bounded.
@@ -1081,27 +1081,6 @@ impl Workspace {
             &identity.device,
             community,
             joined,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn set_follow_target(&mut self, target: &str, follow: bool) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        let target = Did::parse(target.trim()).map_err(|error| error.to_string())?;
-        set_follow(
-            &mut self.store,
-            &human,
-            &identity.device,
-            &target,
-            follow,
             now_ms(),
             self.sequence,
         )
@@ -1636,6 +1615,7 @@ impl Default for MininetApp {
             app_last_event_id: None,
             post_operation: None,
             profile_operation: None,
+            follow_operation: None,
             view,
             privacy: load_privacy_settings(),
             theme_applied: false,
@@ -1793,6 +1773,33 @@ impl Default for MininetApp {
             notice,
         }
     }
+}
+
+fn follow_request_id(
+    pending: &mut Option<(String, bool, String)>,
+    target: &str,
+    following: bool,
+) -> String {
+    match pending {
+        Some((old_target, old_state, id)) if old_target == target && *old_state == following => {
+            id.clone()
+        }
+        _ => {
+            let id = app_service::operation_id("follow");
+            *pending = Some((target.into(), following, id.clone()));
+            id
+        }
+    }
+}
+
+fn fresh_follow_endpoint(
+    nearby: Option<(String, Instant)>,
+    now: Instant,
+    network_idle: bool,
+) -> Option<String> {
+    nearby
+        .filter(|(_, expiry)| network_idle && now <= *expiry)
+        .map(|(endpoint, _)| endpoint)
 }
 
 impl eframe::App for MininetApp {
@@ -2165,6 +2172,52 @@ impl MininetApp {
                     "Posted through the application core and saved locally. Start a session in Connections to share it."
                         .to_string()
                 };
+            }
+            (
+                CoreAction::SetFollow {
+                    target,
+                    following,
+                    name,
+                    nearby,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Follow => {
+                if self
+                    .follow_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &target && *old_state == following
+                    })
+                {
+                    self.follow_operation = None;
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = if following {
+                    format!("Following {name}. The signed change is saved locally; exchange with peers to share it.")
+                } else {
+                    format!("Unfollowed {name}. Exchange with peers to share the signed change.")
+                };
+                // Preserve the original nearby-send gesture only while it is
+                // fresh and no unrelated operation has taken the network slot.
+                if following {
+                    let requested_nearby = nearby.is_some();
+                    if let Some(endpoint) = fresh_follow_endpoint(
+                        nearby,
+                        Instant::now(),
+                        self.sync_rx.is_none() && self.visibility_rx.is_none(),
+                    ) {
+                        self.peer_address = endpoint;
+                        self.start_peer_sync(
+                            false,
+                            Some(SyncContext::FriendRequest { display_name: name }),
+                        );
+                    } else if requested_nearby {
+                        self.notice.push_str(
+                            " The nearby send was not started; use Connections when ready.",
+                        );
+                    }
+                }
             }
             (action, Ok(reply)) => {
                 self.notice = format!(
@@ -3102,16 +3155,41 @@ No tracking. No forced updates.",
     }
 
     fn follow_did(&mut self, did: &str, name: &str) {
-        self.notice = match self.workspace.as_mut() {
-            Some(workspace) => match workspace.set_follow_target_confirmed(did, true) {
-                Ok(()) => {
-                    format!("Following {name}. The signed follow goes out on the next exchange.")
-                }
-                Err(error) => format!("Could not follow {name}: {error}"),
-            },
-            None => "Local workspace unavailable.".to_string(),
+        self.set_follow_via_core(did, true, name, None);
+    }
+
+    fn set_follow_via_core(
+        &mut self,
+        did: &str,
+        following: bool,
+        name: &str,
+        nearby: Option<String>,
+    ) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before changing a follow.".into();
+            return;
+        }
+        let target = match Did::parse(did.trim()) {
+            Ok(target) => target.as_str().to_string(),
+            Err(error) => {
+                self.notice = format!("Invalid follow identity: {error}");
+                return;
+            }
         };
-        self.timeline_refresh = Instant::now();
+        let operation_id = follow_request_id(&mut self.follow_operation, &target, following);
+        self.start_core_action(
+            CoreAction::SetFollow {
+                target: target.clone(),
+                following,
+                name: name.into(),
+                nearby: nearby.map(|address| (address, Instant::now() + Duration::from_secs(10))),
+            },
+            AppCommand::SetFollow {
+                operation_id,
+                target_did: target,
+                following,
+            },
+        );
     }
 
     // ----- timeline -------------------------------------------------------
@@ -4006,15 +4084,7 @@ No tracking. No forced updates.",
                         } else if follows {
                             theme::pill_badge(ui, "FOLLOWING", theme::ONLINE_GREEN);
                             if ui.add(theme::secondary_button("Unfollow")).clicked() {
-                                self.notice = match self.workspace.as_mut() {
-                                    Some(workspace) => match workspace
-                                        .set_follow_target_confirmed(&did_text, false)
-                                    {
-                                        Ok(()) => format!("Unfollowed {name}."),
-                                        Err(error) => format!("Could not unfollow: {error}"),
-                                    },
-                                    None => "Local workspace unavailable.".into(),
-                                };
+                                self.set_follow_via_core(&did_text, false, &name, None);
                             }
                         } else if ui.add(theme::primary_button("Follow")).clicked() {
                             self.follow_did(&did_text, &name);
@@ -4274,48 +4344,14 @@ No tracking. No forced updates.",
     fn add_friend(&mut self, profile: &mini_social::Profile) {
         if self.sync_rx.is_some() || self.visibility_rx.is_some() {
             self.notice = format!(
-                "Finish the active peer operation before adding {}. No request was signed yet.",
+                "Finish the active peer operation before adding {}. No follow was signed yet.",
                 profile.display_name
             );
             return;
         }
-        let result = self
-            .workspace
-            .as_mut()
-            .ok_or_else(|| "Local workspace unavailable.".to_string())
-            .and_then(|workspace| {
-                workspace.set_follow_target_confirmed(profile.human.as_str(), true)
-            });
-        if let Err(error) = result {
-            self.notice = format!("Could not add friend: {error}");
-            return;
-        }
-
-        self.timeline_refresh = Instant::now();
-        let Some(endpoint) = nearby_endpoint_for(&self.nearby_profiles, &profile.human) else {
-            self.notice = if self.network_session.is_some() || self.host.is_some() {
-                format!(
-                    "Following {}. The signed follow goes out on the next exchange.",
-                    profile.display_name
-                )
-            } else {
-                format!(
-                    "Following {}. Start a session in Connections to deliver the signed follow.",
-                    profile.display_name
-                )
-            };
-            return;
-        };
-        self.peer_address = endpoint.to_string();
-        let context = SyncContext::FriendRequest {
-            display_name: profile.display_name.clone(),
-        };
-        if !self.start_peer_sync(false, Some(context)) {
-            self.notice = format!(
-                "Friend request for {} is signed locally. Finish the active peer operation, then sync to deliver it.",
-                profile.display_name
-            );
-        }
+        let nearby = nearby_endpoint_for(&self.nearby_profiles, &profile.human)
+            .map(|address| address.to_string());
+        self.set_follow_via_core(profile.human.as_str(), true, &profile.display_name, nearby);
     }
 
     fn post_card(&mut self, ui: &mut egui::Ui, card: &timeline::Card) {
@@ -5056,32 +5092,17 @@ No tracking. No forced updates.",
                     .desired_width(f32::INFINITY),
             );
             if ui.add(theme::primary_button("Add peer and follow")).clicked() {
-                self.notice = match connectivity::ConnectionCard::decode(&self.card_input) {
-                    Ok(card) => {
-                        match self.connections.upsert_peer(&card.name, &card.endpoint, Some(&card.did)) {
-                            Ok(_) => {
-                                self.save_connections();
-                                self.card_input.clear();
-                                let follow = self.workspace.as_mut().map(|workspace| {
-                                    workspace.set_follow_target_confirmed(&card.did, true)
-                                });
-                                match follow {
-                                    Some(Ok(())) => format!(
-                                        "Saved {} and signed a follow. Start a session to exchange with them.",
-                                        card.name
-                                    ),
-                                    Some(Err(error)) => format!(
-                                        "Saved {}, but the follow was not signed: {error}",
-                                        card.name
-                                    ),
-                                    None => format!("Saved {}.", card.name),
-                                }
-                            }
-                            Err(error) => error,
+                match connectivity::ConnectionCard::decode(&self.card_input) {
+                    Ok(card) => match self.connections.upsert_peer(&card.name, &card.endpoint, Some(&card.did)) {
+                        Ok(_) => {
+                            self.save_connections();
+                            self.card_input.clear();
+                            self.set_follow_via_core(&card.did, true, &card.name, None);
                         }
-                    }
-                    Err(error) => error,
-                };
+                        Err(error) => self.notice = error,
+                    },
+                    Err(error) => self.notice = error,
+                }
             }
             ui.add_space(6.0);
             ui.label(egui::RichText::new("Or add an endpoint by hand").strong());
@@ -5874,30 +5895,12 @@ No tracking. No forced updates.",
                     } else if friend {
                         ui.label(egui::RichText::new("Friends").strong());
                         if ui.button("Remove friend").clicked() {
-                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                                match workspace
-                                    .set_follow_target_confirmed(profile.human.as_str(), false)
-                                {
-                                    Ok(()) => "Friend/follow edge removed locally; sync to share the change.".to_string(),
-                                    Err(error) => format!("Could not remove friend: {error}"),
-                                }
-                            } else {
-                                "Local workspace unavailable.".to_string()
-                            };
+                            self.set_follow_via_core(profile.human.as_str(), false, &profile.display_name, None);
                         }
                     } else if follows {
                         ui.label("Friend request/follow sent");
                         if ui.button("Cancel").clicked() {
-                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                                match workspace
-                                    .set_follow_target_confirmed(profile.human.as_str(), false)
-                                {
-                                    Ok(()) => "Friend request/follow removed locally.".to_string(),
-                                    Err(error) => format!("Could not remove follow: {error}"),
-                                }
-                            } else {
-                                "Local workspace unavailable.".to_string()
-                            };
+                            self.set_follow_via_core(profile.human.as_str(), false, &profile.display_name, None);
                         }
                     } else if ui.add(theme::primary_button("Follow")).clicked() {
                         self.add_friend(&profile);
@@ -7937,41 +7940,27 @@ No tracking. No forced updates.",
                     .add_enabled(target_valid && !self.follow_target.trim().is_empty(), egui::Button::new("Follow locally"))
                     .clicked()
                 {
-                    self.notice = if self.follow_target.trim().is_empty() {
-                        "Enter a did:mini target first.".to_string()
+                    if self.follow_target.trim().is_empty() {
+                        self.notice = "Enter a did:mini target first.".into();
                     } else if !self.signing_confirmation {
-                        "Confirm signing before changing the follow graph.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target_confirmed(&self.follow_target, true) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                "Follow object written locally.".to_string()
-                            }
-                            Err(error) => format!("Could not follow target: {error}"),
-                        }
+                        self.notice = "Confirm signing before changing the follow graph.".into();
                     } else {
-                        "Local workspace unavailable.".to_string()
-                    };
+                        let target = self.follow_target.clone();
+                        self.set_follow_via_core(&target, true, &target, None);
+                    }
                 }
                 if ui
                     .add_enabled(target_valid && !self.follow_target.trim().is_empty(), egui::Button::new("Unfollow locally"))
                     .clicked()
                 {
-                    self.notice = if self.follow_target.trim().is_empty() {
-                        "Enter a did:mini target first.".to_string()
+                    if self.follow_target.trim().is_empty() {
+                        self.notice = "Enter a did:mini target first.".into();
                     } else if !self.signing_confirmation {
-                        "Confirm signing before changing the follow graph.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target_confirmed(&self.follow_target, false) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                "Unfollow object written locally.".to_string()
-                            }
-                            Err(error) => format!("Could not unfollow target: {error}"),
-                        }
+                        self.notice = "Confirm signing before changing the follow graph.".into();
                     } else {
-                        "Local workspace unavailable.".to_string()
-                    };
+                        let target = self.follow_target.clone();
+                        self.set_follow_via_core(&target, false, &target, None);
+                    }
                 }
             });
             ui.checkbox(
@@ -9397,5 +9386,33 @@ shot at dusk",
         assert_eq!(local.len(), 1, "fetched post is searchable locally");
 
         std::fs::remove_dir_all(test_root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod follow_runtime_tests {
+    use super::*;
+    #[test]
+    fn uncertain_follow_response_reuses_only_the_exact_signed_intent() {
+        let mut pending = None;
+        let first = follow_request_id(&mut pending, "target-a", true);
+        assert_eq!(follow_request_id(&mut pending, "target-a", true), first);
+        let unfollow = follow_request_id(&mut pending, "target-a", false);
+        assert_ne!(unfollow, first);
+        assert_eq!(follow_request_id(&mut pending, "target-a", false), unfollow);
+        assert_ne!(follow_request_id(&mut pending, "target-b", false), unfollow);
+    }
+    #[test]
+    fn delayed_or_busy_follow_completion_cannot_start_a_stale_nearby_send() {
+        let now = Instant::now();
+        let intent = Some(("127.0.0.1:7773".to_string(), now + Duration::from_secs(10)));
+        assert_eq!(
+            fresh_follow_endpoint(intent.clone(), now, true).as_deref(),
+            Some("127.0.0.1:7773")
+        );
+        assert!(
+            fresh_follow_endpoint(intent.clone(), now + Duration::from_secs(11), true).is_none()
+        );
+        assert!(fresh_follow_endpoint(intent, now, false).is_none());
     }
 }

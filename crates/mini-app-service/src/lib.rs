@@ -25,12 +25,13 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
     ProfileView, PublishedObject, Reply, ServiceError, ServiceEvent, ServiceEventKind,
-    MAX_OPERATION_ID_BYTES, MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
+    MAX_DID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES,
+    MAX_PROFILE_NAME_BYTES,
 };
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
-    build_post, build_profile, comments, feed, following, reaction_counts, resolve_post,
-    resolve_profile, FeedFilter, FeedReason as SocialFeedReason, PostKind,
+    build_follow, build_post, build_profile, comments, feed, following, reaction_counts,
+    resolve_post, resolve_profile, FeedFilter, FeedReason as SocialFeedReason, PostKind,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_windows_vault::{SeedPair, VaultError};
@@ -234,6 +235,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::SetFollow {
+                operation_id,
+                target_did,
+                following,
+            } => self
+                .set_follow(&operation_id, &target_did, following)
+                .map(Reply::Published),
             Command::PublishPost { operation_id, text } => self
                 .publish_post(&operation_id, &text)
                 .map(Reply::Published),
@@ -470,6 +478,44 @@ impl<V: IdentityVault> Core<V> {
         let (human, device) = self.signing_identity()?;
         let object =
             build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.to_string(),
+            input,
+            objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn set_follow(
+        &mut self,
+        operation_id: &str,
+        target_did: &str,
+        following: bool,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        if target_did.is_empty() || target_did.len() > MAX_DID_BYTES {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "follow target DID exceeds limits",
+            ));
+        }
+        let target = Did::parse(target_did)
+            .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
+        let input = MutationInput::Follow {
+            target_did: target.as_str().to_string(),
+            following,
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Follow);
+        }
+        self.ensure_signing_available()?;
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object = build_follow(human, device, &target, following, now_ms(), sequence)
+            .map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
             input,
@@ -864,6 +910,7 @@ fn storage_or_social(error: impl core::fmt::Display) -> ServiceError {
 enum MutationInput {
     Profile { display_name: String, bio: String },
     Post { text: String },
+    Follow { target_did: String, following: bool },
 }
 
 impl MutationInput {
@@ -871,6 +918,7 @@ impl MutationInput {
         match self {
             Self::Profile { .. } => ObjectKind::Profile,
             Self::Post { .. } => ObjectKind::Post,
+            Self::Follow { .. } => ObjectKind::Follow,
         }
     }
 }
@@ -1102,6 +1150,35 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::Follow {
+            target_did,
+            following,
+        } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "follow journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let (action, target) =
+                mini_social::decode_follow(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || action != *following
+                || target.as_str() != target_did
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "follow journal does not match mutation input",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Follow,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Post { text } => {
             if record.objects.len() != 1 {
                 return Err(ServiceError::new(
@@ -1225,6 +1302,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
     encoder.u8(match receipt.kind {
         ObjectKind::Profile => 0,
         ObjectKind::Post => 1,
+        ObjectKind::Follow => 2,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -1238,6 +1316,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
     let kind = match decoder.u8()? {
         0 => ObjectKind::Profile,
         1 => ObjectKind::Post,
+        2 => ObjectKind::Follow,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -1379,6 +1458,14 @@ impl JournalEncoder {
                 self.string(display_name, MAX_PROFILE_NAME_BYTES)?;
                 self.string(bio, MAX_PROFILE_BIO_BYTES)?;
             }
+            MutationInput::Follow {
+                target_did,
+                following,
+            } => {
+                self.u8(2);
+                self.string(target_did, MAX_DID_BYTES)?;
+                self.u8(u8::from(*following));
+            }
             MutationInput::Post { text } => {
                 self.u8(1);
                 self.string(text, MAX_POST_BYTES)?;
@@ -1474,6 +1561,24 @@ impl<'a> JournalDecoder<'a> {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
             }),
+            2 => {
+                let target_did = self.string(MAX_DID_BYTES)?;
+                Did::parse(&target_did).map_err(storage_error)?;
+                let following = match self.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => {
+                        return Err(ServiceError::new(
+                            ErrorCode::Storage,
+                            "invalid journal follow action",
+                        ))
+                    }
+                };
+                Ok(MutationInput::Follow {
+                    target_did,
+                    following,
+                })
+            }
             1 => Ok(MutationInput::Post {
                 text: self.string(MAX_POST_BYTES)?,
             }),
@@ -2045,5 +2150,159 @@ mod tests {
         let third = Core::open_inner(root.clone(), MemoryVault::empty(), true).unwrap();
         drop(third);
         fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn follow_mutations_drive_feed_and_keep_exact_retry_identity_after_locked_restart() {
+        let path = temp_root("follow");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let owner = core.human.clone().unwrap();
+        let mut target_root = Controller::incept_single_from_seeds(&[41; 32], &[42; 32]).unwrap();
+        let target_device =
+            Controller::incept_device_single_from_seeds(&target_root.did(), &[43; 32], &[44; 32])
+                .unwrap();
+        target_root
+            .delegate_device(&target_device.did(), Capabilities::primary())
+            .unwrap();
+        let target = target_root.did();
+        let post = build_post(&target, &target_device, "friend post", 9, 1).unwrap();
+        core.store.insert(&post).unwrap();
+        let feed_command = Command::FeedSnapshot {
+            order: FeedOrder::Chronological,
+            scope: FeedScope::Following,
+            limit: 10,
+        };
+        assert!(
+            matches!(core.handle(feed_command.clone()).unwrap(),Reply::Feed(cards) if cards.is_empty())
+        );
+        let command = Command::SetFollow {
+            operation_id: "follow:1".into(),
+            target_did: target.as_str().into(),
+            following: true,
+        };
+        let Reply::Published(published) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(published.kind, ObjectKind::Follow);
+        assert!(!published.duplicate);
+        assert_eq!(
+            following(&core.store, &owner).unwrap(),
+            vec![target.clone()]
+        );
+        assert!(
+            matches!(core.handle(feed_command.clone()).unwrap(),Reply::Feed(cards) if cards.len()==1 && cards[0].id==post.id().as_str())
+        );
+        let object_id = ObjectId::parse(&published.object_id).unwrap();
+        let original = core.store.get(&object_id).unwrap().to_bytes();
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let Reply::Published(duplicate) = core.handle(command).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(duplicate.duplicate);
+        assert_eq!(duplicate.object_id, published.object_id);
+        assert_eq!(core.store.get(&object_id).unwrap().to_bytes(), original);
+        assert!(core
+            .handle(Command::SetFollow {
+                operation_id: "new:locked".into(),
+                target_did: target.as_str().into(),
+                following: false
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::SetFollow {
+                operation_id: "follow:1".into(),
+                target_did: target.as_str().into(),
+                following: false
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::SetFollow {
+                operation_id: "bad:did".into(),
+                target_did: "not-a-did".into(),
+                following: true
+            })
+            .is_err());
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        assert_eq!(core.next_sequence, next);
+        core.unlock().unwrap();
+        core.handle(Command::SetFollow {
+            operation_id: "unfollow:1".into(),
+            target_did: target.as_str().into(),
+            following: false,
+        })
+        .unwrap();
+        assert!(following(&core.store, &owner).unwrap().is_empty());
+        assert!(
+            matches!(core.handle(feed_command).unwrap(),Reply::Feed(cards) if cards.is_empty())
+        );
+        let Reply::Published(stale_retry) = core
+            .handle(Command::SetFollow {
+                operation_id: "follow:1".into(),
+                target_did: target.as_str().into(),
+                following: true,
+            })
+            .unwrap()
+        else {
+            panic!("wrong reply")
+        };
+        assert!(stale_retry.duplicate);
+        assert!(following(&core.store, &owner).unwrap().is_empty());
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn exact_pending_follow_recovers_but_tampered_input_never_inserts() {
+        for tamper in [false, true] {
+            let path = temp_root("follow-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let target = Controller::incept_single_from_seeds(&[51; 32], &[52; 32])
+                .unwrap()
+                .did();
+            let (human, device) = core.signing_identity().unwrap();
+            let object = build_follow(human, device, &target, true, 77, 9).unwrap();
+            let object_id = object.id().clone();
+            let record = PendingMutation {
+                operation_id: "follow:recover".into(),
+                input: MutationInput::Follow {
+                    target_did: target.as_str().into(),
+                    following: !tamper,
+                },
+                objects: vec![object.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if tamper {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(&object_id).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(
+                    core.store.get(&object_id).unwrap().to_bytes(),
+                    object.to_bytes()
+                );
+                let Reply::Published(reply) = core
+                    .handle(Command::SetFollow {
+                        operation_id: "follow:recover".into(),
+                        target_did: target.as_str().into(),
+                        following: true,
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                assert_eq!(reply.object_id, object_id.as_str());
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
     }
 }
