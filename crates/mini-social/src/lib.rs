@@ -641,6 +641,20 @@ pub fn publish_profile_details<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let (profile, head) = build_profile_details(human, device, draft, timestamp_ms, sequence)?;
+    store.insert(&profile)?;
+    store.apply_head(&head)?;
+    Ok(profile)
+}
+
+/// Build the exact extensible public profile and its head without store writes.
+pub fn build_profile_details(
+    human: &Did,
+    device: &Controller,
+    draft: &PublicProfileDraft<'_>,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<(Object, Object)> {
     validate_profile_details(draft)?;
     let mut payload = PROFILE_V2_MAGIC.to_vec();
     put_str(&mut payload, draft.display_name);
@@ -662,7 +676,18 @@ pub fn publish_profile_details<B: Backend>(
         put_str(&mut payload, &field.label);
         put_str(&mut payload, &field.value);
     }
-    publish_profile_payload(store, human, device, payload, timestamp_ms, sequence)
+    let profile = ObjectBuilder::new(ObjectType::PROFILE)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .sign(human, device)?;
+    let head = ObjectBuilder::new(ObjectType::HEAD)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .link("target", profile.id().clone())
+        .payload(Payload::Public(b"profile".to_vec()))
+        .sign(human, device)?;
+    Ok((profile, head))
 }
 
 fn validate_profile_details(draft: &PublicProfileDraft<'_>) -> Result<()> {
@@ -687,30 +712,6 @@ fn validate_profile_details(draft: &PublicProfileDraft<'_>) -> Result<()> {
         }
     }
     Ok(())
-}
-
-fn publish_profile_payload<B: Backend>(
-    store: &mut Store<B>,
-    human: &Did,
-    device: &Controller,
-    payload: Vec<u8>,
-    timestamp_ms: u64,
-    sequence: u64,
-) -> Result<Object> {
-    let profile = ObjectBuilder::new(ObjectType::PROFILE)
-        .timestamp_ms(timestamp_ms)
-        .sequence(sequence)
-        .payload(Payload::Public(payload))
-        .sign(human, device)?;
-    store.insert(&profile)?;
-    let head = ObjectBuilder::new(ObjectType::HEAD)
-        .timestamp_ms(timestamp_ms)
-        .sequence(sequence)
-        .link("target", profile.id().clone())
-        .payload(Payload::Public(b"profile".to_vec()))
-        .sign(human, device)?;
-    store.apply_head(&head)?;
-    Ok(profile)
 }
 
 /// Resolve every latest signed profile currently present, sorted by display
@@ -1597,5 +1598,69 @@ mod community_builder_tests {
                 .unwrap();
             assert!(decode_community(&linked).is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod profile_details_builder_tests {
+    use super::*;
+    #[test]
+    fn store_free_profile_details_matches_exact_legacy_profile_and_head_bytes() {
+        let root = Controller::incept_single_from_seeds(&[71; 32], &[72; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[73; 32], &[74; 32]).unwrap();
+        let fields = vec![
+            PublicProfileField {
+                label: "One".into(),
+                value: "First".into(),
+            },
+            PublicProfileField {
+                label: "Two".into(),
+                value: "Second".into(),
+            },
+        ];
+        let draft = PublicProfileDraft {
+            display_name: "Alice",
+            bio: "About",
+            avatar: None,
+            location: Some("Chosen city"),
+            age: Some(25),
+            fields: &fields,
+        };
+        let (profile, head) = build_profile_details(&root.did(), &device, &draft, 7, 8).unwrap();
+        let mut payload = PROFILE_V2_MAGIC.to_vec();
+        put_str(&mut payload, "Alice");
+        put_str(&mut payload, "About");
+        put_str(&mut payload, "");
+        put_str(&mut payload, "Chosen city");
+        payload.extend_from_slice(&[1, 25]);
+        payload.extend_from_slice(&2u16.to_be_bytes());
+        for field in &fields {
+            put_str(&mut payload, &field.label);
+            put_str(&mut payload, &field.value);
+        }
+        let legacy = ObjectBuilder::new(ObjectType::PROFILE)
+            .timestamp_ms(7)
+            .sequence(8)
+            .payload(Payload::Public(payload))
+            .sign(&root.did(), &device)
+            .unwrap();
+        let legacy_head = ObjectBuilder::new(ObjectType::HEAD)
+            .timestamp_ms(7)
+            .sequence(8)
+            .link("target", legacy.id().clone())
+            .payload(Payload::Public(b"profile".to_vec()))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert_eq!(profile.to_bytes(), legacy.to_bytes());
+        assert_eq!(head.to_bytes(), legacy_head.to_bytes());
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        assert_eq!(
+            publish_profile_details(&mut store, &root.did(), &device, &draft, 7, 8)
+                .unwrap()
+                .to_bytes(),
+            profile.to_bytes()
+        );
+        assert_eq!(decode_profile(&profile).unwrap().fields, fields);
     }
 }
