@@ -49,3 +49,29 @@ Journal and peer records use bounded strict decoding and atomic replacement. Pat
 Peers need reachable numeric TCP endpoints. This slice supplies no NAT traversal, relay fallback, address discovery, transport migration or automatic KEL refresh. Unreachable peers wait and retry. The single listener configuration serves one expected peer, not an open multi-contact inbox. Revocation stops future authorized attempts but cannot retract data already delivered or bytes already transmitted in an active session.
 
 Private sessions, private messages, calls, media attachment delivery, full-store sync, background service installation and wallet actions are outside this path. Desktop controls, packaging, two-device usability and broader acceptance remain separate work. Existing native Forge migration work in [PR #378](https://github.com/mininet-labs/mininet/pull/378) is independent; public-post delivery neither synchronizes code nor approves or merges proposals.
+
+## Desktop workflow
+
+Open **Connections → Reliable public delivery** and use **Refresh status, peers,
+own posts and deliveries**. Unlock the identity using the account controls before
+authorizing a device or enabling networking.
+
+1. On each device, export and copy its public pairing code. Exchange codes through
+   a trusted channel; inspect and independently compare the full root/device DIDs.
+2. Paste the other device's code, enter its peer label and reachable numeric
+   IP/port, inspect the identities, and explicitly authorize that device.
+3. On the receiving device, configure the listener for the expected peer and a
+   bind address. Enabling networking is a separate, persisted owner choice.
+4. On the sending device, refresh its own posts, select the recipient and public
+   post, inspect the displayed text and recipient, then explicitly queue it.
+5. Inspect delivery status, including the most recent requested operation, and
+   page through retained history. A lost IPC reply keeps the same queue operation
+   and target for an exact retry. Changing the draft requires explicit acknowledgment
+   that the previous request may already exist. Cancellation does not retract a
+   received public post.
+
+The panel uses typed service IPC and public pairing material. It does not load
+seeds, sign objects, open sockets, or authorize a peer just because the panel
+opened. Service scheduling continues outside this view under the persisted grant
+and unlocked-identity requirement. GUI and Windows vault/device acceptance remain
+separate from the focused automated codec/retry checks.

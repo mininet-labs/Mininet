@@ -2,7 +2,7 @@
 
 The goal is an installed Mininet application whose identity, contacts, public feed, private conversations, calls, search and Resident AI work together through a shared runtime. Compiling the component crates is insufficient evidence of that experience. Each area below needs an owner-visible journey on installed devices, truthful errors, bounded resources and restart/revocation behavior.
 
-[PR #379](https://github.com/mininet-labs/mininet/pull/379) delivers the first bounded runtime/public-outbox backend slice. It is not an integrated-beta readiness declaration. The [public-delivery design](../design/durable-public-delivery.md) records its exact IPC workflow, security properties, resource limits and remaining gaps. Desktop integration and installed-device validation remain separate checkpoints.
+[PR #379](https://github.com/mininet-labs/mininet/pull/379) delivers the first bounded runtime/public-outbox backend slice. It is not an integrated-beta readiness declaration. The [public-delivery design](../design/durable-public-delivery.md) records its exact IPC workflow, security properties, resource limits and remaining gaps. Desktop controls are implemented in the stacked desktop-delivery proposal; installed-device validation remains a separate checkpoint.
 
 ## Acceptance matrix
 
@@ -26,7 +26,7 @@ This journey requires reachable numeric TCP addresses and external owner verific
 ## Checkpoints and evidence
 
 1. **Backend authority and durable delivery — PR #379:** focused protocol/Core/journal/peer/transport tests cover restart, identity binding, malformed input, retained bounds, revocation, lost/wrong acknowledgements and exact-object retries. Review the exact PR head and CI results before treating the backend as integrated.
-2. **Desktop public-delivery controls:** expose pairing, peer authorization, pending/failed/delivered status, the explicit network grant and expected-peer listener without shell commands or raw seeds. Demonstrate the complete journey between two running application instances, including disable, lock, restart and unreachable-peer recovery.
+2. **Desktop public-delivery controls — implemented proposal:** pairing, peer authorization, pending/retrying/delivered status, the explicit network grant, expected-peer listener, reviewed queuing and paginated receipts use service IPC without raw seeds. Focused codec, request-bound and stable-retry checks pass. Still demonstrate the complete journey between two running application instances, including disable, lock, restart and unreachable-peer recovery.
 3. **Installed-device public journey:** package and supervise the service; test two separate devices on supported platforms, persistent permissions, bounded UI delays and failure recovery. This is still narrower than the A–H beta.
 4. **Integrated beta:** close the outstanding acceptance in each matrix row, record executable journey evidence and known limitations, then make a separate release-readiness decision. Crate compilation and loopback success alone do not close these gates.
 
