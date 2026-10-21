@@ -146,3 +146,11 @@ The CLI test sources were also run through a temporary production-dependency
 harness excluding only the unused Wasmtime runner dev-dependency, avoiding
 compilation of the unrelated sandbox executor. Production CLI build and Clippy
 used the repository's unchanged manifest and lockfile.
+
+Whole-workspace commits now have an optional exact source review boundary:
+`mini --json repo snapshot-preview --workspace ROOT`, followed by
+`repo commit ... --workspace ROOT --confirm-snapshot EXACT_ID`. Confirmation
+checks the current source snapshot before signing and uses that same immutable
+buffer. It requires an existing identity. See
+[reviewed native workspaces](reviewed-native-workspace.md) for manifest limits,
+metadata binding boundaries and the remaining desktop/proposal integrations.

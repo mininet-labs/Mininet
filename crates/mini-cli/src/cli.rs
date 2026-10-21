@@ -238,7 +238,7 @@ fn dispatch_repo(
     json: bool,
 ) -> Result<String> {
     let noun = next(&mut args, "repo")?;
-    if !matches!(noun.as_str(), "init" | "commit") {
+    if !matches!(noun.as_str(), "init" | "commit" | "snapshot-preview") {
         reject_json(json, "repo subcommand")?;
     }
     match noun.as_str() {
@@ -269,28 +269,57 @@ fn dispatch_repo(
             }
             repo::track(home, &name, &id)
         }
+        "snapshot-preview" => {
+            let workspace = extract_flag(&mut args, "--workspace")
+                .ok_or_else(|| CliError::Usage("--workspace required".into()))?;
+            if !args.is_empty() {
+                return Err(CliError::Usage(
+                    "unexpected or duplicate snapshot preview arguments".into(),
+                ));
+            }
+            repo::preview_workspace(Path::new(&workspace))
+                .map(|r| r.render(json, "repo.snapshot-preview"))
+        }
         "commit" => {
             let project = next(&mut args, "repo commit")?;
             let branch = extract_flag(&mut args, "--branch")
                 .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
             let message = extract_flag(&mut args, "--message")
                 .ok_or_else(|| CliError::Usage("--message required".to_string()))?;
+            let confirmation = extract_flag(&mut args, "--confirm-snapshot");
             if let Some(workspace) = extract_flag(&mut args, "--workspace") {
                 if !args.is_empty() {
                     return Err(CliError::Usage(
                         "--workspace cannot be mixed with paths or unknown flags".into(),
                     ));
                 }
-                repo::commit_workspace(
-                    home,
-                    store_path,
-                    &project,
-                    &branch,
-                    &message,
-                    Path::new(&workspace),
-                )
-                .map(|r| r.render(json, "repo.commit"))
+                let result = if let Some(confirmation) = confirmation {
+                    repo::commit_workspace_confirmed(
+                        home,
+                        store_path,
+                        &project,
+                        &branch,
+                        &message,
+                        Path::new(&workspace),
+                        &confirmation,
+                    )
+                } else {
+                    repo::commit_workspace(
+                        home,
+                        store_path,
+                        &project,
+                        &branch,
+                        &message,
+                        Path::new(&workspace),
+                    )
+                };
+                result.map(|r| r.render(json, "repo.commit"))
             } else {
+                if confirmation.is_some() {
+                    return Err(CliError::Usage(
+                        "--confirm-snapshot requires --workspace".into(),
+                    ));
+                }
                 if args.iter().any(|arg| arg.starts_with("--")) {
                     return Err(CliError::Usage("unknown repo commit flag".into()));
                 }

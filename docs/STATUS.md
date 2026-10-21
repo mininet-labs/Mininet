@@ -3213,3 +3213,13 @@ use compare-and-save in the desktop to reject competing checkpoint replacement,
 and expose stale replacement/current-source comparison for explicitly acknowledged
 manual repair. Recovery loads only an unstaged editor draft with the accepted
 current baseline; it never silently rebases, stages, applies or restores approval.
+
+### Native source snapshot review (draft)
+
+The native CLI now previews a complete unsigned workspace manifest and can require
+its exact snapshot ID before signing a source commit. Bytes, portable executable
+modes, paths/empty directories and canonical root are bound; confirmed signing
+uses the same in-memory snapshot and requires an existing identity. Source-only
+confirmation does not bind project/branch/message/parent metadata, submit a
+proposal, change governance or imply checks have run. See
+`docs/design/reviewed-native-workspace.md` for the supported boundary.

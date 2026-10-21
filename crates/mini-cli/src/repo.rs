@@ -87,7 +87,32 @@ fn commit_paths_inner(
     message: &str,
     paths: &[PathBuf],
 ) -> Result<CommandResult> {
-    let identity = crate::identity::load_or_init(home)?;
+    let snapshot = read_snapshot(paths, 0, &mut SnapshotBudget::default())?;
+    commit_snapshot(
+        home,
+        store_path,
+        project_ref,
+        branch,
+        message,
+        &snapshot,
+        false,
+    )
+}
+
+fn commit_snapshot(
+    home: &Path,
+    store_path: &Path,
+    project_ref: &str,
+    branch: &str,
+    message: &str,
+    snapshot: &[Snapshot],
+    existing_only: bool,
+) -> Result<CommandResult> {
+    let identity = if existing_only {
+        crate::identity::load(home)?
+    } else {
+        crate::identity::load_or_init(home)?
+    };
     let mut store = open_store(store_path)?;
     let human = identity.human_did();
 
@@ -108,9 +133,7 @@ fn commit_paths_inner(
     if message.len() > mini_forge::MAX_MESSAGE_BYTES {
         return Err(CliError::Usage("commit message exceeds forge limit".into()));
     }
-    // Validate and read the entire snapshot before creating any objects.
-    let snapshot = read_snapshot(paths, 0, &mut SnapshotBudget::default())?;
-    let entries = store_snapshot(&mut store, &human, &identity.device, &snapshot)?;
+    let entries = store_snapshot(&mut store, &human, &identity.device, snapshot)?;
     let tree = put_tree(&mut store, &human, &identity.device, &entries)
         .map_err(|e| CliError::Forge(e.to_string()))?;
 
@@ -159,9 +182,27 @@ pub fn commit_workspace(
     message: &str,
     workspace: &Path,
 ) -> Result<CommandResult> {
+    let (_, snapshot) = workspace_snapshot(workspace)?;
+    commit_snapshot(
+        home,
+        store_path,
+        project_ref,
+        branch,
+        message,
+        &snapshot,
+        false,
+    )
+}
+
+fn workspace_snapshot(workspace: &Path) -> Result<(PathBuf, Vec<Snapshot>)> {
     reject_symlink_components(workspace)?;
+    let canonical = fs::canonicalize(workspace).map_err(|e| CliError::Io(e.to_string()))?;
+    reject_symlink_components(&canonical)?;
+    if !canonical.is_dir() {
+        return Err(CliError::Usage("workspace must be a directory".into()));
+    }
     let mut paths = Vec::new();
-    for entry in fs::read_dir(workspace).map_err(|e| CliError::Io(e.to_string()))? {
+    for entry in fs::read_dir(&canonical).map_err(|e| CliError::Io(e.to_string()))? {
         paths.push(entry.map_err(|e| CliError::Io(e.to_string()))?.path());
         if paths.len() > mini_forge::MAX_TREE_ENTRIES + 3 {
             return Err(CliError::Usage(
@@ -169,9 +210,191 @@ pub fn commit_workspace(
             ));
         }
     }
-    // An empty directory is an intentional empty snapshot (including deletion
-    // of the last file); the positional-path interface still rejects no paths.
-    commit_paths_inner(home, store_path, project_ref, branch, message, &paths)
+    // Empty root and empty descendant directories are intentional source state.
+    let snapshot = read_snapshot(&paths, 0, &mut SnapshotBudget::default())?;
+    Ok((canonical, snapshot))
+}
+
+/// Read-only, unsigned review of the exact bounded source snapshot. No identity,
+/// KEL, sequence, project or object-store access occurs here. File contents stay
+/// in memory and never appear in the manifest output.
+pub fn preview_workspace(workspace: &Path) -> Result<CommandResult> {
+    let (root, snapshot) = workspace_snapshot(workspace)?;
+    let summary = snapshot_summary(&root, &snapshot)?;
+    let human = format!(
+        "workspace snapshot: {}\nworkspace: {}\n{} files, {} directories, {} bytes\n{}",
+        summary.id,
+        root.display(),
+        summary.files,
+        summary.directories,
+        summary.bytes,
+        summary
+            .entries
+            .iter()
+            .map(|(path, entry)| format!("{path}: {}\n", entry.render()))
+            .collect::<String>()
+    );
+    Ok(CommandResult::new(human)
+        .field("snapshot_id", JsonValue::str(summary.id))
+        .field(
+            "workspace",
+            JsonValue::str(root.to_str().expect("validated UTF-8 root")),
+        )
+        .field("files", JsonValue::num(summary.files))
+        .field("directories", JsonValue::num(summary.directories))
+        .field("bytes", JsonValue::num(summary.bytes))
+        .field(
+            "entries",
+            JsonValue::Array(
+                summary
+                    .entries
+                    .into_iter()
+                    .map(|(_, entry)| entry)
+                    .collect(),
+            ),
+        ))
+}
+
+/// Confirm only the canonical source root, full tree, bytes and portable
+/// executable flags. Project, branch, message and governed parent are separate
+/// explicit inputs, not bound by this unsigned source confirmation. Snapshot
+/// bytes are read once and that same immutable buffer is subsequently signed.
+pub fn commit_workspace_confirmed(
+    home: &Path,
+    store_path: &Path,
+    project_ref: &str,
+    branch: &str,
+    message: &str,
+    workspace: &Path,
+    confirmation: &str,
+) -> Result<CommandResult> {
+    let (root, snapshot) = workspace_snapshot(workspace)?;
+    let summary = snapshot_summary(&root, &snapshot)?;
+    if confirmation != summary.id {
+        return Err(CliError::Usage(
+            "workspace changed or snapshot confirmation does not match; review a fresh snapshot"
+                .into(),
+        ));
+    }
+    commit_snapshot(
+        home,
+        store_path,
+        project_ref,
+        branch,
+        message,
+        &snapshot,
+        true,
+    )
+    .map(|result| {
+        result
+            .field("snapshot_id", JsonValue::str(summary.id))
+            .field(
+                "workspace",
+                JsonValue::str(root.to_str().expect("validated UTF-8 root")),
+            )
+    })
+}
+
+struct SnapshotSummary {
+    id: String,
+    files: u64,
+    directories: u64,
+    bytes: u64,
+    entries: Vec<(String, JsonValue)>,
+    nodes: usize,
+    path_bytes: usize,
+}
+fn hash_field(hasher: &mut blake3::Hasher, bytes: &[u8]) {
+    hasher.update(&(bytes.len() as u64).to_be_bytes());
+    hasher.update(bytes);
+}
+const MAX_MANIFEST_ENTRIES: usize = 20_000;
+const MAX_MANIFEST_PATH_BYTES: usize = 8 * 1024 * 1024;
+fn snapshot_summary(root: &Path, snapshot: &[Snapshot]) -> Result<SnapshotSummary> {
+    let root_text = root
+        .to_str()
+        .ok_or_else(|| CliError::Usage("reviewed workspace paths must be UTF-8".into()))?;
+    if root_text.len() > 8192 || root_text.chars().any(char::is_control) {
+        return Err(CliError::Usage(
+            "reviewed workspace root exceeds path limits or contains control characters".into(),
+        ));
+    }
+    let mut summary = SnapshotSummary {
+        id: String::new(),
+        files: 0,
+        directories: 0,
+        bytes: 0,
+        entries: Vec::new(),
+        nodes: 0,
+        path_bytes: 0,
+    };
+    let tree_hash = manifest_nodes("", snapshot, &mut summary)?;
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"MINI/WORKSPACE-SNAPSHOT/v1\0");
+    hash_field(&mut hasher, root_text.as_bytes());
+    hasher.update(&tree_hash);
+    summary.id = hasher.finalize().to_hex().to_string();
+    summary.entries.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(summary)
+}
+/// Bottom-up Merkle walk: hash each payload once and reuse its digest in the
+/// manifest and parent. Nested directories never rescan descendant file bytes.
+fn manifest_nodes(
+    parent: &str,
+    snapshot: &[Snapshot],
+    summary: &mut SnapshotSummary,
+) -> Result<[u8; 32]> {
+    let mut tree = blake3::Hasher::new();
+    tree.update(b"MINI/WORKSPACE-TREE/v1\0");
+    tree.update(&(snapshot.len() as u64).to_be_bytes());
+    for entry in snapshot {
+        let name = match entry {
+            Snapshot::File(name, ..) | Snapshot::Directory(name, ..) => name,
+        };
+        let path = if parent.is_empty() {
+            name.clone()
+        } else {
+            format!("{parent}/{name}")
+        };
+        summary.nodes += 1;
+        summary.path_bytes += path.len();
+        if summary.nodes > MAX_MANIFEST_ENTRIES || summary.path_bytes > MAX_MANIFEST_PATH_BYTES {
+            return Err(CliError::Usage("review manifest exceeds 20000 entries or 8 MiB of paths; select a smaller workspace".into()));
+        }
+        let (kind, bytes, digest, executable) = match entry {
+            Snapshot::File(_, bytes, executable) => {
+                let digest = *blake3::hash(bytes).as_bytes();
+                tree.update(b"f");
+                hash_field(&mut tree, name.as_bytes());
+                tree.update(&[u8::from(*executable)]);
+                tree.update(&(bytes.len() as u64).to_be_bytes());
+                tree.update(&digest);
+                summary.files += 1;
+                summary.bytes += bytes.len() as u64;
+                ("file", bytes.len() as u64, digest, *executable)
+            }
+            Snapshot::Directory(_, children) => {
+                let digest = manifest_nodes(&path, children, summary)?;
+                tree.update(b"d");
+                hash_field(&mut tree, name.as_bytes());
+                tree.update(&digest);
+                summary.directories += 1;
+                ("directory", 0, digest, false)
+            }
+        };
+        let digest = blake3::Hash::from_bytes(digest).to_hex().to_string();
+        summary.entries.push((
+            path.clone(),
+            JsonValue::Object(vec![
+                ("path".into(), JsonValue::str(path)),
+                ("kind".into(), JsonValue::str(kind)),
+                ("bytes".into(), JsonValue::num(bytes)),
+                ("hash".into(), JsonValue::str(digest)),
+                ("executable".into(), JsonValue::Bool(executable)),
+            ]),
+        ));
+    }
+    Ok(*tree.finalize().as_bytes())
 }
 
 enum Snapshot {
@@ -680,5 +903,239 @@ mod workspace_tests {
         let third = dir.path().join("third");
         checkout_commit(&home, &store, empty_id, &third).unwrap();
         assert_eq!(fs::read_dir(third).unwrap().count(), 0);
+    }
+
+    fn snapshot_id(result: &CommandResult) -> &str {
+        match &result
+            .fields
+            .iter()
+            .find(|(key, _)| *key == "snapshot_id")
+            .unwrap()
+            .1
+        {
+            JsonValue::String(id) => id,
+            _ => panic!("snapshot ID is not a string"),
+        }
+    }
+    #[test]
+    fn workspace_preview_is_sorted_private_and_binds_bytes_empty_dirs_and_root() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join("z.rs"),
+            b"private source bytes not in manifest",
+        )
+        .unwrap();
+        fs::write(dir.path().join("a.rs"), b"a").unwrap();
+        fs::create_dir(dir.path().join("empty")).unwrap();
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        fs::write(dir.path().join("sub/x.rs"), b"x").unwrap();
+        fs::write(dir.path().join(".resident-draft.json"), b"private draft").unwrap();
+        let first = preview_workspace(dir.path()).unwrap();
+        assert!(!first.human.contains("private source bytes not in manifest"));
+        assert!(!first.human.contains("private draft"));
+        let entries = &first
+            .fields
+            .iter()
+            .find(|(key, _)| *key == "entries")
+            .unwrap()
+            .1;
+        let JsonValue::Array(entries) = entries else {
+            panic!("manifest is not an array")
+        };
+        let paths: Vec<_> = entries
+            .iter()
+            .map(|entry| {
+                let JsonValue::Object(fields) = entry else {
+                    panic!("manifest entry is not an object")
+                };
+                match &fields.iter().find(|(key, _)| key == "path").unwrap().1 {
+                    JsonValue::String(path) => path.as_str(),
+                    _ => panic!("path is not a string"),
+                }
+            })
+            .collect();
+        assert_eq!(paths, ["a.rs", "empty", "sub", "sub/x.rs", "z.rs"]);
+        assert_eq!(first.fields, preview_workspace(dir.path()).unwrap().fields);
+        fs::write(dir.path().join("a.rs"), b"a").unwrap();
+        assert_eq!(
+            snapshot_id(&first),
+            snapshot_id(&preview_workspace(dir.path()).unwrap())
+        );
+        fs::write(dir.path().join("a.rs"), b"different bytes").unwrap();
+        assert_ne!(
+            snapshot_id(&first),
+            snapshot_id(&preview_workspace(dir.path()).unwrap())
+        );
+        fs::write(dir.path().join("a.rs"), b"a").unwrap();
+        fs::remove_dir(dir.path().join("empty")).unwrap();
+        assert_ne!(
+            snapshot_id(&first),
+            snapshot_id(&preview_workspace(dir.path()).unwrap())
+        );
+        fs::create_dir(dir.path().join("empty")).unwrap();
+        let (root, snapshot) = workspace_snapshot(dir.path()).unwrap();
+        let elsewhere = tempfile::tempdir().unwrap();
+        assert_ne!(
+            snapshot_summary(&root, &snapshot).unwrap().id,
+            snapshot_summary(elsewhere.path(), &snapshot).unwrap().id
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(dir.path().join("a.rs"), fs::Permissions::from_mode(0o600))
+                .unwrap();
+            assert_eq!(
+                snapshot_id(&first),
+                snapshot_id(&preview_workspace(dir.path()).unwrap())
+            );
+            fs::set_permissions(dir.path().join("a.rs"), fs::Permissions::from_mode(0o700))
+                .unwrap();
+            assert_ne!(
+                snapshot_id(&first),
+                snapshot_id(&preview_workspace(dir.path()).unwrap())
+            );
+        }
+    }
+
+    #[test]
+    fn confirmed_workspace_rejects_stale_or_wrong_id_before_identity_or_store_creation() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("code.rs"), b"reviewed").unwrap();
+        let home = dir.path().join("missing-home");
+        let store = dir.path().join("missing-store");
+        let preview = preview_workspace(&source).unwrap();
+        assert!(commit_workspace_confirmed(
+            &home, &store, "project", "main", "message", &source, "yes"
+        )
+        .is_err());
+        assert!(!home.exists() && !store.exists());
+        fs::write(source.join("code.rs"), b"changed since review").unwrap();
+        assert!(commit_workspace_confirmed(
+            &home,
+            &store,
+            "project",
+            "main",
+            "message",
+            &source,
+            snapshot_id(&preview)
+        )
+        .is_err());
+        assert!(!home.exists() && !store.exists());
+        let current = preview_workspace(&source).unwrap();
+        assert!(commit_workspace_confirmed(
+            &home,
+            &store,
+            "project",
+            "main",
+            "message",
+            &source,
+            snapshot_id(&current)
+        )
+        .is_err());
+        assert!(
+            !home.exists() && !store.exists(),
+            "confirmed commit silently initialized identity or store"
+        );
+    }
+
+    #[test]
+    fn confirmed_commit_uses_only_the_reviewed_in_memory_snapshot() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        let store_path = dir.path().join("store");
+        init(&home, &store_path, "demo", vec![], 1).unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("code.rs"), b"reviewed bytes").unwrap();
+        let preview = preview_workspace(&source).unwrap();
+        let accepted = commit_workspace_confirmed(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "reviewed",
+            &source,
+            snapshot_id(&preview),
+        )
+        .unwrap();
+        assert_eq!(snapshot_id(&accepted), snapshot_id(&preview));
+        let accepted_id =
+            ObjectId::parse(accepted.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        let store = open_store(&store_path).unwrap();
+        assert_eq!(
+            checkout_with_modes(&store, &accepted_id).unwrap()[0].1,
+            b"reviewed bytes"
+        );
+        let before = store.all_ids().unwrap().len();
+        drop(store);
+        fs::write(source.join("code.rs"), b"changed bytes").unwrap();
+        assert!(commit_workspace_confirmed(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "stale",
+            &source,
+            snapshot_id(&preview)
+        )
+        .is_err());
+        assert_eq!(
+            open_store(&store_path).unwrap().all_ids().unwrap().len(),
+            before
+        );
+        // The confirmed path passes this immutable buffer to the shared
+        // commit helper. A later ordinary editor cannot change those bytes.
+        let (root, buffer) = workspace_snapshot(&source).unwrap();
+        let captured = snapshot_summary(&root, &buffer).unwrap();
+        fs::write(source.join("code.rs"), b"late external edit").unwrap();
+        let committed = commit_snapshot(
+            &home,
+            &store_path,
+            "demo",
+            "main",
+            "frozen buffer",
+            &buffer,
+            true,
+        )
+        .unwrap();
+        let id =
+            ObjectId::parse(committed.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        let files = checkout_with_modes(&open_store(&store_path).unwrap(), &id).unwrap();
+        assert_eq!(files[0].1, b"changed bytes");
+        assert_ne!(
+            captured.id,
+            snapshot_id(&preview_workspace(&source).unwrap())
+        );
+    }
+    #[test]
+    fn review_metadata_limits_fail_without_truncating_large_manifests() {
+        let root = tempfile::tempdir().unwrap();
+        let many = (0..101)
+            .map(|group| {
+                Snapshot::Directory(
+                    format!("group{group}"),
+                    (0..200)
+                        .map(|file| Snapshot::File(format!("f{file}"), vec![], false))
+                        .collect(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(snapshot_summary(root.path(), &many).is_err());
+        fn deep(depth: usize) -> Snapshot {
+            let children = if depth == 0 {
+                (0..200)
+                    .map(|file| Snapshot::File(format!("f{file:0253}"), vec![], false))
+                    .collect()
+            } else {
+                vec![deep(depth - 1)]
+            };
+            Snapshot::Directory(format!("d{depth:0253}"), children)
+        }
+        let long = (0..6)
+            .map(|index| Snapshot::Directory(format!("root{index}"), vec![deep(29)]))
+            .collect::<Vec<_>>();
+        assert!(snapshot_summary(root.path(), &long).is_err());
     }
 }
