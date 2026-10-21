@@ -49,8 +49,10 @@ out of band. Project membership is not inferred from GitHub access.
 ```text
 mini --home <author-home> --json repo init <project> --maintainer <author-did> --maintainer <reviewer-did> --min-approvals 1
 mini --home <author-home> repo checkout <commit-id> <new-workspace-directory>
-mini --home <author-home> --json repo commit <project> --branch main --message "describe change" --workspace <workspace-directory>
-mini --home <author-home> --json pr propose <project> --branch main --title "describe change" --head <commit-id>
+mini --home <author-home> --json repo commit-preview <project> --branch main --message "describe change" --workspace <workspace-directory>
+mini --home <author-home> --json repo commit <project> --branch main --message "describe change" --workspace <workspace-directory> --confirm-plan <reviewed-commit-plan-id>
+mini --home <author-home> --json pr propose-preview <project> --branch main --title "describe change" --head <commit-id>
+mini --home <author-home> --json pr propose <project> --branch main --title "describe change" --head <commit-id> --confirm-plan <reviewed-proposal-plan-id>
 mini --home <reviewer-home> --json pr list <project-id>
 mini --home <reviewer-home> --json pr show <proposal-id>
 mini --home <reviewer-home> --json pr diff <proposal-id>
@@ -58,6 +60,10 @@ mini --home <reviewer-home> --json pr review <proposal-id> --head <commit-id> --
 mini --home <reviewer-home> --json pr approve <proposal-id> --head <commit-id> --findings "exact source reviewed"
 mini --home <maintainer-home> --json pr merge <project-id> <proposal-id>
 ```
+
+Inspect each full preview before copying its `plan_id` into the matching command.
+`mini repo --help` and `mini pr --help` work without an initialized node. See
+[reviewed native workspaces](reviewed-native-workspace.md) for confirmation limits.
 
 Use the `project_id`, `commit_id`, `pr_id`, `review_id` and `merge_id` JSON
 fields to chain commands. Source snapshots are deterministic and bounded;

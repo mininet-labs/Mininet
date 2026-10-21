@@ -72,8 +72,55 @@ pub fn run(raw_args: &[String]) -> Result<String> {
         .map(PathBuf::from)
         .unwrap_or_else(|| home.join("store"));
 
+    if let [group, help] = args.as_slice() {
+        if matches!(help.as_str(), "--help" | "help") {
+            if let Some(text) = contribution_help(group) {
+                reject_json(json, &format!("{group} help"))?;
+                return Ok(text.into());
+            }
+        }
+    }
+
     let _maintenance_lease = crate::maintenance::lease(&home)?;
     dispatch(&home, &store_path, args, json)
+}
+
+// Help is available before acquiring node maintenance state or loading identity.
+fn contribution_help(group: &str) -> Option<&'static str> {
+    match group {
+        "repo" => Some(
+            "Native source commands (global options: --home PATH --store PATH --json):
+  repo init PROJECT [--maintainer DID ...] [--min-approvals N]
+  repo snapshot-preview --workspace ROOT
+  repo commit-preview PROJECT --branch BRANCH --message TEXT --workspace ROOT
+  repo commit PROJECT --branch BRANCH --message TEXT --workspace ROOT --confirm-plan PLAN_ID
+  repo checkout COMMIT_ID NEW_DIRECTORY
+
+Inspect the entire preview, then confirm its exact plan_id. Changed source,
+signer or governed context requires a fresh preview. Existing identity/store
+are required for signing plans. Source-only --confirm-snapshot SNAPSHOT_ID
+and legacy commit workflows remain available. A commit does not propose,
+publish, approve or merge. Next: mini pr --help.",
+        ),
+        "pr" => Some(
+            "Native proposal commands (global options: --home PATH --store PATH --json):
+  pr propose-preview PROJECT --branch BRANCH --title TEXT --head COMMIT_ID [--base ID]
+  pr propose PROJECT --branch BRANCH --title TEXT --head COMMIT_ID --confirm-plan PLAN_ID [--base ID]
+  pr list PROJECT
+  pr show PROPOSAL_ID
+  pr diff PROPOSAL_ID
+  pr review PROPOSAL_ID --head COMMIT_ID --findings TEXT
+  pr approve PROPOSAL_ID --head COMMIT_ID [--reject] [--findings TEXT]
+  pr merge PROJECT PROPOSAL_ID [--prev ID]
+
+Inspect the full proposal preview before confirming its exact plan_id. Changed
+head, title, signer or governed context requires a fresh preview. Planned base
+must equal the current governed tip. Legacy propose without --confirm-plan
+remains available. Submission creates a local proposal; replication, approval,
+quorum and merge are separate actions. Plans are not one-use tokens or locks.",
+        ),
+        _ => None,
+    }
 }
 
 fn reject_json(json: bool, verb: &str) -> Result<()> {
