@@ -14,6 +14,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod delivery_interrupt;
+pub use delivery_interrupt::{DeliveryInterrupt, DeliveryStopGuard};
 mod delivery_peers;
 mod delivery_runtime;
 mod delivery_transport;
@@ -122,6 +124,7 @@ pub struct Core<V: IdentityVault> {
     peers: delivery_peers::PeerBook,
     delivery_policy: delivery_runtime::Policy,
     delivery_listener: Option<std::net::TcpListener>,
+    delivery_interrupt: DeliveryInterrupt,
     events: VecDeque<ServiceEvent>,
     next_event_id: u64,
     _process_lock: Option<File>,
@@ -185,10 +188,17 @@ impl<V: IdentityVault> Core<V> {
             peers,
             delivery_policy,
             delivery_listener: None,
+            delivery_interrupt: DeliveryInterrupt::default(),
             events: VecDeque::new(),
             next_event_id: 1,
             _process_lock: process_lock,
         })
+    }
+
+    /// A denial-only handle for the host's bounded IPC reader. It conveys no
+    /// identity, signing, store, or networking-start capability.
+    pub fn delivery_interrupt_handle(&self) -> DeliveryInterrupt {
+        self.delivery_interrupt.clone()
     }
 
     pub fn handle(&mut self, command: Command) -> Result<Reply, ServiceError> {
@@ -1545,6 +1555,27 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ))
+    }
+
+    #[test]
+    fn forwarded_stop_prevents_another_scheduling_turn_until_control_is_processed() {
+        let root = temp_root("stop-pending");
+        let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+        core.handle(Command::UnlockIdentity).unwrap();
+        core.handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        let interrupt = core.delivery_interrupt_handle();
+        let stop = interrupt.stop();
+        core.poll_delivery().unwrap();
+        assert!(core.delivery_listener.is_none());
+        assert!(core.attempt_delivery("any", now_ms()).is_err());
+        core.handle(Command::LockIdentity).unwrap();
+        drop(stop);
+        assert!(!interrupt.is_stopped());
+        core.poll_delivery().unwrap();
+        assert!(core.identity.is_none() && core.delivery_listener.is_none());
+        drop(core);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
