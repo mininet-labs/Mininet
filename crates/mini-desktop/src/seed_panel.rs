@@ -9,6 +9,7 @@ struct Pending {
     label: &'static str,
     job: Job,
     preview_key: Option<PreviewKey>,
+    pairing_key: Option<PairingKey>,
 }
 #[derive(Clone, PartialEq, Eq)]
 struct PreviewKey {
@@ -24,7 +25,45 @@ struct Preview {
     document: Value,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+struct PairingKey {
+    node: Node,
+    hex: String,
+}
+struct PairingReview {
+    key: PairingKey,
+    id: String,
+    human: String,
+    device: String,
+}
+fn pairing_review(key: PairingKey, envelope: &Value) -> Option<PairingReview> {
+    let result = envelope.get("result")?;
+    let id = result.get("bundle_id")?.as_str()?;
+    let human = result.get("human_did")?.as_str()?;
+    let device = result.get("device_did")?.as_str()?;
+    if result.get("trusted")?.as_bool()?
+        || id.len() != 64
+        || !id.bytes().all(|b| b.is_ascii_hexdigit())
+        || human.is_empty()
+        || device.is_empty()
+        || human == device
+    {
+        return None;
+    }
+    Some(PairingReview {
+        key,
+        id: id.into(),
+        human: human.into(),
+        device: device.into(),
+    })
+}
+
 pub(crate) struct Panel {
+    initialize_ack: bool,
+    initialize_confirmation: String,
+    pairing_hex: String,
+    pairing_confirmation: String,
+    pairing: Option<PairingReview>,
     program: String,
     home: String,
     store: String,
@@ -76,6 +115,11 @@ impl Default for Panel {
             })
             .unwrap_or_else(|| PathBuf::from(if cfg!(windows) { "mini.exe" } else { "mini" }));
         Self {
+            initialize_ack: false,
+            initialize_confirmation: String::new(),
+            pairing_hex: String::new(),
+            pairing_confirmation: String::new(),
+            pairing: None,
             program: program.display().to_string(),
             home: home.display().to_string(),
             store: home.join("store").display().to_string(),
@@ -181,7 +225,21 @@ impl Panel {
             output: PathBuf::from(self.preview_output.trim()),
         }
     }
+    fn pairing_key(&self) -> PairingKey {
+        PairingKey {
+            node: self.node(),
+            hex: self.pairing_hex.trim().into(),
+        }
+    }
+    fn invalidate_pairing(&mut self) {
+        self.pairing = None;
+        self.pairing_confirmation.clear();
+    }
     fn invalidate(&mut self) {
+        self.initialize_ack = false;
+        self.initialize_confirmation.clear();
+        self.pairing_hex.clear();
+        self.invalidate_pairing();
         for slot in [
             &mut self.primary,
             &mut self.service,
@@ -221,6 +279,7 @@ impl Panel {
         lane: u8,
         preview_key: Option<PreviewKey>,
     ) {
+        let pairing_key = matches!(action, Action::KelInspect { .. }).then(|| self.pairing_key());
         let slot = match lane {
             1 => &mut self.service,
             2 => &mut self.follow,
@@ -243,6 +302,7 @@ impl Panel {
                     label,
                     job,
                     preview_key,
+                    pairing_key,
                 });
                 self.status = format!("{label} started for the selected CLI profile.");
             }
@@ -251,6 +311,7 @@ impl Panel {
     }
     fn poll(&mut self) {
         let current = self.key();
+        let current_pairing = self.pairing_key();
         for slot in [
             &mut self.primary,
             &mut self.service,
@@ -263,7 +324,18 @@ impl Panel {
                 match result {
                     Err(error) => self.status = format!("{} failed: {error}", pending.label),
                     Ok(value) => {
-                        if let Some(key) = pending.preview_key {
+                        if let Some(key) = pending.pairing_key {
+                            self.pairing = None;
+                            self.pairing_confirmation.clear();
+                            if key == current_pairing {
+                                self.pairing = pairing_review(key, &value);
+                            }
+                            self.status = if self.pairing.is_some() {
+                                "Public keys verified. Compare the full human/device DIDs with the peer over a trusted channel, then type the exact bundle ID to trust them locally.".into()
+                            } else {
+                                "Pairing review does not match the current profile and bundle. Inspect again.".into()
+                            };
+                        } else if let Some(key) = pending.preview_key {
                             self.preview = None;
                             self.confirmation.clear();
                             let result = value.get("result").unwrap_or(&value);
@@ -299,7 +371,7 @@ impl Panel {
     }
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
         self.poll();
-        ui.label("Use an existing mini CLI node profile. Its signing identity and trust settings are separate from this desktop's protected vault. This panel never creates a wallet or starts networking on its own.");
+        ui.label("Select a mini CLI node profile, or explicitly create a separate new profile below. Its signing identity and trust settings are separate from this desktop's protected vault. This panel never creates a wallet or starts networking on its own.");
         egui::CollapsingHeader::new("Node profile and executable")
             .default_open(true)
             .show(ui, |ui| {
@@ -404,6 +476,7 @@ impl Panel {
                 if ui.add_enabled(idle && !self.object_id.trim().is_empty(), egui::Button::new("Retrieve verified object")).clicked() { self.start(Action::Retrieve { id: self.object_id.trim().into(), reseed_days: self.reseed.then_some(self.days) }, "Retrieve object", 0, None); self.reseed = false; }
             });
         });
+        self.onboarding(ui, idle);
         self.collections(ui, idle);
         self.hosting(ui, idle);
         if let Some((label, value)) = &self.report {
@@ -425,6 +498,42 @@ impl Panel {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(100));
         }
+    }
+    fn onboarding(&mut self, ui: &mut egui::Ui, idle: bool) {
+        egui::CollapsingHeader::new("Create node identity and pair public keys").show(ui, |ui| {
+            ui.label("Creation writes a new human/device signing identity in the selected CLI home. It never imports the desktop vault identity or overwrites an existing identity. Keep this folder private: CLI seed files grant control, and this developer profile has no OS-keychain protection or key rotation.");
+            ui.checkbox(&mut self.initialize_ack, "I want a separate CLI identity at the node home shown above");
+            field(ui, "Type CREATE to create signing keys", &mut self.initialize_confirmation);
+            let no_jobs = idle && self.service.is_none() && self.follow.is_none() && self.control.is_none();
+            if ui.add_enabled(no_jobs && self.initialize_ack && self.initialize_confirmation == "CREATE", egui::Button::new("Create new node identity")).clicked() {
+                self.initialize_ack = false; self.initialize_confirmation.clear();
+                self.invalidate_pairing();
+                self.start(Action::NodeInitialize, "Create node identity", 0, None);
+            }
+            ui.separator();
+            ui.label("Exchange only the public key bundle. Never paste or send human.seed/device.seed. Exporting public keys grants no endpoint access; local trust and seed contact activation are separate choices.");
+            if ui.add_enabled(idle, egui::Button::new("Export my public key bundle")).clicked() { self.start(Action::KelExport, "Public key export", 0, None); }
+            ui.label("Peer public bundle (hex, up to 8192 characters)");
+            let changed = ui.add(egui::TextEdit::multiline(&mut self.pairing_hex).desired_rows(3).char_limit(8192)).changed();
+            if changed { self.invalidate_pairing(); }
+            if ui.add_enabled(idle && !self.pairing_hex.trim().is_empty(), egui::Button::new("Inspect peer public keys — no trust granted")).clicked() {
+                self.invalidate_pairing();
+                self.start(Action::KelInspect { hex:self.pairing_hex.trim().into() }, "Inspect peer public keys", 0, None);
+            }
+            let mut trust = None;
+            if let Some(review) = &self.pairing {
+                ui.label(format!("Human root: {}", review.human));
+                ui.label(format!("Device: {}", review.device));
+                ui.label(format!("Exact bundle ID: {}", review.id));
+                ui.label("Cryptographic verification proves key consistency, not who the person is. Compare these DIDs independently before trusting. Trust permits verification of that identity's signed objects; it grants no governance vote, payment authority or network access.");
+                field(ui, "Type the exact bundle ID to trust these public keys", &mut self.pairing_confirmation);
+                if ui.add_enabled(no_jobs && review.key == self.pairing_key() && self.pairing_confirmation == review.id, egui::Button::new("Trust reviewed peer keys locally")).clicked() { trust = Some((review.key.hex.clone(), review.id.clone())); }
+            }
+            if let Some((hex, confirmation)) = trust {
+                self.invalidate_pairing();
+                self.start(Action::KelTrust { hex, confirmation }, "Trust reviewed peer keys", 0, None);
+            }
+        });
     }
     fn collections(&mut self, ui: &mut egui::Ui, idle: bool) {
         egui::CollapsingHeader::new("Linked media and history collections").show(ui, |ui| {
@@ -537,6 +646,11 @@ fn result_view(
     let value = envelope.get("result").unwrap_or(envelope);
     for (key, label) in [
         ("text", "Identity"),
+        ("human_did", "Human root"),
+        ("device_did", "Device"),
+        ("bundle_id", "Public bundle ID"),
+        ("trusted", "Locally trusted"),
+        ("created", "Created"),
         ("complete", "Complete"),
         ("running", "Running"),
         ("active", "Active leases"),
@@ -554,6 +668,18 @@ fn result_view(
     ] {
         if let Some(v) = value.get(key).filter(|v| !v.is_array() && !v.is_object()) {
             ui.label(format!("{label}: {}", scalar(v)));
+        }
+    }
+    if let Some(hex) = value.get("hex").and_then(Value::as_str) {
+        ui.label("Public key bundle (contains no signing seeds)");
+        let mut displayed = hex.to_owned();
+        ui.add(
+            egui::TextEdit::multiline(&mut displayed)
+                .desired_rows(3)
+                .interactive(false),
+        );
+        if ui.button("Copy public key bundle").clicked() {
+            ui.ctx().copy_text(hex.to_owned());
         }
     }
     for key in ["pool", "price"] {
@@ -746,5 +872,28 @@ mod tests {
         assert!(panel.allowed_peers.is_empty());
         assert!(!panel.allow_service && !panel.allow_announcement && !panel.reseed);
         assert!(panel.report.is_none() && panel.preview.is_none());
+    }
+    #[test]
+    fn pairing_review_is_invalidated_by_bundle_edits_and_profile_changes() {
+        let mut panel = Panel::default();
+        panel.pairing_hex = "abcd".into();
+        let key = panel.pairing_key();
+        let doc = serde_json::json!({"result":{"human_did":"human","device_did":"device","bundle_id":"a".repeat(64),"trusted":false}});
+        panel.pairing = pairing_review(key.clone(), &doc);
+        assert!(panel.pairing.is_some());
+        panel.pairing_confirmation = "a".repeat(64);
+        panel.pairing_hex = "dcba".into();
+        assert!(panel.pairing.as_ref().unwrap().key != panel.pairing_key());
+        panel.invalidate_pairing();
+        assert!(panel.pairing.is_none() && panel.pairing_confirmation.is_empty());
+        panel.pairing = pairing_review(key, &doc);
+        panel.initialize_ack = true;
+        panel.initialize_confirmation = "CREATE".into();
+        panel.invalidate();
+        assert!(panel.pairing.is_none() && panel.pairing_hex.is_empty());
+        assert!(!panel.initialize_ack && panel.initialize_confirmation.is_empty());
+        let mut invalid = doc;
+        invalid["result"]["trusted"] = true.into();
+        assert!(pairing_review(panel.pairing_key(), &invalid).is_none());
     }
 }

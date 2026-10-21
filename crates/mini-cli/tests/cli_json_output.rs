@@ -186,17 +186,11 @@ fn release_create_json_output_chains_directly_into_attest_without_text_scraping(
 #[test]
 fn json_is_rejected_for_commands_that_do_not_support_it_yet() {
     let home = tempdir("no-json-support");
-    let owned: Vec<String> = [
-        "--home",
-        home.to_str().unwrap(),
-        "--json",
-        "identity",
-        "init",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
-    let err = mini_cli::run(&owned).expect_err("identity has no --json support yet");
+    let owned: Vec<String> = ["--home", home.to_str().unwrap(), "--json", "intake", "show"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let err = mini_cli::run(&owned).expect_err("intake has no --json support yet");
     assert!(matches!(err, mini_cli::CliError::Usage(_)));
 }
 
@@ -240,4 +234,124 @@ fn compiled_binary_prints_a_json_error_envelope_on_failure() {
     assert_eq!(json_field(&stdout, "kind"), "release.verify");
     assert!(!json_field(&stdout, "error_code").is_empty());
     assert!(!json_field(&stdout, "message").is_empty());
+}
+
+#[test]
+fn kel_inspect_and_failed_trust_leave_no_partial_trust_state() {
+    let temp = tempfile::tempdir().unwrap();
+    let owner = temp.path().join("owner");
+    let recipient = temp.path().join("recipient");
+    let init = run(&[
+        "--home",
+        owner.to_str().unwrap(),
+        "--json",
+        "identity",
+        "init",
+    ]);
+    let exported = run(&["--home", owner.to_str().unwrap(), "--json", "kel", "export"]);
+    assert_eq!(
+        json_field(&init, "human_did"),
+        json_field(&exported, "human_did")
+    );
+    let hex = json_field(&exported, "hex");
+    let inspected = run(&[
+        "--home",
+        recipient.to_str().unwrap(),
+        "--json",
+        "kel",
+        "inspect",
+        hex,
+    ]);
+    assert_eq!(
+        json_field(&inspected, "bundle_id"),
+        json_field(&exported, "bundle_id")
+    );
+    assert_eq!(json_field(&inspected, "trusted"), "false");
+    assert!(!recipient.join("trusted_kels").exists());
+    let wrong: Vec<String> = [
+        "--home",
+        recipient.to_str().unwrap(),
+        "kel",
+        "trust",
+        hex,
+        "--confirm",
+        "wrong-id",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    assert!(mini_cli::run(&wrong).is_err());
+    assert!(!recipient.join("trusted_kels").exists());
+    let mut bytes: Vec<u8> = hex
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
+        .collect();
+    // Corrupt the device's final signature, leaving the human log valid and
+    // both binary KEL containers structurally decodable. The old sequential
+    // implementation wrote the human KEL before discovering this invalidity.
+    *bytes.last_mut().unwrap() ^= 1;
+    let human_len = u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize;
+    let device_start = 4 + human_len + 4;
+    let human = did_mini::Kel::from_bytes(&bytes[4..4 + human_len]).unwrap();
+    let device = did_mini::Kel::from_bytes(&bytes[device_start..]).unwrap();
+    human.verify().unwrap();
+    assert!(device.verify().is_err());
+    let malformed = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    assert!(mini_cli::store::cmd_trust_kel(&recipient, &malformed).is_err());
+    assert!(!recipient.join("trusted_kels").exists());
+    // Invalid Unicode is a usage error, not a panic from slicing a UTF-8
+    // character at an arbitrary byte boundary.
+    let unicode: Vec<String> = [
+        "--home",
+        recipient.to_str().unwrap(),
+        "kel",
+        "inspect",
+        "€a",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    assert!(mini_cli::run(&unicode).is_err());
+    let confirmed = run(&[
+        "--home",
+        recipient.to_str().unwrap(),
+        "--json",
+        "kel",
+        "trust",
+        hex,
+        "--confirm",
+        json_field(&exported, "bundle_id"),
+    ]);
+    assert_eq!(json_field(&confirmed, "trusted"), "true");
+    assert_eq!(
+        fs::read_dir(recipient.join("trusted_kels"))
+            .unwrap()
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn trusted_kel_updates_reject_rollback_and_forks_without_replacing_history() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut root = did_mini::Controller::incept_single_from_seeds(&[21; 32], &[22; 32]).unwrap();
+    let initial = root.kel();
+    root.interact(vec![[1; 32]]).unwrap();
+    let extended = root.kel();
+    mini_cli::store::trust_kel(temp.path(), extended.clone()).unwrap();
+    let file = temp
+        .path()
+        .join("trusted_kels")
+        .join(format!("{}.kel", extended.scid()));
+    let expected = fs::read(&file).unwrap();
+    assert!(mini_cli::store::trust_kel(temp.path(), initial).is_err());
+    assert_eq!(fs::read(&file).unwrap(), expected);
+    let mut fork = did_mini::Controller::incept_single_from_seeds(&[21; 32], &[22; 32]).unwrap();
+    fork.interact(vec![[2; 32]]).unwrap();
+    assert!(mini_cli::store::trust_kel(temp.path(), fork.kel()).is_err());
+    assert_eq!(fs::read(&file).unwrap(), expected);
+    root.interact(vec![[3; 32]]).unwrap();
+    mini_cli::store::trust_kel(temp.path(), root.kel()).unwrap();
+    assert_ne!(fs::read(file).unwrap(), expected);
 }

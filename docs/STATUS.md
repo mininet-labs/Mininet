@@ -3228,3 +3228,11 @@ It uses typed subprocess actions against an owner-selected existing CLI profile,
 separate from the desktop vault; view entry starts no jobs. This is a coding
 checkpoint, with desktop/hardware launch validation still pending. See the
 owner-control section in `docs/design/seed-network.md`.
+
+
+Desktop seed onboarding now supports explicitly creating a separate CLI identity,
+public-key export, verified KEL inspection, and exact-bundle-confirmed local trust.
+Both bundled logs/delegation verify before trust writes; existing trusted histories
+must extend without rollback/fork. Pairing does not activate an endpoint. Structured
+identity/KEL JSON preserves existing human CLI output. Desktop vault unification,
+OS-keychain protection for CLI seeds and CLI key rotation remain unfinished.

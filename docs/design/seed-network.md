@@ -389,7 +389,9 @@ the destination before retrying.
 The desktop **Seed network** view runs the installed `mini` command tool through
 explicit typed actions. Select an existing CLI node folder and source store, and
 use **Node identity** to inspect that profile. This is separate from the desktop's
-locked vault identity: the panel does not copy keys or initialize a node. Install
+locked vault identity: the panel never copies vault keys or initializes a node
+automatically. Explicit identity creation and public-key pairing are described
+below. Install
 `mini` beside the desktop binary or select its absolute executable path. The
 selected helper is trusted executable code, not a sandboxed plugin.
 
@@ -418,8 +420,55 @@ MININET_SEED_CLI="$PWD/target/debug/mini" cargo test -p mini-desktop \
   --bin mininet-desktop real_cli_profile_actions_round_trip --locked --offline -- --ignored
 ```
 
-The opt-in round-trip test initializes a temporary test-only node, exercises six
-real helper actions through the adapter, checks single result delivery, and
-removes its own test profile. It never uses the owner's existing identity/store.
+The opt-in round-trip test creates temporary test-only nodes through the adapter,
+checks duplicate-initialization refusal, public-key export/inspection, wrong and
+exact trust confirmations, six pool/status actions and single result delivery.
+It removes only its own test profiles. It never uses the owner's existing identity/store.
 Windows can set `MININET_SEED_CLI` to the built `mini.exe` path before the last
 Cargo command. Window rendering and hardware/network deployment remain separate.
+
+
+### Create and pair a node inside the desktop
+
+Under **Create node identity and pair public keys**, the owner may explicitly
+initialize the selected CLI home, including a new folder path. Creation requires
+an acknowledgement and typing `CREATE`; it is disabled while other panel jobs
+run. Existing identities are never replaced. The CLI profile stores human/device
+signing seeds on disk, with owner-only permissions on Unix; this developer path
+has no OS-keychain integration or CLI key rotation. It remains separate from the
+desktop vault. Keep the profile private and never send its seed files.
+
+**Export my public key bundle** displays/copies public KELs only. On the other
+node, paste the hex into the pairing form and inspect it. Both logs and their
+mutual delegation must verify before review succeeds. Compare the full human and
+device DIDs with the peer over an independently trusted channel: internally
+consistent keys do not establish the human's identity. Type the exact bundle ID
+to trust this exact public bundle locally. Editing the bundle/profile invalidates
+review and confirmation. The desktop limits pasted bundles to 8192 hex characters.
+
+Trusting keys permits local verification; it does not activate a contact, dial
+an endpoint, confer governance power, or authorize a payment. Add the peer's
+numeric endpoint and reviewed human DID separately in seed contacts, and repeat
+pairing in the other direction when both peers need to authenticate one another.
+No GitHub account or third-party identity service is needed for these steps.
+
+Equivalent CLI commands now support structured JSON while retaining human output:
+
+```sh
+mini --home /path/to/node --json identity init
+mini --home /path/to/node --json identity show
+mini --home /path/to/node --json kel export
+mini --home /path/to/node --json kel inspect PUBLIC_HEX
+mini --home /path/to/node --json kel trust PUBLIC_HEX --confirm EXACT_BUNDLE_ID
+```
+
+`bundle_id` is BLAKE3 of the exact decoded bundle bytes. Inspection never writes
+trust state. Incorrect confirmation, an invalid second KEL, mismatched delegation,
+or an existing-log rollback/fork is rejected before either trust file is replaced.
+Each accepted file replacement is durable and atomic, but two replacements are
+not a cross-file transaction: an I/O failure can leave one valid KEL updated.
+Inspect local state and retry the same reviewed bundle after resolving the error.
+Legacy CLI `kel trust PUBLIC_HEX` remains supported without fingerprint confirmation;
+the desktop always supplies it. KEL inspection/trust accepts at most 128 KiB of
+hex through the CLI; the desktop's smaller limit keeps argv within its process
+boundary. A root/device log extension must preserve the previously trusted prefix.

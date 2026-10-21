@@ -1,5 +1,5 @@
 //! Typed, owner-triggered process adapter. No shell, model tool execution or key copying.
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -22,6 +22,15 @@ pub(crate) struct Node {
 #[derive(Debug, Clone)]
 pub(crate) enum Action {
     NodeIdentity,
+    NodeInitialize,
+    KelExport,
+    KelInspect {
+        hex: String,
+    },
+    KelTrust {
+        hex: String,
+        confirmation: String,
+    },
     Status,
     Inventory,
     Configure {
@@ -113,6 +122,18 @@ fn text(value: &str) -> Result<String, String> {
     }
     Ok(value.into())
 }
+fn bundle_hex(value: &str) -> Result<String, String> {
+    if value.is_empty()
+        || value.len() > 8192
+        || value.len() % 2 != 0
+        || !value.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(
+            "Public key bundle must be even-length hexadecimal, at most 8192 characters.".into(),
+        );
+    }
+    Ok(value.to_owned())
+}
 fn absolute(path: &Path) -> Result<PathBuf, String> {
     if path.as_os_str().is_empty() {
         return Err("Choose a nonempty path.".into());
@@ -144,6 +165,16 @@ impl Action {
         };
         match self {
             Self::NodeIdentity => add(&["identity", "show"]),
+            Self::NodeInitialize => add(&["identity", "init"]),
+            Self::KelExport => add(&["kel", "export"]),
+            Self::KelInspect { hex } => add(&["kel", "inspect", &bundle_hex(hex)?]),
+            Self::KelTrust { hex, confirmation } => add(&[
+                "kel",
+                "trust",
+                &bundle_hex(hex)?,
+                "--confirm",
+                &text(confirmation)?,
+            ]),
             Self::Status => add(&["seed", "status"]),
             Self::Inventory => add(&["seed", "inventory"]),
             Self::Prune => add(&["seed", "prune"]),
@@ -407,13 +438,19 @@ impl Job {
         if !program.is_file() {
             return Err("The command tool must be a regular executable file.".into());
         }
-        let home = node
-            .home
-            .canonicalize()
-            .map_err(|e| format!("Choose an existing node folder: {e}"))?;
-        if !home.is_dir() {
-            return Err("The selected node folder is not a directory.".into());
-        }
+        let home = if matches!(action, Action::NodeInitialize) {
+            // Only explicit initialization may create a missing node profile.
+            absolute(&node.home)?
+        } else {
+            let home = node
+                .home
+                .canonicalize()
+                .map_err(|e| format!("Choose an existing node folder: {e}"))?;
+            if !home.is_dir() {
+                return Err("The selected node folder is not a directory.".into());
+            }
+            home
+        };
         let home = path_value(&home)?;
         let store = path_value(&node.store)?;
         let cancel = Arc::new(AtomicBool::new(false));
@@ -481,9 +518,7 @@ fn run(
     let mut stderr = Capture::new("stderr")?;
     let mut command = Command::new(program);
     command.arg("--home").arg(home).arg("--store").arg(store);
-    if !matches!(action, Action::NodeIdentity) {
-        command.arg("--json");
-    }
+    command.arg("--json");
     command
         .args(args)
         .stdin(Stdio::null())
@@ -541,11 +576,6 @@ fn run(
             error.chars().take(4096).collect::<String>()
         ));
     }
-    if matches!(action, Action::NodeIdentity) {
-        return Ok(
-            json!({"ok":true,"result":{"text":String::from_utf8(output).map_err(|e|e.to_string())?}}),
-        );
-    }
     let mut value: Value = serde_json::from_slice(&output)
         .map_err(|e| format!("Node tool did not return a valid result: {e}"))?;
     if value["ok"] != true {
@@ -592,6 +622,9 @@ mod tests {
             }
             .args()
             .is_err());
+        }
+        for hex in ["--home", "ab cd", "abc", "zz", ""] {
+            assert!(Action::KelInspect { hex: hex.into() }.args().is_err());
         }
         let query = "literal spaces; $(never-run)";
         let args = Action::Search {
@@ -649,22 +682,79 @@ mod tests {
         let tag: String = random.iter().map(|b| format!("{b:02x}")).collect();
         let home = TestHome(std::env::temp_dir().join(format!("mininet-desktop-seed-test-{tag}")));
         fs::create_dir(&home.0).unwrap();
-        let initialized = Command::new(&program)
-            .arg("--home")
-            .arg(&home.0)
-            .args(["identity", "init"])
-            .output()
-            .unwrap();
-        assert!(
-            initialized.status.success(),
-            "{}",
-            String::from_utf8_lossy(&initialized.stderr)
-        );
         let node = Node {
             program,
-            home: home.0.clone(),
+            home: home.0.join("node"),
             store: home.0.join("source"),
         };
+        fn invoke(node: &Node, action: Action) -> Result<Value, String> {
+            let mut job = Job::start(node.clone(), action)?;
+            let deadline = Instant::now() + Duration::from_secs(15);
+            let result = loop {
+                if let Some(result) = job.poll() {
+                    break result;
+                }
+                assert!(Instant::now() < deadline, "CLI action timed out");
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            assert!(job.poll().is_none(), "result must be delivered once");
+            result
+        }
+        assert!(!node.home.exists());
+        assert!(Job::start(node.clone(), Action::NodeIdentity).is_err());
+        assert!(!node.home.exists(), "inspect must not create a profile");
+        let initialized = invoke(&node, Action::NodeInitialize).unwrap();
+        assert_eq!(initialized["result"]["created"], true);
+        let identity = invoke(&node, Action::NodeIdentity).unwrap();
+        assert!(
+            invoke(&node, Action::NodeInitialize).is_err(),
+            "must not replace keys"
+        );
+        assert_eq!(invoke(&node, Action::NodeIdentity).unwrap(), identity);
+        let peer = Node {
+            home: home.0.join("peer"),
+            ..node.clone()
+        };
+        invoke(&peer, Action::NodeInitialize).unwrap();
+        let exported = invoke(&peer, Action::KelExport).unwrap();
+        let hex = exported["result"]["hex"].as_str().unwrap().to_owned();
+        let inspected = invoke(&node, Action::KelInspect { hex: hex.clone() }).unwrap();
+        let bundle_id = inspected["result"]["bundle_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(exported["result"]["bundle_id"], bundle_id);
+        assert!(
+            !node.home.join("trusted_kels").exists(),
+            "inspection must not trust keys"
+        );
+        assert!(invoke(
+            &node,
+            Action::KelTrust {
+                hex: hex.clone(),
+                confirmation: "0".repeat(64)
+            }
+        )
+        .is_err());
+        assert!(
+            !node.home.join("trusted_kels").exists(),
+            "wrong confirmation must not write"
+        );
+        let trusted = invoke(
+            &node,
+            Action::KelTrust {
+                hex,
+                confirmation: bundle_id,
+            },
+        )
+        .unwrap();
+        assert_eq!(trusted["result"]["trusted"], true);
+        assert_eq!(
+            fs::read_dir(node.home.join("trusted_kels"))
+                .unwrap()
+                .count(),
+            2
+        );
         for action in [
             Action::NodeIdentity,
             Action::Status,
@@ -673,17 +763,8 @@ mod tests {
             Action::ContactList,
             Action::ServiceStatus,
         ] {
-            let mut job = Job::start(node.clone(), action).unwrap();
-            let deadline = Instant::now() + Duration::from_secs(15);
-            let result = loop {
-                if let Some(result) = job.poll() {
-                    break result.unwrap();
-                }
-                assert!(Instant::now() < deadline, "CLI action timed out");
-                std::thread::sleep(Duration::from_millis(10));
-            };
+            let result = invoke(&node, action).unwrap();
             assert_eq!(result["ok"], true);
-            assert!(job.poll().is_none(), "result must be delivered once");
         }
     }
 }

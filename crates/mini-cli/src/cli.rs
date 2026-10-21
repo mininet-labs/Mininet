@@ -56,7 +56,7 @@ fn dirs_home() -> Option<PathBuf> {
 /// Run one CLI invocation. `raw_args` is everything after the program
 /// name. Returns the human-readable output to print on success -- or, if
 /// `--json` is present, a single-line JSON document for the commands that
-/// support it (`repo init|commit`, `pr`, `git`, `remote`, and the existing
+/// support it (`identity`, `kel`, `repo init|commit`, `pr`, `git`, `remote`, and the existing
 /// build/release/provenance/installer groups; see
 /// `crate::json`'s module docs). `--json` on any other command is a clean
 /// usage error rather than a silently-ignored flag, since a scripting
@@ -92,14 +92,8 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
     }
     let verb = args.remove(0);
     match verb.as_str() {
-        "identity" => {
-            reject_json(json, "identity")?;
-            dispatch_identity(home, args)
-        }
-        "kel" => {
-            reject_json(json, "kel")?;
-            dispatch_kel(home, args)
-        }
+        "identity" => dispatch_identity(home, args, json),
+        "kel" => dispatch_kel(home, args, json),
         "repo" => dispatch_repo(home, store_path, args, json),
         "pr" => dispatch_pr(home, store_path, args, json),
         "remote" => remote::dispatch(home, store_path, args, json),
@@ -181,15 +175,19 @@ fn dispatch_task(
     Ok(result)
 }
 
-fn dispatch_identity(home: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_identity(home: &Path, mut args: Vec<String>, json: bool) -> Result<String> {
     let noun = next(&mut args, "identity")?;
-    match noun.as_str() {
-        "init" => identity::cmd_init(home),
-        "show" => identity::cmd_show(home),
+    if !args.is_empty() {
+        return Err(CliError::Usage("unexpected identity arguments".into()));
+    }
+    let result = match noun.as_str() {
+        "init" => identity::cmd_init_result(home),
+        "show" => identity::cmd_show_result(home),
         other => Err(CliError::Usage(format!(
             "unknown `identity` subcommand: {other:?}"
         ))),
-    }
+    }?;
+    Ok(result.render(json, &format!("identity.{noun}")))
 }
 
 fn dispatch_intake(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
@@ -218,18 +216,37 @@ fn dispatch_intake(home: &Path, store_path: &Path, mut args: Vec<String>) -> Res
     }
 }
 
-fn dispatch_kel(home: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_kel(home: &Path, mut args: Vec<String>, json: bool) -> Result<String> {
     let noun = next(&mut args, "kel")?;
-    match noun.as_str() {
-        "export" => identity::cmd_export_kel(home),
+    let result = match noun.as_str() {
+        "export" => {
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected kel export arguments".into()));
+            }
+            identity::cmd_export_kel_result(home)
+        }
+        "inspect" => {
+            let hex = next(&mut args, "kel inspect")?;
+            if !args.is_empty() {
+                return Err(CliError::Usage("unexpected kel inspect arguments".into()));
+            }
+            store::cmd_inspect_kel(&hex)
+        }
         "trust" => {
             let hex = next(&mut args, "kel trust")?;
-            store::cmd_trust_kel(home, &hex)
+            let confirm = extract_flag(&mut args, "--confirm");
+            if !args.is_empty() {
+                return Err(CliError::Usage(
+                    "unexpected or duplicate kel trust arguments".into(),
+                ));
+            }
+            store::cmd_trust_kel_result(home, &hex, confirm.as_deref())
         }
         other => Err(CliError::Usage(format!(
             "unknown `kel` subcommand: {other:?}"
         ))),
-    }
+    }?;
+    Ok(result.render(json, &format!("kel.{noun}")))
 }
 
 fn dispatch_repo(
