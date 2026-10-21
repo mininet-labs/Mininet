@@ -230,6 +230,17 @@ impl Request {
             Command::DeliveryStatus { operation_id } | Command::CancelDelivery { operation_id } => {
                 validate_operation_id(operation_id)?;
             }
+            Command::ListDeliveriesAfter {
+                after_operation_id,
+                limit,
+            } => {
+                if let Some(after) = after_operation_id {
+                    validate_operation_id(after)?;
+                }
+                if *limit == 0 || *limit > MAX_DELIVERIES_PER_RESPONSE {
+                    return Err(ProtocolError::LimitExceeded("delivery count"));
+                }
+            }
             Command::ListDeliveries { limit } => {
                 if *limit == 0 || *limit > MAX_DELIVERIES_PER_RESPONSE {
                     return Err(ProtocolError::LimitExceeded("delivery count"));
@@ -308,6 +319,10 @@ pub enum Command {
     },
     DeliveryStatus {
         operation_id: String,
+    },
+    ListDeliveriesAfter {
+        after_operation_id: Option<String>,
+        limit: u16,
     },
     ListDeliveries {
         limit: u16,
@@ -621,6 +636,14 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.u8(11);
             encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
         }
+        Command::ListDeliveriesAfter {
+            after_operation_id,
+            limit,
+        } => {
+            encoder.u8(23);
+            encoder.option_string(after_operation_id.as_deref(), MAX_OPERATION_ID_BYTES)?;
+            encoder.u16(*limit);
+        }
         Command::ListDeliveries { limit } => {
             encoder.u8(12);
             encoder.u16(*limit);
@@ -708,6 +731,10 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
         }),
         11 => Ok(Command::DeliveryStatus {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+        }),
+        23 => Ok(Command::ListDeliveriesAfter {
+            after_operation_id: decoder.option_string(MAX_OPERATION_ID_BYTES)?,
+            limit: decoder.u16()?,
         }),
         12 => Ok(Command::ListDeliveries {
             limit: decoder.u16()?,
@@ -1366,6 +1393,10 @@ mod tests {
             },
             Command::StopDeliveryListener,
             Command::DeliveryRuntimeStatus,
+            Command::ListDeliveriesAfter {
+                after_operation_id: Some("send:previous".into()),
+                limit: 64,
+            },
         ];
         for command in commands {
             let request = Request::new(3, command);

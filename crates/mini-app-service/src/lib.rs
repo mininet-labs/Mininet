@@ -305,6 +305,16 @@ impl<V: IdentityVault> Core<V> {
                 })?;
                 Ok(Reply::Delivery(delivery_view(&record)))
             }
+            Command::ListDeliveriesAfter {
+                after_operation_id,
+                limit,
+            } => Ok(Reply::Deliveries(
+                self.outbox
+                    .list_after(after_operation_id.as_deref(), usize::from(limit))?
+                    .iter()
+                    .map(delivery_view)
+                    .collect(),
+            )),
             Command::ListDeliveries { limit } => Ok(Reply::Deliveries(
                 self.outbox
                     .list(usize::from(limit))?

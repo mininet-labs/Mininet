@@ -371,12 +371,30 @@ impl Outbox {
         }
     }
     pub fn list(&self, limit: usize) -> Result<Vec<DeliveryRecord>, ServiceError> {
+        self.list_after(None, limit)
+    }
+    pub fn list_after(
+        &self,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<DeliveryRecord>, ServiceError> {
         if limit == 0 || limit > MAX_OPERATIONS {
             return Err(bad("outbox list limit must be 1..1024"));
         }
-        let mut records = self.scan()?.0;
-        records.truncate(limit);
-        Ok(records)
+        if let Some(after) = after {
+            valid_id(after)?;
+        }
+        let keys: Vec<String> = self
+            .due
+            .borrow()
+            .as_ref()
+            .ok_or_else(|| storage("outbox state uncertain; reopen required"))?
+            .keys()
+            .filter(|id| after.is_none_or(|after| id.as_str() > after))
+            .take(limit)
+            .cloned()
+            .collect();
+        keys.iter().map(|id| self.require(id)).collect()
     }
     fn require(&self, id: &str) -> Result<DeliveryRecord, ServiceError> {
         self.get(id)?
@@ -608,6 +626,33 @@ mod tests {
             .sign(&root.did(), &device)
             .unwrap()
     }
+    #[test]
+    fn bounded_pages_reach_operations_after_terminal_receipts() {
+        let directory = Directory::new();
+        let outbox = Outbox::open(directory.0.clone()).unwrap();
+        let object = object(false);
+        let bytes = object.to_bytes();
+        let id = object.id().as_str();
+        for number in 0..65 {
+            let operation_id = format!("operation:{number:03}");
+            outbox.enqueue(&operation_id, "peer", id, &bytes).unwrap();
+            if number < 64 {
+                outbox.cancel(&operation_id).unwrap();
+            }
+        }
+        let first = outbox.list(64).unwrap();
+        assert_eq!(first.len(), 64);
+        let second = outbox
+            .list_after(Some(&first[63].operation_id), 64)
+            .unwrap();
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].operation_id, "operation:064");
+        assert!(outbox
+            .list_after(Some("operation:064"), 64)
+            .unwrap()
+            .is_empty());
+    }
+
     #[test]
     fn restart_recovers_attempt_without_resigning_and_receipts_are_idempotent() {
         let dir = Directory::new();
