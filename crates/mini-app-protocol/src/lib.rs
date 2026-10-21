@@ -144,6 +144,15 @@ pub enum DeliveryFailure {
     Interrupted,
 }
 
+/// Owner-reviewed summary of one canonical public object, never signed bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryObjectView {
+    pub object_id: String,
+    pub kind: ObjectKind,
+    pub summary: String,
+    pub targets: Vec<String>,
+}
+
 /// Metadata only: signed bytes and identity secrets never cross this reply.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeliveryView {
@@ -206,6 +215,11 @@ impl Request {
                 }
                 if bio.len() > MAX_PROFILE_BIO_BYTES {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
+                }
+            }
+            Command::PreviewPublicDelivery { object_id } => {
+                if object_id.is_empty() || object_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("delivery preview object ID"));
                 }
             }
             Command::PublishCommunity {
@@ -354,6 +368,9 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PreviewPublicDelivery {
+        object_id: String,
+    },
     PublishCommunity {
         operation_id: String,
         name: String,
@@ -478,6 +495,7 @@ pub enum ResponseBody {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reply {
+    PublicDeliveryObject(DeliveryObjectView),
     Ack,
     Status(AccountStatus),
     Profile(Option<ProfileView>),
@@ -668,6 +686,10 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::PreviewPublicDelivery { object_id } => {
+            encoder.u8(29);
+            encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
+        }
         Command::PublishCommunity {
             operation_id,
             name,
@@ -832,6 +854,9 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        29 => Ok(Command::PreviewPublicDelivery {
+            object_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
         28 => Ok(Command::PublishCommunity {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             name: decoder.string(MAX_COMMUNITY_NAME_BYTES)?,
@@ -924,6 +949,31 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
 
 fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolError> {
     match reply {
+        Reply::PublicDeliveryObject(view) => {
+            if view.targets.len() > 1 {
+                return Err(ProtocolError::LimitExceeded("delivery preview targets"));
+            }
+            encoder.u8(11);
+            encoder.string(&view.object_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(match view.kind {
+                ObjectKind::Post => 1,
+                ObjectKind::Follow => 2,
+                ObjectKind::Reaction => 3,
+                ObjectKind::Comment => 4,
+                ObjectKind::Membership => 5,
+                ObjectKind::Community => 6,
+                ObjectKind::Profile => {
+                    return Err(ProtocolError::InvalidRequest(
+                        "profile delivery is unsupported".into(),
+                    ))
+                }
+            });
+            encoder.string(&view.summary, MAX_POST_BYTES)?;
+            encoder.u8(view.targets.len() as u8);
+            for target in &view.targets {
+                encoder.string(target, MAX_OBJECT_ID_BYTES)?;
+            }
+        }
         Reply::Ack => encoder.u8(0),
         Reply::Status(status) => {
             encoder.u8(1);
@@ -1003,6 +1053,37 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
 
 fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
     match decoder.u8()? {
+        11 => {
+            let object_id = decoder.string(MAX_OBJECT_ID_BYTES)?;
+            let kind = match decoder.u8()? {
+                1 => ObjectKind::Post,
+                2 => ObjectKind::Follow,
+                3 => ObjectKind::Reaction,
+                4 => ObjectKind::Comment,
+                5 => ObjectKind::Membership,
+                6 => ObjectKind::Community,
+                _ => {
+                    return Err(ProtocolError::Decode(
+                        "unsupported delivery preview kind".into(),
+                    ))
+                }
+            };
+            let summary = decoder.string(MAX_POST_BYTES)?;
+            let count = decoder.u8()?;
+            if count > 1 {
+                return Err(ProtocolError::LimitExceeded("delivery preview targets"));
+            }
+            let mut targets = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                targets.push(decoder.string(MAX_OBJECT_ID_BYTES)?);
+            }
+            Ok(Reply::PublicDeliveryObject(DeliveryObjectView {
+                object_id,
+                kind,
+                summary,
+                targets,
+            }))
+        }
         0 => Ok(Reply::Ack),
         1 => Ok(Reply::Status(decode_status(decoder)?)),
         2 => Ok(Reply::Profile(decode_profile_option(decoder)?)),
@@ -2160,5 +2241,70 @@ mod community_protocol_tests {
             .validate()
             .is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod public_delivery_preview_tests {
+    use super::*;
+    #[test]
+    fn public_preview_round_trips_bounded_metadata_and_rejects_larger_summaries_or_targets() {
+        let request = Request::new(
+            24,
+            Command::PreviewPublicDelivery {
+                object_id: "object".into(),
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        let view = DeliveryObjectView {
+            object_id: "object".into(),
+            kind: ObjectKind::Comment,
+            summary: "x".repeat(MAX_POST_BYTES),
+            targets: vec!["t".repeat(MAX_OBJECT_ID_BYTES)],
+        };
+        let response = Response::ok(24, Reply::PublicDeliveryObject(view.clone()));
+        let mut bytes = Vec::new();
+        write_response(&mut bytes, &response).unwrap();
+        assert_eq!(
+            read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+            response
+        );
+        for invalid in [
+            DeliveryObjectView {
+                summary: "x".repeat(MAX_POST_BYTES + 1),
+                ..view.clone()
+            },
+            DeliveryObjectView {
+                targets: vec!["one".into(), "two".into()],
+                ..view.clone()
+            },
+            DeliveryObjectView {
+                targets: vec!["t".repeat(MAX_OBJECT_ID_BYTES + 1)],
+                ..view.clone()
+            },
+            DeliveryObjectView {
+                kind: ObjectKind::Profile,
+                ..view
+            },
+        ] {
+            assert!(write_response(
+                &mut Vec::new(),
+                &Response::ok(24, Reply::PublicDeliveryObject(invalid))
+            )
+            .is_err());
+        }
+        assert!(Request::new(
+            1,
+            Command::PreviewPublicDelivery {
+                object_id: "x".repeat(MAX_OBJECT_ID_BYTES + 1)
+            }
+        )
+        .validate()
+        .is_err());
     }
 }

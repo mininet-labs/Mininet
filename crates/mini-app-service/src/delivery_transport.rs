@@ -2,6 +2,7 @@
 //! No discovery, store enumeration, identity exchange or fallback protocol.
 use crate::{delivery_interrupt::DeliveryInterrupt, outbox::DeliveryFailure};
 use did_mini::{FreshnessPins, Kel};
+use mini_app_protocol::{DeliveryObjectView, ObjectKind};
 use mini_bearer::{Bearer, BearerError, Initiator, Responder};
 use mini_objects::{Object, ObjectType, Payload};
 use mini_store::{FsBackend, Store};
@@ -150,16 +151,102 @@ fn validate_object(bytes: &[u8]) -> Result<Object, DeliveryFailure> {
         return Err(DeliveryFailure::Rejected);
     }
     let object = Object::from_bytes(bytes).map_err(rejected)?;
-    if object.to_bytes() != bytes
-        || object.object_type != ObjectType::POST
-        || !object.links.is_empty()
-        || !matches!(&object.payload, Payload::Public(_))
-    {
+    if object.to_bytes() != bytes {
         return Err(DeliveryFailure::Rejected);
     }
     object.verify_integrity(object.id()).map_err(rejected)?;
-    mini_social::decode_post(&object).map_err(rejected)?;
+    public_object_view(&object)?;
     Ok(object)
+}
+/// The same bounded public shape policy is used for owner preview, enqueue and
+/// receiver ingestion. It grants no trust: callers separately check provenance.
+pub(crate) fn public_object_view(object: &Object) -> Result<DeliveryObjectView, DeliveryFailure> {
+    let Payload::Public(payload) = &object.payload else {
+        return Err(DeliveryFailure::Rejected);
+    };
+    if payload.len() > MAX_OBJECT || object.links.len() > 1 || object.to_bytes().len() > MAX_OBJECT
+    {
+        return Err(DeliveryFailure::Rejected);
+    }
+    let mut targets = Vec::new();
+    let (kind, summary) = match &object.object_type {
+        kind if *kind == ObjectType::POST && object.links.is_empty() => (
+            ObjectKind::Post,
+            mini_social::decode_post(object).map_err(rejected)?.text,
+        ),
+        kind if *kind == ObjectType::FOLLOW => {
+            let (state, target) = mini_social::decode_follow(object).map_err(rejected)?;
+            targets.push(target.as_str().into());
+            (
+                ObjectKind::Follow,
+                format!(
+                    "{} {}",
+                    if state { "Follow" } else { "Unfollow" },
+                    target.as_str()
+                ),
+            )
+        }
+        kind if *kind == ObjectType::REACTION => {
+            let (target, kind, state) = mini_social::decode_reaction(object).map_err(rejected)?;
+            if kind != mini_social::ReactionKind::Like {
+                return Err(DeliveryFailure::Rejected);
+            }
+            targets.push(target.as_str().into());
+            (
+                ObjectKind::Reaction,
+                if state { "Like" } else { "Unlike" }.into(),
+            )
+        }
+        kind if *kind == ObjectType::COMMENT => {
+            let comment = mini_social::decode_comment(object).map_err(rejected)?;
+            targets.push(comment.parent.as_str().into());
+            (ObjectKind::Comment, comment.text)
+        }
+        kind if *kind == ObjectType::COMMUNITY => {
+            let card = mini_social::decode_community(object).map_err(rejected)?;
+            (
+                ObjectKind::Community,
+                format!(
+                    "{}\n{}\nMembership: {}",
+                    card.name,
+                    card.charter,
+                    if card.membership == mini_social::MembershipMode::Open {
+                        "open"
+                    } else {
+                        "approval required"
+                    }
+                ),
+            )
+        }
+        ObjectType::Custom(name) if name == "mini/community-membership" => {
+            let (target, state) = mini_social::decode_membership(object).map_err(rejected)?;
+            targets.push(target.as_str().into());
+            (
+                ObjectKind::Membership,
+                if state {
+                    "Join declaration"
+                } else {
+                    "Leave declaration"
+                }
+                .into(),
+            )
+        }
+        _ => return Err(DeliveryFailure::Rejected),
+    };
+    if summary.len() > mini_app_protocol::MAX_POST_BYTES
+        || targets.len() > 1
+        || targets
+            .iter()
+            .any(|target: &String| target.len() > mini_app_protocol::MAX_OBJECT_ID_BYTES)
+    {
+        return Err(DeliveryFailure::Rejected);
+    }
+    Ok(DeliveryObjectView {
+        object_id: object.id().as_str().into(),
+        kind,
+        summary,
+        targets,
+    })
 }
 fn establish(
     stream: TcpStream,
@@ -394,7 +481,18 @@ mod tests {
     fn lost_and_forged_acknowledgements_never_deliver_and_retry_is_one_exact_object() {
         let (sender, sender_device) = identity(10);
         let (receiver, receiver_device) = identity(30);
-        let bytes = post(&sender, &sender_device);
+        let parent =
+            mini_social::build_post(&sender.did(), &sender_device, "linked parent", 1, 1).unwrap();
+        let bytes = mini_social::build_comment(
+            &sender.did(),
+            &sender_device,
+            parent.id(),
+            "one exact linked comment",
+            1000,
+            2,
+        )
+        .unwrap()
+        .to_bytes();
         let expected_id = Object::from_bytes(&bytes).unwrap().id().clone();
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
@@ -529,6 +627,86 @@ mod tests {
             .unwrap()
             .to_bytes();
         assert!(validate_object(&malformed_text).is_err());
+    }
+    #[test]
+    fn whitelist_accepts_only_canonical_public_social_shapes_and_max_text_previews() {
+        let (root, device) = identity(14);
+        let target = mini_social::build_post(&root.did(), &device, "target", 1, 1).unwrap();
+        let peer = identity(34).0.did();
+        let maximum = "x".repeat(mini_app_protocol::MAX_POST_BYTES);
+        let objects = vec![
+            mini_social::build_post(&root.did(), &device, &maximum, 1, 2).unwrap(),
+            mini_social::build_follow(&root.did(), &device, &peer, true, 1, 3).unwrap(),
+            mini_social::build_reaction(
+                &root.did(),
+                &device,
+                target.id(),
+                mini_social::ReactionKind::Like,
+                false,
+                1,
+                4,
+            )
+            .unwrap(),
+            mini_social::build_comment(&root.did(), &device, target.id(), &maximum, 1, 5).unwrap(),
+            mini_social::build_community(
+                &root.did(),
+                &device,
+                "Community",
+                "Charter",
+                mini_social::MembershipMode::Open,
+                1,
+                6,
+            )
+            .unwrap(),
+            mini_social::build_membership(&root.did(), &device, target.id(), true, 1, 7).unwrap(),
+        ];
+        for object in objects {
+            let view = public_object_view(&object).unwrap_or_else(|error| {
+                panic!("valid fixture {:?} rejected: {error:?}", object.object_type)
+            });
+            assert!(view.summary.len() <= mini_app_protocol::MAX_POST_BYTES);
+            assert!(view.targets.len() <= 1);
+            assert!(validate_object(&object.to_bytes()).is_ok());
+        }
+        for object in [
+            ObjectBuilder::new(ObjectType::POST)
+                .payload(Payload::Encrypted(vec![1]))
+                .sign(&root.did(), &device)
+                .unwrap(),
+            ObjectBuilder::new(ObjectType::PROFILE)
+                .payload(Payload::Public(vec![]))
+                .sign(&root.did(), &device)
+                .unwrap(),
+            ObjectBuilder::new(ObjectType::HEAD)
+                .payload(Payload::Public(vec![]))
+                .sign(&root.did(), &device)
+                .unwrap(),
+            ObjectBuilder::new(ObjectType::MEDIA_MANIFEST)
+                .payload(Payload::Public(vec![]))
+                .sign(&root.did(), &device)
+                .unwrap(),
+            ObjectBuilder::new(ObjectType::Custom("unknown".into()))
+                .payload(Payload::Public(vec![]))
+                .sign(&root.did(), &device)
+                .unwrap(),
+            ObjectBuilder::new(ObjectType::FOLLOW)
+                .payload(Payload::Public(vec![1]))
+                .sign(&root.did(), &device)
+                .unwrap(),
+            mini_social::build_reaction(
+                &root.did(),
+                &device,
+                target.id(),
+                mini_social::ReactionKind::Save,
+                true,
+                1,
+                8,
+            )
+            .unwrap(),
+        ] {
+            assert!(public_object_view(&object).is_err());
+            assert!(validate_object(&object.to_bytes()).is_err());
+        }
     }
     #[test]
     fn late_stop_preserves_verified_success_and_classifies_only_failed_work() {

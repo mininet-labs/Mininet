@@ -1,6 +1,6 @@
 # Durable public delivery through the application service
 
-Status: implemented backend slice in [PR #379](https://github.com/mininet-labs/mininet/pull/379), subject to review and integration. This is a bounded public-post delivery path, not a complete integrated beta. See the [delivery program](../planning/integrated-beta-delivery.md).
+Status: implemented backend slice in [PR #379](https://github.com/mininet-labs/mininet/pull/379), subject to review and integration. Stacked social-delivery work extends the initial public-post path to a canonical public social-object allowlist. This is not a complete integrated beta. See the [delivery program](../planning/integrated-beta-delivery.md).
 
 ## Authority and owner workflow
 
@@ -10,7 +10,7 @@ The existing IPC identity/profile/post/feed commands remain available. Delivery 
 
 1. Unlock an existing owner identity. `ExportDeliveryIdentity` returns only public root and device KEL bytes. Exchange these public pairing records through a separately trusted channel and verify the intended person/device; this protocol does not discover or authenticate that external introduction.
 2. `AuthorizeDeliveryPeer` records an owner-chosen label, numeric TCP endpoint and the verified root/device KELs. Labels cannot switch DIDs, roll back KEL history or accept a divergent history. Each root DID has exactly one retained peer label/device: aliases and additional devices for that root are refused, including disabled labels, so an alias cannot bypass a learned revocation. `DeliveryPeers` inspects grants; `RevokeDeliveryPeer` retains a disabled record. An authentic extending root update revoking the trusted device persists a disabled grant even if the accompanying device bytes or endpoint are invalid; it retains the last trusted device history and endpoint.
-3. Publish a local public text post, then `QueuePublicDelivery` with a unique operation ID, peer label and exact existing object ID. Queuing selects one own signed public POST without links; it never selects a directory, private envelope or an entire store. Queuing and dialing both require a current enabled peer authorization.
+3. Publish a local public social object, inspect it with `PreviewPublicDelivery`, then `QueuePublicDelivery` with a unique operation ID, peer label and exact existing object ID. Queuing selects one own signed object from the canonical public allowlist below; it never follows links automatically or selects a directory, private envelope or an entire store. Queuing and dialing both require a current enabled peer authorization.
 4. Networking defaults off. `SetDeliveryEnabled` explicitly persists the owner's network grant. For incoming traffic, `SetDeliveryListener` selects a numeric bind address and exactly one authorized expected peer. The listener accepts only that peer's authenticated root/device identity. Configuring a listener alone does not enable networking. `StopDeliveryListener` removes that listener configuration; disabling delivery closes the active listener and prevents dialing.
 5. While enabled and unlocked, the host schedules delivery between IPC turns. `AttemptDelivery` can explicitly attempt one eligible operation. Inspect `DeliveryStatus`, `ListDeliveriesAfter` (bounded cursor pages), `ListDeliveries` (first page) and `DeliveryRuntimeStatus`; `CancelDelivery` prevents further attempts for a non-delivered operation.
 
@@ -22,15 +22,15 @@ The durable journal stores the original signed object bytes, ID, peer label, sta
 
 Each connection establishes existing CH1 encryption, then transport-security `StateSync` channel-bound mutual identity authentication against the locally authorized KELs. Application payloads use a separate delivery domain and protocol magic. There is no anonymous fallback, discovery exchange or store enumeration.
 
-The receiver validates canonical bytes, public unlinked POST shape and text bounds, exact author root/device, integrity and delegated signature provenance before insertion. It inserts durably, rereads the exact content-addressed bytes, then sends an encrypted acknowledgement containing the exact object ID. The sender records `Delivered` only after that authenticated matching acknowledgement. A missing or wrong acknowledgement remains a failure even if the receiver already persisted the object. Retrying inserts the same content-addressed object; it does not create a second publication.
+The receiver validates canonical bytes, the canonical public allowlist shape and field bounds, exact author root/device, integrity and delegated signature provenance before insertion. It inserts durably, rereads the exact content-addressed bytes, then sends an encrypted acknowledgement containing the exact object ID. The sender records `Delivered` only after that authenticated matching acknowledgement. A missing or wrong acknowledgement remains a failure even if the receiver already persisted the object. Retrying inserts the same content-addressed object; it does not create a second publication.
 
-`Delivered` means this authenticated receiver acknowledged durable storage. It does not establish that a person read the post, that every replica has it, or that the receiver will retain it forever. Locally trusted KEL continuity and channel freshness do not prove globally freshest revocation knowledge.
+`Delivered` means this authenticated receiver acknowledged durable storage. It does not establish that a person read the object, that every replica has it, or that the receiver will retain it forever. Locally trusted KEL continuity and channel freshness do not prove globally freshest revocation knowledge.
 
 ## Bounds and scheduling
 
 | Resource | Bound / behavior |
 | --- | --- |
-| Exact signed object bytes | 128 KiB maximum; public plain-post validation may impose a smaller text bound |
+| Exact signed object bytes | 128 KiB maximum; canonical social-object validation imposes smaller field bounds |
 | Retained operations | 1,024 total, including delivered/cancelled receipts; no automatic receipt eviction |
 | Peer book | 64 retained labels, including disabled tombstones |
 | TCP dial | 5-second timeout |
@@ -48,7 +48,7 @@ Journal and peer records use bounded strict decoding and atomic replacement. Pat
 
 Peers need reachable numeric TCP endpoints. This slice supplies no NAT traversal, relay fallback, address discovery, transport migration or automatic KEL refresh. Unreachable peers wait and retry. The single listener configuration serves one expected peer, not an open multi-contact inbox. Revocation stops future authorized attempts but cannot retract data already delivered or bytes already transmitted in an active session.
 
-Private sessions, private messages, calls, media attachment delivery, full-store sync, background service installation and wallet actions are outside this path. Desktop controls, packaging, two-device usability and broader acceptance remain separate work. Existing native Forge migration work in [PR #378](https://github.com/mininet-labs/mininet/pull/378) is independent; public-post delivery neither synchronizes code nor approves or merges proposals.
+Private sessions, private messages, calls, media attachment delivery, full-store sync, background service installation and wallet actions are outside this path. Desktop controls are implemented in the stack; packaging, two-device usability and broader acceptance remain separate work. Existing native Forge migration work in [PR #378](https://github.com/mininet-labs/mininet/pull/378) is independent; public social-object delivery neither synchronizes code nor approves or merges proposals.
 
 ## Desktop workflow
 
@@ -62,13 +62,14 @@ authorizing a device or enabling networking.
    IP/port, inspect the identities, and explicitly authorize that device.
 3. On the receiving device, configure the listener for the expected peer and a
    bind address. Enabling networking is a separate, persisted owner choice.
-4. On the sending device, refresh its own posts, select the recipient and public
-   post, inspect the displayed text and recipient, then explicitly queue it.
+4. On the sending device, select a recent local signed action or own public post,
+   or paste an exact object ID. Explicitly inspect the service-verified public
+   object, its references and recipient, then queue it.
 5. Inspect delivery status, including the most recent requested operation, and
    page through retained history. A lost IPC reply keeps the same queue operation
    and target for an exact retry. Changing the draft requires explicit acknowledgment
    that the previous request may already exist. Cancellation does not retract a
-   received public post.
+   received public object.
 
 The panel uses typed service IPC and public pairing material. It does not load
 seeds, sign objects, open sockets, or authorize a peer just because the panel
@@ -114,3 +115,31 @@ Dropping the client joins supervision and shuts down the child, with a two-secon
 grace before forced termination. Idle supervision blocks on events rather than
 polling. The renderer never accesses service pipes, signing keys or source bytes
 from the outbox.
+
+## Reviewed public social-object delivery
+
+The canonical allowlist is plain POST, COMMENT, FOLLOW, Like-only REACTION,
+COMMUNITY and community MEMBERSHIP. The core preview and queue gates and the
+receiver use the same structural validator. Every object must be public, canonical
+and authored by the paired root and device, with verified delegation/provenance.
+Private payloads, profiles/heads, media, other reaction kinds and unknown custom
+types are refused. An object referring to another ID transfers only itself; it
+does not fetch the referenced object or prove group admission.
+
+`PreviewPublicDelivery` is read-only and returns bounded public metadata: exact
+object ID, kind, summary and at most one referenced target. It requires the same
+unlocked owner/provenance gates as queuing. No signed bytes or private payload are
+returned to the renderer. The panel accepts a preview only for its requested ID,
+and enables a new queue only for that exact selected ID. Because the ID names
+immutable signed bytes, editing the selection cannot silently change reviewed
+content. The recipient remains visible and explicitly selected. Existing uncertain
+queue retries preserve their original operation/peer/object even after selections
+change.
+
+The panel keeps at most 32 recent local publication references from service events;
+this list is a convenience, not a complete persistent publication history. Own
+posts remain available through refresh and other IDs can be pasted explicitly.
+Delivery may arrive before a referenced parent, and it does not guarantee the
+receiver will display or accept a relationship. Authenticated durable storage is
+the acknowledgement boundary. The wire envelope remains compatible: earlier
+post-only receivers refuse newly supported types without acknowledging success.
