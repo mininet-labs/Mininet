@@ -102,5 +102,25 @@ Membership objects preserve the legacy public boolean payload and single
 the same rules as other social mutations, including locked receipt retries after
 parent-cache removal. Desktop retries reuse only the same community/state intent;
 there is no renderer key unlock or sequence allocation. A stale join receipt
-cannot create a newer join after a leave. Community creation, admission decisions,
+cannot create a newer join after a leave. Admission decisions,
 private groups and transport of membership objects remain separate work.
+
+## Open community creation
+
+Desktop creation sends `PublishCommunity { operation_id, name, charter }` to the
+core. This command explicitly creates Open communities, matching the previous
+creation form. It does not offer an approval mode without an admission workflow.
+Name and charter are bounded to 96 and 4096 UTF-8 bytes; a new signature requires
+an unlocked identity and a nonblank name before sequence reservation.
+
+The store-free community builder preserves the existing wire format, including
+both membership modes for legacy library callers. Canonical decoding rejects
+unexpected links, trailing data and private payloads. The journal binds exact
+name, charter, Open mode and signed object bytes before insertion. Matching
+operation receipts work while locked; conflicting reuse is rejected.
+
+The desktop retains its submitted name/charter operation ID after uncertain
+responses. It clears the form only when both raw fields still match the submitted
+snapshot, preserving changes made while waiting. Creation has no renderer key
+unlock fallback. Community cards remain local until exchanged; this does not add
+community transport, admission governance or private groups.

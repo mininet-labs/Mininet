@@ -35,7 +35,7 @@ use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
-    community_members, followers, following, known_profiles, publish_community, publish_media_post,
+    community_members, followers, following, known_profiles, publish_media_post,
     publish_profile_details, publish_wall, resolve_community, resolve_profile, FeedFilter,
     LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
     PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
@@ -107,6 +107,12 @@ enum CoreAction {
         parent: String,
         text: String,
         draft: CommentDraft,
+    },
+    PublishCommunity {
+        name: String,
+        charter: String,
+        raw_name: String,
+        raw_charter: String,
     },
     SetMembership {
         community: String,
@@ -213,6 +219,7 @@ struct MininetApp {
     app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
     comment_operation: Option<(String, String, String)>,
+    community_operation: Option<(String, String, String)>,
     membership_operation: Option<(String, bool, String)>,
     like_operation: Option<(String, bool, String)>,
     follow_operation: Option<(String, bool, String)>,
@@ -703,39 +710,6 @@ impl Workspace {
             self.unlock()?;
         }
         let result = self.publish_public_wall(name, bio, links, unlisted);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    fn publish_community(&mut self, name: &str, charter: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_community(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            charter,
-            MembershipMode::Open,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn publish_community_confirmed(&mut self, name: &str, charter: &str) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.publish_community(name, charter);
         if relock {
             self.lock();
         }
@@ -1535,6 +1509,7 @@ impl Default for MininetApp {
             post_operation: None,
             profile_operation: None,
             follow_operation: None,
+            community_operation: None,
             membership_operation: None,
             like_operation: None,
             comment_operation: None,
@@ -1710,6 +1685,32 @@ fn comment_request_id(
             id
         }
     }
+}
+
+fn community_request_id(
+    pending: &mut Option<(String, String, String)>,
+    name: &str,
+    charter: &str,
+) -> String {
+    match pending {
+        Some((old_name, old_charter, id)) if old_name == name && old_charter == charter => {
+            id.clone()
+        }
+        _ => {
+            let id = app_service::operation_id("community");
+            *pending = Some((name.into(), charter.into(), id.clone()));
+            id
+        }
+    }
+}
+
+fn community_draft_matches(
+    original_name: &str,
+    original_charter: &str,
+    current_name: &str,
+    current_charter: &str,
+) -> bool {
+    original_name == current_name && original_charter == current_charter
 }
 
 fn comment_draft_matches(
@@ -2173,6 +2174,37 @@ impl MininetApp {
                         );
                     }
                 }
+            }
+            (
+                CoreAction::PublishCommunity {
+                    name,
+                    charter,
+                    raw_name,
+                    raw_charter,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Community => {
+                if self
+                    .community_operation
+                    .as_ref()
+                    .is_some_and(|(old_name, old_charter, _)| {
+                        old_name == &name && old_charter == &charter
+                    })
+                {
+                    self.community_operation = None;
+                }
+                if community_draft_matches(
+                    &raw_name,
+                    &raw_charter,
+                    &self.community_name,
+                    &self.community_charter,
+                ) {
+                    self.community_name.clear();
+                    self.community_charter.clear();
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = "Open community saved through the application core. Exchange with peers to share it.".into();
             }
             (
                 CoreAction::SetMembership { community, joined },
@@ -7358,28 +7390,40 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed community object",
             );
-            if ui.add(theme::primary_button("Create")).clicked() {
-                self.notice = if self.community_name.trim().is_empty() {
-                    "A community name is required.".to_string()
+            theme::muted(
+                ui,
+                "Creates an open community. Approval-based admission is not available yet.",
+            );
+            if ui
+                .add_enabled(
+                    self.app_action.is_none(),
+                    theme::primary_button("Create open community"),
+                )
+                .clicked()
+            {
+                if self.community_name.trim().is_empty() {
+                    self.notice = "A community name is required.".into();
                 } else if !self.signing_confirmation {
-                    "Confirm signing before publishing.".to_string()
-                } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_community_confirmed(
-                        self.community_name.trim(),
-                        self.community_charter.trim(),
-                    ) {
-                        Ok(()) => {
-                            self.community_name.clear();
-                            self.community_charter.clear();
-                            self.signing_confirmation = false;
-                            "Community created. It shares with your peers on the next exchange."
-                                .to_string()
-                        }
-                        Err(error) => format!("Could not create community: {error}"),
-                    }
+                    self.notice = "Confirm signing before publishing.".into();
                 } else {
-                    "Local workspace unavailable.".to_string()
-                };
+                    let name = self.community_name.trim().to_string();
+                    let charter = self.community_charter.trim().to_string();
+                    let operation_id =
+                        community_request_id(&mut self.community_operation, &name, &charter);
+                    self.start_core_action(
+                        CoreAction::PublishCommunity {
+                            name: name.clone(),
+                            charter: charter.clone(),
+                            raw_name: self.community_name.clone(),
+                            raw_charter: self.community_charter.clone(),
+                        },
+                        AppCommand::PublishCommunity {
+                            operation_id,
+                            name,
+                            charter,
+                        },
+                    );
+                }
             }
         });
         ui.add_space(8.0);
@@ -9472,6 +9516,28 @@ shot at dusk",
 #[cfg(test)]
 mod follow_runtime_tests {
     use super::*;
+    #[test]
+    fn community_retry_binds_name_and_charter_and_receipt_preserves_edited_form() {
+        let mut pending = None;
+        let first = community_request_id(&mut pending, "name", "charter");
+        assert_eq!(community_request_id(&mut pending, "name", "charter"), first);
+        let edited = community_request_id(&mut pending, "name", "new charter");
+        assert_ne!(edited, first);
+        assert_ne!(
+            community_request_id(&mut pending, "other", "new charter"),
+            edited
+        );
+        assert!(community_draft_matches(
+            "name ", "charter", "name ", "charter"
+        ));
+        assert!(!community_draft_matches(
+            "name ", "charter", "name", "charter"
+        ));
+        assert!(!community_draft_matches(
+            "name", "charter", "name", "edited"
+        ));
+    }
+
     #[test]
     fn uncertain_membership_reply_reuses_only_same_community_and_state() {
         let mut pending = None;

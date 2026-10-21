@@ -231,6 +231,29 @@ pub fn publish_community<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let community = build_community(
+        owner,
+        device,
+        name,
+        charter,
+        membership,
+        timestamp_ms,
+        sequence,
+    )?;
+    store.insert(&community)?;
+    Ok(community)
+}
+
+/// Build the legacy public community card without mutating a store.
+pub fn build_community(
+    owner: &Did,
+    device: &Controller,
+    name: &str,
+    charter: &str,
+    membership: MembershipMode,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if name.is_empty()
         || name.len() > MAX_COMMUNITY_NAME_BYTES
         || charter.len() > MAX_COMMUNITY_CHARTER_BYTES
@@ -241,24 +264,30 @@ pub fn publish_community<B: Backend>(
     put_str(&mut payload, name);
     put_str(&mut payload, charter);
     payload.push(membership.byte());
-    let community = ObjectBuilder::new(ObjectType::COMMUNITY)
+    ObjectBuilder::new(ObjectType::COMMUNITY)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .payload(Payload::Public(payload))
-        .sign(owner, device)?;
-    store.insert(&community)?;
-    Ok(community)
+        .sign(owner, device)
+        .map_err(Into::into)
 }
 
 /// Decode and validate a community card.
 pub fn resolve_community<B: Backend>(store: &Store<B>, id: &ObjectId) -> Result<Community> {
-    let object = store.get(id)?;
-    if object.object_type != ObjectType::COMMUNITY {
+    decode_community(&store.get(id)?)
+}
+
+/// Decode one canonical plain community card; author provenance is separate.
+pub fn decode_community(object: &Object) -> Result<Community> {
+    if object.object_type != ObjectType::COMMUNITY || !object.links.is_empty() {
         return Err(SocialError::BadCommunity);
     }
     let Payload::Public(bytes) = &object.payload else {
         return Err(SocialError::BadCommunity);
     };
+    if bytes.len() > MAX_COMMUNITY_NAME_BYTES + MAX_COMMUNITY_CHARTER_BYTES + 9 {
+        return Err(SocialError::BadCommunity);
+    }
     let mut pos = 0;
     let name = get_str(bytes, &mut pos).ok_or(SocialError::BadCommunity)?;
     let charter = get_str(bytes, &mut pos).ok_or(SocialError::BadCommunity)?;
@@ -273,7 +302,7 @@ pub fn resolve_community<B: Backend>(store: &Store<B>, id: &ObjectId) -> Result<
     }
     Ok(Community {
         id: object.id().clone(),
-        owner: object.author_human,
+        owner: object.author_human.clone(),
         name,
         charter,
         membership: mode,
@@ -1482,5 +1511,62 @@ mod membership_builder_tests {
             .sign(&root.did(), &device)
             .unwrap();
         assert!(decode_membership(&object).is_err());
+    }
+}
+
+#[cfg(test)]
+mod community_builder_tests {
+    use super::*;
+    #[test]
+    fn community_builder_keeps_both_legacy_modes_and_decoder_rejects_noncanonical_shape() {
+        let root = Controller::incept_single_from_seeds(&[51; 32], &[52; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[53; 32], &[54; 32]).unwrap();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for mode in [MembershipMode::Open, MembershipMode::ApprovalRequired] {
+            let mut payload = Vec::new();
+            put_str(&mut payload, "Community");
+            put_str(&mut payload, "Charter");
+            payload.push(mode.byte());
+            let legacy = ObjectBuilder::new(ObjectType::COMMUNITY)
+                .timestamp_ms(7)
+                .sequence(8)
+                .payload(Payload::Public(payload.clone()))
+                .sign(&root.did(), &device)
+                .unwrap();
+            let built =
+                build_community(&root.did(), &device, "Community", "Charter", mode, 7, 8).unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(
+                built.to_bytes(),
+                publish_community(
+                    &mut store,
+                    &root.did(),
+                    &device,
+                    "Community",
+                    "Charter",
+                    mode,
+                    7,
+                    8
+                )
+                .unwrap()
+                .to_bytes()
+            );
+            let decoded = decode_community(&built).unwrap();
+            assert_eq!(decoded.membership, mode);
+            assert_eq!(resolve_community(&store, built.id()).unwrap(), decoded);
+            payload.push(0);
+            let malformed = ObjectBuilder::new(ObjectType::COMMUNITY)
+                .payload(Payload::Public(payload))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_community(&malformed).is_err());
+            let linked = ObjectBuilder::new(ObjectType::COMMUNITY)
+                .link("extra", built.id().clone())
+                .payload(built.payload.clone())
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_community(&linked).is_err());
+        }
     }
 }

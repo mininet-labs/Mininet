@@ -25,14 +25,15 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
     ProfileView, PublishedObject, Reply, ServiceError, ServiceEvent, ServiceEventKind,
-    MAX_COMMENT_BYTES, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES,
-    MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
+    MAX_COMMENT_BYTES, MAX_COMMUNITY_CHARTER_BYTES, MAX_COMMUNITY_NAME_BYTES, MAX_DID_BYTES,
+    MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES, MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES,
+    MAX_PROFILE_NAME_BYTES,
 };
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
-    build_comment, build_follow, build_membership, build_post, build_profile, build_reaction,
-    comments, feed, following, reaction_counts, resolve_post, resolve_profile, FeedFilter,
-    FeedReason as SocialFeedReason, PostKind,
+    build_comment, build_community, build_follow, build_membership, build_post, build_profile,
+    build_reaction, comments, feed, following, reaction_counts, resolve_post, resolve_profile,
+    FeedFilter, FeedReason as SocialFeedReason, PostKind,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_windows_vault::{SeedPair, VaultError};
@@ -236,6 +237,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::PublishCommunity {
+                operation_id,
+                name,
+                charter,
+            } => self
+                .publish_community(&operation_id, &name, &charter)
+                .map(Reply::Published),
             Command::SetMembership {
                 operation_id,
                 community_id,
@@ -502,6 +510,53 @@ impl<V: IdentityVault> Core<V> {
             build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
+            input,
+            objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn publish_community(
+        &mut self,
+        operation_id: &str,
+        name: &str,
+        charter: &str,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        if name.len() > MAX_COMMUNITY_NAME_BYTES
+            || name.trim().is_empty()
+            || charter.len() > MAX_COMMUNITY_CHARTER_BYTES
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "community name or charter is empty or exceeds limits",
+            ));
+        }
+        let input = MutationInput::Community {
+            name: name.into(),
+            charter: charter.into(),
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::Community);
+        }
+        self.ensure_signing_available()?;
+        let sequence = self.reserve_sequence()?;
+        let (owner, device) = self.signing_identity()?;
+        let object = build_community(
+            owner,
+            device,
+            name,
+            charter,
+            mini_social::MembershipMode::Open,
+            now_ms(),
+            sequence,
+        )
+        .map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
             input,
             objects: vec![object.to_bytes()],
         };
@@ -1086,6 +1141,7 @@ enum MutationInput {
     Like { target_id: String, active: bool },
     Comment { parent_id: String, text: String },
     Membership { community_id: String, joined: bool },
+    Community { name: String, charter: String },
 }
 
 impl MutationInput {
@@ -1097,6 +1153,7 @@ impl MutationInput {
             Self::Like { .. } => ObjectKind::Reaction,
             Self::Comment { .. } => ObjectKind::Comment,
             Self::Membership { .. } => ObjectKind::Membership,
+            Self::Community { .. } => ObjectKind::Community,
         }
     }
 }
@@ -1328,6 +1385,33 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::Community { name, charter } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "community journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let card = mini_social::decode_community(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || card.name != *name
+                || card.charter != *charter
+                || name.trim().is_empty()
+                || card.membership != mini_social::MembershipMode::Open
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "community journal does not match open creation input",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Community,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Membership {
             community_id,
             joined,
@@ -1566,6 +1650,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
         ObjectKind::Reaction => 3,
         ObjectKind::Comment => 4,
         ObjectKind::Membership => 5,
+        ObjectKind::Community => 6,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -1583,6 +1668,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
         3 => ObjectKind::Reaction,
         4 => ObjectKind::Comment,
         5 => ObjectKind::Membership,
+        6 => ObjectKind::Community,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -1724,6 +1810,11 @@ impl JournalEncoder {
                 self.string(display_name, MAX_PROFILE_NAME_BYTES)?;
                 self.string(bio, MAX_PROFILE_BIO_BYTES)?;
             }
+            MutationInput::Community { name, charter } => {
+                self.u8(6);
+                self.string(name, MAX_COMMUNITY_NAME_BYTES)?;
+                self.string(charter, MAX_COMMUNITY_CHARTER_BYTES)?;
+            }
             MutationInput::Membership {
                 community_id,
                 joined,
@@ -1845,6 +1936,17 @@ impl<'a> JournalDecoder<'a> {
                 display_name: self.string(MAX_PROFILE_NAME_BYTES)?,
                 bio: self.string(MAX_PROFILE_BIO_BYTES)?,
             }),
+            6 => {
+                let name = self.string(MAX_COMMUNITY_NAME_BYTES)?;
+                let charter = self.string(MAX_COMMUNITY_CHARTER_BYTES)?;
+                if name.trim().is_empty() {
+                    return Err(ServiceError::new(
+                        ErrorCode::Storage,
+                        "blank journal community name",
+                    ));
+                }
+                Ok(MutationInput::Community { name, charter })
+            }
             5 => {
                 let community_id = self.string(MAX_OBJECT_ID_BYTES)?;
                 ObjectId::parse(&community_id).map_err(storage_error)?;
@@ -3164,6 +3266,173 @@ mod tests {
                         operation_id: "membership:recover".into(),
                         community_id: card.id().as_str().into(),
                         joined: true,
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                assert_eq!(reply.object_id, id.as_str());
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
+    }
+    #[test]
+    fn community_creation_is_open_and_exact_locked_receipts_do_not_replace_newer_cards() {
+        let path = temp_root("community-create");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        let initial = fs::read(&core.journal.sequence).unwrap();
+        assert!(core
+            .handle(Command::PublishCommunity {
+                operation_id: "community:locked".into(),
+                name: "Name".into(),
+                charter: String::new()
+            })
+            .is_err());
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), initial);
+        core.unlock().unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        for (index, (name, charter)) in [
+            (" \n".into(), String::new()),
+            ("x".repeat(MAX_COMMUNITY_NAME_BYTES + 1), String::new()),
+            ("Name".into(), "x".repeat(MAX_COMMUNITY_CHARTER_BYTES + 1)),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert!(core
+                .handle(Command::PublishCommunity {
+                    operation_id: format!("community:bad:{index}"),
+                    name,
+                    charter
+                })
+                .is_err());
+        }
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        let command = Command::PublishCommunity {
+            operation_id: "community:first".into(),
+            name: "First".into(),
+            charter: "Rules".into(),
+        };
+        let Reply::Published(first) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(first.kind, ObjectKind::Community);
+        let id = ObjectId::parse(&first.object_id).unwrap();
+        let bytes = core.store.get(&id).unwrap().to_bytes();
+        assert_eq!(
+            mini_social::resolve_community(&core.store, &id)
+                .unwrap()
+                .membership,
+            mini_social::MembershipMode::Open
+        );
+        core.handle(Command::PublishCommunity {
+            operation_id: "community:second".into(),
+            name: "Second".into(),
+            charter: String::new(),
+        })
+        .unwrap();
+        let Reply::Published(stale) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(stale.duplicate);
+        assert_eq!(core.store.by_type(&ObjectType::COMMUNITY).unwrap().len(), 2);
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        let Reply::Published(retry) = core.handle(command).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, first.object_id);
+        assert_eq!(core.store.get(&id).unwrap().to_bytes(), bytes);
+        assert!(core
+            .handle(Command::PublishCommunity {
+                operation_id: "community:first".into(),
+                name: "Changed".into(),
+                charter: "Rules".into()
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::PublishCommunity {
+                operation_id: "community:new-locked".into(),
+                name: "New".into(),
+                charter: String::new()
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn pending_community_recovers_exactly_and_refuses_name_charter_mode_link_type_tampering() {
+        for mode in 0..6 {
+            let path = temp_root("community-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let (owner, device) = core.signing_identity().unwrap();
+            let base = build_community(
+                owner,
+                device,
+                "Name",
+                "Charter",
+                if mode == 3 {
+                    mini_social::MembershipMode::ApprovalRequired
+                } else {
+                    mini_social::MembershipMode::Open
+                },
+                77,
+                9,
+            )
+            .unwrap();
+            let object = match mode {
+                4 => mini_objects::ObjectBuilder::new(ObjectType::COMMUNITY)
+                    .link("extra", base.id().clone())
+                    .payload(base.payload.clone())
+                    .sign(owner, device)
+                    .unwrap(),
+                5 => build_post(owner, device, "Name", 77, 9).unwrap(),
+                _ => base,
+            };
+            let id = object.id().clone();
+            let record = PendingMutation {
+                operation_id: "community:recover".into(),
+                input: MutationInput::Community {
+                    name: if mode == 1 {
+                        "Changed".into()
+                    } else {
+                        "Name".into()
+                    },
+                    charter: if mode == 2 {
+                        "Changed".into()
+                    } else {
+                        "Charter".into()
+                    },
+                },
+                objects: vec![object.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(&id).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(core.store.get(&id).unwrap().to_bytes(), object.to_bytes());
+                let Reply::Published(reply) = core
+                    .handle(Command::PublishCommunity {
+                        operation_id: "community:recover".into(),
+                        name: "Name".into(),
+                        charter: "Charter".into(),
                     })
                     .unwrap()
                 else {
