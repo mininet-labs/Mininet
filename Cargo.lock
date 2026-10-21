@@ -2707,10 +2707,13 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-app-protocol",
+ "mini-bearer",
+ "mini-crypto",
  "mini-durable",
  "mini-objects",
  "mini-social",
  "mini-store",
+ "mini-transport-security",
  "mini-windows-vault",
 ]
 
