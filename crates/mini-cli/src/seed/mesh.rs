@@ -240,12 +240,38 @@ fn retrieve(
     days: Option<u16>,
     stop_sensitive: bool,
 ) -> Result<Value> {
+    let mut budget = RetrievalBudget {
+        deadline: Instant::now() + Duration::from_secs(120),
+        byte_limit: MAX_OBJECT as u64,
+        traffic_left: 16 * MAX_OBJECT as u64,
+        attempts_left: 16,
+    };
+    retrieve_until(home, store, id, days, stop_sensitive, &mut budget)
+}
+pub(super) struct RetrievalBudget {
+    pub deadline: Instant,
+    pub byte_limit: u64,
+    pub traffic_left: u64,
+    pub attempts_left: usize,
+}
+pub(super) fn retrieve_until(
+    home: &Path,
+    store: &Path,
+    id: &str,
+    days: Option<u16>,
+    stop_sensitive: bool,
+    budget: &mut RetrievalBudget,
+) -> Result<Value> {
     let mut failures = Vec::new();
-    let deadline = Instant::now() + Duration::from_secs(120);
     for (name, c, _ad) in candidates(home, id)? {
         if stop_sensitive && home.join("seed-follow.stop").try_exists().unwrap_or(true) {
             break;
         }
+        if budget.attempts_left == 0 || budget.traffic_left == 0 {
+            failures.push(json!({"error":"attempt/data window exhausted"}));
+            break;
+        }
+        budget.attempts_left -= 1;
         let peer = Did::parse(&c.peer).map_err(err)?;
         match fetch(
             home,
@@ -257,7 +283,9 @@ fn retrieve(
                 max_micro: 0,
                 payment: None,
                 days,
-                deadline: Some(deadline),
+                deadline: Some(budget.deadline),
+                byte_limit: budget.byte_limit,
+                traffic_left: Some(&mut budget.traffic_left),
             },
         ) {
             Ok(result) => {

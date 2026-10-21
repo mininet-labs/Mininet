@@ -1005,3 +1005,450 @@ fn catalog_relay_preserves_provider_signatures_without_activating_endpoints() {
         false
     );
 }
+
+fn seed_collection(h: &Path, s: &Path, root: &str, kind: &str, file: &Path) -> Value {
+    let p = run(
+        h,
+        s,
+        &[
+            "seed",
+            "collection-preview",
+            "--root",
+            root,
+            "--kind",
+            kind,
+            "--days",
+            "3",
+            "--output",
+            file.to_str().unwrap(),
+        ],
+    );
+    run(
+        h,
+        s,
+        &[
+            "seed",
+            "collection-add",
+            "--preview",
+            file.to_str().unwrap(),
+            "--confirm",
+            p["result"]["preview_id"].as_str().unwrap(),
+        ],
+    )
+}
+#[test]
+fn media_collections_resume_with_attempt_and_byte_windows_and_export_exact_bytes() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    run(
+        &h[0],
+        &s[0],
+        &["seed", "configure", "--max-bytes", "8388608"],
+    );
+    let identity = mini_cli::identity::load(&h[0]).unwrap();
+    let mut source = mini_cli::store::open_store(&s[0]).unwrap();
+    let mut bytes = vec![17u8; mini_media::CHUNK_SIZE];
+    bytes.extend_from_slice(b"remaining tail bytes");
+    let manifest = mini_media::publish_media(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "application/octet-stream",
+        &bytes,
+        0,
+        1,
+    )
+    .unwrap();
+    let root = manifest.id.as_str();
+    let admission = seed_collection(
+        &h[0],
+        &s[0],
+        root,
+        "media",
+        &temp.path().join("media-preview.json"),
+    );
+    assert_eq!(admission["result"]["admitted"], 3);
+    let service = Service::start(&h[0], &s[0], &[root_id(&h[1])]);
+    run(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "announce",
+            "--addr",
+            &service.address,
+            "--ttl-ms",
+            "60000",
+        ],
+    );
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "contact",
+            "add",
+            "--name",
+            "origin",
+            "--addr",
+            &service.address,
+            "--peer",
+            &root_id(&h[0]),
+        ],
+    );
+    run(&h[1], &s[1], &["seed", "catalog", "refresh"]);
+    let args = [
+        "seed",
+        "collection-fetch",
+        "--root",
+        root,
+        "--kind",
+        "media",
+        "--max-objects",
+        "16",
+        "--max-bytes",
+        "4194304",
+        "--max-downloads",
+        "1",
+    ];
+    let first = run(&h[1], &s[1], &args);
+    assert_eq!(first["result"]["complete"], false);
+    assert_eq!(first["result"]["attempts_used"], 1);
+    assert_eq!(first["result"]["downloaded"].as_array().unwrap().len(), 1);
+    let root_size = source.get(&manifest.id).unwrap().to_bytes().len() + 1;
+    let small = run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "collection-fetch",
+            "--root",
+            root,
+            "--kind",
+            "media",
+            "--max-objects",
+            "16",
+            "--max-bytes",
+            &root_size.to_string(),
+            "--max-downloads",
+            "1",
+        ],
+    );
+    assert_eq!(small["result"]["complete"], false);
+    assert_eq!(small["result"]["received_body_bytes"], 0);
+    assert!(small["result"]["downloaded"].as_array().unwrap().is_empty());
+    let second = run(&h[1], &s[1], &args);
+    assert_eq!(second["result"]["complete"], false);
+    assert_eq!(second["result"]["reused"], 1);
+    let third = run(&h[1], &s[1], &args);
+    assert_eq!(third["result"]["complete"], true);
+    assert_eq!(third["result"]["reused"], 2);
+    assert_eq!(third["result"]["seeded"], false);
+    assert!(mini_seed::Pool::open(&h[1].join("seed-pool"))
+        .unwrap()
+        .inventory(u64::MAX / 2)
+        .unwrap()
+        .is_empty());
+    let output = temp.path().join("restored.bin");
+    run(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "media-export",
+            "--root",
+            root,
+            "--output",
+            output.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(std::fs::read(&output).unwrap(), bytes);
+    std::fs::write(&output, b"owner edit").unwrap();
+    assert!(cmd(
+        &h[1],
+        &s[1],
+        &[
+            "seed",
+            "media-export",
+            "--root",
+            root,
+            "--output",
+            output.to_str().unwrap()
+        ]
+    )
+    .is_err());
+    assert_eq!(std::fs::read(output).unwrap(), b"owner edit");
+}
+fn root_id(h: &Path) -> String {
+    root(h)
+}
+#[test]
+fn history_collection_confirmation_binds_shared_objects_and_private_policy() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    let identity = mini_cli::identity::load(&h[0]).unwrap();
+    let mut source = mini_cli::store::open_store(&s[0]).unwrap();
+    let file = mini_forge::put_file(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        b"source code\n",
+    )
+    .unwrap();
+    let executable = mini_forge::put_executable_file(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        b"#!/bin/sh\nexit 0\n",
+    )
+    .unwrap();
+    let tree = mini_forge::put_tree(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        &[
+            mini_forge::TreeEntry {
+                name: "main.rs".into(),
+                is_dir: false,
+                target: file.clone(),
+            },
+            mini_forge::TreeEntry {
+                name: "run.sh".into(),
+                is_dir: false,
+                target: executable,
+            },
+        ],
+    )
+    .unwrap();
+    let first = mini_forge::commit(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "first",
+        &tree,
+        &[],
+        1,
+        1,
+    )
+    .unwrap();
+    let head = mini_forge::commit(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "second",
+        &tree,
+        &[first.id().clone()],
+        2,
+        2,
+    )
+    .unwrap();
+    let path = temp.path().join("history.json");
+    let preview = run(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-preview",
+            "--root",
+            head.id().as_str(),
+            "--kind",
+            "history",
+            "--days",
+            "4",
+            "--output",
+            path.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(preview["result"]["objects"], 5);
+    assert!(cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-add",
+            "--preview",
+            path.to_str().unwrap(),
+            "--confirm",
+            "wrong"
+        ]
+    )
+    .is_err());
+    source
+        .set_cache_tier(&file, mini_store::CacheTier::PrivateOnly)
+        .unwrap();
+    assert!(cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-add",
+            "--preview",
+            path.to_str().unwrap(),
+            "--confirm",
+            preview["result"]["preview_id"].as_str().unwrap()
+        ]
+    )
+    .is_err());
+    assert!(mini_seed::Pool::open(&h[0].join("seed-pool"))
+        .unwrap()
+        .leases()
+        .unwrap()
+        .is_empty());
+    source
+        .set_cache_tier(&file, mini_store::CacheTier::EphemeralCache)
+        .unwrap();
+    let admitted = run(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-add",
+            "--preview",
+            path.to_str().unwrap(),
+            "--confirm",
+            preview["result"]["preview_id"].as_str().unwrap(),
+        ],
+    );
+    assert_eq!(admitted["result"]["admitted"], 5);
+    assert_eq!(mini_forge::checkout(&source, head.id()).unwrap().len(), 2);
+    let duplicate = mini_forge::commit(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "bad parents",
+        &tree,
+        &[first.id().clone(), first.id().clone()],
+        3,
+        3,
+    )
+    .unwrap();
+    assert!(cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-preview",
+            "--root",
+            duplicate.id().as_str(),
+            "--kind",
+            "history",
+            "--days",
+            "1",
+            "--output",
+            temp.path().join("bad.json").to_str().unwrap()
+        ]
+    )
+    .is_err());
+}
+#[test]
+fn media_reference_expansion_and_history_tree_depth_fail_before_publication() {
+    let temp = tempfile::tempdir().unwrap();
+    let (h, s) = setup(temp.path());
+    let identity = mini_cli::identity::load(&h[0]).unwrap();
+    let mut source = mini_cli::store::open_store(&s[0]).unwrap();
+    let empty = mini_media::publish_media(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "text/plain",
+        b"",
+        0,
+        0,
+    )
+    .unwrap();
+    let template = source.get(&empty.id).unwrap();
+    let mut builder =
+        ObjectBuilder::new(ObjectType::MEDIA_MANIFEST).payload(template.payload.clone());
+    for _ in 0..256 {
+        builder = builder.link("chunk", empty.chunks[0].clone());
+    }
+    let repeated = builder
+        .sign(&identity.human_did(), &identity.device)
+        .unwrap();
+    source.insert(&repeated).unwrap();
+    let mut block = ObjectBuilder::new(ObjectType::Custom(mini_media::SUPERBLOCK_TYPE.into()))
+        .payload(template.payload.clone());
+    for _ in 0..17 {
+        block = block.link("part", repeated.id().clone());
+    }
+    let block = block.sign(&identity.human_did(), &identity.device).unwrap();
+    source.insert(&block).unwrap();
+    let error = cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-preview",
+            "--root",
+            block.id().as_str(),
+            "--kind",
+            "media",
+            "--days",
+            "1",
+            "--output",
+            temp.path().join("expanded.json").to_str().unwrap(),
+        ],
+    )
+    .unwrap_err();
+    assert!(error.contains("chunk references"), "{error}");
+    let file =
+        mini_forge::put_file(&mut source, &identity.human_did(), &identity.device, b"x").unwrap();
+    let mut tree = mini_forge::put_tree(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        &[mini_forge::TreeEntry {
+            name: "x".into(),
+            is_dir: false,
+            target: file,
+        }],
+    )
+    .unwrap();
+    for _ in 0..33 {
+        tree = mini_forge::put_tree(
+            &mut source,
+            &identity.human_did(),
+            &identity.device,
+            &[mini_forge::TreeEntry {
+                name: "dir".into(),
+                is_dir: true,
+                target: tree,
+            }],
+        )
+        .unwrap();
+    }
+    let commit = mini_forge::commit(
+        &mut source,
+        &identity.human_did(),
+        &identity.device,
+        "deep",
+        &tree,
+        &[],
+        0,
+        0,
+    )
+    .unwrap();
+    let error = cmd(
+        &h[0],
+        &s[0],
+        &[
+            "seed",
+            "collection-preview",
+            "--root",
+            commit.id().as_str(),
+            "--kind",
+            "history",
+            "--days",
+            "1",
+            "--output",
+            temp.path().join("deep.json").to_str().unwrap(),
+        ],
+    )
+    .unwrap_err();
+    assert!(error.contains("tree depth"), "{error}");
+    assert!(mini_seed::Pool::open(&h[0].join("seed-pool"))
+        .unwrap()
+        .leases()
+        .unwrap()
+        .is_empty());
+}

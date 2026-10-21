@@ -12,6 +12,7 @@ use std::net::TcpStream;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+mod collection;
 mod mesh;
 
 const AAD: &[u8] = b"MINI/SEED1";
@@ -142,6 +143,7 @@ enum Request {
         nonce: [u8; 32],
         max_micro: u64,
         payment_digest: Option<[u8; 32]>,
+        max_bytes: u64,
     },
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -396,11 +398,15 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
             nonce,
             max_micro,
             payment_digest,
+            max_bytes,
         } => {
             if peer == identity.human_did() {
                 return Err(err("self-serving cannot produce reward evidence"));
             }
             let o = offer(home, &id)?;
+            if max_bytes == 0 || max_bytes > MAX_OBJECT as u64 || o.bytes > max_bytes {
+                return Err(err("object exceeds receiver byte window"));
+            }
             if o.amount_micro > max_micro {
                 return Err(err("price exceeds owner budget"));
             }
@@ -564,11 +570,13 @@ struct DeliveryAck {
     witness_sig: Vec<Sig>,
     payment: Option<Vec<u8>>,
 }
-struct FetchOptions {
+struct FetchOptions<'a> {
     max_micro: u64,
     payment: Option<Vec<u8>>,
     days: Option<u16>,
     deadline: Option<Instant>,
+    byte_limit: u64,
+    traffic_left: Option<&'a mut u64>,
 }
 fn fetch(
     home: &Path,
@@ -576,13 +584,15 @@ fn fetch(
     address: &str,
     peer: &Did,
     id: &str,
-    options: FetchOptions,
+    options: FetchOptions<'_>,
 ) -> Result<Value> {
     let FetchOptions {
         max_micro,
         payment,
         days,
         deadline,
+        byte_limit,
+        mut traffic_left,
     } = options;
     let identity = crate::identity::load(home)?;
     let nonce = mini_crypto::random_32().map_err(err)?;
@@ -601,11 +611,23 @@ fn fetch(
             nonce,
             max_micro,
             payment_digest: payment.as_deref().map(|p| *blake3::hash(p).as_bytes()),
+            max_bytes: byte_limit.min(
+                traffic_left
+                    .as_deref()
+                    .copied()
+                    .unwrap_or(MAX_OBJECT as u64),
+            ),
         },
     )?;
     let o: Offer = recv(&mut s.bearer, &mut s.channel)?;
     if o.id != id
         || o.bytes > MAX_OBJECT as u64
+        || o.bytes > byte_limit
+        || o.bytes
+            > traffic_left
+                .as_deref()
+                .copied()
+                .unwrap_or(MAX_OBJECT as u64)
         || o.bytes == 0
         || o.expires_at_ms <= now()
         || o.amount_micro > max_micro
@@ -617,6 +639,11 @@ fn fetch(
     let mut bytes = Vec::with_capacity(o.bytes as usize);
     while bytes.len() < o.bytes as usize {
         let chunk = receive_bytes(&mut s.bearer, &mut s.channel, CHUNK)?;
+        if let Some(left) = traffic_left.as_deref_mut() {
+            *left = left
+                .checked_sub(chunk.len() as u64)
+                .ok_or_else(|| err("received body byte window exhausted"))?;
+        }
         if chunk.is_empty() || bytes.len() + chunk.len() > o.bytes as usize {
             return Err(err("invalid object chunk length"));
         }
@@ -688,6 +715,12 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
         return Err(err("configure | add | revoke | prune | status | inventory | serve | peers | quote | fetch | price | earnings | payment-export"));
     }
     let verb = args.remove(0);
+    if matches!(
+        verb.as_str(),
+        "collection-preview" | "collection-add" | "collection-fetch" | "media-export"
+    ) {
+        return render(collection::dispatch(home, store, &verb, args)?, as_json);
+    }
     if matches!(
         verb.as_str(),
         "contact"
@@ -832,6 +865,8 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                                 payment: None,
                                 days: Some(days),
                                 deadline: None,
+                                byte_limit: MAX_OBJECT as u64,
+                                traffic_left: None,
                             },
                         )?;
                         let failed = result["reseed_error"].is_string();
@@ -907,6 +942,8 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                         payment,
                         days,
                         deadline: None,
+                        byte_limit: MAX_OBJECT as u64,
+                        traffic_left: None,
                     },
                 )?
             } else {

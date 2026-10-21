@@ -145,6 +145,29 @@ fn validate_object(bytes: &[u8], expected: &str) -> Result<()> {
         .verify_integrity(object.id())
         .map_err(|e| SeedError(e.to_string()))
 }
+fn admission_bytes(object: &Object, expected_id: &str) -> Result<Vec<u8>> {
+    id_valid(expected_id)?;
+    if object.id().as_str() != expected_id
+        || !matches!(&object.payload, Payload::Public(bytes) if bytes.len() <= mini_objects::MAX_PAYLOAD_BYTES)
+        || object.links.len() > mini_objects::MAX_LINKS
+        || object.links.iter().any(|link| link.rel.len() > 1024)
+        || matches!(&object.object_type, mini_objects::ObjectType::Custom(name) if name.len() > 1024)
+    {
+        return Err(SeedError(
+            "only correctly identified bounded public objects may be seeded".into(),
+        ));
+    }
+    object
+        .verify_integrity(object.id())
+        .map_err(|e| SeedError(e.to_string()))?;
+    let bytes = object.to_bytes();
+    if bytes.len() as u64 > MAX_OBJECT_BYTES {
+        return Err(SeedError("object exceeds seed size limit".into()));
+    }
+    validate_object(&bytes, expected_id)?;
+    Ok(bytes)
+}
+
 fn is_temp(name: &str, base: &str) -> bool {
     let Some(rest) = name
         .strip_prefix(base)
@@ -330,28 +353,8 @@ impl Pool {
             .checked_mul(DAY_MS)
             .and_then(|d| now_ms.checked_add(d))
             .ok_or_else(|| SeedError("retention timestamp overflow".into()))?;
-        // Public Object fields can be edited in memory. Bound them before
-        // serializing or hashing, even though authenticated callers normally
-        // supply objects already accepted by the bounded envelope decoder.
-        if !matches!(&object.payload, Payload::Public(bytes) if bytes.len() <= mini_objects::MAX_PAYLOAD_BYTES)
-            || object.links.len() > mini_objects::MAX_LINKS
-            || object.links.iter().any(|link| link.rel.len() > 1024)
-            || matches!(&object.object_type, mini_objects::ObjectType::Custom(name) if name.len() > 1024)
-        {
-            return Err(SeedError(
-                "only bounded public objects may be seeded".into(),
-            ));
-        }
-        object
-            .verify_integrity(object.id())
-            .map_err(|e| SeedError(e.to_string()))?;
         let id = object.id().as_str();
-        id_valid(id)?;
-        let bytes = object.to_bytes();
-        if bytes.len() as u64 > MAX_OBJECT_BYTES {
-            return Err(SeedError("object exceeds seed size limit".into()));
-        }
-        validate_object(&bytes, id)?;
+        let bytes = admission_bytes(object, id)?;
         let _lock = self.lock()?;
         let mut state = self.load()?;
         self.cleanup(&state)?;
@@ -382,6 +385,103 @@ impl Pool {
         self.save(&state)?;
         Ok(lease)
     }
+    /// Atomically admit/renew a bounded collection while keeping only one
+    /// source object and its encoded bytes in memory at a time. The callback
+    /// MUST verify current provenance and source-sharing permission on EVERY
+    /// invocation. It is called twice per ID and must not reenter this pool:
+    /// the stable OS lock is held through both passes and final publication.
+    ///
+    /// All objects, existing retained copies, quota and manifest size are
+    /// preflighted before new blobs are written. Reloaded objects must retain
+    /// their exact content-addressed identity. Failures before final manifest
+    /// publication leave all old leases unchanged; newly written blobs are
+    /// invisible orphans safely reclaimed by open/the next pool mutation.
+    /// As with other durable writes, a final manifest flush error may already
+    /// have committed: reload state rather than assuming an error rolled back.
+    pub fn admit_collection<F>(
+        &self,
+        ids: &[String],
+        days: u16,
+        now_ms: u64,
+        mut load: F,
+    ) -> Result<Vec<Lease>>
+    where
+        F: FnMut(&str) -> Result<Object>,
+    {
+        if ids.is_empty() || ids.len() > MAX_POOL_OBJECTS {
+            return Err(SeedError(
+                "collection requires 1–4096 unique object IDs".into(),
+            ));
+        }
+        if !(1..=3650).contains(&days) {
+            return Err(SeedError("retention must be 1–3650 days".into()));
+        }
+        let expires_at_ms = u64::from(days)
+            .checked_mul(DAY_MS)
+            .and_then(|duration| now_ms.checked_add(duration))
+            .ok_or_else(|| SeedError("retention timestamp overflow".into()))?;
+        let mut seen = std::collections::BTreeSet::new();
+        for id in ids {
+            id_valid(id)?;
+            if !seen.insert(id) {
+                return Err(SeedError("duplicate collection object ID".into()));
+            }
+        }
+        let _lock = self.lock()?;
+        let mut state = self.load()?;
+        self.cleanup(&state)?;
+        let mut used = state.used()?;
+        let mut planned = Vec::with_capacity(ids.len());
+        for id in ids {
+            let object = load(id)?;
+            let bytes = admission_bytes(&object, id)?;
+            let size = bytes.len() as u64;
+            let previous = state.leases.get(id);
+            let is_new = previous.is_none();
+            let old_size = previous.map_or(0, |lease| lease.bytes);
+            if !is_new
+                && read_bounded(&self.root.join("objects").join(id), MAX_OBJECT_BYTES)? != bytes
+            {
+                return Err(SeedError("existing seed object is corrupt".into()));
+            }
+            used = used
+                .checked_sub(old_size)
+                .and_then(|value| value.checked_add(size))
+                .ok_or_else(|| SeedError("collection quota accounting overflow".into()))?;
+            if used > state.max_bytes || (is_new && state.leases.len() == MAX_POOL_OBJECTS) {
+                return Err(SeedError(
+                    "collection exceeds pool quota or object-count limit".into(),
+                ));
+            }
+            let lease = Lease {
+                id: id.clone(),
+                bytes: size,
+                expires_at_ms,
+            };
+            state.leases.insert(id.clone(), lease.clone());
+            planned.push((lease, is_new));
+        }
+        if serde_json::to_vec(&state)?.len() as u64 > MAX_MANIFEST_BYTES {
+            return Err(SeedError("collection manifest exceeds size bound".into()));
+        }
+        for (lease, is_new) in &planned {
+            let object = load(&lease.id)?;
+            let bytes = admission_bytes(&object, &lease.id)?;
+            if bytes.len() as u64 != lease.bytes {
+                return Err(SeedError(
+                    "collection source object changed during admission".into(),
+                ));
+            }
+            if *is_new {
+                let path = self.root.join("objects").join(&lease.id);
+                plain_path(&path)?;
+                mini_durable::atomic_replace(&path, &bytes)?;
+            }
+        }
+        self.save(&state)?;
+        Ok(planned.into_iter().map(|(lease, _)| lease).collect())
+    }
+
     pub fn revoke(&self, id: &str) -> Result<bool> {
         id_valid(id)?;
         let _lock = self.lock()?;
@@ -702,6 +802,148 @@ mod tests {
             pool.read_batch(&[ids[0].clone()], 0, total).unwrap(),
             vec![two.to_bytes()]
         );
+    }
+
+    #[test]
+    fn collection_quota_and_preflight_load_failure_preserve_all_old_leases() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = Pool::open(dir.path()).unwrap();
+        let one = object(b"existing");
+        let two = object(b"new");
+        pool.configure(one.to_bytes().len() as u64).unwrap();
+        pool.admit(&one, 1, 0).unwrap();
+        let before = fs::read(dir.path().join("manifest.json")).unwrap();
+        let ids = vec![one.id().as_str().into(), two.id().as_str().into()];
+        assert!(pool
+            .admit_collection(&ids, 2, 100, |id| Ok(if id == one.id().as_str() {
+                one.clone()
+            } else {
+                two.clone()
+            }))
+            .is_err());
+        assert_eq!(fs::read(dir.path().join("manifest.json")).unwrap(), before);
+        assert!(!dir.path().join("objects").join(two.id().as_str()).exists());
+        pool.configure(1024 * 1024).unwrap();
+        let before = fs::read(dir.path().join("manifest.json")).unwrap();
+        assert!(pool
+            .admit_collection(&ids, 2, 100, |id| {
+                if id == one.id().as_str() {
+                    Ok(one.clone())
+                } else {
+                    Err(SeedError("source disappeared".into()))
+                }
+            })
+            .is_err());
+        assert_eq!(fs::read(dir.path().join("manifest.json")).unwrap(), before);
+        assert_eq!(pool.leases().unwrap()[0].expires_at_ms, DAY_MS);
+        assert!(!dir.path().join("objects").join(two.id().as_str()).exists());
+    }
+
+    #[test]
+    fn collection_second_pass_change_leaves_invisible_orphans_reclaimed_on_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = Pool::open(dir.path()).unwrap();
+        pool.configure(1024 * 1024).unwrap();
+        let one = object(b"one");
+        let two = object(b"two");
+        let ids = vec![one.id().as_str().into(), two.id().as_str().into()];
+        let before = fs::read(dir.path().join("manifest.json")).unwrap();
+        let mut two_loads = 0;
+        assert!(pool
+            .admit_collection(&ids, 1, 0, |id| {
+                if id == one.id().as_str() {
+                    return Ok(one.clone());
+                }
+                two_loads += 1;
+                // A changed second source load must not commit the first blob or
+                // advertise a partial collection, even if it is otherwise valid.
+                Ok(if two_loads == 1 {
+                    two.clone()
+                } else {
+                    one.clone()
+                })
+            })
+            .is_err());
+        assert_eq!(fs::read(dir.path().join("manifest.json")).unwrap(), before);
+        assert!(pool.leases().unwrap().is_empty());
+        assert!(pool.inventory(0).unwrap().is_empty());
+        assert!(pool.read(one.id().as_str(), 0).is_err());
+        let orphan = dir.path().join("objects").join(one.id().as_str());
+        assert!(orphan.exists());
+        drop(pool);
+        let reopened = Pool::open(dir.path()).unwrap();
+        assert!(!orphan.exists());
+        assert_eq!(reopened.status().unwrap().objects, 0);
+    }
+
+    #[test]
+    fn collection_success_streams_two_passes_renews_once_and_rejects_invalid_selections() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = Pool::open(dir.path()).unwrap();
+        pool.configure(1024 * 1024).unwrap();
+        let one = object(b"one");
+        let two = object(b"two");
+        pool.admit(&one, 1, 0).unwrap();
+        let ids = vec![two.id().as_str().into(), one.id().as_str().into()];
+        let mut calls = BTreeMap::new();
+        let leases = pool
+            .admit_collection(&ids, 2, 100, |id| {
+                *calls.entry(id.to_string()).or_insert(0) += 1;
+                Ok(if id == one.id().as_str() {
+                    one.clone()
+                } else {
+                    two.clone()
+                })
+            })
+            .unwrap();
+        assert_eq!(leases.iter().map(|l| l.id.clone()).collect::<Vec<_>>(), ids);
+        assert!(leases.iter().all(|l| l.expires_at_ms == 100 + 2 * DAY_MS));
+        assert!(calls.values().all(|n| *n == 2));
+        assert_eq!(pool.status().unwrap().objects, 2);
+        assert_eq!(
+            pool.read_batch(&ids, 100, 1024 * 1024).unwrap(),
+            vec![two.to_bytes(), one.to_bytes()]
+        );
+        for (selection, days, timestamp) in [
+            (vec![], 1, 0),
+            (vec![ids[0].clone(), ids[0].clone()], 1, 0),
+            (vec![ids[0].clone(); MAX_POOL_OBJECTS + 1], 1, 0),
+            (ids.clone(), 0, 0),
+            (ids.clone(), 3651, 0),
+            (ids.clone(), 1, u64::MAX),
+        ] {
+            assert!(pool
+                .admit_collection(&selection, days, timestamp, |_| panic!(
+                    "invalid selection reached source loader"
+                ))
+                .is_err());
+        }
+    }
+
+    #[test]
+    fn collection_preflights_old_copy_integrity_before_any_new_blob() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = Pool::open(dir.path()).unwrap();
+        pool.configure(1024 * 1024).unwrap();
+        let one = object(b"one");
+        let two = object(b"two");
+        pool.admit(&one, 1, 0).unwrap();
+        let path = dir.path().join("objects").join(one.id().as_str());
+        let mut bytes = one.to_bytes();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 1;
+        fs::write(path, bytes).unwrap();
+        let before = fs::read(dir.path().join("manifest.json")).unwrap();
+        let ids = vec![two.id().as_str().into(), one.id().as_str().into()];
+        assert!(pool
+            .admit_collection(&ids, 2, 0, |id| Ok(if id == one.id().as_str() {
+                one.clone()
+            } else {
+                two.clone()
+            }))
+            .is_err());
+        assert_eq!(fs::read(dir.path().join("manifest.json")).unwrap(), before);
+        assert!(!dir.path().join("objects").join(two.id().as_str()).exists());
     }
 
     #[cfg(unix)]
