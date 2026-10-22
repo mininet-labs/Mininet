@@ -110,36 +110,36 @@ fn reject_replayed_proof(address: &str, home: &Path, owner: &str) {
         (bearer, channel, hello, response)
     };
     let (mut bearer, mut channel, hello, response) = handshake();
-    let mut transcript = b"mini/forge-session/transcript/v1\0".to_vec();
+    let mut transcript = b"mini/forge-session/transcript/v2\0".to_vec();
     transcript.extend_from_slice(&(hello.len() as u32).to_be_bytes());
     transcript.extend_from_slice(&hello);
     transcript.extend_from_slice(&(response.len() as u32).to_be_bytes());
     transcript.extend_from_slice(&response);
-    let mut payload = b"mini/forge-session/proof/v1\0".to_vec();
+    let mut payload = b"mini/forge-session/proof/v2\0".to_vec();
     payload.push(b'i');
     payload.extend_from_slice(&mini_crypto::HashAlgorithm::Blake3.digest(&transcript));
     payload.extend_from_slice(owner.as_bytes());
-    let proof = ObjectBuilder::new(ObjectType::Custom("mini/forge-session-v1".into()))
+    let proof = ObjectBuilder::new(ObjectType::Custom("mini/forge-session-v2".into()))
         .payload(Payload::Public(payload))
         .sign(&identity.human_did(), &identity.device)
         .unwrap();
     bearer
         .send(
             &channel
-                .seal(&proof.to_bytes(), b"MINI/FORGE-SESSION1")
+                .seal(&proof.to_bytes(), b"MINI/FORGE-SESSION2")
                 .unwrap(),
         )
         .unwrap();
     // First transcript is accepted: responder sends its proof, then waits for
     // sync. Re-encrypting that signed proof on a fresh channel must fail.
     let response = bearer.recv().unwrap();
-    channel.open(&response, b"MINI/FORGE-SESSION1").unwrap();
+    channel.open(&response, b"MINI/FORGE-SESSION2").unwrap();
     drop(bearer);
     let (mut bearer, mut channel, _, _) = handshake();
     bearer
         .send(
             &channel
-                .seal(&proof.to_bytes(), b"MINI/FORGE-SESSION1")
+                .seal(&proof.to_bytes(), b"MINI/FORGE-SESSION2")
                 .unwrap(),
         )
         .unwrap();
@@ -239,4 +239,58 @@ fn authenticated_service_isolates_bad_peers_and_stops_and_restarts() {
     wait_ready(&homes[0], &stores[0], Some(&address));
     run(&homes[0], &stores[0], &["service", "stop"]);
     restart.join().unwrap().unwrap();
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn silent_source_cannot_consume_authenticated_session_capacity() {
+    let temp = tempfile::tempdir().unwrap();
+    let (homes, stores, roots) = setup(temp.path(), &["owner", "alice"]);
+    let (home, store, allowed) = (homes[0].clone(), stores[0].clone(), roots[1].clone());
+    let server = thread::spawn(move || {
+        command(
+            &home,
+            &store,
+            &[
+                "service",
+                "run",
+                "--addr",
+                "[::]:0",
+                "--allow-store-sharing",
+                "--allow-peer",
+                &allowed,
+                "--idle-timeout-ms",
+                "5000",
+            ],
+        )
+    });
+    let address = wait_ready(&homes[0], &stores[0], None);
+    let port = address.parse::<std::net::SocketAddr>().unwrap().port();
+    // IPv4-mapped source and IPv6 loopback are distinct source addresses.
+    // Four silent connections formerly exhausted all authenticated workers.
+    let stalled: Vec<_> = (0..4)
+        .map(|_| TcpStream::connect(("127.0.0.1", port)).unwrap())
+        .collect();
+    thread::sleep(Duration::from_millis(150));
+    run(
+        &homes[1],
+        &stores[1],
+        &[
+            "remote",
+            "add",
+            "owner",
+            &format!("[::1]:{port}"),
+            "--peer",
+            &roots[0],
+        ],
+    );
+    let sync = command(
+        &homes[1],
+        &stores[1],
+        &["--json", "remote", "sync", "owner"],
+    );
+    run(&homes[0], &stores[0], &["service", "stop"]);
+    drop(stalled);
+    server.join().unwrap().unwrap();
+    assert!(sync.unwrap().contains("\"ok\":true"));
 }

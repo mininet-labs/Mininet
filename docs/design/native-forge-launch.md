@@ -91,8 +91,28 @@ service never downgrades to anonymous sync. Old unpinned remotes and `sync
 listen/connect` remain explicitly legacy tools and do not speak this service
 protocol.
 
-The service has four concurrent workers, per-socket idle timeouts (30 seconds
-by default) and absolute session deadlines (four times the idle timeout).
+The authenticated service protocol is now v2: both peers must upgrade together;
+v1 proofs are rejected rather than silently selecting another wire protocol.
+Legacy anonymous sync is unchanged. Inventory pages are flow controlled, with
+at most 65,536 missing IDs retained per pull. Already-held IDs do not consume
+that window. Repeat a sync reporting `complete:false` to continue larger stores.
+
+The service separates eight pending handshakes from four authenticated sessions.
+At most two pending handshakes per source IP and one active session per allowed
+root are admitted. Handshakes have a two-second absolute deadline. Socket idle
+timeouts (30 seconds by default) and absolute session deadlines (four times the
+idle timeout) also bound workers. Peers sharing a source IP share its admission
+budget; this is resource isolation, not a guarantee against network saturation.
+
+Before persisting each new incoming blob, the service durably reserves its exact
+signed byte length against a 2 GiB global store budget and a 512 MiB per-peer
+lifetime budget. Existing blob bytes are reconciled at startup. Reservations and
+peer accounting survive restart; retries of existing objects cost no additional
+reservation. Failed or interrupted writes may conservatively retain reservations.
+The quota applies to service ingress, not independently authorized local writers;
+filesystem metadata overhead is additional. Quota exhaustion fails the session
+without silently claiming completion. Owners must inspect usage and back up the
+store before changing/removing accounting files; there is no automatic refund.
 Stalled, malformed, unauthorized or replaying connections fail individually.
 `service stop` requests graceful shutdown; poll `status` until `running:false`
 before backup/restore. An OS lock proves instance liveness; stale state files
