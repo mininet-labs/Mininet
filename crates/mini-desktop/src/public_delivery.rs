@@ -167,7 +167,10 @@ impl Default for PublicDeliveryPanel {
 }
 impl PublicDeliveryPanel {
     pub(crate) fn observe_publication(&mut self, kind: ObjectKind, object_id: String) {
-        if matches!(kind, ObjectKind::Profile | ObjectKind::Wall) {
+        if matches!(
+            kind,
+            ObjectKind::Profile | ObjectKind::Wall | ObjectKind::MediaPost
+        ) {
             return;
         }
         self.publications.retain(|(_, id)| id != &object_id);
@@ -561,6 +564,7 @@ mod tests {
         let mut panel = PublicDeliveryPanel::default();
         panel.observe_publication(ObjectKind::Profile, "profile".into());
         panel.observe_publication(ObjectKind::Wall, "unlisted-wall".into());
+        panel.observe_publication(ObjectKind::MediaPost, "linked-media-post".into());
         assert!(panel.publications.is_empty());
         for index in 0..40 {
             panel.observe_publication(ObjectKind::Comment, format!("comment-{index}"));

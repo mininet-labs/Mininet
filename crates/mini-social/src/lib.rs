@@ -39,8 +39,8 @@ pub use discovery::{
 };
 
 pub use post::{
-    build_intake_post, build_post, decode_post, publish_media_post, publish_post, resolve_post,
-    Post, PostKind, MAX_POST_BYTES,
+    build_intake_post, build_media_post, build_post, decode_post, publish_media_post, publish_post,
+    resolve_post, Post, PostKind, MAX_POST_BYTES,
 };
 
 pub use spam::{PostRateLimiter, MAX_TRACKED_AUTHORS};

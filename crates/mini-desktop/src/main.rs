@@ -13,6 +13,7 @@ mod connectivity;
 mod conversation_state;
 mod discussion;
 mod library;
+mod media_share;
 mod mute_list;
 mod netsearch;
 mod network_session;
@@ -109,6 +110,10 @@ enum CoreAction {
         parent: String,
         text: String,
         draft: CommentDraft,
+    },
+    PublishMediaPost {
+        draft: media_share::Draft,
+        raw_caption: String,
     },
     PublishWall {
         draft: mini_app_protocol::PublicWallDraft,
@@ -240,6 +245,7 @@ struct MininetApp {
     profile_operation: Option<(String, String, String)>,
     profile_details_operation: Option<(profile_editor::Intent, String)>,
     wall_operation: Option<(mini_app_protocol::PublicWallDraft, String)>,
+    media_share_operation: Option<(media_share::Draft, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
@@ -769,41 +775,6 @@ impl Workspace {
             )?;
             self.sequence = self.sequence.saturating_add(published.objects);
             Ok(published)
-        })();
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    /// Post a caption linking an existing manifest or collection.
-    fn publish_media_post_for(
-        &mut self,
-        media: &mini_objects::ObjectId,
-        caption: &str,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = (|| {
-            let identity = self
-                .identity
-                .as_ref()
-                .ok_or_else(|| "identity is locked".to_string())?;
-            let human = self.human_did()?.clone();
-            publish_media_post(
-                &mut self.store,
-                &human,
-                &identity.device,
-                media.clone(),
-                caption,
-                now_ms(),
-                self.sequence,
-            )
-            .map_err(|error| error.to_string())?;
-            self.sequence = self.sequence.saturating_add(1);
-            Ok(())
         })();
         if relock {
             self.lock();
@@ -1479,6 +1450,7 @@ impl Default for MininetApp {
             profile_operation: None,
             profile_details_operation: None,
             wall_operation: None,
+            media_share_operation: None,
             follow_operation: None,
             community_operation: None,
             membership_operation: None,
@@ -2090,6 +2062,30 @@ impl MininetApp {
                 self.reload_workspace();
                 self.view = View::Creator;
                 self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
+            }
+            (
+                CoreAction::PublishMediaPost { draft, raw_caption },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::MediaPost => {
+                if self
+                    .media_share_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| old == &draft)
+                {
+                    self.media_share_operation = None;
+                }
+                if media_share::acknowledges_editor(
+                    &draft,
+                    &raw_caption,
+                    self.library_share_target.as_ref().map(|id| id.as_str()),
+                    &self.library_caption,
+                ) {
+                    self.library_share_target = None;
+                    self.library_caption.clear();
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = "Media caption post saved through the application core. Its linked files still require media exchange; no file was uploaded by this action.".into();
             }
             (CoreAction::PublishWall { draft }, Ok(AppReply::Published(published)))
                 if published.kind == mini_app_protocol::ObjectKind::Wall =>
@@ -6400,24 +6396,18 @@ No tracking. No forced updates.",
                                 );
                                 ui.horizontal(|ui| {
                                     if ui.add(theme::primary_button("Post")).clicked() {
-                                        self.notice = if !self.signing_confirmation {
-                                            "Confirm signing before posting.".into()
+                                        if !self.signing_confirmation {
+                                            self.notice = "Confirm signing before posting.".into();
+                                        } else if self.app_action.is_some() {
+                                            self.notice = "Finish the pending signed action before sharing media.".into();
                                         } else {
-                                            match self.workspace.as_mut() {
-                                                Some(workspace) => match workspace
-                                                    .publish_media_post_for(&item.id, self.library_caption.trim())
-                                                {
-                                                    Ok(()) => {
-                                                        self.signing_confirmation = false;
-                                                        self.library_share_target = None;
-                                                        self.timeline_refresh = Instant::now();
-                                                        "Posted. It shares on the next exchange.".into()
-                                                    }
-                                                    Err(error) => format!("Could not post: {error}"),
-                                                },
-                                                None => "Local workspace unavailable.".into(),
-                                            }
-                                        };
+                                            let draft = media_share::Draft { media_id: item.id.as_str().into(), caption: self.library_caption.trim().into() };
+                                            let operation_id = media_share::request_id(&mut self.media_share_operation, &draft);
+                                            self.start_core_action(
+                                                CoreAction::PublishMediaPost { draft: draft.clone(), raw_caption: self.library_caption.clone() },
+                                                AppCommand::PublishMediaPost { operation_id, media_id: draft.media_id, caption: draft.caption },
+                                            );
+                                        }
                                     }
                                     if ui.add(theme::secondary_button("Cancel")).clicked() {
                                         self.library_share_target = None;

@@ -139,6 +139,7 @@ pub enum ObjectKind {
     Membership,
     Community,
     Wall,
+    MediaPost,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -294,6 +295,19 @@ impl Request {
                 }
                 if bio.len() > MAX_PROFILE_BIO_BYTES {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
+                }
+            }
+            Command::PublishMediaPost {
+                operation_id,
+                media_id,
+                caption,
+            } => {
+                validate_operation_id(operation_id)?;
+                if media_id.is_empty()
+                    || media_id.len() > MAX_OBJECT_ID_BYTES
+                    || caption.len() > MAX_POST_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("media caption post"));
                 }
             }
             Command::PublishWall {
@@ -475,6 +489,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishMediaPost {
+        operation_id: String,
+        media_id: String,
+        caption: String,
+    },
     PublishWall {
         operation_id: String,
         draft: PublicWallDraft,
@@ -860,6 +879,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::PublishMediaPost {
+            operation_id,
+            media_id,
+            caption,
+        } => {
+            encoder.u8(33);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(media_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(caption, MAX_POST_BYTES)?;
+        }
         Command::PublishWall {
             operation_id,
             draft,
@@ -1063,6 +1092,11 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        33 => Ok(Command::PublishMediaPost {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            media_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            caption: decoder.string(MAX_POST_BYTES)?,
+        }),
         32 => {
             let operation_id = decoder.string(MAX_OPERATION_ID_BYTES)?;
             let display_name = decoder.string(MAX_WALL_NAME_BYTES)?;
@@ -1207,7 +1241,7 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
                 ObjectKind::Comment => 4,
                 ObjectKind::Membership => 5,
                 ObjectKind::Community => 6,
-                ObjectKind::Profile | ObjectKind::Wall => {
+                ObjectKind::Profile | ObjectKind::Wall | ObjectKind::MediaPost => {
                     return Err(ProtocolError::InvalidRequest(
                         "profile and wall delivery are unsupported".into(),
                     ))
@@ -1560,6 +1594,7 @@ fn encode_published(
         ObjectKind::Membership => 5,
         ObjectKind::Community => 6,
         ObjectKind::Wall => 7,
+        ObjectKind::MediaPost => 8,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1576,6 +1611,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
         5 => ObjectKind::Membership,
         6 => ObjectKind::Community,
         7 => ObjectKind::Wall,
+        8 => ObjectKind::MediaPost,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1611,6 +1647,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
                 ObjectKind::Membership => 5,
                 ObjectKind::Community => 6,
                 ObjectKind::Wall => 7,
+                ObjectKind::MediaPost => 8,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1642,6 +1679,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
                 5 => ObjectKind::Membership,
                 6 => ObjectKind::Community,
                 7 => ObjectKind::Wall,
+                8 => ObjectKind::MediaPost,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -2836,5 +2874,76 @@ mod wall_protocol_tests {
             )
         )
         .is_err());
+    }
+}
+
+#[cfg(test)]
+mod media_post_protocol_tests {
+    use super::*;
+    #[test]
+    fn media_caption_command_round_trips_blank_and_maximum_and_bounds_reject() {
+        for caption in [String::new(), "x".repeat(MAX_POST_BYTES)] {
+            let request = Request::new(
+                28,
+                Command::PublishMediaPost {
+                    operation_id: "media-post:1".into(),
+                    media_id: "media".into(),
+                    caption,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for (operation_id, media_id, caption) in [
+            ("../bad".into(), "media".into(), String::new()),
+            ("valid".into(), String::new(), String::new()),
+            (
+                "valid".into(),
+                "x".repeat(MAX_OBJECT_ID_BYTES + 1),
+                String::new(),
+            ),
+            (
+                "valid".into(),
+                "media".into(),
+                "x".repeat(MAX_POST_BYTES + 1),
+            ),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishMediaPost {
+                    operation_id,
+                    media_id,
+                    caption
+                }
+            )
+            .validate()
+            .is_err());
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::MediaPost,
+                object_id: "post".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 7,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::MediaPost,
+                    object_id: "post".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(28, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
     }
 }
