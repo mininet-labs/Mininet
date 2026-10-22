@@ -36,10 +36,10 @@ use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
     community_members, followers, following, known_profiles, publish_community, publish_media_post,
-    publish_profile_details, publish_wall, resolve_community, resolve_profile, set_membership,
-    FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile,
-    PublicProfileDraft, PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES,
-    MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    publish_profile_details, publish_wall, resolve_community, resolve_profile, FeedFilter,
+    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
+    PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 #[cfg(all(test, windows))]
 use mini_social::{publish_profile, set_follow};
@@ -107,6 +107,10 @@ enum CoreAction {
         parent: String,
         text: String,
         draft: CommentDraft,
+    },
+    SetMembership {
+        community: String,
+        joined: bool,
     },
     SetLike {
         target: String,
@@ -209,6 +213,7 @@ struct MininetApp {
     app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
     comment_operation: Option<(String, String, String)>,
+    membership_operation: Option<(String, bool, String)>,
     like_operation: Option<(String, bool, String)>,
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
@@ -945,22 +950,6 @@ impl Workspace {
             .collect()
     }
 
-    fn set_community_membership_confirmed(
-        &mut self,
-        community: &mini_objects::ObjectId,
-        joined: bool,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.set_community_membership(community, joined);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
     fn export_bundle(&self, path: &str) -> Result<usize, String> {
         const MAGIC: &[u8] = b"MINIBND1";
         const MAX_OBJECTS: usize = 10_000;
@@ -1017,30 +1006,6 @@ impl Workspace {
             return Err("bundle has trailing bytes".to_string());
         }
         Ok(count)
-    }
-
-    fn set_community_membership(
-        &mut self,
-        community: &mini_objects::ObjectId,
-        joined: bool,
-    ) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        set_membership(
-            &mut self.store,
-            &human,
-            &identity.device,
-            community,
-            joined,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
     }
 
     fn following_count(&self) -> usize {
@@ -1570,6 +1535,7 @@ impl Default for MininetApp {
             post_operation: None,
             profile_operation: None,
             follow_operation: None,
+            membership_operation: None,
             like_operation: None,
             comment_operation: None,
             view,
@@ -2207,6 +2173,27 @@ impl MininetApp {
                         );
                     }
                 }
+            }
+            (
+                CoreAction::SetMembership { community, joined },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Membership => {
+                if self
+                    .membership_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &community && *old_state == joined
+                    })
+                {
+                    self.membership_operation = None;
+                }
+                self.reload_workspace();
+                self.discussion_dirty = true;
+                self.notice = if joined {
+                    "Membership saved through the application core. Exchange with peers to share it."
+                } else {
+                    "Leave saved through the application core. Exchange with peers to share it."
+                }.into();
             }
             (CoreAction::SetLike { target, active }, Ok(AppReply::Published(published)))
                 if published.kind == mini_app_protocol::ObjectKind::Reaction =>
@@ -7310,6 +7297,7 @@ No tracking. No forced updates.",
             });
         }
         for (id, name, charter, member_count, joined) in cards {
+            let can_join = self.membership_can_join(&id);
             theme::card_frame().show(ui, |ui| {
                 ui.horizontal_top(|ui| {
                     theme::avatar(ui, &name, id.as_str(), 44.0);
@@ -7328,11 +7316,16 @@ No tracking. No forced updates.",
                                         self.discussion_dirty = true;
                                     }
                                     if ui
-                                        .add(theme::secondary_button(if joined {
-                                            "Leave"
-                                        } else {
-                                            "Join"
-                                        }))
+                                        .add_enabled(
+                                            joined || can_join,
+                                            theme::secondary_button(if joined {
+                                                "Leave"
+                                            } else if can_join {
+                                                "Join"
+                                            } else {
+                                                "Approval required"
+                                            }),
+                                        )
                                         .clicked()
                                     {
                                         self.set_membership(&id, !joined);
@@ -7467,17 +7460,42 @@ No tracking. No forced updates.",
         }
     }
 
-    fn set_membership(&mut self, id: &mini_objects::ObjectId, join: bool) {
-        self.notice = match self.workspace.as_mut() {
-            Some(workspace) => match workspace.set_community_membership_confirmed(id, join) {
-                Ok(()) if join => {
-                    "Joined. The signed membership shares on the next exchange.".into()
-                }
-                Ok(()) => "Left the community.".into(),
-                Err(error) => format!("Could not change membership: {error}"),
+    fn membership_can_join(&self, id: &mini_objects::ObjectId) -> bool {
+        self.workspace
+            .as_ref()
+            .and_then(|workspace| resolve_community(&workspace.store, id).ok())
+            .is_some_and(|community| community.membership == MembershipMode::Open)
+    }
+
+    fn set_membership(&mut self, id: &mini_objects::ObjectId, joined: bool) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before changing membership.".into();
+            return;
+        }
+        if joined && !self.membership_can_join(id) {
+            self.notice =
+                "Joining this community requires an admission workflow that is not available yet."
+                    .into();
+            return;
+        }
+        let community = id.as_str().to_string();
+        let operation_id = social_toggle_request_id(
+            &mut self.membership_operation,
+            "membership",
+            &community,
+            joined,
+        );
+        self.start_core_action(
+            CoreAction::SetMembership {
+                community: community.clone(),
+                joined,
             },
-            None => "Local workspace unavailable.".into(),
-        };
+            AppCommand::SetMembership {
+                operation_id,
+                community_id: community,
+                joined,
+            },
+        );
     }
 
     fn reload_discussion(&mut self, community: &mini_objects::ObjectId) {
@@ -7521,6 +7539,7 @@ No tracking. No forced updates.",
         if self.discussion_dirty {
             self.reload_discussion(community);
         }
+        let can_join = self.membership_can_join(community);
         ui.horizontal(|ui| {
             if ui
                 .add(theme::secondary_button("◀  All communities"))
@@ -7534,7 +7553,17 @@ No tracking. No forced updates.",
             ui.label(egui::RichText::new(&name).strong().size(18.0));
             if joined {
                 theme::pill_badge(ui, "JOINED", theme::ONLINE_GREEN);
-            } else if ui.add(theme::secondary_button("Join")).clicked() {
+            } else if ui
+                .add_enabled(
+                    can_join,
+                    theme::secondary_button(if can_join {
+                        "Join"
+                    } else {
+                        "Approval required"
+                    }),
+                )
+                .clicked()
+            {
                 self.set_membership(community, true);
             }
         });
@@ -9443,6 +9472,22 @@ shot at dusk",
 #[cfg(test)]
 mod follow_runtime_tests {
     use super::*;
+    #[test]
+    fn uncertain_membership_reply_reuses_only_same_community_and_state() {
+        let mut pending = None;
+        let first = social_toggle_request_id(&mut pending, "membership", "community-a", true);
+        assert_eq!(
+            social_toggle_request_id(&mut pending, "membership", "community-a", true),
+            first
+        );
+        let leave = social_toggle_request_id(&mut pending, "membership", "community-a", false);
+        assert_ne!(leave, first);
+        assert_ne!(
+            social_toggle_request_id(&mut pending, "membership", "community-b", false),
+            leave
+        );
+    }
+
     #[test]
     fn uncertain_comment_reply_reuses_exact_parent_text_and_operation_id() {
         let mut pending = None;

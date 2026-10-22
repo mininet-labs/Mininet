@@ -291,14 +291,46 @@ pub fn set_membership<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
-    let object = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.to_string()))
+    let object = build_membership(member, device, community, joined, timestamp_ms, sequence)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build a public membership declaration without mutating a store.
+pub fn build_membership(
+    member: &Did,
+    device: &Controller,
+    community: &ObjectId,
+    joined: bool,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.to_string()))
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("community", community.clone())
         .payload(Payload::Public(vec![u8::from(joined)]))
-        .sign(member, device)?;
-    store.insert(&object)?;
-    Ok(object)
+        .sign(member, device)
+        .map_err(Into::into)
+}
+
+/// Decode a canonical membership declaration, not an admission decision.
+pub fn decode_membership(object: &Object) -> Result<(ObjectId, bool)> {
+    if object.object_type != ObjectType::Custom(MEMBERSHIP_TYPE.into())
+        || object.links.len() != 1
+        || object.links[0].rel != "community"
+    {
+        return Err(SocialError::BadCommunity);
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return Err(SocialError::BadCommunity);
+    };
+    let joined = match bytes.as_slice() {
+        [0] => false,
+        [1] => true,
+        _ => return Err(SocialError::BadCommunity),
+    };
+    Ok((object.links[0].target.clone(), joined))
 }
 
 /// Return active members, deterministically resolved per member.
@@ -1398,5 +1430,57 @@ mod comment_builder_tests {
             1
         )
         .is_err());
+    }
+}
+
+#[cfg(test)]
+mod membership_builder_tests {
+    use super::*;
+    #[test]
+    fn membership_builder_preserves_wire_and_rejects_noncanonical_declarations() {
+        let root = Controller::incept_single_from_seeds(&[41; 32], &[42; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[43; 32], &[44; 32]).unwrap();
+        let community = build_post(&root.did(), &device, "id fixture", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for joined in [true, false] {
+            let legacy = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.into()))
+                .timestamp_ms(7)
+                .sequence(8)
+                .link("community", community.clone())
+                .payload(Payload::Public(vec![u8::from(joined)]))
+                .sign(&root.did(), &device)
+                .unwrap();
+            let built = build_membership(&root.did(), &device, &community, joined, 7, 8).unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(
+                built.to_bytes(),
+                set_membership(&mut store, &root.did(), &device, &community, joined, 7, 8)
+                    .unwrap()
+                    .to_bytes()
+            );
+            assert_eq!(
+                decode_membership(&built).unwrap(),
+                (community.clone(), joined)
+            );
+        }
+        for bytes in [vec![2], vec![1, 0], vec![]] {
+            let object = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.into()))
+                .link("community", community.clone())
+                .payload(Payload::Public(bytes))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_membership(&object).is_err());
+        }
+        let object = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.into()))
+            .link("community", community.clone())
+            .link("extra", community)
+            .payload(Payload::Public(vec![1]))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_membership(&object).is_err());
     }
 }
