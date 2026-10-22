@@ -525,12 +525,14 @@ mod tests {
     fn preview_reply_must_match_the_requested_object_and_never_queues_it() {
         for (returned, accepted) in [("requested", true), ("different", false)] {
             let (sender, receiver) = std::sync::mpsc::channel();
-            let mut panel = PublicDeliveryPanel::default();
-            panel.pending = Some(Pending {
-                receiver,
-                queue: false,
-                preview_id: Some("requested".into()),
-            });
+            let mut panel = PublicDeliveryPanel {
+                pending: Some(Pending {
+                    receiver,
+                    queue: false,
+                    preview_id: Some("requested".into()),
+                }),
+                ..Default::default()
+            };
             sender
                 .send(Ok(Reply::PublicDeliveryObject(DeliveryObjectView {
                     object_id: returned.into(),
