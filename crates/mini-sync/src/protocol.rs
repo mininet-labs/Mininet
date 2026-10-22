@@ -147,10 +147,11 @@ pub fn sync_bidirectional<B: Backend>(
 
 /// Versioned paged reconciliation for mutually authenticated forge sessions.
 /// Both peers must explicitly select this API; legacy MINI/SYNC1 is unchanged.
-/// Offers terminate with Done, use at most 65536 unique IDs / 8MiB ID bytes,
-/// and transfer at most 64MiB per pull. WindowDone persists a verified subset
-/// with complete=false; subsequent syncs resume from missing IDs. An individual
-/// object larger than the window or an excessive ID set returns an error.
+/// Inventories use bounded flow-controlled pages. Only missing IDs consume
+/// the 65536-ID / 8MiB work window, so later sessions advance past known IDs.
+/// At most 64MiB of object bytes transfer per pull. WindowDone persists a
+/// verified subset with complete=false; subsequent syncs resume missing IDs.
+/// An individual object larger than the byte window returns an error.
 pub fn sync_bidirectional_paged<B: Backend>(
     bearer: &mut dyn Bearer,
     chan: &mut Channel,
@@ -212,6 +213,7 @@ fn pull<B: Backend>(
         .collect();
     send(bearer, chan, &Msg::NeedBuckets(need))?;
 
+    let mut inventory_partial = false;
     let offered = if paged {
         let mut ids = Vec::new();
         let mut unique = std::collections::BTreeSet::new();
@@ -221,18 +223,29 @@ fn pull<B: Backend>(
                 Msg::Done => break,
                 Msg::Ids(page) if !page.is_empty() => {
                     for id in page {
-                        id_bytes = id_bytes
-                            .checked_add(id.len())
-                            .ok_or(SyncError::LimitExceeded)?;
-                        if ids.len() >= PAGED_MAX_IDS || id_bytes > PAGED_MAX_ID_BYTES {
-                            return Err(SyncError::LimitExceeded);
+                        let oid = ObjectId::parse(&id)?;
+                        // Keep only missing IDs. Already-held inventory never
+                        // consumes the next session's bounded work window.
+                        if !store.contains(&oid)? {
+                            id_bytes = id_bytes
+                                .checked_add(id.len())
+                                .ok_or(SyncError::LimitExceeded)?;
+                            if ids.len() < PAGED_MAX_IDS && id_bytes <= PAGED_MAX_ID_BYTES {
+                                if !unique.insert(id.clone()) {
+                                    return Err(SyncError::Protocol);
+                                }
+                                ids.push(id);
+                            } else {
+                                inventory_partial = true;
+                            }
                         }
-                        ObjectId::parse(&id)?;
-                        if !unique.insert(id.clone()) {
-                            return Err(SyncError::Protocol);
-                        }
-                        ids.push(id);
                     }
+                    let more = ids.len() < PAGED_MAX_IDS && id_bytes < PAGED_MAX_ID_BYTES;
+                    send(bearer, chan, &Msg::InventoryMore(more))?;
+                }
+                Msg::WindowDone => {
+                    inventory_partial = true;
+                    break;
                 }
                 _ => return Err(SyncError::Protocol),
             }
@@ -314,7 +327,7 @@ fn pull<B: Backend>(
     }
     let mut report = ingest_objects(store, cache, received_bytes, &wants)?;
     if paged {
-        report.complete = !partial;
+        report.complete = !partial && !inventory_partial;
         for id in &wants {
             if !store.contains(&ObjectId::parse(id)?)? {
                 report.complete = false;
@@ -447,6 +460,7 @@ fn serve_pull_mode<B: Backend>(
         .filter(|id| need.contains(&bucket_of(id)))
         .cloned()
         .collect();
+    let mut inventory_complete = true;
     if paged {
         // Identity carriers must precede bounded content windows so valid
         // unknown-author history cannot indefinitely starve its own KELs.
@@ -454,15 +468,26 @@ fn serve_pull_mode<B: Backend>(
         let carriers: std::collections::BTreeSet<&str> =
             carrier_ids.iter().map(ObjectId::as_str).collect();
         offered.sort_by_key(|id| !carriers.contains(id.as_str()));
-        if offered.len() > PAGED_MAX_IDS
-            || offered.iter().map(String::len).sum::<usize>() > PAGED_MAX_ID_BYTES
-        {
-            return Err(SyncError::LimitExceeded);
-        }
-        for page in offered.chunks(WANT_BATCH) {
+        for (index, page) in offered.chunks(WANT_BATCH).enumerate() {
             send(bearer, chan, &Msg::Ids(page.to_vec()))?;
+            match recv(bearer, chan)? {
+                Msg::InventoryMore(true) => {}
+                Msg::InventoryMore(false) => {
+                    inventory_complete = (index + 1) * WANT_BATCH >= offered.len();
+                    break;
+                }
+                _ => return Err(SyncError::Protocol),
+            }
         }
-        send(bearer, chan, &Msg::Done)?;
+        send(
+            bearer,
+            chan,
+            &if inventory_complete {
+                Msg::Done
+            } else {
+                Msg::WindowDone
+            },
+        )?;
     } else {
         send(bearer, chan, &Msg::Ids(offered.clone()))?;
     }
@@ -484,7 +509,7 @@ fn serve_pull_mode<B: Backend>(
         };
         if want.is_empty() {
             send(bearer, chan, &Msg::Done)?;
-            return Ok(true);
+            return Ok(inventory_complete);
         }
         let mut batch: Vec<Vec<u8>> = Vec::new();
         let mut batch_bytes = 0usize;
@@ -721,6 +746,10 @@ mod paged_tests {
                 &Msg::Ids(vec![id.clone()]),
             )
             .unwrap();
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::InventoryMore(true)
+            ));
             send(&mut server, &mut server_channel, &Msg::Ids(vec![id])).unwrap();
         });
         let result = pull(
@@ -732,6 +761,67 @@ mod paged_tests {
             PAGED_PULL_BYTES,
         );
         assert!(matches!(result, Err(SyncError::Protocol)));
+        task.join().unwrap();
+    }
+
+    #[test]
+    fn paged_inventory_skips_more_than_65536_already_present_ids() {
+        use mini_store::Backend;
+        let mut backend = MemoryBackend::new();
+        let mut ids = Vec::new();
+        for n in 0..(PAGED_MAX_IDS + 1) {
+            let hash = mini_crypto::Multihash::of(HashAlgorithm::Blake3, &n.to_be_bytes());
+            let id =
+                mini_crypto::encoding::encode(mini_crypto::encoding::BASE58BTC, &hash.to_bytes())
+                    .unwrap();
+            // Inventory needs only membership; no bytes are requested/ingested.
+            backend.put_blob(&id, b"already held").unwrap();
+            ids.push(id);
+        }
+        let (mut client, mut server) = pair();
+        let (init, hello) = Initiator::start().unwrap();
+        let (mut server_channel, response) = Responder::respond(&hello).unwrap();
+        let mut client_channel = init.finish(&response).unwrap();
+        let task = std::thread::spawn(move || {
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::RootDigest(_)
+            ));
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::BucketDigests(vec![(1, [1; 32])]),
+            )
+            .unwrap();
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::NeedBuckets(_)
+            ));
+            for page in ids.chunks(WANT_BATCH) {
+                send(&mut server, &mut server_channel, &Msg::Ids(page.to_vec())).unwrap();
+                assert_eq!(
+                    recv(&mut server, &mut server_channel).unwrap(),
+                    Msg::InventoryMore(true)
+                );
+            }
+            send(&mut server, &mut server_channel, &Msg::Done).unwrap();
+            assert_eq!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::Want(vec![])
+            );
+            send(&mut server, &mut server_channel, &Msg::Done).unwrap();
+        });
+        let report = pull(
+            &mut client,
+            &mut client_channel,
+            &mut Store::new(backend),
+            &mut KelCache::new(),
+            true,
+            PAGED_PULL_BYTES,
+        )
+        .unwrap();
+        assert!(report.complete);
+        assert_eq!(report.received, 0);
         task.join().unwrap();
     }
 
