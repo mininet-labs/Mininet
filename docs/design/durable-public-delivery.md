@@ -90,7 +90,27 @@ stop active delivery before the host exits.
 Interruption cannot undo remote storage or a verified acknowledgement. An already
 verified receipt remains successful; failed work interrupted before receipt remains
 retryable until the control action applies. TCP dialing retains its five-second
-connect bound, and filesystem commit barriers are not preempted. The desktop IPC
-client's existing serialized forwarding remains a separate responsiveness limit;
-this seam acts once requests reach the service reader. No instantaneous end-to-end
-UI cancellation claim follows from the transport check alone.
+connect bound, and filesystem commit barriers are not preempted. The desktop IPC client now forwards bounded requests independently of earlier
+responses, so critical controls can reach this seam while a read is pending.
+Dial and durability limits still prevent an instantaneous end-to-end cancellation
+claim.
+
+## Pipelined desktop IPC and failure recovery
+
+The desktop supervisor forwards at most 16 queued/in-flight requests: 12 ordinary
+requests and four reserved control slots. A single stdin writer and a bounded
+stdout reader keep responses independent of forwarding. Exact request IDs route
+responses to their callers, including out-of-order replies. Unknown or duplicate
+IDs retire the child session; retired-session events cannot complete new work.
+
+An immutable 30-second monotonic deadline bounds each forwarded request; other
+responses cannot extend it. The supervisor checks deadlines before draining new
+events, so continuous traffic cannot starve timeout handling. A fatal write, EOF,
+decode, correlation failure or expired request deadline fails pending calls as uncertain,
+terminates/reaps the child and joins its I/O threads. Pending requests are not
+automatically replayed. Future work can spawn a fresh locked core; callers retain
+their original operation IDs for explicit retries against durable receipts.
+Dropping the client joins supervision and shuts down the child, with a two-second
+grace before forced termination. Idle supervision blocks on events rather than
+polling. The renderer never accesses service pipes, signing keys or source bytes
+from the outbox.
