@@ -124,3 +124,10 @@ adds executable-preserving, resumable history migration and
 `mini service run|status|stop` with explicit peer allowlists and pinned
 mutual authentication. Run `python3 tools/check_native_forge.py --release`
 for the repeatable coding acceptance gate.
+
+## Resident AI
+
+`mini resident` offers owner-configured local model assistance, bounded source
+context, local search/inspection, shipped diagnostics and explicitly confirmed
+patches. Hosting/fee commands plan from owner inputs without networking or
+payments. See [Resident AI](../../docs/design/resident-ai.md).
