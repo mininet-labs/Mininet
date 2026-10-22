@@ -2,7 +2,7 @@
 //! already-real proposal/review/merge object model (predates the audit
 //! this crate responds to; see D-0066's correction in `docs/DECISION_LOG.md`).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use did_mini::Did;
 use mini_forge::{
@@ -76,6 +76,261 @@ pub fn propose_pr(
             .field("head", JsonValue::str(head.as_str()))
             .field("base", JsonValue::str(base.as_str())),
     )
+}
+
+struct ProposalContext {
+    home: PathBuf,
+    store_path: PathBuf,
+    identity: crate::identity::Identity,
+    store: mini_store::Store<mini_store::FsBackend>,
+    project: ObjectId,
+    branch: String,
+    title: String,
+    head: ObjectId,
+    base: ObjectId,
+    fields: Vec<(&'static str, JsonValue)>,
+    plan_id: String,
+}
+#[allow(clippy::too_many_arguments)]
+fn capture_proposal(
+    home: &Path,
+    store_path: &Path,
+    project_ref: &str,
+    branch: &str,
+    title: &str,
+    head_ref: &str,
+    base_ref: Option<&str>,
+) -> Result<ProposalContext> {
+    // Match the protocol's valid_name and payload limits before any allocation
+    // of sequence numbers or signed objects.
+    if branch.is_empty()
+        || branch.len() > 64
+        || branch.len() > mini_forge::MAX_VERSION_BYTES
+        || branch == "."
+        || branch == ".."
+        || !branch
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+    {
+        return Err(CliError::Usage("invalid proposal branch name".into()));
+    }
+    if title.len() > mini_forge::MAX_TITLE_BYTES {
+        return Err(CliError::Usage(
+            "proposal title exceeds protocol limit".into(),
+        ));
+    }
+    let home = crate::repo::reviewed_directory(home)?;
+    let store_path = crate::repo::reviewed_directory(store_path)?;
+    crate::repo::reviewed_directory(&store_path.join("blobs"))?;
+    crate::repo::reviewed_directory(&store_path.join("meta"))?;
+    let identity = crate::identity::load(&home)?;
+    let store = open_store(&store_path)?;
+    let project = project_alias::resolve(&home, project_ref)?;
+    let oracle = build_oracle(&home, &identity)?;
+    let state =
+        resolve_project(&store, &oracle, &project).map_err(|e| CliError::Forge(e.to_string()))?;
+    let base = match base_ref {
+        Some(id) => ObjectId::parse(id).map_err(|e| CliError::Object(e.to_string()))?,
+        None => state.tip.clone(),
+    };
+    if base != state.tip {
+        return Err(CliError::Forge(
+            "planned proposal base must equal the current verified governance tip".into(),
+        ));
+    }
+    let head = ObjectId::parse(head_ref).map_err(|e| CliError::Object(e.to_string()))?;
+    let commit = store
+        .get(&head)
+        .map_err(|e| CliError::Store(e.to_string()))?;
+    if commit.object_type != mini_objects::ObjectType::COMMIT {
+        return Err(CliError::Forge("proposal head must be a commit".into()));
+    }
+    use mini_forge::IdentityOracle;
+    let root_kel = oracle
+        .kel(&commit.author_human)
+        .ok_or_else(|| CliError::Forge("proposal head author root KEL is not trusted".into()))?;
+    let device_kel = oracle
+        .kel(&commit.author_device)
+        .ok_or_else(|| CliError::Forge("proposal head author device KEL is not trusted".into()))?;
+    mini_objects::verify_provenance(&commit, root_kel, device_kel)
+        .map_err(|e| CliError::Forge(e.to_string()))?;
+    // The existing checkout parser enforces exact commit/tree/closure shape,
+    // mode support and resource bounds. It does NOT certify every child's author.
+    let files = mini_forge::checkout(&store, &head).map_err(|e| CliError::Forge(e.to_string()))?;
+    let file_count = files.len() as u64;
+    let byte_count: u64 = files.iter().map(|(_, bytes)| bytes.len() as u64).sum();
+    drop(files);
+    let tree = commit
+        .links
+        .iter()
+        .find(|link| link.rel == "tree")
+        .ok_or_else(|| CliError::Forge("proposal head has no canonical tree".into()))?
+        .target
+        .clone();
+    let state_json = JsonValue::Object(vec![
+        ("tip".into(), JsonValue::str(state.tip.as_str())),
+        ("entries".into(), JsonValue::num(state.entries as u64)),
+        (
+            "forks_detected".into(),
+            JsonValue::Bool(state.forks_detected),
+        ),
+        (
+            "min_approvals".into(),
+            JsonValue::num(state.policy.min_approvals as u64),
+        ),
+        (
+            "maintainers".into(),
+            JsonValue::strs(state.policy.maintainers.iter().map(|did| did.as_str())),
+        ),
+        (
+            "branches".into(),
+            JsonValue::Array(
+                state
+                    .branches
+                    .iter()
+                    .map(|(name, head)| {
+                        JsonValue::Object(vec![
+                            ("branch".into(), JsonValue::str(name)),
+                            ("head".into(), JsonValue::str(head.as_str())),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
+    ])
+    .render();
+    let mut state_hash = blake3::Hasher::new();
+    state_hash.update(b"MINI/PROPOSAL-GOVERNANCE-STATE/v1\0");
+    state_hash.update(state_json.as_bytes());
+    let fields = vec![
+        (
+            "home",
+            JsonValue::str(home.to_str().expect("reviewed UTF-8 home")),
+        ),
+        (
+            "store",
+            JsonValue::str(store_path.to_str().expect("reviewed UTF-8 store")),
+        ),
+        ("human_did", JsonValue::str(identity.human_did().as_str())),
+        ("device_did", JsonValue::str(identity.device_did().as_str())),
+        ("project_id", JsonValue::str(project.as_str())),
+        ("branch", JsonValue::str(branch)),
+        ("title", JsonValue::str(title)),
+        ("head", JsonValue::str(head.as_str())),
+        ("head_tree", JsonValue::str(tree.as_str())),
+        (
+            "head_author_human",
+            JsonValue::str(commit.author_human.as_str()),
+        ),
+        (
+            "head_author_device",
+            JsonValue::str(commit.author_device.as_str()),
+        ),
+        ("base", JsonValue::str(base.as_str())),
+        ("governance_tip", JsonValue::str(state.tip.as_str())),
+        (
+            "governance_state_digest",
+            JsonValue::str(state_hash.finalize().to_hex().to_string()),
+        ),
+        ("forks_detected", JsonValue::Bool(state.forks_detected)),
+        ("head_files", JsonValue::num(file_count)),
+        ("head_bytes", JsonValue::num(byte_count)),
+    ];
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"MINI/PROPOSAL-PLAN/v1\0");
+    hasher.update(
+        JsonValue::Object(
+            fields
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+        )
+        .render()
+        .as_bytes(),
+    );
+    let plan_id = hasher.finalize().to_hex().to_string();
+    Ok(ProposalContext {
+        home,
+        store_path,
+        identity,
+        store,
+        project,
+        branch: branch.into(),
+        title: title.into(),
+        head,
+        base,
+        fields,
+        plan_id,
+    })
+}
+/// Review an exact verified head and current proposal metadata without creating
+/// objects or sequence state. Existing identity lock metadata is not authority.
+#[allow(clippy::too_many_arguments)]
+pub fn preview_proposal(
+    home: &Path,
+    store: &Path,
+    project: &str,
+    branch: &str,
+    title: &str,
+    head: &str,
+    base: Option<&str>,
+) -> Result<CommandResult> {
+    let context = capture_proposal(home, store, project, branch, title, head, base)?;
+    let human = format!(
+        "proposal plan: {}\n{}",
+        context.plan_id,
+        context
+            .fields
+            .iter()
+            .map(|(key, value)| format!("{key}: {}\n", value.render()))
+            .collect::<String>()
+    );
+    let mut result = CommandResult::new(human).field("plan_id", JsonValue::str(context.plan_id));
+    result.fields.extend(context.fields);
+    Ok(result)
+}
+/// Confirmation binds one locally captured proposal context; no global CAS,
+/// approval, merge, canonicalization or child-authority claim is introduced.
+#[allow(clippy::too_many_arguments)]
+pub fn propose_planned(
+    home: &Path,
+    store: &Path,
+    project: &str,
+    branch: &str,
+    title: &str,
+    head: &str,
+    base: Option<&str>,
+    confirmation: &str,
+) -> Result<CommandResult> {
+    let mut context = capture_proposal(home, store, project, branch, title, head, base)?;
+    if context.plan_id != confirmation {
+        return Err(CliError::Usage(
+            "proposal plan changed or confirmation does not match; review a fresh proposal plan"
+                .into(),
+        ));
+    }
+    record_planned_proposal(&mut context)
+}
+fn record_planned_proposal(context: &mut ProposalContext) -> Result<CommandResult> {
+    let sequence = sequence::next(&context.home, &context.store_path)?;
+    let object = propose(
+        &mut context.store,
+        &context.identity.human_did(),
+        &context.identity.device,
+        &context.project,
+        &context.branch,
+        &context.title,
+        &context.head,
+        &context.base,
+        sequence::now_ms(),
+        sequence,
+    )
+    .map_err(|e| CliError::Forge(e.to_string()))?;
+    let mut result = CommandResult::new(format!("PR proposed: {}", object.id().as_str()))
+        .field("pr_id", JsonValue::str(object.id().as_str()))
+        .field("plan_id", JsonValue::str(&context.plan_id));
+    result.fields.extend(context.fields.clone());
+    Ok(result)
 }
 
 /// `mini pr approve <project> --pr <id> --head <commit-id> [--reject] [--findings <text>]`
@@ -528,4 +783,376 @@ pub fn add_findings(
     .field("findings_id", JsonValue::str(obj.id().as_str()))
     .field("pr_id", JsonValue::str(id.as_str()))
     .field("head", JsonValue::str(head.as_str())))
+}
+
+#[cfg(test)]
+mod proposal_plan_tests {
+    use super::*;
+    struct World {
+        _dir: tempfile::TempDir,
+        home: PathBuf,
+        store: PathBuf,
+        first: ObjectId,
+        second: ObjectId,
+    }
+    fn world() -> World {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        let store = dir.path().join("store");
+        crate::repo::init(&home, &store, "demo", vec![], 1).unwrap();
+        crate::repo::init(&home, &store, "other", vec![], 1).unwrap();
+        let source = dir.path().join("source");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::write(source.join("code.rs"), "first").unwrap();
+        let one =
+            crate::repo::commit_workspace(&home, &store, "demo", "main", "one", &source).unwrap();
+        std::fs::write(source.join("code.rs"), "second").unwrap();
+        let two =
+            crate::repo::commit_workspace(&home, &store, "demo", "main", "two", &source).unwrap();
+        let first = ObjectId::parse(one.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        let second = ObjectId::parse(two.human.strip_prefix("commit created: ").unwrap()).unwrap();
+        World {
+            _dir: dir,
+            home,
+            store,
+            first,
+            second,
+        }
+    }
+    fn id(result: &CommandResult, name: &str) -> String {
+        match &result
+            .fields
+            .iter()
+            .find(|(key, _)| *key == name)
+            .unwrap()
+            .1
+        {
+            JsonValue::String(value) => value.clone(),
+            _ => panic!("expected string field"),
+        }
+    }
+    #[test]
+    fn proposal_plan_changes_require_fresh_confirmation_before_any_writes() {
+        let w = world();
+        let preview = preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None,
+        )
+        .unwrap();
+        let plan = id(&preview, "plan_id");
+        let sequence = std::fs::read(w.home.join("sequence")).unwrap();
+        let count = open_store(&w.store).unwrap().all_ids().unwrap().len();
+        for (project, branch, title, head) in [
+            ("demo", "feature", "title", &w.first),
+            ("demo", "main", "new title", &w.first),
+            ("other", "main", "title", &w.first),
+            ("demo", "main", "title", &w.second),
+        ] {
+            assert!(propose_planned(
+                &w.home,
+                &w.store,
+                project,
+                branch,
+                title,
+                head.as_str(),
+                None,
+                &plan
+            )
+            .is_err());
+        }
+        assert!(propose_planned(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            Some(w.second.as_str()),
+            &plan
+        )
+        .is_err());
+        assert!(propose_planned(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None,
+            "yes"
+        )
+        .is_err());
+        assert!(preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "bad/branch",
+            "title",
+            w.first.as_str(),
+            None
+        )
+        .is_err());
+        assert!(preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            &"x".repeat(mini_forge::MAX_TITLE_BYTES + 1),
+            w.first.as_str(),
+            None
+        )
+        .is_err());
+        let project = project_alias::resolve(&w.home, "demo").unwrap();
+        assert!(preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            project.as_str(),
+            None
+        )
+        .is_err());
+        assert_eq!(
+            open_store(&w.store).unwrap().all_ids().unwrap().len(),
+            count
+        );
+        assert_eq!(std::fs::read(w.home.join("sequence")).unwrap(), sequence);
+        let proposal = propose_planned(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None,
+            &plan,
+        )
+        .unwrap();
+        assert_eq!(id(&proposal, "plan_id"), plan);
+        let identity = crate::identity::load(&w.home).unwrap();
+        let view = mini_forge::inspect_proposal(
+            &open_store(&w.store).unwrap(),
+            &build_oracle(&w.home, &identity).unwrap(),
+            &ObjectId::parse(&id(&proposal, "pr_id")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(view.head, w.first);
+        assert_eq!(view.base, project);
+        assert_eq!(view.title, "title");
+    }
+    fn outsider() -> (did_mini::Controller, did_mini::Controller) {
+        let mut root =
+            did_mini::Controller::incept_single_from_seeds(&[71; 32], &[72; 32]).unwrap();
+        let device = did_mini::Controller::incept_device_single_from_seeds(
+            &root.did(),
+            &[73; 32],
+            &[74; 32],
+        )
+        .unwrap();
+        root.delegate_device(&device.did(), did_mini::Capabilities::primary())
+            .unwrap();
+        (root, device)
+    }
+    #[test]
+    fn proposal_preview_requires_trusted_head_provenance_and_existing_backend() {
+        let w = world();
+        let (root, device) = outsider();
+        let mut store = open_store(&w.store).unwrap();
+        let original = store.get(&w.first).unwrap();
+        let tree = original
+            .links
+            .iter()
+            .find(|link| link.rel == "tree")
+            .unwrap()
+            .target
+            .clone();
+        let untrusted = mini_forge::commit(
+            &mut store,
+            &root.did(),
+            &device,
+            "outsider",
+            &tree,
+            &[],
+            0,
+            0,
+        )
+        .unwrap();
+        let count = store.all_ids().unwrap().len();
+        drop(store);
+        let sequence = std::fs::read(w.home.join("sequence")).unwrap();
+        assert!(preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            untrusted.id().as_str(),
+            None
+        )
+        .is_err());
+        assert_eq!(
+            open_store(&w.store).unwrap().all_ids().unwrap().len(),
+            count
+        );
+        assert_eq!(std::fs::read(w.home.join("sequence")).unwrap(), sequence);
+        crate::store::trust_kel(&w.home, root.kel()).unwrap();
+        crate::store::trust_kel(&w.home, device.kel()).unwrap();
+        let preview = preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            untrusted.id().as_str(),
+            None,
+        )
+        .unwrap();
+        assert_eq!(id(&preview, "head_author_human"), root.did().as_str());
+        let missing = w._dir.path().join("missing-store");
+        assert!(preview_proposal(
+            &w.home,
+            &missing,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None
+        )
+        .is_err());
+        assert!(!missing.exists());
+        let partial = w._dir.path().join("partial-store");
+        std::fs::create_dir(&partial).unwrap();
+        assert!(preview_proposal(
+            &w.home,
+            &partial,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None
+        )
+        .is_err());
+        assert!(!partial.join("blobs").exists() && !partial.join("meta").exists());
+    }
+    #[test]
+    fn governed_base_changes_invalidate_plan_but_captured_proposal_is_not_re_resolved() {
+        let w = world();
+        let (root, device) = outsider();
+        crate::store::trust_kel(&w.home, root.kel()).unwrap();
+        crate::store::trust_kel(&w.home, device.kel()).unwrap();
+        let preview = preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None,
+        )
+        .unwrap();
+        let mut captured = capture_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "captured title",
+            w.first.as_str(),
+            None,
+        )
+        .unwrap();
+        let project = captured.project.clone();
+        let old_base = captured.base.clone();
+        let owner = crate::identity::load(&w.home).unwrap();
+        let mut store = open_store(&w.store).unwrap();
+        let proposed = propose(
+            &mut store,
+            &root.did(),
+            &device,
+            &project,
+            "main",
+            "upstream",
+            &w.second,
+            &old_base,
+            0,
+            0,
+        )
+        .unwrap();
+        approve(
+            &mut store,
+            &owner.human_did(),
+            &owner.device,
+            proposed.id(),
+            &w.second,
+            true,
+            0,
+            0,
+        )
+        .unwrap();
+        let entry = merge(
+            &mut store,
+            &owner.human_did(),
+            &owner.device,
+            &project,
+            &old_base,
+            proposed.id(),
+            0,
+            0,
+        )
+        .unwrap();
+        assert_eq!(
+            resolve_project(&store, &build_oracle(&w.home, &owner).unwrap(), &project)
+                .unwrap()
+                .tip,
+            *entry.id()
+        );
+        let count = store.all_ids().unwrap().len();
+        let sequence = std::fs::read(w.home.join("sequence")).unwrap();
+        drop(store);
+        assert!(propose_planned(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            None,
+            &id(&preview, "plan_id")
+        )
+        .is_err());
+        assert!(preview_proposal(
+            &w.home,
+            &w.store,
+            "demo",
+            "main",
+            "title",
+            w.first.as_str(),
+            Some(old_base.as_str())
+        )
+        .is_err());
+        assert_eq!(
+            open_store(&w.store).unwrap().all_ids().unwrap().len(),
+            count
+        );
+        assert_eq!(std::fs::read(w.home.join("sequence")).unwrap(), sequence);
+        // This simulates a separate writer racing after confirmation: the
+        // signing helper must retain the reviewed base/title/head, not adopt
+        // newly resolved metadata behind the owner's plan.
+        let result = record_planned_proposal(&mut captured).unwrap();
+        let view = mini_forge::inspect_proposal(
+            &open_store(&w.store).unwrap(),
+            &build_oracle(&w.home, &owner).unwrap(),
+            &ObjectId::parse(&id(&result, "pr_id")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(view.base, old_base);
+        assert_eq!(view.title, "captured title");
+        assert_eq!(view.head, w.first);
+        assert!(view.stale);
+    }
 }
