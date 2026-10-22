@@ -195,7 +195,10 @@ impl Default for SnapshotBudget {
 }
 
 fn excluded(name: &str) -> bool {
-    matches!(name, ".git" | ".mininet" | ".mini")
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        ".git" | ".mininet" | ".mini"
+    )
 }
 
 fn read_snapshot(
@@ -544,6 +547,21 @@ mod workspace_tests {
             matches!(&entries[0], Snapshot::File(name, bytes, _) if name == "a.rs" && bytes == b"a")
         );
         assert!(matches!(&entries[1], Snapshot::File(name, _, _) if name == "z.rs"));
+    }
+
+    #[test]
+    fn snapshot_excludes_case_variants_of_secret_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut paths = Vec::new();
+        for name in [".GiT", ".MININET", ".Mini"] {
+            let path = dir.path().join(name);
+            fs::create_dir(&path).unwrap();
+            fs::write(path.join("identity.seed"), b"must not be published").unwrap();
+            paths.push(path);
+        }
+        assert!(read_snapshot(&paths, 0, &mut SnapshotBudget::default())
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
