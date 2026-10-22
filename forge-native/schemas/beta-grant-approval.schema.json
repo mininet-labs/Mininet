@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Beta MINI Grant Approval payload",
+  "description": "Forge-native semantic schema for mininet.beta/grant-approval/v1. A signed approval binds one operational authorizer to one exact policy and one exact Beta grant; duplicate approvals by one DID never add weight.",
+  "type": "object",
+  "required": ["policy_id", "grant_id"],
+  "properties": {
+    "policy_id": { "type": "string", "minLength": 1 },
+    "grant_id": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

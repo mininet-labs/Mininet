@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Open Beta Campaign payload",
+  "description": "Forge-native semantic schema for mininet.beta/campaign/v1. The signed Mininet object author records the campaign; this payload contains no tester identity.",
+  "type": "object",
+  "required": [
+    "target_id",
+    "beta_epoch",
+    "title",
+    "instructions",
+    "routes",
+    "starts_ms",
+    "ends_ms",
+    "default_testing_grant_micro"
+  ],
+  "properties": {
+    "target_id": { "type": "string", "minLength": 1 },
+    "beta_epoch": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "instructions": { "type": "string", "minLength": 1, "maxLength": 16384 },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "starts_ms": { "type": "integer", "minimum": 0 },
+    "ends_ms": { "type": "integer", "minimum": 1 },
+    "default_testing_grant_micro": { "type": "integer", "minimum": 1 }
+  },
+  "additionalProperties": false
+}

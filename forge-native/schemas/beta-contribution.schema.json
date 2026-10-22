@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Open Beta Accepted Contribution payload",
+  "description": "Forge-native semantic schema for mininet.beta/contribution/v1. The claim_tag is fresh for one accepted artifact and is not a persistent contributor identity or reputation key.",
+  "type": "object",
+  "required": ["source_id", "claim_tag", "kind", "summary", "evidence"],
+  "properties": {
+    "source_id": { "type": "string", "minLength": 1 },
+    "campaign_id": { "type": ["string", "null"] },
+    "claim_tag": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "kind": {
+      "enum": [
+        "testing",
+        "reproduction",
+        "hardware",
+        "accessibility",
+        "documentation",
+        "security",
+        "research",
+        "code",
+        "review",
+        "reproducibility",
+        "operations"
+      ]
+    },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 16384 },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1024 }
+    }
+  },
+  "additionalProperties": false
+}

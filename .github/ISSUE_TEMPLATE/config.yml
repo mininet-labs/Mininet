@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Open Beta — start here
+    url: https://github.com/mininet-labs/Mininet/blob/main/docs/BETA_OPEN.md
+    about: Pick a one-phone, two-phone, multi-hop, accessibility, research, Forge, or reproducibility test route before filing a report.
   - name: Private security report
     url: https://github.com/mininet-labs/Mininet/security/advisories/new
     about: Report a genuinely new vulnerability privately. Known audit gaps belong in public issues.
