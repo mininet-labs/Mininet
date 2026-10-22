@@ -356,11 +356,7 @@ pub fn task_claim(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resu
 
 /// `mini task review <task-id> --head <id> --kind <kind> --disposition <d> ...`
 /// `mini campaign create --title <title> --description <text> --expires-ms <n>`
-pub fn campaign_create(
-    home: &Path,
-    store_path: &Path,
-    mut args: Vec<String>,
-) -> Result<CommandResult> {
+pub fn campaign_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<CommandResult> {
     let title = required_flag(&mut args, "--title", "campaign create")?;
     let description = required_flag(&mut args, "--description", "campaign create")?;
     let expires_ms = required_u64(&mut args, "--expires-ms", "campaign create")?;
@@ -380,18 +376,15 @@ pub fn campaign_create(
     )
     .map_err(|error| CliError::Forge(error.to_string()))?;
 
-    Ok(
-        CommandResult::new(format!("campaign created: {}", object.id().as_str()))
-            .field("campaign_id", JsonValue::str(object.id().as_str())),
-    )
+    Ok(CommandResult::new(format!(
+        "campaign created: {}",
+        object.id().as_str()
+    ))
+    .field("campaign_id", JsonValue::str(object.id().as_str())))
 }
 
 /// `mini finding create --target <id> [--head <id>] --findings <text>`
-pub fn finding_create(
-    home: &Path,
-    store_path: &Path,
-    mut args: Vec<String>,
-) -> Result<CommandResult> {
+pub fn finding_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<CommandResult> {
     let target_id = parse_id(&required_flag(&mut args, "--target", "finding create")?)?;
     let reviewed_head = extract_flag(&mut args, "--head")
         .map(|value| parse_id(&value))
@@ -413,26 +406,18 @@ pub fn finding_create(
     )
     .map_err(|error| CliError::Forge(error.to_string()))?;
 
-    Ok(
-        CommandResult::new(format!("finding created: {}", object.id().as_str()))
-            .field("finding_id", JsonValue::str(object.id().as_str())),
-    )
+    Ok(CommandResult::new(format!(
+        "finding created: {}",
+        object.id().as_str()
+    ))
+    .field("finding_id", JsonValue::str(object.id().as_str())))
 }
 
 /// `mini disposition create --finding <id> --disposition <d> --notes <text>`
-pub fn disposition_create(
-    home: &Path,
-    store_path: &Path,
-    mut args: Vec<String>,
-) -> Result<CommandResult> {
-    let finding_id = parse_id(&required_flag(
-        &mut args,
-        "--finding",
-        "disposition create",
-    )?)?;
+pub fn disposition_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<CommandResult> {
+    let finding_id = parse_id(&required_flag(&mut args, "--finding", "disposition create")?)?;
     let disposition =
-        mini_forge::FindingDisposition::parse(&required_flag(&mut args, "--disposition", "disposition create")?)
-            .ok_or_else(|| CliError::Usage("finding disposition must be corrected, accepted-with-gate, rejected, deferred, or constitutional-disagreement".into()))?;
+        parse_review_disposition(&required_flag(&mut args, "--disposition", "disposition create")?)?;
     let notes = required_flag(&mut args, "--notes", "disposition create")?;
     reject_remaining(args, "disposition create")?;
 
@@ -450,18 +435,15 @@ pub fn disposition_create(
     )
     .map_err(|error| CliError::Forge(error.to_string()))?;
 
-    Ok(
-        CommandResult::new(format!("disposition created: {}", object.id().as_str()))
-            .field("disposition_id", JsonValue::str(object.id().as_str())),
-    )
+    Ok(CommandResult::new(format!(
+        "disposition created: {}",
+        object.id().as_str()
+    ))
+    .field("disposition_id", JsonValue::str(object.id().as_str())))
 }
 
 /// `mini campaign show <campaign-id>`
-pub fn campaign_show(
-    home: &Path,
-    store_path: &Path,
-    mut args: Vec<String>,
-) -> Result<CommandResult> {
+pub fn campaign_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<CommandResult> {
     let id = parse_id(&next(&mut args, "campaign show")?)?;
     reject_remaining(args, "campaign show")?;
 
@@ -528,7 +510,7 @@ fn campaign_json(campaign: &mini_forge::Campaign) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(campaign.id.as_str())),
         (
-            "author_identity_root".to_string(),
+            "author".to_string(),
             JsonValue::str(campaign.author.as_str()),
         ),
         ("title".to_string(), JsonValue::str(campaign.title.as_str())),
@@ -536,10 +518,7 @@ fn campaign_json(campaign: &mini_forge::Campaign) -> JsonValue {
             "description".to_string(),
             JsonValue::str(campaign.description.as_str()),
         ),
-        (
-            "expires_ms".to_string(),
-            JsonValue::num(campaign.expires_ms),
-        ),
+        ("expires_ms".to_string(), JsonValue::num(campaign.expires_ms)),
     ])
 }
 
@@ -547,21 +526,12 @@ fn finding_json(finding: &mini_forge::Finding) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(finding.id.as_str())),
         (
-            "author_identity_root".to_string(),
+            "author".to_string(),
             JsonValue::str(finding.author.as_str()),
         ),
-        (
-            "target_id".to_string(),
-            JsonValue::str(finding.target_id.as_str()),
-        ),
-        (
-            "reviewed_head".to_string(),
-            JsonValue::opt_str(finding.reviewed_head.as_ref().map(|id| id.as_str())),
-        ),
-        (
-            "findings".to_string(),
-            JsonValue::str(finding.findings.as_str()),
-        ),
+        ("target_id".to_string(), JsonValue::str(finding.target_id.as_str())),
+        ("reviewed_head".to_string(), JsonValue::opt_str(finding.reviewed_head.as_ref().map(|id| id.as_str()))),
+        ("findings".to_string(), JsonValue::str(finding.findings.as_str())),
     ])
 }
 
@@ -569,21 +539,12 @@ fn disposition_json(disposition: &mini_forge::Disposition) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(disposition.id.as_str())),
         (
-            "author_identity_root".to_string(),
+            "author".to_string(),
             JsonValue::str(disposition.author.as_str()),
         ),
-        (
-            "finding_id".to_string(),
-            JsonValue::str(disposition.finding_id.as_str()),
-        ),
-        (
-            "disposition".to_string(),
-            JsonValue::str(disposition.disposition.as_str()),
-        ),
-        (
-            "notes".to_string(),
-            JsonValue::str(disposition.notes.as_str()),
-        ),
+        ("finding_id".to_string(), JsonValue::str(disposition.finding_id.as_str())),
+        ("disposition".to_string(), JsonValue::str(disposition.disposition.as_str())),
+        ("notes".to_string(), JsonValue::str(disposition.notes.as_str())),
     ])
 }
 
