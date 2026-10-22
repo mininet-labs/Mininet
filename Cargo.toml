@@ -25,6 +25,7 @@ members = [
     "crates/mini-sync",
     "crates/mini-messaging",
     "crates/mini-social",
+    "crates/mini-safety",
     "crates/mini-media",
     "crates/mini-forge",
     "crates/mini-bootstrap",

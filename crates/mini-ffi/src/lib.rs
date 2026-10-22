@@ -27,6 +27,7 @@ use zeroize::Zeroize;
 mod ble;
 mod lifecycle;
 mod mesh;
+mod messaging;
 mod pairing;
 pub use ble::{BleBearerError, BleBearerHandle, BleRadio, BleRadioError};
 pub use lifecycle::{
@@ -34,6 +35,10 @@ pub use lifecycle::{
     OperationLifecycle, SuspendDecision,
 };
 pub use mesh::{MeshError, MeshHandle, MeshMessage};
+pub use messaging::{
+    ConversationEnvelopeBatch, ConversationScanView, ConversationSecretHandle, MessageDraftInput,
+    MessageKindInput, MessagingFfiError, PruneOutcome, ReceivedMessageView,
+};
 pub use pairing::{PairingContact, PairingError, PairingOfferView};
 
 /// Version of the typed command/event API.
@@ -305,13 +310,16 @@ struct RootState {
     /// The listener itself is deliberately never persisted across process
     /// death; contacts, signed follow objects, and consumed nonces are.
     pairing: pairing::PairingState,
+    /// Durable `mini-messaging` conversation history this root/device has
+    /// sent or can currently decrypt (see `messaging` module doc).
+    messaging: messaging::MessagingState,
 }
 
 /// Marks the persisted-state plaintext format; bumped if the layout ever
 /// changes so a future `RootCore` can reject bytes it no longer understands
 /// instead of misparsing them.
 const PERSIST_MAGIC: [u8; 4] = *b"MFP1";
-const PERSIST_VERSION: u8 = 2;
+const PERSIST_VERSION: u8 = 3;
 /// Generous but bounded — a corrupted or hostile ciphertext must not drive
 /// unbounded allocation once decrypted, the same discipline `did-mini`'s
 /// own `Kel::from_bytes` already applies to its inputs.
@@ -428,6 +436,7 @@ fn encode_state(state: &RootState) -> Vec<u8> {
         encode_identity_record(&mut out, device);
     }
     pairing::encode_pairing_state(&mut out, &state.pairing);
+    messaging::encode_messaging_state(&mut out, &state.messaging);
     out
 }
 
@@ -437,7 +446,7 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
         return Err(RootError::CorruptState);
     }
     let version = r.u8()?;
-    if version != 1 && version != PERSIST_VERSION {
+    if version == 0 || version > PERSIST_VERSION {
         return Err(RootError::CorruptState);
     }
     let root = match r.u8()? {
@@ -458,6 +467,11 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
     } else {
         pairing::PairingState::default()
     };
+    let messaging = if version >= 3 {
+        messaging::decode_messaging_state(&mut r)?
+    } else {
+        messaging::MessagingState::default()
+    };
     if !r.finished() {
         return Err(RootError::CorruptState);
     }
@@ -466,6 +480,7 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
         devices,
         pending_enrollment: None,
         pairing,
+        messaging,
     })
 }
 
@@ -551,6 +566,23 @@ impl RootCore {
             .iter()
             .map(|d| d.did().as_str().to_string())
             .collect()
+    }
+
+    /// All devices currently authorized by this root's KEL, including
+    /// remotely enrolled devices whose private controller is not held here.
+    /// `delegated_devices` retains its existing local-controller semantics.
+    pub fn authorized_devices(&self) -> Vec<String> {
+        self.lock()
+            .root
+            .as_ref()
+            .map(|root| {
+                root.kel()
+                    .delegated_devices()
+                    .into_iter()
+                    .map(|(did, _)| did.as_str().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// This root's own current KEL bytes — no secrets, safe to hand to any
@@ -1250,6 +1282,8 @@ mod tests {
         // device A's local secret-holding `delegated_devices()` list,
         // which correctly stays empty here (see
         // `revoke_delegated_device_does_not_require_holding_the_devices_secrets`).
+        assert!(device_a.delegated_devices().is_empty());
+        assert_eq!(device_a.authorized_devices(), vec![device_b_did.clone()]);
         let root_kel_after_enroll = device_a.root_kel().unwrap();
         assert!(is_device_delegated(root_kel_after_enroll, device_b_did.clone()).unwrap());
 
@@ -1261,6 +1295,7 @@ mod tests {
         // 4. Device B can no longer act for the root after revocation, and
         // device A observes the revocation took effect via the same
         // portable KEL-bytes query.
+        assert!(device_a.authorized_devices().is_empty());
         let root_kel_after_revoke = device_a.root_kel().unwrap();
         assert!(!is_device_delegated(root_kel_after_revoke, device_b_did).unwrap());
     }

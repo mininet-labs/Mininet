@@ -23,7 +23,7 @@
 use mini_crypto::{SignatureSuite, SigningKey};
 use zeroize::Zeroize;
 
-use crate::delegation::{Capabilities, Seal};
+use crate::delegation::{Capabilities, DeviceTier, Seal};
 use crate::error::{IdentityError, Result};
 use crate::event::{self, Establishment, Event, EventKind, IndexedSig};
 use crate::kel::{Kel, KeyState};
@@ -596,6 +596,56 @@ impl Controller {
         self.seal(vec![Seal::Revoke {
             device: device.as_str().to_string(),
         }])
+    }
+
+    /// Authorize a delegated device by [`DeviceTier`] (issue #14, D-0530):
+    /// the typed-domain counterpart to [`Controller::delegate_device`]. The
+    /// tier — not the caller — determines the capability set
+    /// ([`Capabilities::for_tier`]), so callers cannot assemble an
+    /// arbitrary "device with capabilities X"; they can only pick from the
+    /// network's named, reviewed risk profiles.
+    pub fn delegate_device_tier(&mut self, device: &Did, tier: DeviceTier) -> Result<()> {
+        self.delegate_device(device, Capabilities::for_tier(tier))
+    }
+
+    /// Revoke every currently-delegated device except the ones in `keep`
+    /// (issue #14 revocation ergonomics), in one seal event. The intended
+    /// use is "I lost my daily device, cut everything but my cold root and
+    /// hardware token": callers pass the devices they know are still safe
+    /// and this seals a `Revoke` for every other device this root's own
+    /// KEL currently lists as delegated ([`Kel::delegated_devices`]).
+    ///
+    /// A no-op (no event appended, not an error) if every currently-delegated
+    /// device is in `keep`. More than `MAX_SEALS` (128) revocations are
+    /// split across consecutive seal events; if one of those fails, the
+    /// earlier ones stay appended and the error is returned. Devices already revoked, or never delegated,
+    /// are simply absent from [`Kel::delegated_devices`] and so are never
+    /// re-sealed.
+    pub fn revoke_devices_except(&mut self, keep: &[Did]) -> Result<()> {
+        let to_revoke: Vec<Seal> = self
+            .kel()
+            .delegated_devices()
+            .into_iter()
+            .filter(|(device, _)| !keep.iter().any(|k| k.as_str() == device.as_str()))
+            .map(|(device, _)| Seal::Revoke {
+                device: device.as_str().to_string(),
+            })
+            .collect();
+        // One seal event carries at most `MAX_SEALS` seals; a root with more
+        // delegated devices than that is revoked across several events
+        // rather than failing outright.
+        for chunk in to_revoke.chunks(MAX_SEALS) {
+            self.seal(chunk.to_vec())?;
+        }
+        Ok(())
+    }
+
+    /// Revoke every currently-delegated device (issue #14 revocation
+    /// ergonomics): the full-wipe form of
+    /// [`Controller::revoke_devices_except`] for "every device I've ever
+    /// authorized may be compromised."
+    pub fn revoke_all_devices(&mut self) -> Result<()> {
+        self.revoke_devices_except(&[])
     }
 
     /// Append a seal event carrying `seals`, signed by the current keys.

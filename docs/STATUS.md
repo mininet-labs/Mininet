@@ -16,6 +16,16 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## Proposed offline credit and account primitives (D-0529)
+
+**Prototype, not activated:** reusable signed credit allowances, sender-side
+cumulative enforcement with encrypted durable outbox, bounded Human Share debt
+and repayment accounting, private cash-account projection and complete-input
+finality checks. Settlement/issuance cadence is arithmetic only. Collective
+issuance, private canonical credit proofs/storage, atomic repayment transfers and
+wallet UI remain unimplemented. No guaranteed IOU payout or real-value readiness.
+Scope and staged gates: [design](design/human-share-offline-credit.md).
+
 ## PR #332 audit correction (2026-09-09)
 
 The original F-01–F-24 audit remains **PARTIAL**, and real value / real people remain **NO-GO**. Historical statements that all findings are closed are superseded as implementation status by the [current claim-to-executor evidence matrix](audits/PR332_REMEDIATION_STATUS.md). Passing structural checks does not establish semantic audit closure or external approval.
@@ -2707,6 +2717,25 @@ Beta explicitly means "builds, installs, golden path works, full Rust
 suite green" — not that the custody layer has cleared external review
 (D-0047 gate).
 
+`mini-ffi` gained a second capability adapter beyond pairing (D-0539):
+`RootCore.send_message`/`scan_conversation` bridge `mini-messaging`'s
+sealed-envelope send/scan into the same persisted-state pipeline
+(`PERSIST_VERSION` 2 → 3), with `signature_verified` deliberately scoped
+to only ever validate against this process's own root and a device that
+root's *own current KEL* actively delegates — never another person's,
+which this module has no way to fetch, and never merely a device this
+process happens to hold locally (a pre-merge review finding: those two
+things can diverge via the cross-device enrollment path). `MainActivity.kt`'s
+`HomeScreen` also gained a device list with confirm-before-revoke, the
+first UI caller of `RootCore.revokeDelegatedDevice` since it shipped under
+D-0335. `ConversationSecretHandle` crosses the FFI boundary as an opaque
+UniFFI `interface`, not a `dictionary`, so neither generated Kotlin nor
+Rust `Debug` output can print the raw conversation key. Same standing
+limit as the rest of this section: the Rust side is tested (9 new tests,
+72/72 green, clippy clean, UDL round-tripped through real `uniffi-bindgen`
+Kotlin generation), the Kotlin UI change is not Gradle/emulator-verified
+in this environment.
+
 ## 12. Edge / provider layer (Founder Directive 18, D-0352)
 
 **shipped (Wave 1, D-0400)** — `mini-provider`: `ProviderDeclaration`
@@ -3111,3 +3140,22 @@ it) and targeted verified fetch through `mini-sync` retrieval, from the
 Media view; a host that does not hold a hit pulls it from the origin and
 then serves and seeds it. Idle exchanges no longer mint ticket objects.
 `docs/BETA_TESTING.md` is the tester guide for this line.
+
+## Abuse handling: `mini-safety` — 2026-09-21 (D-0533, issue #76)
+
+New crate: device-local, typed block/mute primitives per constitution
+principles 7 and 10. `SafetyProfile` holds a block list of identity roots
+and content-mute rules (keyword substring or exact object id), mutated
+only through named request types (`BlockIdentityRequest`,
+`UnblockIdentityRequest`, `AddMuteRuleRequest`, `RemoveMuteRuleRequest`)
+and read only through `visibility_for`/`filter`, which take caller-supplied
+`(author, object_id, text)` so the crate has no dependency on
+`mini-objects`/`mini-social`. Nothing here touches `mini-store` or network
+replication — a block/mute changes only what this one device renders.
+`SafetyProfile::import` is the sole, always-explicit path for adopting a
+shared "community" list as one's own local rules (constitution principle
+10); nothing auto-subscribes or auto-applies. Plain-text `to_lines`/
+`from_lines` persistence generalizes `mini-desktop`'s D-0523 `muted.txt`
+convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
+still has its own separate `muted.txt`, and integrating both onto
+`mini-safety` is open follow-up.

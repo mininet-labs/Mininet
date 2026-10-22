@@ -100,6 +100,8 @@ interface RootCore {
 
   sequence<string> delegated_devices();
 
+  sequence<string> authorized_devices();
+
   [Throws=RootError]
   sequence<u8> root_kel();
 
@@ -130,6 +132,21 @@ interface RootCore {
   sequence<PairingContact> pairing_contacts();
 
   sequence<sequence<u8>> pairing_follow_objects();
+
+  [Throws=MessagingFfiError]
+  string send_message(ConversationSecretHandle secret, u64 now_ms, MessageDraftInput draft);
+
+  [Throws=MessagingFfiError]
+  ConversationScanView scan_conversation(ConversationSecretHandle secret);
+
+  [Throws=MessagingFfiError]
+  ConversationEnvelopeBatch export_conversation_envelopes(ConversationSecretHandle secret);
+
+  [Throws=MessagingFfiError]
+  u64 import_conversation_envelopes(ConversationSecretHandle secret, ConversationEnvelopeBatch batch);
+
+  [Throws=MessagingFfiError]
+  PruneOutcome prune_conversation(ConversationSecretHandle secret, u32 keep);
 };
 
 dictionary PairingContact {
@@ -141,6 +158,74 @@ dictionary PairingOfferView {
   string qr_payload;
   u64 expires_at_ms;
   u16 listen_port;
+};
+
+// A conversation's opaque storage route bound to its symmetric key -- 32
+// bytes each. See crates/mini-ffi/src/messaging.rs's module doc comment for
+// what establishing one of these safely actually requires; this crate does
+// not generate, exchange, or store these on its own initiative.
+//
+// Deliberately an `interface` (opaque object handle), not a `dictionary`:
+// a `dictionary` would generate a Kotlin `data class`, whose compiler-
+// generated `toString()`/`equals()` print every field with no per-field
+// way to exclude one -- exposing the raw conversation key to anything that
+// logs or string-interpolates the handle. An `interface` has no such
+// generated printable representation, and nothing outside this module ever
+// needs to read `route`/`key` back out of one.
+interface ConversationSecretHandle {
+  constructor(sequence<u8> route, sequence<u8> key);
+};
+
+enum MessageKindInput {
+  "Text",
+  "System",
+  "ReceiptDelivered",
+  "ReceiptRead",
+};
+
+dictionary MessageDraftInput {
+  MessageKindInput kind;
+  string body;
+  string? reply_to;
+  sequence<string> attachments;
+  string? receipt_for;
+};
+
+dictionary ReceivedMessageView {
+  string envelope_id;
+  string author_human;
+  string author_device;
+  u64 timestamp_ms;
+  u64 sequence;
+  MessageKindInput kind;
+  string body;
+  string? reply_to;
+  sequence<string> attachments;
+  string? receipt_for;
+  // Only ever true for a message claiming to be authored by this device's
+  // own root and one of this process's own currently-known devices,
+  // verified against that device's own current KEL -- see messaging.rs's
+  // module doc comment. Never true for another person's DID.
+  boolean signature_verified;
+};
+
+// Bounded ciphertext only; transport and remote signature authority are separate.
+dictionary ConversationEnvelopeBatch {
+  sequence<sequence<u8>> envelopes;
+};
+
+dictionary ConversationScanView {
+  sequence<ReceivedMessageView> messages;
+  sequence<string> rejected;
+};
+
+// Result of `RootCore.prune_conversation`: how many of that conversation's
+// own envelopes were discarded, and how many it has left. The only way to
+// reclaim room once `MAX_ENVELOPES` has been hit -- see
+// crates/mini-ffi/src/messaging.rs's doc comment on `prune_conversation`.
+dictionary PruneOutcome {
+  u64 removed;
+  u64 remaining;
 };
 
 enum BackgroundableOperation {
@@ -289,6 +374,17 @@ enum PairingError {
   "InvalidTimeout",
   "Protocol",
   "Io",
+};
+
+[Error]
+enum MessagingFfiError {
+  "NoRoot",
+  "NoDevice",
+  "InvalidSecret",
+  "InvalidMessage",
+  "LimitExceeded",
+  "CorruptState",
+  "Protocol",
 };
 
 [Error]

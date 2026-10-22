@@ -134,9 +134,7 @@ fn four_nodes_over_a_real_tcp_mesh_finalize_and_converge() {
     let addrs: Vec<SocketAddr> = listeners.iter().map(|l| l.local_addr().unwrap()).collect();
 
     let mut handles = Vec::new();
-    for (index, (listener, (root, device))) in
-        listeners.into_iter().zip(signers.into_iter()).enumerate()
-    {
+    for (index, (listener, (root, device))) in listeners.into_iter().zip(signers).enumerate() {
         let addrs = addrs.clone();
         let validators = validators.clone();
         let peer_roots = peer_roots.clone();
@@ -254,9 +252,7 @@ fn a_crashed_proposer_is_survived_by_view_change_and_the_cluster_still_converges
     online.truncate(N_ONLINE); // drop the offline validator's controllers
 
     let mut handles = Vec::new();
-    for (index, (listener, (root, device))) in
-        listeners.into_iter().zip(online.into_iter()).enumerate()
-    {
+    for (index, (listener, (root, device))) in listeners.into_iter().zip(online).enumerate() {
         let addrs = addrs.clone();
         let validators = validators.clone();
         let peer_roots = peer_roots.clone();
@@ -713,9 +709,7 @@ fn four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip() {
     let addrs: Vec<SocketAddr> = listeners.iter().map(|l| l.local_addr().unwrap()).collect();
 
     let mut handles = Vec::new();
-    for (index, (listener, (root, device))) in
-        listeners.into_iter().zip(signers.into_iter()).enumerate()
-    {
+    for (index, (listener, (root, device))) in listeners.into_iter().zip(signers).enumerate() {
         let addrs = addrs.clone();
         let validators = validators.clone();
         let peer_roots = peer_roots.clone();

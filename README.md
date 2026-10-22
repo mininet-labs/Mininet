@@ -440,7 +440,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0528`
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0539`
    (`D-0513`–`D-0516`: adopting external Gate #28 DTN/satellite and Gate #98
    Wi-Fi bearer design-report architectures on engineering merit (new
    `mini-dtn` crate scaffold, `mini-settlement::PaymentClaimV2`
@@ -480,7 +480,11 @@ documents above; see
 for what's activated, staged, or founder-only),
 [`docs/LEGAL_DISCLAIMER.md`](docs/LEGAL_DISCLAIMER.md) (the project's
 constitutional legal position — voluntary participation, no universal
-representative, individual legal responsibility, no protocol ownership).
+representative, individual legal responsibility, no protocol ownership),
+[`docs/android-os/`](docs/android-os/) (unadopted P3 feasibility spike:
+preinstalling `app/android` as an unprivileged system app on a candidate
+hardened Android OS — see [`docs/mobile/`](docs/mobile/) for the accepted
+roadmap and deferred hardware validation).
 Find anything offline: `python tools/mininet_nav.py build` (see
 [`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
 

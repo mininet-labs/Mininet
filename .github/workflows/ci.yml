@@ -42,7 +42,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --keep-going --all-targets --all-features -- -D warnings
 
       - name: Test
         run: cargo test --all --all-features
@@ -174,7 +174,7 @@ jobs:
 
       - name: Clippy the Windows-specific crates
         run: >
-          cargo clippy --all-targets --all-features
+          cargo clippy --keep-going --all-targets --all-features
           -p mini-windows-vault -p mini-windows-setup -p mini-setup
           -p mini-app-protocol -p mini-app-service
           -p mini-selftest -p mini-desktop -- -D warnings

@@ -240,7 +240,7 @@ pub fn split_title(caption: &str, file_name: &str) -> (String, String) {
 
 pub fn sort(entries: &mut [Entry], sort: Sort) {
     match sort {
-        Sort::Newest => entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms)),
+        Sort::Newest => entries.sort_by_key(|b| std::cmp::Reverse(b.timestamp_ms)),
         Sort::MostLiked => entries.sort_by(|a, b| {
             b.likes
                 .cmp(&a.likes)
