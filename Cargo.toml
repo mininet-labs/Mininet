@@ -6,6 +6,7 @@
 
 [workspace]
 resolver = "2"
+exclude = ["vendor/askama_derive"]
 members = [
     "crates/mini-durable",
     "crates/mini-resident",
@@ -143,3 +144,8 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.openh264]
 opt-level = 3
+
+# UniFFI 0.32 pins Askama 0.16. This source patch replaces the abandoned
+# basic-toml parser without changing the mobile binding generator API.
+[patch.crates-io]
+askama_derive = { path = "vendor/askama_derive" }
