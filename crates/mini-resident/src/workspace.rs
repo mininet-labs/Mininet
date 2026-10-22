@@ -132,8 +132,7 @@ impl Workspace {
         };
         let mut part = PathBuf::new();
         for c in absolute.components() {
-            if matches!(c, Component::Normal(name) if matches!(name.to_str(), Some(".git" | ".mini" | ".mininet" | ".ssh" | ".gnupg" | ".config")))
-            {
+            if matches!(c, Component::Normal(name) if name.to_str().is_none_or(blocked)) {
                 return Err(ResidentError(
                     "metadata and private configuration directories cannot be workspace grants"
                         .into(),
@@ -651,6 +650,24 @@ mod tests {
         );
         assert!(w.apply_patch(&preview, &preview.id).is_err());
     }
+    #[test]
+    fn grants_reject_protected_ancestors_case_insensitively() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in [
+            ".SSH",
+            ".GIT",
+            ".MININET",
+            "Wallet",
+            "IDENTITY",
+            "Credentials",
+            "Secrets",
+        ] {
+            let nested = dir.path().join(name).join("code");
+            fs::create_dir_all(&nested).unwrap();
+            assert!(Workspace::open(&nested).is_err(), "{name}");
+        }
+    }
+
     #[test]
     fn hosting_summary_streams_binary_without_model_context() {
         let dir = tempfile::tempdir().unwrap();
