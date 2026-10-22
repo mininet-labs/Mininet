@@ -35,10 +35,10 @@ use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
-    community_members, followers, following, known_profiles, publish_comment, publish_community,
-    publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
-    set_membership, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
-    NearbyProfile, PublicProfileDraft, PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES,
+    community_members, followers, following, known_profiles, publish_community, publish_media_post,
+    publish_profile_details, publish_wall, resolve_community, resolve_profile, set_membership,
+    FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile,
+    PublicProfileDraft, PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES,
     MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 #[cfg(all(test, windows))]
@@ -103,6 +103,11 @@ enum CoreAction {
     PublishPost {
         text: String,
     },
+    PublishComment {
+        parent: String,
+        text: String,
+        draft: CommentDraft,
+    },
     SetLike {
         target: String,
         active: bool,
@@ -112,6 +117,23 @@ enum CoreAction {
         following: bool,
         name: String,
         nearby: Option<(String, Instant)>,
+    },
+}
+
+#[derive(Debug, Clone)]
+enum CommentDraft {
+    Reply {
+        parent: String,
+        raw_text: String,
+    },
+    DiscussionReply {
+        parent: String,
+        raw_text: String,
+    },
+    Topic {
+        parent: String,
+        raw_title: String,
+        raw_body: String,
     },
 }
 
@@ -186,6 +208,7 @@ struct MininetApp {
     app_events_due: Instant,
     app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
+    comment_operation: Option<(String, String, String)>,
     like_operation: Option<(String, bool, String)>,
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
@@ -770,30 +793,6 @@ impl Workspace {
         result
     }
 
-    fn publish_comment(
-        &mut self,
-        parent: &mini_objects::ObjectId,
-        text: &str,
-    ) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_comment(
-            &mut self.store,
-            &human,
-            &identity.device,
-            parent,
-            text,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
     fn publish_file(
         &mut self,
         path: &std::path::Path,
@@ -944,22 +943,6 @@ impl Workspace {
         rows.into_iter()
             .map(|(_, id, micro, n, ok)| (id, micro, n, ok))
             .collect()
-    }
-
-    fn publish_comment_confirmed(
-        &mut self,
-        parent: &mini_objects::ObjectId,
-        text: &str,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.publish_comment(parent, text);
-        if relock {
-            self.lock();
-        }
-        result
     }
 
     fn set_community_membership_confirmed(
@@ -1588,6 +1571,7 @@ impl Default for MininetApp {
             profile_operation: None,
             follow_operation: None,
             like_operation: None,
+            comment_operation: None,
             view,
             privacy: load_privacy_settings(),
             theme_applied: false,
@@ -1745,6 +1729,30 @@ impl Default for MininetApp {
             notice,
         }
     }
+}
+
+fn comment_request_id(
+    pending: &mut Option<(String, String, String)>,
+    parent: &str,
+    text: &str,
+) -> String {
+    match pending {
+        Some((old_parent, old_text, id)) if old_parent == parent && old_text == text => id.clone(),
+        _ => {
+            let id = app_service::operation_id("comment");
+            *pending = Some((parent.into(), text.into(), id.clone()));
+            id
+        }
+    }
+}
+
+fn comment_draft_matches(
+    parent: &str,
+    original: &[&str],
+    current_parent: Option<&str>,
+    current: &[&str],
+) -> bool {
+    current_parent == Some(parent) && original == current
 }
 
 fn follow_request_id(
@@ -2219,6 +2227,68 @@ impl MininetApp {
                     "Like removed through the application core. Exchange with peers to share it."
                 }
                 .into();
+            }
+            (
+                CoreAction::PublishComment {
+                    parent,
+                    text,
+                    draft,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Comment => {
+                if self
+                    .comment_operation
+                    .as_ref()
+                    .is_some_and(|(old_parent, old_text, _)| {
+                        old_parent == &parent && old_text == &text
+                    })
+                {
+                    self.comment_operation = None;
+                }
+                match draft {
+                    CommentDraft::Reply { parent, raw_text } => {
+                        if comment_draft_matches(
+                            &parent,
+                            &[&raw_text],
+                            self.reply_target.as_ref().map(|id| id.as_str()),
+                            &[&self.reply_text],
+                        ) {
+                            self.reply_text.clear();
+                            self.reply_target = None;
+                        }
+                    }
+                    CommentDraft::DiscussionReply { parent, raw_text } => {
+                        if comment_draft_matches(
+                            &parent,
+                            &[&raw_text],
+                            self.discussion_reply_target.as_ref().map(|id| id.as_str()),
+                            &[&self.discussion_reply_text],
+                        ) {
+                            self.discussion_reply_text.clear();
+                            self.discussion_reply_target = None;
+                        }
+                    }
+                    CommentDraft::Topic {
+                        parent,
+                        raw_title,
+                        raw_body,
+                    } => {
+                        if comment_draft_matches(
+                            &parent,
+                            &[&raw_title, &raw_body],
+                            self.open_community.as_ref().map(|id| id.as_str()),
+                            &[&self.discussion_title, &self.discussion_body],
+                        ) {
+                            self.discussion_title.clear();
+                            self.discussion_body.clear();
+                        }
+                    }
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice =
+                    "Comment saved through the application core. Exchange with peers to share it."
+                        .into();
             }
             (action, Ok(reply)) => {
                 self.notice = format!(
@@ -3153,6 +3223,36 @@ No tracking. No forced updates.",
             .take(limit)
             .map(|profile| (profile.display_name, profile.human.as_str().to_owned()))
             .collect()
+    }
+
+    fn publish_comment_via_core(
+        &mut self,
+        parent: &mini_objects::ObjectId,
+        text: &str,
+        draft: CommentDraft,
+    ) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before commenting.".into();
+            return;
+        }
+        if text.trim().is_empty() {
+            self.notice = "Write a comment first.".into();
+            return;
+        }
+        let parent = parent.as_str().to_string();
+        let operation_id = comment_request_id(&mut self.comment_operation, &parent, text);
+        self.start_core_action(
+            CoreAction::PublishComment {
+                parent: parent.clone(),
+                text: text.into(),
+                draft,
+            },
+            AppCommand::PublishComment {
+                operation_id,
+                parent_id: parent,
+                text: text.into(),
+            },
+        );
     }
 
     fn set_like_via_core(&mut self, target: &mini_objects::ObjectId, active: bool) {
@@ -4799,25 +4899,12 @@ No tracking. No forced updates.",
                 );
                 ui.horizontal(|ui| {
                     if ui.add(theme::primary_button("Reply")).clicked() {
-                        self.notice = if self.reply_text.trim().is_empty() {
-                            "Write a reply first.".to_string()
-                        } else if !self.signing_confirmation {
-                            "Confirm signing before publishing.".to_string()
-                        } else if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace.publish_comment_confirmed(&target, self.reply_text.trim()) {
-                                Ok(()) => {
-                                    self.reply_text.clear();
-                                    self.reply_target = None;
-                                    self.signing_confirmation = false;
-                                    self.timeline_refresh = Instant::now();
-                                    "Reply signed and saved by the transitional desktop path. It shares on the next exchange."
-                                        .to_string()
-                                }
-                                Err(error) => format!("Could not publish reply: {error}"),
-                            }
-                        } else {
-                            "Local workspace unavailable.".to_string()
-                        };
+                        let text = self.reply_text.trim().to_string();
+                        if !self.signing_confirmation { self.notice = "Confirm signing before publishing.".into(); }
+                        else {
+                            let draft = CommentDraft::Reply { parent: target.as_str().into(), raw_text: self.reply_text.clone() };
+                            self.publish_comment_via_core(&target, &text, draft);
+                        }
                     }
                     if ui.add(theme::secondary_button("Cancel")).clicked() {
                         self.reply_target = None;
@@ -7125,23 +7212,15 @@ No tracking. No forced updates.",
                 ui.horizontal(|ui| {
                     if ui.add(theme::primary_button("Comment")).clicked() {
                         let text = self.reply_text.trim().to_string();
-                        self.notice = if text.is_empty() {
-                            "Write a comment first.".into()
-                        } else if !self.signing_confirmation {
-                            "Confirm signing before commenting.".into()
+                        if !self.signing_confirmation {
+                            self.notice = "Confirm signing before commenting.".into();
                         } else {
-                            match self.publish_comment_confirmed(&card.id, &text) {
-                                Ok(()) => {
-                                    self.reply_text.clear();
-                                    self.reply_target = None;
-                                    self.signing_confirmation = false;
-                                    self.timeline_refresh = Instant::now();
-                                    "Comment signed and saved. It shares on the next exchange."
-                                        .into()
-                                }
-                                Err(error) => format!("Could not comment: {error}"),
-                            }
-                        };
+                            let draft = CommentDraft::Reply {
+                                parent: card.id.as_str().into(),
+                                raw_text: self.reply_text.clone(),
+                            };
+                            self.publish_comment_via_core(&card.id, &text, draft);
+                        }
                     }
                     if ui.add(theme::secondary_button("Cancel")).clicked() {
                         self.reply_target = None;
@@ -7485,30 +7564,25 @@ No tracking. No forced updates.",
                 "I confirm this creates a signed discussion object",
             );
             if ui.add(theme::primary_button("Post discussion")).clicked() {
-                let title = self.discussion_title.trim().to_string();
-                let body = self.discussion_body.trim().to_string();
-                self.notice = if title.is_empty() {
-                    "Give the discussion a title.".into()
+                let title = self.discussion_title.trim();
+                let body = self.discussion_body.trim();
+                if title.is_empty() {
+                    self.notice = "Give the discussion a title.".into();
                 } else if !self.signing_confirmation {
-                    "Confirm signing before posting.".into()
+                    self.notice = "Confirm signing before posting.".into();
                 } else {
                     let text = if body.is_empty() {
-                        title
+                        title.into()
                     } else {
                         format!("{title}\n\n{body}")
                     };
-                    match self.publish_comment_confirmed(community, &text) {
-                        Ok(()) => {
-                            self.discussion_title.clear();
-                            self.discussion_body.clear();
-                            self.signing_confirmation = false;
-                            self.discussion_dirty = true;
-                            "Discussion posted. It shares with your peers on the next exchange."
-                                .into()
-                        }
-                        Err(error) => format!("Could not post: {error}"),
-                    }
-                };
+                    let draft = CommentDraft::Topic {
+                        parent: community.as_str().into(),
+                        raw_title: self.discussion_title.clone(),
+                        raw_body: self.discussion_body.clone(),
+                    };
+                    self.publish_comment_via_core(community, &text, draft);
+                }
             }
         });
         ui.add_space(8.0);
@@ -7643,22 +7717,15 @@ No tracking. No forced updates.",
                     ui.horizontal(|ui| {
                         if ui.add(theme::primary_button("Reply")).clicked() {
                             let text = self.discussion_reply_text.trim().to_string();
-                            self.notice = if text.is_empty() {
-                                "Write a reply first.".into()
-                            } else if !self.signing_confirmation {
-                                "Confirm signing before replying.".into()
+                            if !self.signing_confirmation {
+                                self.notice = "Confirm signing before replying.".into();
                             } else {
-                                match self.publish_comment_confirmed(&node.id, &text) {
-                                    Ok(()) => {
-                                        self.discussion_reply_target = None;
-                                        self.discussion_reply_text.clear();
-                                        self.signing_confirmation = false;
-                                        self.discussion_dirty = true;
-                                        "Reply posted. It shares on the next exchange.".into()
-                                    }
-                                    Err(error) => format!("Could not reply: {error}"),
-                                }
-                            };
+                                let draft = CommentDraft::DiscussionReply {
+                                    parent: node.id.as_str().into(),
+                                    raw_text: self.discussion_reply_text.clone(),
+                                };
+                                self.publish_comment_via_core(&node.id, &text, draft);
+                            }
                         }
                         if ui.add(theme::secondary_button("Cancel")).clicked() {
                             self.discussion_reply_target = None;
@@ -7699,17 +7766,6 @@ No tracking. No forced updates.",
                 }
             });
         });
-    }
-
-    fn publish_comment_confirmed(
-        &mut self,
-        parent: &mini_objects::ObjectId,
-        text: &str,
-    ) -> Result<(), String> {
-        self.workspace
-            .as_mut()
-            .ok_or_else(|| "Local workspace unavailable.".to_string())
-            .and_then(|workspace| workspace.publish_comment_confirmed(parent, text))
     }
 
     fn creator(&mut self, ui: &mut egui::Ui) {
@@ -9387,6 +9443,64 @@ shot at dusk",
 #[cfg(test)]
 mod follow_runtime_tests {
     use super::*;
+    #[test]
+    fn uncertain_comment_reply_reuses_exact_parent_text_and_operation_id() {
+        let mut pending = None;
+        let original = comment_request_id(&mut pending, "parent-a", "comment");
+        assert_eq!(
+            comment_request_id(&mut pending, "parent-a", "comment"),
+            original
+        );
+        let edit = comment_request_id(&mut pending, "parent-a", "edited");
+        assert_ne!(edit, original);
+        assert_ne!(comment_request_id(&mut pending, "parent-b", "edited"), edit);
+    }
+    #[test]
+    fn comment_receipt_cannot_erase_edited_or_retargeted_reply_and_topic_drafts() {
+        assert!(comment_draft_matches(
+            "parent",
+            &["original"],
+            Some("parent"),
+            &["original"]
+        ));
+        assert!(!comment_draft_matches(
+            "parent",
+            &["original"],
+            Some("parent"),
+            &["original "]
+        ));
+        assert!(!comment_draft_matches(
+            "parent",
+            &["original"],
+            Some("other"),
+            &["original"]
+        ));
+        assert!(!comment_draft_matches(
+            "parent",
+            &["original"],
+            None,
+            &["original"]
+        ));
+        assert!(!comment_draft_matches(
+            "community",
+            &["title", "body"],
+            Some("community"),
+            &["new title", "body"]
+        ));
+        assert!(!comment_draft_matches(
+            "community",
+            &["title", "body"],
+            Some("community"),
+            &["title", "new body"]
+        ));
+        assert!(comment_draft_matches(
+            "community",
+            &["title", "body"],
+            Some("community"),
+            &["title", "body"]
+        ));
+    }
+
     #[test]
     fn uncertain_like_response_retains_target_state_and_operation_id() {
         let mut pending = None;

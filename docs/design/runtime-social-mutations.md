@@ -1,6 +1,6 @@
 # Social mutations through the application runtime
 
-Follow/unfollow and public Likes now join profile and plain-post publication behind the existing
+Follow/unfollow, public Likes and comments now join profile and plain-post publication behind the existing
 application core. Desktop channel, People, suggestion, connection-card and manual
 follow actions send `SetFollow { operation_id, target_did, following }` over typed
 IPC. Those actions no longer unlock renderer-held keys or allocate a renderer
@@ -39,7 +39,7 @@ those new records and must not delete them to force a downgrade.
 
 This migration does not make follows private messages, deliver FOLLOW objects via
 the exact-post outbox, authenticate the legacy nearby sync path, or remove every
-legacy renderer signer. Comments, profile details, media and other
+legacy renderer signer. Profile details, media and other
 mutations still need their own service migrations. The shared runtime and beta
 acceptance register remains in [integrated beta delivery](../planning/integrated-beta-delivery.md).
 
@@ -62,5 +62,27 @@ revive a later removed Like.
 The shared reaction builder preserves the legacy wire format and other kinds for
 existing library callers. The core command does not expose Save/bookmark markers:
 the legacy Save reaction encoding is public and cannot provide private bookmarks.
-Renderer Like paths no longer load/unlock keys or allocate sequences. Comments,
-profile details, media and other mutations remain separate migrations.
+Renderer Like paths no longer load/unlock keys or allocate sequences.
+Profile details, media and other mutations remain separate migrations.
+
+## Comments and community topics
+
+All four desktop comment paths—timeline replies, media comments, community topics
+and discussion replies—send `PublishComment { operation_id, parent_id, text }`
+to the core. New signatures require an unlocked identity, nonblank UTF-8 text
+bounded to 16 KiB and an existing public parent. Public community objects are
+valid parents as well as posts and comments. Missing or private parents are refused
+before reserving a sequence.
+
+The store-free comment builder preserves the existing single `re` link and
+length-prefixed text encoding. Recovery verifies exact parent, text, object type
+and canonical shape against the journal before insertion. Matching completed
+receipts remain available while locked or after the parent cache is removed;
+conflicting reuse of an operation ID is refused.
+
+Desktop retries retain the exact parent/text operation ID. Editors remain intact
+while publication is pending. A successful receipt clears a draft only when its
+parent and original raw fields still match, preserving edits or a newly selected
+thread made while waiting. These objects are saved locally; the public-post
+outbox does not yet deliver COMMENT objects. Updated journal tags require the
+updated service, and no private messaging protocol is implied.

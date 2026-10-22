@@ -17,6 +17,7 @@ pub const PROTOCOL_VERSION: u16 = 1;
 pub const MAX_FRAME_BYTES: usize = 1024 * 1024;
 pub const MAX_OPERATION_ID_BYTES: usize = 96;
 pub const MAX_POST_BYTES: usize = 16 * 1024;
+pub const MAX_COMMENT_BYTES: usize = 16 * 1024;
 pub const MAX_PROFILE_NAME_BYTES: usize = 64;
 pub const MAX_PROFILE_BIO_BYTES: usize = 1024;
 pub const MAX_FEED_ITEMS: u16 = 50;
@@ -54,6 +55,7 @@ pub enum ObjectKind {
     Post,
     Follow,
     Reaction,
+    Comment,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,6 +204,19 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::PublishComment {
+                operation_id,
+                parent_id,
+                text,
+            } => {
+                validate_operation_id(operation_id)?;
+                if parent_id.is_empty() || parent_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("comment parent ID"));
+                }
+                if text.len() > MAX_COMMENT_BYTES || text.trim().is_empty() {
+                    return Err(ProtocolError::LimitExceeded("comment text"));
+                }
+            }
             Command::SetLike {
                 operation_id,
                 target_id,
@@ -312,6 +327,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishComment {
+        operation_id: String,
+        parent_id: String,
+        text: String,
+    },
     SetLike {
         operation_id: String,
         target_id: String,
@@ -611,6 +631,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::PublishComment {
+            operation_id,
+            parent_id,
+            text,
+        } => {
+            encoder.u8(26);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(parent_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(text, MAX_COMMENT_BYTES)?;
+        }
         Command::SetLike {
             operation_id,
             target_id,
@@ -745,6 +775,11 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        26 => Ok(Command::PublishComment {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            parent_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            text: decoder.string(MAX_COMMENT_BYTES)?,
+        }),
         25 => Ok(Command::SetLike {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             target_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
@@ -1124,6 +1159,7 @@ fn encode_published(
         ObjectKind::Post => 1,
         ObjectKind::Follow => 2,
         ObjectKind::Reaction => 3,
+        ObjectKind::Comment => 4,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1136,6 +1172,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
         1 => ObjectKind::Post,
         2 => ObjectKind::Follow,
         3 => ObjectKind::Reaction,
+        4 => ObjectKind::Comment,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1167,6 +1204,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
                 ObjectKind::Post => 1,
                 ObjectKind::Follow => 2,
                 ObjectKind::Reaction => 3,
+                ObjectKind::Comment => 4,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1194,6 +1232,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
                 1 => ObjectKind::Post,
                 2 => ObjectKind::Follow,
                 3 => ObjectKind::Reaction,
+                4 => ObjectKind::Comment,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -1833,6 +1872,77 @@ mod like_protocol_tests {
                     operation_id,
                     target_id,
                     active: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod comment_protocol_tests {
+    use super::*;
+    #[test]
+    fn comment_commands_publications_events_round_trip_and_text_is_bounded_nonblank() {
+        let request = Request::new(
+            21,
+            Command::PublishComment {
+                operation_id: "comment:1".into(),
+                parent_id: "parent".into(),
+                text: "hello".into(),
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Comment,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 3,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Comment,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(21, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, parent_id, text) in [
+            ("../invalid".into(), "parent".into(), "hi".into()),
+            ("valid".into(), String::new(), "hi".into()),
+            (
+                "valid".into(),
+                "x".repeat(MAX_OBJECT_ID_BYTES + 1),
+                "hi".into(),
+            ),
+            ("valid".into(), "parent".into(), String::new()),
+            ("valid".into(), "parent".into(), " \n\t".into()),
+            (
+                "valid".into(),
+                "parent".into(),
+                "x".repeat(MAX_COMMENT_BYTES + 1),
+            ),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishComment {
+                    operation_id,
+                    parent_id,
+                    text
                 }
             )
             .validate()

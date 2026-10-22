@@ -847,19 +847,60 @@ pub fn publish_comment<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let comment = build_comment(human, device, parent, text, timestamp_ms, sequence)?;
+    store.insert(&comment)?;
+    Ok(comment)
+}
+
+/// Build the legacy public comment bytes without mutating a store.
+pub fn build_comment(
+    human: &Did,
+    device: &Controller,
+    parent: &ObjectId,
+    text: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if text.len() > MAX_COMMENT_BYTES {
         return Err(SocialError::FieldTooLarge);
     }
     let mut payload = Vec::new();
     put_str(&mut payload, text);
-    let comment = ObjectBuilder::new(ObjectType::COMMENT)
+    ObjectBuilder::new(ObjectType::COMMENT)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("re", parent.clone())
         .payload(Payload::Public(payload))
-        .sign(human, device)?;
-    store.insert(&comment)?;
-    Ok(comment)
+        .sign(human, device)
+        .map_err(Into::into)
+}
+
+/// Decode one canonical plain public comment; provenance is checked separately.
+pub fn decode_comment(object: &Object) -> Result<Comment> {
+    if object.object_type != ObjectType::COMMENT
+        || object.links.len() != 1
+        || object.links[0].rel != "re"
+    {
+        return Err(SocialError::BadInteraction);
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return Err(SocialError::BadInteraction);
+    };
+    if bytes.len() > MAX_COMMENT_BYTES + 4 {
+        return Err(SocialError::BadInteraction);
+    }
+    let mut pos = 0;
+    let text = get_str(bytes, &mut pos).ok_or(SocialError::BadInteraction)?;
+    if pos != bytes.len() || text.len() > MAX_COMMENT_BYTES {
+        return Err(SocialError::BadInteraction);
+    }
+    Ok(Comment {
+        id: object.id().clone(),
+        author: object.author_human.clone(),
+        parent: object.links[0].target.clone(),
+        text,
+        timestamp_ms: object.timestamp_ms,
+    })
 }
 
 /// Resolve direct replies in deterministic chronological order.
@@ -1293,5 +1334,69 @@ mod reaction_builder_tests {
             .sign(&root.did(), &device)
             .unwrap();
         assert!(decode_reaction(&extra).is_err());
+    }
+}
+
+#[cfg(test)]
+mod comment_builder_tests {
+    use super::*;
+    #[test]
+    fn comment_builder_preserves_legacy_wire_and_decoder_rejects_extra_shape() {
+        let root = Controller::incept_single_from_seeds(&[31; 32], &[32; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[33; 32], &[34; 32]).unwrap();
+        let parent = build_post(&root.did(), &device, "parent", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        let mut payload = Vec::new();
+        put_str(&mut payload, "hello 🌱");
+        let legacy = ObjectBuilder::new(ObjectType::COMMENT)
+            .timestamp_ms(7)
+            .sequence(8)
+            .link("re", parent.clone())
+            .payload(Payload::Public(payload.clone()))
+            .sign(&root.did(), &device)
+            .unwrap();
+        let built = build_comment(&root.did(), &device, &parent, "hello 🌱", 7, 8).unwrap();
+        assert_eq!(built.to_bytes(), legacy.to_bytes());
+        assert_eq!(
+            built.to_bytes(),
+            publish_comment(&mut store, &root.did(), &device, &parent, "hello 🌱", 7, 8)
+                .unwrap()
+                .to_bytes()
+        );
+        let decoded = decode_comment(&built).unwrap();
+        assert_eq!(decoded.text, "hello 🌱");
+        assert_eq!(decoded.parent, parent);
+        for malformed in [vec![0, 0, 0, 1, 0xff], {
+            let mut bytes = payload.clone();
+            bytes.push(0);
+            bytes
+        }] {
+            let object = ObjectBuilder::new(ObjectType::COMMENT)
+                .link("re", parent.clone())
+                .payload(Payload::Public(malformed))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_comment(&object).is_err());
+        }
+        let extra = ObjectBuilder::new(ObjectType::COMMENT)
+            .link("re", parent.clone())
+            .link("extra", parent.clone())
+            .payload(Payload::Public(payload))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_comment(&extra).is_err());
+        assert!(build_comment(
+            &root.did(),
+            &device,
+            &parent,
+            &"x".repeat(MAX_COMMENT_BYTES + 1),
+            1,
+            1
+        )
+        .is_err());
     }
 }
