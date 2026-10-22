@@ -237,6 +237,9 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::PreviewPublicDelivery { object_id } => self
+                .own_public_delivery_object(&object_id)
+                .map(|(_, view)| Reply::PublicDeliveryObject(view)),
             Command::PublishCommunity {
                 operation_id,
                 name,
@@ -388,31 +391,46 @@ impl<V: IdentityVault> Core<V> {
     ) -> Result<mini_app_protocol::DeliveryView, ServiceError> {
         self.ensure_signing_available()?;
         self.authorized_delivery_peer(peer_id)?;
-        let id = ObjectId::parse(object_id).map_err(storage_or_social)?;
-        let object = self.store.get(&id).map_err(storage_or_social)?;
-        let identity = self.identity.as_ref().expect("checked unlocked identity");
-        // This first slice intentionally sends only one own public text post.
-        // It cannot select private envelopes, attachments or an entire store.
-        if object.object_type != ObjectType::POST
-            || !object.links.is_empty()
-            || !matches!(object.payload, Payload::Public(_))
-            || object.author_human != identity.root.did()
-            || object.author_device != identity.device.did()
-        {
-            return Err(ServiceError::new(
-                ErrorCode::BadRequest,
-                "delivery requires an own public text post without linked content",
-            ));
-        }
-        mini_objects::verify_provenance(&object, &identity.root.kel(), &identity.device.kel())
-            .map_err(storage_or_social)?;
-        mini_social::decode_post(&object).map_err(storage_or_social)?;
+        let (object, _) = self.own_public_delivery_object(object_id)?;
         let record = self
             .outbox
             .enqueue(operation_id, peer_id, object_id, &object.to_bytes())?;
         let view = delivery_view(&record);
         self.emit(ServiceEventKind::DeliveryChanged(view.clone()));
         Ok(view)
+    }
+
+    fn own_public_delivery_object(
+        &self,
+        object_id: &str,
+    ) -> Result<(Object, mini_app_protocol::DeliveryObjectView), ServiceError> {
+        self.ensure_signing_available()?;
+        if object_id.is_empty() || object_id.len() > MAX_OBJECT_ID_BYTES {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "delivery object ID exceeds limits",
+            ));
+        }
+        let id = ObjectId::parse(object_id).map_err(storage_or_social)?;
+        let object = self.store.get(&id).map_err(storage_or_social)?;
+        let identity = self.identity.as_ref().expect("checked unlocked identity");
+        if object.author_human != identity.root.did()
+            || object.author_device != identity.device.did()
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "delivery requires an own signed public object",
+            ));
+        }
+        let view = delivery_transport::public_object_view(&object).map_err(|_| {
+            ServiceError::new(
+                ErrorCode::BadRequest,
+                "unsupported or malformed public delivery object",
+            )
+        })?;
+        mini_objects::verify_provenance(&object, &identity.root.kel(), &identity.device.kel())
+            .map_err(storage_or_social)?;
+        Ok((object, view))
     }
 
     fn status(&self) -> Result<AccountStatus, ServiceError> {
@@ -3444,5 +3462,185 @@ mod tests {
             }
             fs::remove_dir_all(path).unwrap();
         }
+    }
+    #[test]
+    fn public_delivery_preview_and_queue_require_exact_own_identity_and_expose_only_review() {
+        let path = temp_root("social-delivery-preview");
+        let mut core = Core::open_inner(path.clone(), MemoryVault::seeded(), false).unwrap();
+        core.unlock().unwrap();
+        let Reply::Published(post) = core
+            .handle(Command::PublishPost {
+                operation_id: "preview:parent".into(),
+                text: "parent".into(),
+            })
+            .unwrap()
+        else {
+            panic!("wrong reply")
+        };
+        let Reply::Published(comment) = core
+            .handle(Command::PublishComment {
+                operation_id: "preview:comment".into(),
+                parent_id: post.object_id.clone(),
+                text: "public reviewed reply".into(),
+            })
+            .unwrap()
+        else {
+            panic!("wrong reply")
+        };
+        let preview = Command::PreviewPublicDelivery {
+            object_id: comment.object_id.clone(),
+        };
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let Reply::PublicDeliveryObject(view) = core.handle(preview.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(view.kind, ObjectKind::Comment);
+        assert_eq!(view.summary, "public reviewed reply");
+        assert_eq!(view.targets, vec![post.object_id]);
+        assert_eq!(view.object_id, comment.object_id);
+        let mut peer_root = Controller::incept_single_from_seeds(&[71; 32], &[72; 32]).unwrap();
+        let peer_device =
+            Controller::incept_device_single_from_seeds(&peer_root.did(), &[73; 32], &[74; 32])
+                .unwrap();
+        peer_root
+            .delegate_device(&peer_device.did(), Capabilities::primary())
+            .unwrap();
+        core.peers
+            .authorize(
+                "friend",
+                "127.0.0.1:7400",
+                &peer_root.kel().to_bytes(),
+                &peer_device.kel().to_bytes(),
+            )
+            .unwrap();
+        let queue = Command::QueuePublicDelivery {
+            operation_id: "preview:queue".into(),
+            peer_id: "friend".into(),
+            object_id: comment.object_id.clone(),
+        };
+        assert!(matches!(
+            core.handle(queue.clone()).unwrap(),
+            Reply::Delivery(_)
+        ));
+        let foreign = mini_social::build_comment(
+            &peer_root.did(),
+            &peer_device,
+            &ObjectId::parse(&comment.object_id).unwrap(),
+            "foreign reply",
+            1,
+            1,
+        )
+        .unwrap();
+        core.store.insert(&foreign).unwrap();
+        assert!(core
+            .handle(Command::PreviewPublicDelivery {
+                object_id: foreign.id().as_str().into()
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::QueuePublicDelivery {
+                operation_id: "preview:foreign".into(),
+                peer_id: "friend".into(),
+                object_id: foreign.id().as_str().into()
+            })
+            .is_err());
+        let (human, device) = core.signing_identity().unwrap();
+        let private = mini_objects::ObjectBuilder::new(ObjectType::POST)
+            .payload(Payload::Encrypted(vec![1]))
+            .sign(human, device)
+            .unwrap();
+        core.store.insert(&private).unwrap();
+        assert!(core
+            .handle(Command::PreviewPublicDelivery {
+                object_id: private.id().as_str().into()
+            })
+            .is_err());
+        core.lock();
+        assert!(core.handle(preview).is_err());
+        assert!(core.handle(queue).is_err());
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn maximum_comment_publication_locked_receipt_and_pending_recovery_keep_journal_usable() {
+        let path = temp_root("maximum-comment");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let Reply::Published(parent) = core
+            .handle(Command::PublishPost {
+                operation_id: "max-comment:parent".into(),
+                text: "parent".into(),
+            })
+            .unwrap()
+        else {
+            panic!("wrong reply")
+        };
+        let maximum = "x".repeat(MAX_COMMENT_BYTES);
+        let command = Command::PublishComment {
+            operation_id: "max-comment:published".into(),
+            parent_id: parent.object_id.clone(),
+            text: maximum.clone(),
+        };
+        let Reply::Published(published) = core.handle(command.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert_eq!(fs::read_dir(&core.journal.pending).unwrap().count(), 0);
+        let published_id = ObjectId::parse(&published.object_id).unwrap();
+        let published_bytes = core.store.get(&published_id).unwrap().to_bytes();
+        let utf8 = "🦀".repeat(MAX_COMMENT_BYTES / 4);
+        let (human, device) = core.signing_identity().unwrap();
+        let pending = build_comment(
+            human,
+            device,
+            &ObjectId::parse(&parent.object_id).unwrap(),
+            &utf8,
+            77,
+            99,
+        )
+        .unwrap();
+        let pending_id = pending.id().clone();
+        let record = PendingMutation {
+            operation_id: "max-comment:recover".into(),
+            input: MutationInput::Comment {
+                parent_id: parent.object_id.clone(),
+                text: utf8.clone(),
+            },
+            objects: vec![pending.to_bytes()],
+        };
+        core.journal.write_pending(&record).unwrap();
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        for request in [
+            command,
+            Command::PublishComment {
+                operation_id: "max-comment:recover".into(),
+                parent_id: parent.object_id.clone(),
+                text: utf8,
+            },
+        ] {
+            let Reply::Published(receipt) = core.handle(request).unwrap() else {
+                panic!("wrong reply")
+            };
+            assert!(receipt.duplicate);
+        }
+        assert_eq!(
+            core.store.get(&published_id).unwrap().to_bytes(),
+            published_bytes
+        );
+        assert_eq!(
+            core.store.get(&pending_id).unwrap().to_bytes(),
+            pending.to_bytes()
+        );
+        assert_eq!(
+            comments(&core.store, &ObjectId::parse(&parent.object_id).unwrap())
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(fs::read_dir(&core.journal.pending).unwrap().count(), 0);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
     }
 }

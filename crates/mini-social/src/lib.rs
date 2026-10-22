@@ -950,11 +950,16 @@ pub fn decode_comment(object: &Object) -> Result<Comment> {
     if bytes.len() > MAX_COMMENT_BYTES + 4 {
         return Err(SocialError::BadInteraction);
     }
-    let mut pos = 0;
-    let text = get_str(bytes, &mut pos).ok_or(SocialError::BadInteraction)?;
-    if pos != bytes.len() || text.len() > MAX_COMMENT_BYTES {
+    let prefix: [u8; 4] = bytes
+        .get(..4)
+        .ok_or(SocialError::BadInteraction)?
+        .try_into()
+        .map_err(|_| SocialError::BadInteraction)?;
+    let length = u32::from_be_bytes(prefix) as usize;
+    if length > MAX_COMMENT_BYTES || length.checked_add(4) != Some(bytes.len()) {
         return Err(SocialError::BadInteraction);
     }
+    let text = String::from_utf8(bytes[4..].to_vec()).map_err(|_| SocialError::BadInteraction)?;
     Ok(Comment {
         id: object.id().clone(),
         author: object.author_human.clone(),
@@ -969,34 +974,12 @@ pub fn comments<B: Backend>(store: &Store<B>, parent: &ObjectId) -> Result<Vec<C
     let mut out = Vec::new();
     for id in store.linking_to(parent)? {
         let object = store.get(&id)?;
-        if object.object_type != ObjectType::COMMENT {
-            continue;
-        }
-        let Some(link) = object.links.iter().find(|link| link.rel == "re") else {
+        let Ok(comment) = decode_comment(&object) else {
             continue;
         };
-        if &link.target != parent
-            || object.links.iter().filter(|link| link.rel == "re").count() != 1
-        {
-            continue;
+        if &comment.parent == parent {
+            out.push(comment);
         }
-        let Payload::Public(bytes) = &object.payload else {
-            continue;
-        };
-        let mut pos = 0;
-        let Some(text) = get_str(bytes, &mut pos) else {
-            continue;
-        };
-        if pos != bytes.len() || text.len() > MAX_COMMENT_BYTES {
-            continue;
-        }
-        out.push(Comment {
-            id: object.id().clone(),
-            author: object.author_human,
-            parent: parent.clone(),
-            text,
-            timestamp_ms: object.timestamp_ms,
-        });
     }
     out.sort_by(|a, b| {
         a.timestamp_ms
@@ -1401,6 +1384,52 @@ mod reaction_builder_tests {
 #[cfg(test)]
 mod comment_builder_tests {
     use super::*;
+    #[test]
+    fn comment_decoder_and_reads_accept_full_declared_utf8_limit_only() {
+        let root = Controller::incept_single_from_seeds(&[35; 32], &[36; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[37; 32], &[38; 32]).unwrap();
+        let parent = build_post(&root.did(), &device, "parent", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for (index, text) in [
+            "x".repeat(4096),
+            "x".repeat(4097),
+            "x".repeat(MAX_COMMENT_BYTES),
+            "🦀".repeat(MAX_COMMENT_BYTES / 4),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let object = publish_comment(
+                &mut store,
+                &root.did(),
+                &device,
+                &parent,
+                &text,
+                index as u64,
+                index as u64,
+            )
+            .unwrap();
+            assert_eq!(decode_comment(&object).unwrap().text, text);
+            assert!(comments(&store, &parent)
+                .unwrap()
+                .iter()
+                .any(|comment| comment.id == *object.id() && comment.text == text));
+        }
+        let oversized = "x".repeat(MAX_COMMENT_BYTES + 1);
+        assert!(build_comment(&root.did(), &device, &parent, &oversized, 1, 1).is_err());
+        let mut payload = Vec::new();
+        put_str(&mut payload, &oversized);
+        let object = ObjectBuilder::new(ObjectType::COMMENT)
+            .link("re", parent)
+            .payload(Payload::Public(payload))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_comment(&object).is_err());
+    }
     #[test]
     fn comment_builder_preserves_legacy_wire_and_decoder_rejects_extra_shape() {
         let root = Controller::incept_single_from_seeds(&[31; 32], &[32; 32]).unwrap();

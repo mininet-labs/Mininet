@@ -37,8 +37,7 @@ remain readable; new follow command/kind/input tags are appended. Profiles with
 follow receipts require the updated service. An older service cannot interpret
 those new records and must not delete them to force a downgrade.
 
-This migration does not make follows private messages, deliver FOLLOW objects via
-the exact-post outbox, authenticate the legacy nearby sync path, or remove every
+This migration does not make follows private messages, provide private FOLLOW delivery, authenticate the legacy nearby sync path, or remove every
 legacy renderer signer. Profile details, media and other
 mutations still need their own service migrations. The shared runtime and beta
 acceptance register remains in [integrated beta delivery](../planning/integrated-beta-delivery.md).
@@ -83,8 +82,8 @@ conflicting reuse of an operation ID is refused.
 Desktop retries retain the exact parent/text operation ID. Editors remain intact
 while publication is pending. A successful receipt clears a draft only when its
 parent and original raw fields still match, preserving edits or a newly selected
-thread made while waiting. These objects are saved locally; the public-post
-outbox does not yet deliver COMMENT objects. Updated journal tags require the
+thread made while waiting. These objects are saved locally; a separate reviewed public-delivery action can
+queue an exact COMMENT through the authenticated outbox. Updated journal tags require the
 updated service, and no private messaging protocol is implied.
 
 ## Community membership
@@ -103,7 +102,8 @@ the same rules as other social mutations, including locked receipt retries after
 parent-cache removal. Desktop retries reuse only the same community/state intent;
 there is no renderer key unlock or sequence allocation. A stale join receipt
 cannot create a newer join after a leave. Admission decisions,
-private groups and transport of membership objects remain separate work.
+private groups remain separate work. Exact public membership objects can be
+queued separately through reviewed delivery; this does not establish admission.
 
 ## Open community creation
 
@@ -122,5 +122,15 @@ operation receipts work while locked; conflicting reuse is rejected.
 The desktop retains its submitted name/charter operation ID after uncertain
 responses. It clears the form only when both raw fields still match the submitted
 snapshot, preserving changes made while waiting. Creation has no renderer key
-unlock fallback. Community cards remain local until exchanged; this does not add
-community transport, admission governance or private groups.
+unlock fallback. Community cards remain local until exchanged or explicitly queued through reviewed
+public delivery; this does not add admission governance or private groups.
+
+## Full-size comment recovery
+
+Comment decoding and threaded reads use the declared 16 KiB comment bound rather
+than the unrelated shared 4 KiB string helper. Previously a canonical comment
+above 4096 bytes could be signed and journaled, then refused at commit/recovery.
+The corrected decoder accepts its exact length-prefixed UTF-8 bytes, without
+raising other profile/community string limits. Existing valid pending large
+comments can therefore recover without changing their signatures or operation IDs.
+Boundary checks cover 4096/4097 bytes, the full limit, multibyte text and overflow.

@@ -2048,8 +2048,11 @@ impl MininetApp {
                                     self.request_core_status();
                                 }
                             }
-                            ServiceEventKind::ObjectPublished { .. }
-                            | ServiceEventKind::FeedChanged => {
+                            ServiceEventKind::ObjectPublished { kind, object_id } => {
+                                self.public_delivery.observe_publication(kind, object_id);
+                                self.timeline_refresh = Instant::now();
+                            }
+                            ServiceEventKind::FeedChanged => {
                                 self.timeline_refresh = Instant::now();
                             }
                         }

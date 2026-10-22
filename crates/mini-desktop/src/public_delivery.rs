@@ -3,8 +3,9 @@ use crate::app_service::{operation_id, Client};
 use did_mini::{verify_delegation, Kel};
 use eframe::egui;
 use mini_app_protocol::{
-    Command, DeliveryFailure, DeliveryPeerView, DeliveryRuntimeView, DeliveryState, DeliveryView,
-    FeedCard, FeedOrder, FeedScope, Reply, MAX_DELIVERY_KEL_BYTES, MAX_FEED_ITEMS,
+    Command, DeliveryFailure, DeliveryObjectView, DeliveryPeerView, DeliveryRuntimeView,
+    DeliveryState, DeliveryView, FeedCard, FeedOrder, FeedScope, ObjectKind, Reply,
+    MAX_DELIVERY_KEL_BYTES, MAX_FEED_ITEMS, MAX_OBJECT_ID_BYTES,
 };
 use std::{
     collections::VecDeque,
@@ -108,6 +109,7 @@ impl QueueDraft {
 struct Pending {
     receiver: Receiver<Result<Reply, String>>,
     queue: bool,
+    preview_id: Option<String>,
 }
 pub(crate) struct PublicDeliveryPanel {
     pending: Option<Pending>,
@@ -115,6 +117,8 @@ pub(crate) struct PublicDeliveryPanel {
     runtime: Option<DeliveryRuntimeView>,
     peers: Vec<DeliveryPeerView>,
     posts: Vec<FeedCard>,
+    publications: VecDeque<(ObjectKind, String)>,
+    preview: Option<DeliveryObjectView>,
     deliveries: Vec<DeliveryView>,
     error: String,
     notice: String,
@@ -140,6 +144,8 @@ impl Default for PublicDeliveryPanel {
             runtime: None,
             peers: Vec::new(),
             posts: Vec::new(),
+            publications: VecDeque::new(),
+            preview: None,
             deliveries: Vec::new(),
             error: String::new(),
             notice: String::new(),
@@ -160,6 +166,14 @@ impl Default for PublicDeliveryPanel {
     }
 }
 impl PublicDeliveryPanel {
+    pub(crate) fn observe_publication(&mut self, kind: ObjectKind, object_id: String) {
+        if kind == ObjectKind::Profile {
+            return;
+        }
+        self.publications.retain(|(_, id)| id != &object_id);
+        self.publications.push_front((kind, object_id));
+        self.publications.truncate(32);
+    }
     pub(crate) fn has_pending(&self) -> bool {
         self.pending.is_some() || !self.refresh.is_empty()
     }
@@ -181,9 +195,20 @@ impl PublicDeliveryPanel {
     }
     fn send(&mut self, client: &Client, command: Command) {
         let queue = matches!(command, Command::QueuePublicDelivery { .. });
+        let preview_id = match &command {
+            Command::PreviewPublicDelivery { object_id } => Some(object_id.clone()),
+            _ => None,
+        };
+        if preview_id.is_some() {
+            self.preview = None;
+        }
         match client.request(command) {
             Ok(receiver) => {
-                self.pending = Some(Pending { receiver, queue });
+                self.pending = Some(Pending {
+                    receiver,
+                    queue,
+                    preview_id,
+                });
                 self.error.clear();
             }
             Err(e) => {
@@ -196,7 +221,9 @@ impl PublicDeliveryPanel {
         if let Some(pending) = &self.pending {
             let result=match pending.receiver.try_recv() { Ok(result)=>Some(result),Err(TryRecvError::Empty)=>None,Err(TryRecvError::Disconnected)=>Some(Err("Application service disconnected; the operation may have completed. Retry the same delivery.".into())) };
             if let Some(result) = result {
-                let queue = self.pending.take().unwrap().queue;
+                let pending = self.pending.take().unwrap();
+                let queue = pending.queue;
+                let preview_id = pending.preview_id;
                 match result {
                     Err(e) => {
                         self.error = e;
@@ -210,6 +237,21 @@ impl PublicDeliveryPanel {
                                 "Unexpected delivery receipt; retained the exact request for retry"
                                     .into();
                             self.refresh.clear();
+                            return;
+                        }
+                        if let Some(requested) = preview_id {
+                            match reply {
+                                Reply::PublicDeliveryObject(value)
+                                    if value.object_id == requested =>
+                                {
+                                    self.preview = Some(value)
+                                }
+                                _ => {
+                                    self.error =
+                                        "Unexpected object preview; inspect again before queuing"
+                                            .into()
+                                }
+                            }
                             return;
                         }
                         match reply {
@@ -268,7 +310,7 @@ impl PublicDeliveryPanel {
     pub(crate) fn show(&mut self, ui: &mut egui::Ui, client: Option<&Client>) {
         self.poll(client);
         ui.heading("Public delivery");
-        ui.label("Send one public text post to an explicitly authorized peer. Reachable numeric TCP addresses are required; NAT/relay routing and private chat are not included.");
+        ui.label("Send one reviewed public social object to an explicitly authorized peer. Reachable numeric TCP addresses are required; NAT/relay routing and private chat are not included.");
         ui.label("Networking starts only after an owner grant and an unlocked identity. Public pairing codes contain no seeds; verify the full identities through a trusted channel.");
         if client.is_none() {
             ui.label("Application service unavailable. Restart Mininet with its packaged application service installed.");
@@ -312,17 +354,27 @@ impl PublicDeliveryPanel {
                 if ui.add_enabled(self.peers.iter().any(|p|p.enabled&&p.peer_id==self.listener_peer),egui::Button::new("Configure expected-peer listener")).clicked(){command=Some(Command::SetDeliveryListener{peer_id:self.listener_peer.clone(),endpoint:self.bind.clone()});}
                 if ui.button("Stop and remove listener configuration").clicked(){command=Some(Command::StopDeliveryListener);}
             });
-            ui.separator();ui.label("Review one public post and recipient");
+            ui.separator();ui.label("Review one public social object and recipient");
             ui.add_enabled_ui(self.draft.is_none(),|ui|{
                 peer_select(ui,"delivery-peer",&self.peers,&mut self.peer);
-                egui::ComboBox::from_id_salt("delivery-post").selected_text(if self.post.is_empty(){"Select one own public text post"}else{"Selected own public post"}).show_ui(ui,|ui|{for card in &self.posts {let summary:String=card.body.chars().take(70).collect();ui.selectable_value(&mut self.post,card.id.clone(),summary);}});
+                egui::ComboBox::from_id_salt("delivery-post").selected_text(if self.post.is_empty(){"Select a local object"}else{"Selected local object"}).show_ui(ui,|ui|{
+                    for (kind,id) in &self.publications {ui.selectable_value(&mut self.post,id.clone(),format!("Recent {kind:?}: {id}"));}
+                    for card in &self.posts {let summary:String=card.body.chars().take(70).collect();ui.selectable_value(&mut self.post,card.id.clone(),summary);}
+                });
+                ui.label("Or paste an own public object ID");
+                ui.add(egui::TextEdit::singleline(&mut self.post).char_limit(MAX_OBJECT_ID_BYTES));
+                if ui.add_enabled(!self.post.is_empty(),egui::Button::new("Inspect exact public object")).clicked(){command=Some(Command::PreviewPublicDelivery{object_id:self.post.clone()});}
             });
-            let selected=self.posts.iter().find(|p|p.id==self.post);
+            let selected=reviewed_object(self.preview.as_ref(),&self.post);
             let recipient=self.peers.iter().find(|p|p.peer_id==self.peer&&p.enabled);
-            if let Some(card)=selected {ui.group(|ui|{ui.label(&card.body);ui.small(format!("Public object {}",card.id));});}
+            if let Some(object)=selected {ui.group(|ui|{
+                ui.label(format!("Public {:?}",object.kind));ui.label(&object.summary);
+                for target in &object.targets {ui.small(format!("References {target}"));}
+                ui.small(format!("Exact public object {}",object.object_id));
+            });}else{ui.label("Inspect the selected object before queuing. Private content, profiles, media and unsupported types are refused.");}
             if let Some(peer)=recipient {ui.label(format!("Recipient: {} at {}",peer.peer_id,peer.endpoint));ui.small(&peer.root_did);}
-            if self.draft.is_some(){ui.label("A delivery request is retained for an exact retry. Its response may have been lost; retrying uses the same operation ID.");}
-            if ui.add_enabled(self.draft.is_some() || (selected.is_some()&&recipient.is_some()),egui::Button::new(if self.draft.is_some(){"Retry the same delivery request"}else{"Queue this public post to this peer"})).clicked(){
+            if let Some(draft)=&self.draft {ui.label(format!("Retained exact retry: {} to {}. The response may have been lost; retrying uses the same operation ID.",draft.object,draft.peer));}
+            if ui.add_enabled(self.draft.is_some() || (selected.is_some()&&recipient.is_some()),egui::Button::new(if self.draft.is_some(){"Retry the same delivery request"}else{"Queue this reviewed public object to this peer"})).clicked(){
                 command=Some(queue_command(&mut self.draft,self.peer.clone(),self.post.clone()));
             }
             if self.draft.is_some(){ui.checkbox(&mut self.abandon,"I understand the previous request may already exist");if ui.add_enabled(self.abandon,egui::Button::new("Start a different delivery draft")).clicked(){self.draft=None;self.abandon=false;}}
@@ -332,7 +384,7 @@ impl PublicDeliveryPanel {
                 if ui.add_enabled(self.deliveries.len()==64,egui::Button::new("Next delivery page")).clicked(){self.page_after=self.deliveries.last().map(|d|d.operation_id.clone());command=Some(Command::ListDeliveriesAfter{after_operation_id:self.page_after.clone(),limit:64});}
             });
             if let Some(after)=&self.page_after {ui.small(format!("Page after operation {after}"));}
-            ui.label("Delivered means the authenticated peer acknowledged durable storage; it is not a read receipt. Cancel cannot retract a delivered post.");
+            ui.label("Delivered means the authenticated peer acknowledged durable storage; it is not a read receipt. Cancel cannot retract a delivered object.");
             if let Some(recent)=&self.recent {ui.label("Most recent requested delivery");ui.push_id("recent-delivery",|ui|{if let Some(action)=delivery_row(ui,recent){command=Some(action);}});}
             for delivery in &self.deliveries {if let Some(action)=delivery_row(ui,delivery){command=Some(action);}}
         });
@@ -364,6 +416,12 @@ fn refresh_commands() -> VecDeque<Command> {
             limit: 64,
         },
     ])
+}
+fn reviewed_object<'a>(
+    preview: Option<&'a DeliveryObjectView>,
+    selected_id: &str,
+) -> Option<&'a DeliveryObjectView> {
+    preview.filter(|view| view.object_id == selected_id)
 }
 fn queue_command(draft: &mut Option<QueueDraft>, peer: String, object: String) -> Command {
     draft
@@ -462,6 +520,56 @@ mod tests {
         assert!(parse_pair("MININET-DELIVERY-PAIR1:ff:00").is_err());
         root.revoke_device(&device.did()).unwrap();
         assert!(pair_code(&root.kel().to_bytes(), &device.kel().to_bytes()).is_err());
+    }
+    #[test]
+    fn preview_reply_must_match_the_requested_object_and_never_queues_it() {
+        for (returned, accepted) in [("requested", true), ("different", false)] {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut panel = PublicDeliveryPanel {
+                pending: Some(Pending {
+                    receiver,
+                    queue: false,
+                    preview_id: Some("requested".into()),
+                }),
+                ..Default::default()
+            };
+            sender
+                .send(Ok(Reply::PublicDeliveryObject(DeliveryObjectView {
+                    object_id: returned.into(),
+                    kind: ObjectKind::Comment,
+                    summary: "public reply".into(),
+                    targets: vec!["parent".into()],
+                })))
+                .unwrap();
+            panel.poll(None);
+            assert_eq!(panel.preview.is_some(), accepted);
+            assert_eq!(panel.error.is_empty(), accepted);
+            assert!(panel.draft.is_none());
+            assert!(panel.pending.is_none());
+            assert!(panel.refresh.is_empty());
+        }
+    }
+    #[test]
+    fn reviewed_preview_cannot_authorize_a_different_selection_and_recent_list_is_bounded() {
+        let preview = DeliveryObjectView {
+            object_id: "reviewed".into(),
+            kind: ObjectKind::Comment,
+            summary: "public reply".into(),
+            targets: vec!["parent".into()],
+        };
+        assert!(reviewed_object(Some(&preview), "reviewed").is_some());
+        assert!(reviewed_object(Some(&preview), "different").is_none());
+        assert!(reviewed_object(None, "reviewed").is_none());
+        let mut panel = PublicDeliveryPanel::default();
+        panel.observe_publication(ObjectKind::Profile, "profile".into());
+        assert!(panel.publications.is_empty());
+        for index in 0..40 {
+            panel.observe_publication(ObjectKind::Comment, format!("comment-{index}"));
+        }
+        assert_eq!(panel.publications.len(), 32);
+        panel.observe_publication(ObjectKind::Comment, "comment-39".into());
+        assert_eq!(panel.publications.len(), 32);
+        assert_eq!(panel.publications.front().unwrap().1, "comment-39");
     }
     #[test]
     fn uncertain_queue_retry_preserves_exact_operation_and_selection() {
