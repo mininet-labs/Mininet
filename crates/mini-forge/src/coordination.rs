@@ -1549,7 +1549,7 @@ pub fn campaign_snapshot<B: Backend>(
     }
     let campaign = parse_campaign(&object).ok_or(ForgeError::BadObject)?;
     let mut findings = Vec::new();
-    for key in store.by_type(&ObjectType::Custom(FINDING_TYPE.into()))? {
+    for key in store.linking_to(id)? {
         let Ok(object) = store.get(&key) else {
             continue;
         };
@@ -1566,7 +1566,13 @@ pub fn campaign_snapshot<B: Backend>(
     findings.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
     let ids: std::collections::BTreeSet<_> = findings.iter().map(|f| f.id.as_str()).collect();
     let mut dispositions = Vec::new();
-    for key in store.by_type(&ObjectType::Custom(DISPOSITION_TYPE.into()))? {
+    let mut responses = std::collections::BTreeMap::new();
+    for finding in &findings {
+        for key in store.linking_to(&finding.id)? {
+            responses.insert(key.as_str().to_owned(), key);
+        }
+    }
+    for key in responses.into_values() {
         let Ok(object) = store.get(&key) else {
             continue;
         };
