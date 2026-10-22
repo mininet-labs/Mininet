@@ -2951,6 +2951,9 @@ dependencies = [
 [[package]]
 name = "mini-durable"
 version = "0.0.1"
+dependencies = [
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "mini-econ-sim"
