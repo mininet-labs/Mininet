@@ -1,7 +1,8 @@
 //! Stdio host for the per-user Mininet application core.
 //!
 //! The desktop starts this process explicitly. It never starts network
-//! sessions, crawling, relays, wallet work, Forge work, or updates.
+//! sessions without an owner networking grant and unlocked identity. It never
+//! starts crawling, relays, wallet work, Forge work, or updates.
 
 #![cfg_attr(windows, windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
@@ -25,24 +26,59 @@ fn data_root() -> PathBuf {
 
 fn run_stdio() -> Result<(), String> {
     let mut core = Core::open(data_root()).map_err(|error| error.message)?;
-    let stdin = io::stdin();
+    // Input decoding has one bounded handoff slot. The authority thread owns
+    // identity and storage and performs bounded idle scheduling; no key is
+    // copied into a renderer or independent networking worker.
+    let (requests, receiver) = std::sync::mpsc::sync_channel(1);
+    std::thread::spawn(move || {
+        let stdin = io::stdin();
+        let mut reader = BufReader::new(stdin.lock());
+        loop {
+            let next = read_request(&mut reader);
+            let finished = !matches!(&next, Ok(Some(_)));
+            if requests.send(next).is_err() || finished {
+                break;
+            }
+        }
+    });
     let stdout = io::stdout();
-    let mut reader = BufReader::new(stdin.lock());
     let mut writer = BufWriter::new(stdout.lock());
-
+    let interval = std::time::Duration::from_millis(250);
+    let mut next_poll = std::time::Instant::now() + interval;
+    let mut network_error_reported = false;
     loop {
-        let request = read_request(&mut reader)
-            .map_err(|error| format!("application IPC request failed: {error}"))?
-            .ok_or_else(|| "desktop closed the application IPC stream".to_string())?;
-        let shutdown = matches!(request.command, Command::Shutdown);
-        let response = match core.handle(request.command) {
-            Ok(reply) => Response::ok(request.request_id, reply),
-            Err(error) => Response::error(request.request_id, error),
-        };
-        write_response(&mut writer, &response)
-            .map_err(|error| format!("application IPC response failed: {error}"))?;
-        if shutdown {
-            return Ok(());
+        let wait = next_poll.saturating_duration_since(std::time::Instant::now());
+        match receiver.recv_timeout(wait) {
+            Ok(Ok(Some(request))) => {
+                let shutdown = matches!(request.command, Command::Shutdown);
+                let response = match core.handle(request.command) {
+                    Ok(reply) => Response::ok(request.request_id, reply),
+                    Err(error) => Response::error(request.request_id, error),
+                };
+                write_response(&mut writer, &response)
+                    .map_err(|error| format!("application IPC response failed: {error}"))?;
+                if shutdown {
+                    return Ok(());
+                }
+            }
+            Ok(Ok(None)) => return Ok(()),
+            Ok(Err(error)) => return Err(format!("application IPC request failed: {error}")),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (),
+        }
+        if std::time::Instant::now() >= next_poll {
+            match core.poll_delivery() {
+                Ok(()) => network_error_reported = false,
+                Err(_) if !network_error_reported => {
+                    // No endpoints, post bodies, keys or raw peer errors in logs.
+                    eprintln!(
+                        "public delivery is temporarily unavailable; inspect delivery status"
+                    );
+                    network_error_reported = true;
+                }
+                Err(_) => (),
+            }
+            next_poll = std::time::Instant::now() + interval;
         }
     }
 }
