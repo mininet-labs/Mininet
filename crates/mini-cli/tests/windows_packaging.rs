@@ -26,6 +26,7 @@ fn source_tree(base: &Path, desktop: &[u8]) -> PathBuf {
     let source = base.join("src");
     std::fs::create_dir_all(source.join("docs")).unwrap();
     std::fs::write(source.join("mininet-desktop.exe"), desktop).unwrap();
+    std::fs::write(source.join("mininet-app-service.exe"), b"core\n").unwrap();
     std::fs::write(source.join("mini.exe"), b"cli\n").unwrap();
     // Uninstall registration requires the package to carry its own setup
     // executable (or an explicit `options.setup_exe`), matching what the

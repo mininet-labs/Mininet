@@ -276,6 +276,8 @@ mod tests {
             },
             vec![
                 mini_windows_setup::PackageFile::describe("mininet-desktop.exe", b"a").unwrap(),
+                mini_windows_setup::PackageFile::describe("mininet-app-service.exe", b"core")
+                    .unwrap(),
                 mini_windows_setup::PackageFile::describe("mini.exe", b"bb").unwrap(),
             ],
             vec![],
@@ -419,6 +421,8 @@ mod tests {
             },
             vec![
                 mini_windows_setup::PackageFile::describe("mininet-desktop.exe", b"a").unwrap(),
+                mini_windows_setup::PackageFile::describe("mininet-app-service.exe", b"core")
+                    .unwrap(),
                 mini_windows_setup::PackageFile::describe("mini.exe", b"bb").unwrap(),
             ],
             vec![
