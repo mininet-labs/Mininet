@@ -445,7 +445,7 @@ impl Workspace {
             return Err(e);
         }
         for (applied, (temp, dest, _)) in staged.iter().enumerate() {
-            if let Err(e) = fs::rename(temp, dest) {
+            if let Err(e) = mini_durable::publish_staged_file(temp, dest) {
                 let mut rollback_failed = false;
                 for (_, old_dest, original) in staged[..applied].iter().rev() {
                     let restored = match original {
