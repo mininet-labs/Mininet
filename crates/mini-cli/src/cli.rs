@@ -50,7 +50,9 @@ fn default_home() -> PathBuf {
 }
 
 fn dirs_home() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
 }
 
 /// Run one CLI invocation. `raw_args` is everything after the program
