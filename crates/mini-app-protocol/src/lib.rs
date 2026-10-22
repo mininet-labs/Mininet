@@ -18,6 +18,8 @@ pub const MAX_FRAME_BYTES: usize = 1024 * 1024;
 pub const MAX_OPERATION_ID_BYTES: usize = 96;
 pub const MAX_POST_BYTES: usize = 16 * 1024;
 pub const MAX_COMMENT_BYTES: usize = 16 * 1024;
+pub const MAX_COMMUNITY_NAME_BYTES: usize = 96;
+pub const MAX_COMMUNITY_CHARTER_BYTES: usize = 4096;
 pub const MAX_PROFILE_NAME_BYTES: usize = 64;
 pub const MAX_PROFILE_BIO_BYTES: usize = 1024;
 pub const MAX_FEED_ITEMS: u16 = 50;
@@ -57,6 +59,7 @@ pub enum ObjectKind {
     Reaction,
     Comment,
     Membership,
+    Community,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -205,6 +208,19 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::PublishCommunity {
+                operation_id,
+                name,
+                charter,
+            } => {
+                validate_operation_id(operation_id)?;
+                if name.len() > MAX_COMMUNITY_NAME_BYTES
+                    || name.trim().is_empty()
+                    || charter.len() > MAX_COMMUNITY_CHARTER_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("community name or charter"));
+                }
+            }
             Command::SetMembership {
                 operation_id,
                 community_id,
@@ -338,6 +354,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishCommunity {
+        operation_id: String,
+        name: String,
+        charter: String,
+    },
     SetMembership {
         operation_id: String,
         community_id: String,
@@ -647,6 +668,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::PublishCommunity {
+            operation_id,
+            name,
+            charter,
+        } => {
+            encoder.u8(28);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(name, MAX_COMMUNITY_NAME_BYTES)?;
+            encoder.string(charter, MAX_COMMUNITY_CHARTER_BYTES)?;
+        }
         Command::SetMembership {
             operation_id,
             community_id,
@@ -801,6 +832,11 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        28 => Ok(Command::PublishCommunity {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            name: decoder.string(MAX_COMMUNITY_NAME_BYTES)?,
+            charter: decoder.string(MAX_COMMUNITY_CHARTER_BYTES)?,
+        }),
         27 => Ok(Command::SetMembership {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             community_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
@@ -1196,6 +1232,7 @@ fn encode_published(
         ObjectKind::Reaction => 3,
         ObjectKind::Comment => 4,
         ObjectKind::Membership => 5,
+        ObjectKind::Community => 6,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1210,6 +1247,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
         3 => ObjectKind::Reaction,
         4 => ObjectKind::Comment,
         5 => ObjectKind::Membership,
+        6 => ObjectKind::Community,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1243,6 +1281,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
                 ObjectKind::Reaction => 3,
                 ObjectKind::Comment => 4,
                 ObjectKind::Membership => 5,
+                ObjectKind::Community => 6,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1272,6 +1311,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
                 3 => ObjectKind::Reaction,
                 4 => ObjectKind::Comment,
                 5 => ObjectKind::Membership,
+                6 => ObjectKind::Community,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -2046,6 +2086,75 @@ mod membership_protocol_tests {
                     operation_id,
                     community_id,
                     joined: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod community_protocol_tests {
+    use super::*;
+    #[test]
+    fn community_commands_publications_events_round_trip_and_name_charter_bounds_reject() {
+        let request = Request::new(
+            23,
+            Command::PublishCommunity {
+                operation_id: "community:1".into(),
+                name: "Community".into(),
+                charter: "Charter".into(),
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Community,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 5,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Community,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(23, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, name, charter) in [
+            ("../bad".into(), "Name".into(), String::new()),
+            ("valid".into(), " \n".into(), String::new()),
+            (
+                "valid".into(),
+                "x".repeat(MAX_COMMUNITY_NAME_BYTES + 1),
+                String::new(),
+            ),
+            (
+                "valid".into(),
+                "Name".into(),
+                "x".repeat(MAX_COMMUNITY_CHARTER_BYTES + 1),
+            ),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishCommunity {
+                    operation_id,
+                    name,
+                    charter
                 }
             )
             .validate()
