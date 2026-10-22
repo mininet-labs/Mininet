@@ -232,8 +232,7 @@ impl PeerBook {
         }
         // Validate all committed records before deleting only recognized local temps.
         for path in orphans {
-            fs::remove_file(&path).map_err(io)?;
-            mini_durable::sync_parent(&path).map_err(io)?;
+            mini_durable::remove_file(&path).map_err(io)?;
         }
         peers.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(peers)
