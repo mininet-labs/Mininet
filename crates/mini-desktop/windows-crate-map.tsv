@@ -89,3 +89,4 @@ mini-storage-fraud	none	node-service	Storage and Earnings	W2	Needs multi-holder 
 mini-shielded-verify	none	node-service	Node and Wallet	W6	Verify against canonical ledger view; running-chain gate applies
 mini-mesh	none	node-service	Connections	W2	Multi-peer dedup flooding requires real linked-peer tests and bounded resource policy
 mini-safety	none	core-service	Safety	W1	Viewer-local block/mute state only; never removes content from the network or denies access; community lists are explicit one-time import, never auto-subscribe
+mini-resident	direct	core-service	Resident AI	W3	Owner-granted context and reviewed patches; local model configuration and explicit consequential-action consent required
