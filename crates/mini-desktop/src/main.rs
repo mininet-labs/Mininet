@@ -18,6 +18,7 @@ mod netsearch;
 mod network_session;
 mod peer_link;
 mod player;
+mod public_delivery;
 mod theme;
 mod timeline;
 mod video;
@@ -163,6 +164,7 @@ impl Default for PrivacyState {
 struct MininetApp {
     workspace: Option<Workspace>,
     app_service: Option<app_service::Client>,
+    public_delivery: public_delivery::PublicDeliveryPanel,
     app_status: Option<AccountStatus>,
     app_status_rx: Option<Receiver<Result<AppReply, String>>>,
     app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
@@ -1625,6 +1627,7 @@ impl Default for MininetApp {
         Self {
             workspace,
             app_service,
+            public_delivery: public_delivery::PublicDeliveryPanel::default(),
             app_status: None,
             app_status_rx,
             app_action: None,
@@ -1838,6 +1841,7 @@ impl eframe::App for MininetApp {
             || self.app_status_rx.is_some()
             || self.app_action.is_some()
             || self.app_events_rx.is_some()
+            || (self.view == View::Connections && self.public_delivery.has_pending())
         {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
@@ -2070,8 +2074,8 @@ impl MininetApp {
                         }
                         self.app_last_event_id = Some(event.event_id);
                         match event.kind {
-                            ServiceEventKind::DeliveryChanged(_) => {
-                                // Durable status is fetched explicitly; this event carries no source bytes.
+                            ServiceEventKind::DeliveryChanged(delivery) => {
+                                self.public_delivery.observe_delivery(delivery)
                             }
                             ServiceEventKind::RootCreated { .. } => self.request_core_status(),
                             ServiceEventKind::IdentityChanged { unlocked } => {
@@ -4783,6 +4787,15 @@ No tracking. No forced updates.",
     }
 
     fn connections(&mut self, ui: &mut egui::Ui) {
+        theme::card_frame().show(ui, |ui| {
+            egui::CollapsingHeader::new("Reliable public delivery")
+                .default_open(false)
+                .show(ui, |ui| {
+                    self.public_delivery.show(ui, self.app_service.as_ref())
+                });
+        });
+        ui.add_space(12.0);
+
         let now = Instant::now();
         let own_did = self
             .workspace
