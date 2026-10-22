@@ -694,16 +694,44 @@ pub fn set_follow<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let object = build_follow(follower, device, target, follow, timestamp_ms, sequence)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build the exact public FOLLOW object without mutating a store.
+pub fn build_follow(
+    follower: &Did,
+    device: &Controller,
+    target: &Did,
+    follow: bool,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     let mut payload = Vec::new();
     payload.push(u8::from(follow));
     put_str(&mut payload, target.as_str());
-    let obj = ObjectBuilder::new(ObjectType::FOLLOW)
+    ObjectBuilder::new(ObjectType::FOLLOW)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .payload(Payload::Public(payload))
-        .sign(follower, device)?;
-    store.insert(&obj)?;
-    Ok(obj)
+        .sign(follower, device)
+        .map_err(Into::into)
+}
+
+/// Decode a canonical plain FOLLOW edge. Signature/provenance verification is
+/// the caller's responsibility, as with other social decoders.
+pub fn decode_follow(object: &Object) -> Result<(bool, Did)> {
+    if !object.links.is_empty() {
+        return Err(SocialError::BadInteraction);
+    }
+    let (following, target) = follow_edge(object).ok_or(SocialError::BadInteraction)?;
+    let mut canonical = vec![u8::from(following)];
+    put_str(&mut canonical, target.as_str());
+    if !matches!(&object.payload, Payload::Public(bytes) if bytes == &canonical) {
+        return Err(SocialError::BadInteraction);
+    }
+    Ok((following, target))
 }
 
 fn follow_edge(obj: &Object) -> Option<(bool, Did)> {
@@ -1118,4 +1146,43 @@ pub(crate) fn get_str(b: &[u8], pos: &mut usize) -> Option<String> {
     let s = String::from_utf8(b[*pos..*pos + len].to_vec()).ok()?;
     *pos += len;
     Some(s)
+}
+
+#[cfg(test)]
+mod follow_builder_tests {
+    use super::*;
+    #[test]
+    fn follow_builder_preserves_legacy_wire_and_rejects_noncanonical_edges() {
+        let mut root = Controller::incept_single_from_seeds(&[1; 32], &[2; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[3; 32], &[4; 32]).unwrap();
+        root.delegate_device(&device.did(), did_mini::Capabilities::primary())
+            .unwrap();
+        let target = Controller::incept_single_from_seeds(&[5; 32], &[6; 32])
+            .unwrap()
+            .did();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for follow in [true, false] {
+            let built = build_follow(&root.did(), &device, &target, follow, 7, 8).unwrap();
+            let inserted =
+                set_follow(&mut store, &root.did(), &device, &target, follow, 7, 8).unwrap();
+            let mut payload = vec![u8::from(follow)];
+            put_str(&mut payload, target.as_str());
+            let legacy = ObjectBuilder::new(ObjectType::FOLLOW)
+                .timestamp_ms(7)
+                .sequence(8)
+                .payload(Payload::Public(payload.clone()))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(built.to_bytes(), inserted.to_bytes());
+            assert_eq!(decode_follow(&built).unwrap(), (follow, target.clone()));
+            payload.push(0);
+            let malformed = ObjectBuilder::new(ObjectType::FOLLOW)
+                .payload(Payload::Public(payload))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_follow(&malformed).is_err());
+        }
+    }
 }

@@ -24,7 +24,7 @@ pub const MAX_EVENTS_PER_RESPONSE: u16 = 64;
 pub const MAX_DELIVERIES_PER_RESPONSE: u16 = 64;
 pub const MAX_DELIVERY_KEL_BYTES: usize = 16 * 1024;
 pub const MAX_DELIVERY_PEERS: u16 = 64;
-const MAX_DID_BYTES: usize = 256;
+pub const MAX_DID_BYTES: usize = 256;
 const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
 const MAX_FEED_BODY_BYTES: usize = MAX_POST_BYTES;
@@ -52,6 +52,7 @@ pub enum FeedReason {
 pub enum ObjectKind {
     Profile,
     Post,
+    Follow,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,6 +201,16 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::SetFollow {
+                operation_id,
+                target_did,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                if target_did.is_empty() || target_did.len() > MAX_DID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("follow target DID"));
+                }
+            }
             Command::PublishPost { operation_id, text } => {
                 validate_operation_id(operation_id)?;
                 if text.is_empty() || text.len() > MAX_POST_BYTES {
@@ -290,6 +301,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    SetFollow {
+        operation_id: String,
+        target_did: String,
+        following: bool,
+    },
     Status,
     CreateRoot,
     UnlockIdentity,
@@ -579,6 +595,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::SetFollow {
+            operation_id,
+            target_did,
+            following,
+        } => {
+            encoder.u8(24);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(target_did, MAX_DID_BYTES)?;
+            encoder.u8(u8::from(*following));
+        }
         Command::PublishPost { operation_id, text } => {
             encoder.u8(7);
             encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
@@ -693,6 +719,15 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        24 => Ok(Command::SetFollow {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            target_did: decoder.string(MAX_DID_BYTES)?,
+            following: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid follow action".into())),
+            },
+        }),
         7 => Ok(Command::PublishPost {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             text: decoder.string(MAX_POST_BYTES)?,
@@ -1052,6 +1087,7 @@ fn encode_published(
     encoder.u8(match published.kind {
         ObjectKind::Profile => 0,
         ObjectKind::Post => 1,
+        ObjectKind::Follow => 2,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1062,6 +1098,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
     let kind = match decoder.u8()? {
         0 => ObjectKind::Profile,
         1 => ObjectKind::Post,
+        2 => ObjectKind::Follow,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1091,6 +1128,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
             encoder.u8(match kind {
                 ObjectKind::Profile => 0,
                 ObjectKind::Post => 1,
+                ObjectKind::Follow => 2,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1116,6 +1154,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
             let kind = match decoder.u8()? {
                 0 => ObjectKind::Profile,
                 1 => ObjectKind::Post,
+                2 => ObjectKind::Follow,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -1634,5 +1673,67 @@ mod tests {
     #[test]
     fn clean_eof_is_not_a_protocol_failure() {
         assert!(read_request(&mut &[][..]).unwrap().is_none());
+    }
+}
+
+#[cfg(test)]
+mod follow_protocol_tests {
+    use super::*;
+    #[test]
+    fn follow_command_and_published_events_round_trip_with_bounded_fields() {
+        for following in [true, false] {
+            let request = Request::new(
+                19,
+                Command::SetFollow {
+                    operation_id: "follow:1".into(),
+                    target_did: "did:mini:public-target".into(),
+                    following,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Follow,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 1,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Follow,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(19, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, target_did) in [
+            ("../invalid".into(), "did".into()),
+            ("valid".into(), String::new()),
+            ("valid".into(), "x".repeat(MAX_DID_BYTES + 1)),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::SetFollow {
+                    operation_id,
+                    target_did,
+                    following: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
     }
 }
