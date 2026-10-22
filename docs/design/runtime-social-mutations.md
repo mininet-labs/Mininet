@@ -38,7 +38,7 @@ follow receipts require the updated service. An older service cannot interpret
 those new records and must not delete them to force a downgrade.
 
 This migration does not make follows private messages, provide private FOLLOW delivery, authenticate the legacy nearby sync path, or remove every
-legacy renderer signer. Profile details, media and other
+legacy renderer signer. Media and other
 mutations still need their own service migrations. The shared runtime and beta
 acceptance register remains in [integrated beta delivery](../planning/integrated-beta-delivery.md).
 
@@ -62,7 +62,7 @@ The shared reaction builder preserves the legacy wire format and other kinds for
 existing library callers. The core command does not expose Save/bookmark markers:
 the legacy Save reaction encoding is public and cannot provide private bookmarks.
 Renderer Like paths no longer load/unlock keys or allocate sequences.
-Profile details, media and other mutations remain separate migrations.
+Media and other mutations remain separate migrations.
 
 ## Comments and community topics
 
@@ -134,3 +134,28 @@ The corrected decoder accepts its exact length-prefixed UTF-8 bytes, without
 raising other profile/community string limits. Existing valid pending large
 comments can therefore recover without changing their signatures or operation IDs.
 Boundary checks cover 4096/4097 bytes, the full limit, multibyte text and overflow.
+
+## Extended public profile edits
+
+`PublishProfileDetails { operation_id, draft }` publishes the v2 public profile
+and its HEAD through the service. The owned draft includes name, bio, optional
+existing avatar ID, optional location/age and ordered custom fields. Only enabled
+optional fields leave the editor. Blank enabled location and zero age are refused;
+empty option strings are not silently normalized. All limits match the existing
+v2 wire format. An avatar must name an existing public image media manifest.
+
+The service validates inputs before sequence reservation and persists both exact
+signed objects before insertion. Recovery checks canonical bytes, every public
+field and order, and matching profile/HEAD author, device, timestamp, sequence,
+head label and target before either object is inserted. Matching receipts work
+while locked and after the avatar cache is removed. New edits require explicit
+unlock; desktop profile editing and delegated-device upgrade no longer silently
+unlock renderer keys.
+
+Editor snapshots and public intent are separate: private disabled field text is
+never sent in the public draft. Exact public intent retains its operation ID
+across uncertain replies. A delayed success preserves edits made while pending
+and clears photo/removal inputs only for an unchanged original snapshot. Existing
+avatars can be retained or removed. New-photo preparation/import is the next
+stacked slice; a selected path is never silently ignored or signed by a renderer
+fallback. Updated journal tags require the updated service.

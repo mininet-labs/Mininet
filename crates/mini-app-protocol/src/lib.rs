@@ -30,8 +30,53 @@ pub const MAX_DELIVERY_PEERS: u16 = 64;
 pub const MAX_DID_BYTES: usize = 256;
 pub const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
+pub const MAX_LOCATION_BYTES: usize = 128;
+pub const MAX_PROFILE_FIELDS: usize = 16;
+pub const MAX_PROFILE_FIELD_LABEL_BYTES: usize = 32;
+pub const MAX_PROFILE_FIELD_VALUE_BYTES: usize = 256;
 const MAX_FEED_BODY_BYTES: usize = MAX_POST_BYTES;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileField {
+    pub label: String,
+    pub value: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicProfileDetails {
+    pub display_name: String,
+    pub bio: String,
+    pub avatar: Option<String>,
+    pub location: Option<String>,
+    pub age: Option<u8>,
+    pub fields: Vec<ProfileField>,
+}
+impl PublicProfileDetails {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self.display_name.len() > MAX_PROFILE_NAME_BYTES
+            || self.display_name.trim().is_empty()
+            || self.bio.len() > MAX_PROFILE_BIO_BYTES
+            || self
+                .avatar
+                .as_ref()
+                .is_some_and(|id| id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES)
+            || self
+                .location
+                .as_ref()
+                .is_some_and(|value| value.is_empty() || value.len() > MAX_LOCATION_BYTES)
+            || self.age == Some(0)
+            || self.fields.len() > MAX_PROFILE_FIELDS
+            || self.fields.iter().any(|field| {
+                field.label.is_empty()
+                    || field.label.len() > MAX_PROFILE_FIELD_LABEL_BYTES
+                    || field.value.is_empty()
+                    || field.value.len() > MAX_PROFILE_FIELD_VALUE_BYTES
+            })
+        {
+            return Err(ProtocolError::LimitExceeded("public profile details"));
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FeedOrder {
     Chronological,
@@ -217,6 +262,13 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::PublishProfileDetails {
+                operation_id,
+                draft,
+            } => {
+                validate_operation_id(operation_id)?;
+                draft.validate()?;
+            }
             Command::PreviewPublicDelivery { object_id } => {
                 if object_id.is_empty() || object_id.len() > MAX_OBJECT_ID_BYTES {
                     return Err(ProtocolError::LimitExceeded("delivery preview object ID"));
@@ -368,6 +420,10 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishProfileDetails {
+        operation_id: String,
+        draft: PublicProfileDetails,
+    },
     PreviewPublicDelivery {
         object_id: String,
     },
@@ -653,6 +709,60 @@ pub fn read_response<R: Read>(reader: &mut R) -> Result<Option<Response>, Protoc
     }))
 }
 
+fn encode_profile_details(
+    encoder: &mut Encoder,
+    draft: &PublicProfileDetails,
+) -> Result<(), ProtocolError> {
+    draft.validate()?;
+    encoder.string(&draft.display_name, MAX_PROFILE_NAME_BYTES)?;
+    encoder.string(&draft.bio, MAX_PROFILE_BIO_BYTES)?;
+    encoder.option_string(draft.avatar.as_deref(), MAX_OBJECT_ID_BYTES)?;
+    encoder.option_string(draft.location.as_deref(), MAX_LOCATION_BYTES)?;
+    encoder.bool(draft.age.is_some());
+    if let Some(age) = draft.age {
+        encoder.u8(age);
+    }
+    encoder.u8(draft.fields.len() as u8);
+    for field in &draft.fields {
+        encoder.string(&field.label, MAX_PROFILE_FIELD_LABEL_BYTES)?;
+        encoder.string(&field.value, MAX_PROFILE_FIELD_VALUE_BYTES)?;
+    }
+    Ok(())
+}
+fn decode_profile_details(
+    decoder: &mut Decoder<'_>,
+) -> Result<PublicProfileDetails, ProtocolError> {
+    let display_name = decoder.string(MAX_PROFILE_NAME_BYTES)?;
+    let bio = decoder.string(MAX_PROFILE_BIO_BYTES)?;
+    let avatar = decoder.option_string(MAX_OBJECT_ID_BYTES)?;
+    let location = decoder.option_string(MAX_LOCATION_BYTES)?;
+    let age = if decoder.bool()? {
+        Some(decoder.u8()?)
+    } else {
+        None
+    };
+    let count = decoder.u8()? as usize;
+    if count > MAX_PROFILE_FIELDS {
+        return Err(ProtocolError::LimitExceeded("public profile field count"));
+    }
+    let mut fields = Vec::with_capacity(count);
+    for _ in 0..count {
+        fields.push(ProfileField {
+            label: decoder.string(MAX_PROFILE_FIELD_LABEL_BYTES)?,
+            value: decoder.string(MAX_PROFILE_FIELD_VALUE_BYTES)?,
+        });
+    }
+    let draft = PublicProfileDetails {
+        display_name,
+        bio,
+        avatar,
+        location,
+        age,
+        fields,
+    };
+    draft.validate()?;
+    Ok(draft)
+}
 fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), ProtocolError> {
     match command {
         Command::Status => encoder.u8(0),
@@ -685,6 +795,14 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
                 FeedScope::Everyone => 1,
             });
             encoder.u16(*limit);
+        }
+        Command::PublishProfileDetails {
+            operation_id,
+            draft,
+        } => {
+            encoder.u8(30);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encode_profile_details(encoder, draft)?;
         }
         Command::PreviewPublicDelivery { object_id } => {
             encoder.u8(29);
@@ -854,6 +972,10 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        30 => Ok(Command::PublishProfileDetails {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            draft: decode_profile_details(decoder)?,
+        }),
         29 => Ok(Command::PreviewPublicDelivery {
             object_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
         }),
@@ -2306,5 +2428,129 @@ mod public_delivery_preview_tests {
         )
         .validate()
         .is_err());
+    }
+}
+
+#[cfg(test)]
+mod profile_details_protocol_tests {
+    use super::*;
+    fn draft() -> PublicProfileDetails {
+        PublicProfileDetails {
+            display_name: "Alice".into(),
+            bio: "About".into(),
+            avatar: Some("avatar".into()),
+            location: Some("Chosen city".into()),
+            age: Some(25),
+            fields: vec![
+                ProfileField {
+                    label: "First".into(),
+                    value: "One".into(),
+                },
+                ProfileField {
+                    label: "Second".into(),
+                    value: "Two".into(),
+                },
+            ],
+        }
+    }
+    #[test]
+    fn profile_details_options_and_order_round_trip_and_every_field_limit_is_checked() {
+        for details in [
+            draft(),
+            PublicProfileDetails {
+                avatar: None,
+                location: None,
+                age: None,
+                fields: Vec::new(),
+                ..draft()
+            },
+        ] {
+            let request = Request::new(
+                25,
+                Command::PublishProfileDetails {
+                    operation_id: "details:1".into(),
+                    draft: details,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        let base = draft();
+        let invalid = vec![
+            PublicProfileDetails {
+                display_name: "x".repeat(MAX_PROFILE_NAME_BYTES + 1),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                display_name: String::new(),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                bio: "x".repeat(MAX_PROFILE_BIO_BYTES + 1),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                avatar: Some("x".repeat(MAX_OBJECT_ID_BYTES + 1)),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                avatar: Some(String::new()),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                location: Some("x".repeat(MAX_LOCATION_BYTES + 1)),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                location: Some(String::new()),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                age: Some(0),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![base.fields[0].clone(); MAX_PROFILE_FIELDS + 1],
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![ProfileField {
+                    label: "x".repeat(MAX_PROFILE_FIELD_LABEL_BYTES + 1),
+                    value: "v".into(),
+                }],
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![ProfileField {
+                    label: "label".into(),
+                    value: "x".repeat(MAX_PROFILE_FIELD_VALUE_BYTES + 1),
+                }],
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![ProfileField {
+                    label: String::new(),
+                    value: "v".into(),
+                }],
+                ..base
+            },
+        ];
+        for draft in invalid {
+            assert!(write_request(
+                &mut Vec::new(),
+                &Request::new(
+                    25,
+                    Command::PublishProfileDetails {
+                        operation_id: "details:1".into(),
+                        draft
+                    }
+                )
+            )
+            .is_err());
+        }
     }
 }

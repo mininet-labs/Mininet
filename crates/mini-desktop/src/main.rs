@@ -18,6 +18,7 @@ mod netsearch;
 mod network_session;
 mod peer_link;
 mod player;
+mod profile_editor;
 mod public_delivery;
 mod theme;
 mod timeline;
@@ -28,21 +29,20 @@ use did_mini::{Capabilities, Controller, Did};
 use eframe::egui;
 use mini_app_protocol::{
     AccountStatus, Command as AppCommand, FeedOrder as AppFeedOrder, FeedScope as AppFeedScope,
-    Reply as AppReply, ServiceEventKind,
+    PublicProfileDetails, Reply as AppReply, ServiceEventKind,
 };
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
-    community_members, followers, following, known_profiles, publish_media_post,
-    publish_profile_details, publish_wall, resolve_community, resolve_profile, FeedFilter,
-    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
-    PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    community_members, followers, following, known_profiles, publish_media_post, publish_wall,
+    resolve_community, resolve_profile, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner,
+    MembershipMode, NearbyProfile, PublicProfileField, VisibilityPolicy, MAX_PROFILE_FIELDS,
     MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 #[cfg(all(test, windows))]
-use mini_social::{publish_profile, set_follow};
+use mini_social::{publish_profile, publish_profile_details, set_follow, PublicProfileDraft};
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{kel_carrier, KelCache};
 use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
@@ -107,6 +107,10 @@ enum CoreAction {
         parent: String,
         text: String,
         draft: CommentDraft,
+    },
+    PublishProfileDetails {
+        draft: PublicProfileDetails,
+        editor: Option<profile_editor::Snapshot>,
     },
     PublishCommunity {
         name: String,
@@ -224,6 +228,7 @@ struct MininetApp {
     like_operation: Option<(String, bool, String)>,
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
+    profile_details_operation: Option<(PublicProfileDetails, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
@@ -491,6 +496,7 @@ impl Workspace {
         Ok(())
     }
 
+    #[cfg(all(test, windows))]
     #[allow(clippy::too_many_arguments)]
     fn publish_custom_profile(
         &mut self,
@@ -552,6 +558,7 @@ impl Workspace {
         Ok(avatar)
     }
 
+    #[cfg(all(test, windows))]
     #[allow(clippy::too_many_arguments)]
     fn publish_custom_profile_confirmed(
         &mut self,
@@ -604,6 +611,7 @@ impl Workspace {
             .is_some_and(|profile| profile.author_device == *human)
     }
 
+    #[cfg(all(test, windows))]
     fn upgrade_profile_for_sync(&mut self) -> Result<(), String> {
         let profile = self
             .current_profile()
@@ -1508,6 +1516,7 @@ impl Default for MininetApp {
             app_last_event_id: None,
             post_operation: None,
             profile_operation: None,
+            profile_details_operation: None,
             follow_operation: None,
             community_operation: None,
             membership_operation: None,
@@ -2115,6 +2124,34 @@ impl MininetApp {
                 self.reload_workspace();
                 self.view = View::Creator;
                 self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
+            }
+            (
+                CoreAction::PublishProfileDetails { draft, editor },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Profile => {
+                if self
+                    .profile_details_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| old == &draft)
+                {
+                    self.profile_details_operation = None;
+                }
+                let unchanged = editor
+                    .as_ref()
+                    .is_some_and(|snapshot| snapshot == &self.profile_editor_snapshot());
+                self.profile_avatar = draft
+                    .avatar
+                    .as_deref()
+                    .and_then(|id| mini_objects::ObjectId::parse(id).ok());
+                if unchanged {
+                    self.profile_photo_path.clear();
+                    self.profile_remove_photo = false;
+                }
+                self.profile_textures.clear();
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.request_core_status();
+                self.notice = "Public profile saved through the application core. Exchange with peers to share it. Newer editor changes have been preserved.".into();
             }
             (CoreAction::PublishPost { text }, Ok(AppReply::Published(_))) => {
                 if self.composer.trim() == text {
@@ -5870,13 +5907,7 @@ No tracking. No forced updates.",
                 );
                 ui.label("This account was created by an earlier desktop beta that signed directly with the human root. Peers correctly reject those objects. Re-sign the same public profile with a scoped delegated device; your DID and published details stay unchanged.");
                 if ui.button("Upgrade public profile for peer sync").clicked() {
-                    self.notice = match self.workspace.as_mut() {
-                        Some(workspace) => match workspace.upgrade_profile_for_sync() {
-                            Ok(()) => "Public profile upgraded with a delegated-device signature. Nearby verified sync is ready.".to_string(),
-                            Err(error) => format!("Could not upgrade public profile: {error}"),
-                        },
-                        None => "Local workspace unavailable.".to_string(),
-                    };
+                    self.upgrade_profile_via_core();
                 }
             });
             ui.add_space(12.0);
@@ -7844,6 +7875,66 @@ No tracking. No forced updates.",
         });
     }
 
+    fn profile_editor_snapshot(&self) -> profile_editor::Snapshot {
+        profile_editor::Snapshot {
+            name: self.profile_name.clone(),
+            bio: self.profile_bio.clone(),
+            photo_path: self.profile_photo_path.clone(),
+            avatar: self.profile_avatar.as_ref().map(|id| id.as_str().into()),
+            remove_photo: self.profile_remove_photo,
+            location: self.profile_location.clone(),
+            share_location: self.profile_share_location,
+            age: self.profile_age.clone(),
+            share_age: self.profile_share_age,
+            fields: self.profile_custom_fields.clone(),
+        }
+    }
+
+    fn publish_profile_details_via_core(
+        &mut self,
+        draft: PublicProfileDetails,
+        editor: Option<profile_editor::Snapshot>,
+    ) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before publishing a profile.".into();
+            return;
+        }
+        let operation_id = profile_editor::request_id(&mut self.profile_details_operation, &draft);
+        self.start_core_action(
+            CoreAction::PublishProfileDetails {
+                draft: draft.clone(),
+                editor,
+            },
+            AppCommand::PublishProfileDetails {
+                operation_id,
+                draft,
+            },
+        );
+    }
+
+    fn upgrade_profile_via_core(&mut self) {
+        let Some(profile) = self.workspace.as_ref().and_then(Workspace::current_profile) else {
+            self.notice = "Publish a public profile first.".into();
+            return;
+        };
+        let draft = PublicProfileDetails {
+            display_name: profile.display_name,
+            bio: profile.bio,
+            avatar: profile.avatar.map(|id| id.as_str().into()),
+            location: profile.location,
+            age: profile.age,
+            fields: profile
+                .fields
+                .into_iter()
+                .map(|field| mini_app_protocol::ProfileField {
+                    label: field.label,
+                    value: field.value,
+                })
+                .collect(),
+        };
+        self.publish_profile_details_via_core(draft, None);
+    }
+
     fn creator(&mut self, ui: &mut egui::Ui) {
         theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Your public profile").strong());
@@ -7908,71 +7999,16 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I reviewed these details and want to publish them in my signed public profile",
             );
-            if ui.button("Save signed public profile").clicked() {
-                let fields = parse_profile_fields(&self.profile_custom_fields);
-                let age = if self.profile_share_age {
-                    self.profile_age
-                        .trim()
-                        .parse::<u8>()
-                        .map(Some)
-                        .map_err(|_| "age must be a whole number from 1 to 255".to_string())
-                        .and_then(|age| {
-                            if age == Some(0) {
-                                Err("age must be a whole number from 1 to 255".to_string())
-                            } else {
-                                Ok(age)
-                            }
-                        })
+            if ui.add_enabled(self.app_action.is_none(), egui::Button::new("Save signed public profile")).clicked() {
+                if !self.signing_confirmation {
+                    self.notice = "Review the profile and confirm signing before publishing.".into();
                 } else {
-                    Ok(None)
-                };
-                let location = self.profile_location.trim();
-                let validation = fields.and_then(|fields| {
-                    if self.profile_name.trim().is_empty() {
-                        Err("A display name is required.".to_string())
-                    } else if self.profile_share_location && location.is_empty() {
-                        Err("Enter a location or turn off location sharing.".to_string())
-                    } else if location.len() > MAX_LOCATION_BYTES {
-                        Err(format!("location exceeds {MAX_LOCATION_BYTES} bytes"))
-                    } else if !self.signing_confirmation {
-                        Err("Review the profile and confirm signing before publishing.".to_string())
-                    } else {
-                        age.map(|age| (fields, age))
+                    let editor = self.profile_editor_snapshot();
+                    match editor.details(None) {
+                        Ok(draft) => self.publish_profile_details_via_core(draft, Some(editor)),
+                        Err(error) => self.notice = error,
                     }
-                });
-                self.notice = match validation {
-                    Err(error) => error,
-                    Ok((fields, age)) => {
-                        let retained_avatar = if self.profile_remove_photo {
-                            None
-                        } else {
-                            self.profile_avatar.as_ref()
-                        };
-                        if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace.publish_custom_profile_confirmed(
-                                self.profile_name.trim(),
-                                self.profile_bio.trim(),
-                                self.profile_photo_path.trim(),
-                                retained_avatar,
-                                self.profile_share_location.then_some(location),
-                                age,
-                                &fields,
-                            ) {
-                                Ok(avatar) => {
-                                    self.profile_avatar = avatar;
-                                    self.profile_photo_path.clear();
-                                    self.profile_remove_photo = false;
-                                    self.profile_textures.clear();
-                                    self.signing_confirmation = false;
-                                    "Public profile saved locally. Use People to become visible nearby or sync it to another peer.".to_string()
-                                }
-                                Err(error) => format!("Could not publish profile: {error}"),
-                            }
-                        } else {
-                            "Local workspace unavailable.".to_string()
-                        }
-                    }
-                };
+                }
             }
         });
         ui.add_space(12.0);
