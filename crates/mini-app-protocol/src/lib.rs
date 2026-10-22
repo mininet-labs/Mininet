@@ -25,7 +25,7 @@ pub const MAX_DELIVERIES_PER_RESPONSE: u16 = 64;
 pub const MAX_DELIVERY_KEL_BYTES: usize = 16 * 1024;
 pub const MAX_DELIVERY_PEERS: u16 = 64;
 pub const MAX_DID_BYTES: usize = 256;
-const MAX_OBJECT_ID_BYTES: usize = 256;
+pub const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
 const MAX_FEED_BODY_BYTES: usize = MAX_POST_BYTES;
 
@@ -53,6 +53,7 @@ pub enum ObjectKind {
     Profile,
     Post,
     Follow,
+    Reaction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,6 +202,16 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::SetLike {
+                operation_id,
+                target_id,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                if target_id.is_empty() || target_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("like target ID"));
+                }
+            }
             Command::SetFollow {
                 operation_id,
                 target_did,
@@ -301,6 +312,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    SetLike {
+        operation_id: String,
+        target_id: String,
+        active: bool,
+    },
     SetFollow {
         operation_id: String,
         target_did: String,
@@ -595,6 +611,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::SetLike {
+            operation_id,
+            target_id,
+            active,
+        } => {
+            encoder.u8(25);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(target_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(u8::from(*active));
+        }
         Command::SetFollow {
             operation_id,
             target_did,
@@ -719,6 +745,15 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        25 => Ok(Command::SetLike {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            target_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            active: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid like action".into())),
+            },
+        }),
         24 => Ok(Command::SetFollow {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             target_did: decoder.string(MAX_DID_BYTES)?,
@@ -1088,6 +1123,7 @@ fn encode_published(
         ObjectKind::Profile => 0,
         ObjectKind::Post => 1,
         ObjectKind::Follow => 2,
+        ObjectKind::Reaction => 3,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1099,6 +1135,7 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
         0 => ObjectKind::Profile,
         1 => ObjectKind::Post,
         2 => ObjectKind::Follow,
+        3 => ObjectKind::Reaction,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1129,6 +1166,7 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
                 ObjectKind::Profile => 0,
                 ObjectKind::Post => 1,
                 ObjectKind::Follow => 2,
+                ObjectKind::Reaction => 3,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1155,6 +1193,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
                 0 => ObjectKind::Profile,
                 1 => ObjectKind::Post,
                 2 => ObjectKind::Follow,
+                3 => ObjectKind::Reaction,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -1730,6 +1769,70 @@ mod follow_protocol_tests {
                     operation_id,
                     target_did,
                     following: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod like_protocol_tests {
+    use super::*;
+    #[test]
+    fn like_command_publication_and_events_round_trip_and_reject_invalid_bounds() {
+        for active in [true, false] {
+            let request = Request::new(
+                20,
+                Command::SetLike {
+                    operation_id: "like:1".into(),
+                    target_id: "public-object".into(),
+                    active,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+            *bytes.last_mut().unwrap() = 2;
+            assert!(read_request(&mut bytes.as_slice()).is_err());
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Reaction,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 2,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Reaction,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(20, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, target_id) in [
+            ("../invalid".into(), "object".into()),
+            ("valid".into(), String::new()),
+            ("valid".into(), "x".repeat(MAX_OBJECT_ID_BYTES + 1)),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::SetLike {
+                    operation_id,
+                    target_id,
+                    active: true
                 }
             )
             .validate()

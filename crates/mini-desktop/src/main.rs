@@ -37,10 +37,9 @@ use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
     community_members, followers, following, known_profiles, publish_comment, publish_community,
     publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
-    set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner,
-    MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind,
-    VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
-    MAX_PROFILE_FIELD_VALUE_BYTES,
+    set_membership, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
+    NearbyProfile, PublicProfileDraft, PublicProfileField, VisibilityPolicy, MAX_LOCATION_BYTES,
+    MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 #[cfg(all(test, windows))]
 use mini_social::{publish_profile, set_follow};
@@ -103,6 +102,10 @@ enum CoreAction {
     },
     PublishPost {
         text: String,
+    },
+    SetLike {
+        target: String,
+        active: bool,
     },
     SetFollow {
         target: String,
@@ -183,6 +186,7 @@ struct MininetApp {
     app_events_due: Instant,
     app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
+    like_operation: Option<(String, bool, String)>,
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
     view: View,
@@ -974,39 +978,6 @@ impl Workspace {
         result
     }
 
-    fn react_like(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.react_like_unlocked(target);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    fn react_like_unlocked(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        set_reaction(
-            &mut self.store,
-            &human,
-            &identity.device,
-            target,
-            ReactionKind::Like,
-            true,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
     fn export_bundle(&self, path: &str) -> Result<usize, String> {
         const MAGIC: &[u8] = b"MINIBND1";
         const MAX_OBJECTS: usize = 10_000;
@@ -1616,6 +1587,7 @@ impl Default for MininetApp {
             post_operation: None,
             profile_operation: None,
             follow_operation: None,
+            like_operation: None,
             view,
             privacy: load_privacy_settings(),
             theme_applied: false,
@@ -1780,13 +1752,22 @@ fn follow_request_id(
     target: &str,
     following: bool,
 ) -> String {
+    social_toggle_request_id(pending, "follow", target, following)
+}
+
+fn social_toggle_request_id(
+    pending: &mut Option<(String, bool, String)>,
+    kind: &str,
+    target: &str,
+    active: bool,
+) -> String {
     match pending {
-        Some((old_target, old_state, id)) if old_target == target && *old_state == following => {
+        Some((old_target, old_state, id)) if old_target == target && *old_state == active => {
             id.clone()
         }
         _ => {
-            let id = app_service::operation_id("follow");
-            *pending = Some((target.into(), following, id.clone()));
+            let id = app_service::operation_id(kind);
+            *pending = Some((target.into(), active, id.clone()));
             id
         }
     }
@@ -2218,6 +2199,26 @@ impl MininetApp {
                         );
                     }
                 }
+            }
+            (CoreAction::SetLike { target, active }, Ok(AppReply::Published(published)))
+                if published.kind == mini_app_protocol::ObjectKind::Reaction =>
+            {
+                if self
+                    .like_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &target && *old_state == active
+                    })
+                {
+                    self.like_operation = None;
+                }
+                self.reload_workspace();
+                self.notice = if active {
+                    "Like saved through the application core. Exchange with peers to share it."
+                } else {
+                    "Like removed through the application core. Exchange with peers to share it."
+                }
+                .into();
             }
             (action, Ok(reply)) => {
                 self.notice = format!(
@@ -3152,6 +3153,27 @@ No tracking. No forced updates.",
             .take(limit)
             .map(|profile| (profile.display_name, profile.human.as_str().to_owned()))
             .collect()
+    }
+
+    fn set_like_via_core(&mut self, target: &mini_objects::ObjectId, active: bool) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before reacting.".into();
+            return;
+        }
+        let target = target.as_str().to_string();
+        let operation_id =
+            social_toggle_request_id(&mut self.like_operation, "like", &target, active);
+        self.start_core_action(
+            CoreAction::SetLike {
+                target: target.clone(),
+                active,
+            },
+            AppCommand::SetLike {
+                operation_id,
+                target_id: target,
+                active,
+            },
+        );
     }
 
     fn follow_did(&mut self, did: &str, name: &str) {
@@ -4450,18 +4472,7 @@ No tracking. No forced updates.",
                             &card.support_count.to_string(),
                             theme::LIKE_PINK,
                         ) {
-                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                                match workspace.react_like(&card.id) {
-                                    Ok(()) => {
-                                        "Like signed and saved. It shares on the next exchange."
-                                            .to_string()
-                                    }
-                                    Err(error) => format!("Could not react: {error}"),
-                                }
-                            } else {
-                                "Local workspace unavailable.".to_string()
-                            };
-                            self.timeline_refresh = Instant::now();
+                            self.set_like_via_core(&card.id, true);
                         }
                         ui.add_space(10.0);
                         if card.media.is_some()
@@ -7042,14 +7053,7 @@ No tracking. No forced updates.",
         }
         ui.horizontal(|ui| {
             if theme::icon_action(ui, "♥", &card.support_count.to_string(), theme::LIKE_PINK) {
-                self.notice = match self.workspace.as_mut() {
-                    Some(workspace) => match workspace.react_like(&card.id) {
-                        Ok(()) => "Like signed and saved.".into(),
-                        Err(error) => format!("Could not react: {error}"),
-                    },
-                    None => "Local workspace unavailable.".into(),
-                };
-                self.timeline_refresh = Instant::now();
+                self.set_like_via_core(&card.id, true);
             }
             if theme::icon_action(ui, "💬", &card.comment_count.to_string(), theme::ACCENT) {
                 self.watch_target = Some(card.id.clone());
@@ -7559,16 +7563,7 @@ No tracking. No forced updates.",
             ui.vertical(|ui| {
                 ui.set_width(40.0);
                 if theme::icon_action(ui, "⬆", "", theme::ACCENT) {
-                    self.notice = match self.workspace.as_mut() {
-                        Some(workspace) => match workspace.react_like(&node.id) {
-                            Ok(()) => {
-                                self.discussion_dirty = true;
-                                "Upvote signed. It shares on the next exchange.".into()
-                            }
-                            Err(error) => format!("Could not upvote: {error}"),
-                        },
-                        None => "Local workspace unavailable.".into(),
-                    };
+                    self.set_like_via_core(&node.id, true);
                 }
                 ui.label(
                     egui::RichText::new(node.upvotes.to_string())
@@ -9392,6 +9387,25 @@ shot at dusk",
 #[cfg(test)]
 mod follow_runtime_tests {
     use super::*;
+    #[test]
+    fn uncertain_like_response_retains_target_state_and_operation_id() {
+        let mut pending = None;
+        let original = social_toggle_request_id(&mut pending, "like", "public-post", true);
+        assert_eq!(
+            social_toggle_request_id(&mut pending, "like", "public-post", true),
+            original
+        );
+        assert_ne!(
+            social_toggle_request_id(&mut pending, "like", "public-post", false),
+            original
+        );
+        let removed = pending.as_ref().unwrap().2.clone();
+        assert_ne!(
+            social_toggle_request_id(&mut pending, "like", "other-post", false),
+            removed
+        );
+    }
+
     #[test]
     fn uncertain_follow_response_reuses_only_the_exact_signed_intent() {
         let mut pending = None;

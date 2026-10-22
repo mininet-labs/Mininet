@@ -917,7 +917,7 @@ pub enum ReactionKind {
     Upvote,
     /// Forum-style negative vote.
     Downvote,
-    /// Private-to-the-user save/bookmark marker.
+    /// Legacy public save marker; this encoding does not provide private bookmarks.
     Save,
 }
 
@@ -959,14 +959,52 @@ pub fn set_reaction<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
-    let reaction = ObjectBuilder::new(ObjectType::REACTION)
+    let reaction = build_reaction(human, device, target, kind, active, timestamp_ms, sequence)?;
+    store.insert(&reaction)?;
+    Ok(reaction)
+}
+
+/// Build the legacy public reaction wire format without mutating a store.
+#[allow(clippy::too_many_arguments)]
+pub fn build_reaction(
+    human: &Did,
+    device: &Controller,
+    target: &ObjectId,
+    kind: ReactionKind,
+    active: bool,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    ObjectBuilder::new(ObjectType::REACTION)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("target", target.clone())
         .payload(Payload::Public(vec![kind.byte(), u8::from(active)]))
-        .sign(human, device)?;
-    store.insert(&reaction)?;
-    Ok(reaction)
+        .sign(human, device)
+        .map_err(Into::into)
+}
+
+/// Decode one canonical public reaction. This does not verify author provenance.
+pub fn decode_reaction(object: &Object) -> Result<(ObjectId, ReactionKind, bool)> {
+    if object.object_type != ObjectType::REACTION
+        || object.links.len() != 1
+        || object.links[0].rel != "target"
+    {
+        return Err(SocialError::BadInteraction);
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return Err(SocialError::BadInteraction);
+    };
+    if bytes.len() != 2 {
+        return Err(SocialError::BadInteraction);
+    }
+    let kind = ReactionKind::from_byte(bytes[0]).ok_or(SocialError::BadInteraction)?;
+    let active = match bytes[1] {
+        0 => false,
+        1 => true,
+        _ => return Err(SocialError::BadInteraction),
+    };
+    Ok((object.links[0].target.clone(), kind, active))
 }
 
 /// Deterministic active reaction totals for any target object.
@@ -1184,5 +1222,76 @@ mod follow_builder_tests {
                 .unwrap();
             assert!(decode_follow(&malformed).is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod reaction_builder_tests {
+    use super::*;
+    #[test]
+    fn reaction_builder_keeps_every_legacy_kind_wire_and_decoder_is_strict() {
+        let root = Controller::incept_single_from_seeds(&[21; 32], &[22; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[23; 32], &[24; 32]).unwrap();
+        let target = build_post(&root.did(), &device, "target", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for kind in [
+            ReactionKind::Like,
+            ReactionKind::Love,
+            ReactionKind::Laugh,
+            ReactionKind::Upvote,
+            ReactionKind::Downvote,
+            ReactionKind::Save,
+        ] {
+            for active in [true, false] {
+                let built =
+                    build_reaction(&root.did(), &device, &target, kind, active, 7, 8).unwrap();
+                let legacy = ObjectBuilder::new(ObjectType::REACTION)
+                    .timestamp_ms(7)
+                    .sequence(8)
+                    .link("target", target.clone())
+                    .payload(Payload::Public(vec![kind.byte(), u8::from(active)]))
+                    .sign(&root.did(), &device)
+                    .unwrap();
+                assert_eq!(built.to_bytes(), legacy.to_bytes());
+                assert_eq!(
+                    built.to_bytes(),
+                    set_reaction(
+                        &mut store,
+                        &root.did(),
+                        &device,
+                        &target,
+                        kind,
+                        active,
+                        7,
+                        8
+                    )
+                    .unwrap()
+                    .to_bytes()
+                );
+                assert_eq!(
+                    decode_reaction(&built).unwrap(),
+                    (target.clone(), kind, active)
+                );
+            }
+        }
+        for payload in [vec![1, 2], vec![1, 1, 0], vec![0, 1]] {
+            let malformed = ObjectBuilder::new(ObjectType::REACTION)
+                .link("target", target.clone())
+                .payload(Payload::Public(payload))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_reaction(&malformed).is_err());
+        }
+        let extra = ObjectBuilder::new(ObjectType::REACTION)
+            .link("target", target.clone())
+            .link("other", target)
+            .payload(Payload::Public(vec![1, 1]))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_reaction(&extra).is_err());
     }
 }
