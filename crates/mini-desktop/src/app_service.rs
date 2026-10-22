@@ -472,12 +472,19 @@ fn service_executable() -> Result<PathBuf, String> {
     let directory = current
         .parent()
         .ok_or_else(|| "Mininet executable has no parent directory".to_string())?;
-    let name = if cfg!(windows) {
-        "mininet-app-service.exe"
+    Ok(service_sibling(directory, cfg!(windows)))
+}
+
+// Native development names take precedence. --host package smoke builds retain
+// the Windows .exe names on Unix; accept only that explicit sibling fallback.
+fn service_sibling(directory: &Path, windows: bool) -> PathBuf {
+    let native = directory.join("mininet-app-service");
+    let packaged = directory.join("mininet-app-service.exe");
+    if windows || (!native.is_file() && packaged.is_file()) {
+        packaged
     } else {
-        "mininet-app-service"
-    };
-    Ok(directory.join(name))
+        native
+    }
 }
 
 pub fn operation_id(kind: &str) -> String {
@@ -499,6 +506,62 @@ pub fn operation_id(kind: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn companion_lookup_supports_host_packages_and_never_prefers_fallback_over_native() {
+        let directory = std::env::temp_dir().join(format!(
+            "mininet-companion-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        let native = directory.join("mininet-app-service");
+        let packaged = directory.join("mininet-app-service.exe");
+        assert_eq!(service_sibling(&directory, false), native);
+        assert_eq!(service_sibling(&directory, true), packaged);
+        std::fs::write(&packaged, b"host-smoke-core").unwrap();
+        assert_eq!(service_sibling(&directory, false), packaged);
+        std::fs::write(&native, b"native-core").unwrap();
+        assert_eq!(service_sibling(&directory, false), native);
+        assert_eq!(service_sibling(&directory, true), packaged);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[cfg(unix)]
+    #[test]
+    fn initially_missing_core_can_be_started_after_repair_without_mutation_replay() {
+        let directory = std::env::temp_dir().join(format!(
+            "mininet-core-repair-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        let executable = directory.join("mininet-app-service.exe");
+        assert!(Client::spawn_for(&executable).is_err());
+        let fixture =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/delayed-app-service.py");
+        std::os::unix::fs::symlink(fixture, &executable).unwrap();
+        let client = Client::spawn_for(&executable).unwrap();
+        let first = client.request(Command::Status).unwrap();
+        let second = client.request(Command::Status).unwrap();
+        assert!(matches!(
+            first.recv_timeout(Duration::from_secs(2)).unwrap().unwrap(),
+            Reply::Status(_)
+        ));
+        assert!(matches!(
+            second
+                .recv_timeout(Duration::from_secs(2))
+                .unwrap()
+                .unwrap(),
+            Reply::Status(_)
+        ));
+        drop(client);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
     fn work(command: Command, budget: &Arc<Budget>) -> (Work, Receiver<Result<Reply, String>>) {
         let permit = Permit::acquire(budget, &command).unwrap();
         let (response, receiver) = mpsc::channel();

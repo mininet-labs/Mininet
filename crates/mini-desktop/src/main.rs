@@ -93,7 +93,7 @@ enum SyncContext {
     FriendRequest { display_name: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum CoreAction {
     CreateRoot,
     UnlockIdentity,
@@ -147,6 +147,29 @@ enum CoreAction {
         name: String,
         nearby: Option<(String, Instant)>,
     },
+}
+
+impl std::fmt::Debug for CoreAction {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Error diagnostics describe the action, never editor snapshots or bytes.
+        formatter.write_str(match self {
+            Self::CreateRoot => "CreateRoot",
+            Self::UnlockIdentity => "UnlockIdentity",
+            Self::LockIdentity => "LockIdentity",
+            Self::LockAfterProfile => "LockAfterProfile",
+            Self::PublishProfile { .. } => "PublishProfile",
+            Self::PublishPost { .. } => "PublishPost",
+            Self::PublishComment { .. } => "PublishComment",
+            Self::PublishMediaPost { .. } => "PublishMediaPost",
+            Self::PublishWall { .. } => "PublishWall",
+            Self::PublishProfileWithPhoto { .. } => "PublishProfileWithPhoto",
+            Self::PublishProfileDetails { .. } => "PublishProfileDetails",
+            Self::PublishCommunity { .. } => "PublishCommunity",
+            Self::SetMembership { .. } => "SetMembership",
+            Self::SetLike { .. } => "SetLike",
+            Self::SetFollow { .. } => "SetFollow",
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1755,6 +1778,23 @@ impl eframe::App for MininetApp {
         {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
+        if self.app_service.is_none() || (self.app_status.is_none() && self.app_status_rx.is_none())
+        {
+            egui::TopBottomPanel::top("application-core-recovery").show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label("Application core is unavailable. Local drafts are preserved.");
+                    if ui
+                        .add_enabled(
+                            self.app_action.is_none(),
+                            egui::Button::new("Retry application core"),
+                        )
+                        .clicked()
+                    {
+                        self.retry_application_core();
+                    }
+                });
+            });
+        }
         if self.view == View::Onboarding {
             self.onboarding(ctx);
             return;
@@ -1875,6 +1915,28 @@ impl MininetApp {
         }
     }
 
+    fn retry_application_core(&mut self) {
+        if self.app_action.is_some() || self.app_status_rx.is_some() {
+            return;
+        }
+        if self.app_service.is_none() {
+            match app_service::Client::spawn() {
+                Ok(client) => self.app_service = Some(client),
+                Err(error) => {
+                    self.notice = format!("Application core could not start: {error}");
+                    return;
+                }
+            }
+        }
+        // Existing clients supervise their own restart; do not kill a live
+        // child, replay a mutation, recreate an identity or unlock it here.
+        self.app_status = None;
+        self.signing_confirmation = false;
+        self.app_last_event_id = None;
+        self.request_core_status();
+        self.notice = "Checking application core status. Review and unlock before signing.".into();
+    }
+
     fn request_core_status(&mut self) {
         if self.app_status_rx.is_some() {
             return;
@@ -1932,10 +1994,13 @@ impl MininetApp {
                     self.app_status = Some(status);
                 }
                 Ok(_) => {
-                    self.notice =
-                        "Application core returned an unexpected status response.".to_string();
+                    self.app_status = None;
+                    self.signing_confirmation = false;
+                    self.notice = "Application core returned an unexpected status response. Retry the core when ready.".into();
                 }
                 Err(error) => {
+                    self.app_status = None;
+                    self.signing_confirmation = false;
                     self.notice = format!("Could not read application core status: {error}");
                 }
             }
@@ -2373,13 +2438,16 @@ impl MininetApp {
                     "Comment saved through the application core. Exchange with peers to share it."
                         .into();
             }
-            (action, Ok(reply)) => {
-                self.notice = format!(
-                    "Application core returned an unexpected response for {action:?}: {reply:?}"
-                );
+            (action, Ok(_)) => {
+                self.app_status = None;
+                self.signing_confirmation = false;
+                self.notice =
+                    format!("Application core returned an unexpected response for {action:?}.");
                 self.request_core_status();
             }
             (action, Err(error)) => {
+                self.app_status = None;
+                self.signing_confirmation = false;
                 self.notice = format!("Application core {action:?} failed: {error}");
                 self.request_core_status();
             }
@@ -5456,7 +5524,7 @@ No tracking. No forced updates.",
                                         theme::WARN_AMBER,
                                         "Identity creation and signing are disabled rather than falling back to renderer-owned keys.",
                                     );
-                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then restart the client.");
+                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then use Retry application core above.");
                                 });
                             } else if let Some(status) = self.app_status.clone() {
                                 if !status.root_created {
@@ -9660,6 +9728,38 @@ shot at dusk",
 #[cfg(test)]
 mod follow_runtime_tests {
     use super::*;
+    #[test]
+    fn core_action_diagnostics_omit_private_draft_text_and_photo_bytes() {
+        let draft = PublicProfileDetails {
+            display_name: "Public".into(),
+            bio: "Bio".into(),
+            avatar: None,
+            location: None,
+            age: None,
+            fields: vec![],
+        };
+        let editor = profile_editor::Snapshot {
+            location: "private-disabled-location".into(),
+            age: "private-disabled-age".into(),
+            photo_path: "private-local-path".into(),
+            ..profile_editor::Snapshot::default()
+        };
+        let photo = CoreAction::PublishProfileWithPhoto {
+            draft: draft.clone(),
+            editor: editor.clone(),
+            photo: b"private-raw-image-data".to_vec(),
+        };
+        assert_eq!(format!("{photo:?}"), "PublishProfileWithPhoto");
+        let details = CoreAction::PublishProfileDetails {
+            draft,
+            editor: Some(editor),
+        };
+        assert_eq!(format!("{details:?}"), "PublishProfileDetails");
+        let post = CoreAction::PublishPost {
+            text: "unpublished-draft".into(),
+        };
+        assert_eq!(format!("{post:?}"), "PublishPost");
+    }
     #[test]
     fn community_retry_binds_name_and_charter_and_receipt_preserves_edited_form() {
         let mut pending = None;

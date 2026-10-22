@@ -26,6 +26,7 @@ fn source_tree(base: &Path, desktop: &[u8]) -> PathBuf {
     let source = base.join("src");
     std::fs::create_dir_all(source.join("docs")).unwrap();
     std::fs::write(source.join("mininet-desktop.exe"), desktop).unwrap();
+    std::fs::write(source.join("mininet-app-service.exe"), b"core\n").unwrap();
     std::fs::write(source.join("mini.exe"), b"cli\n").unwrap();
     // Uninstall registration requires the package to carry its own setup
     // executable (or an explicit `options.setup_exe`), matching what the
@@ -126,7 +127,10 @@ fn pack_writes_a_readable_manifest_beside_the_container() {
         .lines()
         .filter(|line| line.starts_with("file "))
         .collect();
-    assert_eq!(file_lines.len(), 4);
+    assert_eq!(file_lines.len(), 5);
+    assert!(file_lines
+        .iter()
+        .any(|line| line.ends_with("mininet-app-service.exe")));
     for line in file_lines {
         let parts: Vec<&str> = line.split(' ').collect();
         assert_eq!(parts[2].len(), 64, "blake3 column");

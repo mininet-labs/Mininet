@@ -17,6 +17,7 @@ use mini_windows_setup::PackageFile;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+const SERVICE: &[u8] = b"MZ application core fixture";
 const SETUP_EXE: &str = env!("CARGO_BIN_EXE_mininet-setup");
 
 const DESKTOP_V1: &[u8] = b"#!/bin/sh\necho desktop-0.1.0\n";
@@ -54,6 +55,7 @@ fn write_package(dir: &Path, version: &str, desktop: &[u8]) -> PathBuf {
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", desktop).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mini.exe", CLI).unwrap(),
             PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
         ],
@@ -66,6 +68,7 @@ fn write_package(dir: &Path, version: &str, desktop: &[u8]) -> PathBuf {
     let bytes = container::write(&manifest, |path| {
         Ok(match path {
             "mininet-desktop.exe" => desktop.to_vec(),
+            "mininet-app-service.exe" => SERVICE.to_vec(),
             "mini.exe" => CLI.to_vec(),
             "mininet-setup.exe" => SETUP.to_vec(),
             other => panic!("unexpected {other}"),
@@ -202,7 +205,7 @@ fn a_dry_run_reports_the_plan_and_writes_nothing() {
     ]);
     assert_eq!(field(&line, "kind"), "setup.plan");
     assert_eq!(field(&line, "plan"), "first_install");
-    assert_eq!(field(&line, "files"), "3");
+    assert_eq!(field(&line, "files"), "4");
     assert!(!env.install_root.exists());
 
     let human = env.run(&["--dry-run", "--payload", package.to_str().unwrap()]);
@@ -217,7 +220,7 @@ fn verifying_a_package_file_checks_every_byte_without_installing() {
     let package = write_package(&env.base, "0.1.0", DESKTOP_V1);
     let line = env.json(&["--verify", "--json", "--payload", package.to_str().unwrap()]);
     assert_eq!(field(&line, "intact"), "true");
-    assert_eq!(field(&line, "files_checked"), "3");
+    assert_eq!(field(&line, "files_checked"), "4");
     assert!(!env.install_root.exists());
 }
 
@@ -245,7 +248,7 @@ fn a_silent_install_places_the_files_and_reports_where_to_run_them() {
     assert_eq!(field(&line, "ok"), "true");
     assert_eq!(field(&line, "kind"), "setup.install");
     assert_eq!(field(&line, "version"), "0.1.0");
-    assert_eq!(field(&line, "files_written"), "3");
+    assert_eq!(field(&line, "files_written"), "4");
 
     let launch = PathBuf::from(field(&line, "launch_path"));
     assert!(launch.is_file());

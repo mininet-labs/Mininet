@@ -143,3 +143,42 @@ Delivery may arrive before a referenced parent, and it does not guarantee the
 receiver will display or accept a relationship. Authenticated durable storage is
 the acknowledgement boundary. The wire envelope remains compatible: earlier
 post-only receivers refuse newly supported types without acknowledging success.
+
+## Packaged application core and owner recovery
+
+Windows release scripts already stage the desktop and `mininet-app-service.exe`
+together. Client-package validation additionally requires a nonempty hashed
+companion in the launch executable's own directory. The rule applies to the known
+Mininet client package ID or a `mininet-desktop.exe` launch basename, using Windows
+case-insensitive path comparison. A helper in another directory is not a valid
+substitute. Generic non-desktop packages retain their existing behavior.
+
+The composition check applies at manifest construction/parsing and at package
+writing, install planning/install and installed verification, including mutated
+in-memory manifests. It is a dependency-composition check, not proof that arbitrary
+file bytes are authentic or a working executable. Existing digest verification
+and owner approval/release evidence remain separate requirements. Validation uses temporary fixtures and recording shells; no real Windows
+installation or release activation is performed.
+
+Desktop lookup uses only its sibling core executable, unless the owner explicitly
+sets the existing `MININET_APP_SERVICE` development override. Unix development
+prefers the extensionless native sibling; host-package smoke layouts may use the
+staged `.exe` sibling when no native file exists. No PATH/current-directory search
+or fallback after a failed native launch is introduced. Host tests exercise naming
+and supervision, not Windows vault or native installation acceptance.
+
+If startup fails or a status query cannot establish the core state, a visible
+Retry application core action starts/rechecks it without restarting the desktop.
+It preserves drafts and operation IDs, does not automatically replay mutations,
+create identities, unlock keys or change network grants. An existing client keeps
+its supervisor and in-flight ownership; status recovery can spawn a fresh locked
+core through that supervisor. Failed status queries clear stale signing status
+and confirmation rather than presenting an unverified unlocked state.
+
+Action diagnostics name the action instead of dumping its captured draft, local
+photo path, disabled private fields or image bytes. Unexpected reply bodies are
+also omitted. Targeted fixtures cover missing-companion repair, host/native
+sibling selection and process teardown. Production CLI smoke checks accept a
+complete bundle and refuse a missing core before writing a package. Installed
+Windows acceptance and package
+upgrade/rollback journeys remain separate checks.
