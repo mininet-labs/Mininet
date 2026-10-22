@@ -49,3 +49,22 @@ Journal and peer records use bounded strict decoding and atomic replacement. Pat
 Peers need reachable numeric TCP endpoints. This slice supplies no NAT traversal, relay fallback, address discovery, transport migration or automatic KEL refresh. Unreachable peers wait and retry. The single listener configuration serves one expected peer, not an open multi-contact inbox. Revocation stops future authorized attempts but cannot retract data already delivered or bytes already transmitted in an active session.
 
 Private sessions, private messages, calls, media attachment delivery, full-store sync, background service installation and wallet actions are outside this path. Desktop controls, packaging, two-device usability and broader acceptance remain separate work. Existing native Forge migration work in [PR #378](https://github.com/mininet-labs/mininet/pull/378) is independent; public-post delivery neither synchronizes code nor approves or merges proposals.
+
+## Interrupting established sessions
+
+The service IPC reader holds a stop-only guard for forwarded lock, revoke, cancel,
+listener-change, networking-disable and shutdown requests until the authority
+thread processes them. Overlapping guards cannot clear each other. A full bounded
+IPC handoff also pauses delivery so control frames are not trapped behind a stalled
+exchange. Established-session I/O checks interruption in at most 100 ms socket
+timeout slices while retaining the absolute five-second deadline and byte bounds.
+A pending stop prevents another scheduling turn. EOF and invalid IPC input also
+stop active delivery before the host exits.
+
+Interruption cannot undo remote storage or a verified acknowledgement. An already
+verified receipt remains successful; failed work interrupted before receipt remains
+retryable until the control action applies. TCP dialing retains its five-second
+connect bound, and filesystem commit barriers are not preempted. The desktop IPC
+client's existing serialized forwarding remains a separate responsiveness limit;
+this seam acts once requests reach the service reader. No instantaneous end-to-end
+UI cancellation claim follows from the transport check alone.

@@ -1,6 +1,6 @@
 //! One explicitly configured peer, one exact public post, one durable receipt.
 //! No discovery, store enumeration, identity exchange or fallback protocol.
-use crate::outbox::DeliveryFailure;
+use crate::{delivery_interrupt::DeliveryInterrupt, outbox::DeliveryFailure};
 use did_mini::{FreshnessPins, Kel};
 use mini_bearer::{Bearer, BearerError, Initiator, Responder};
 use mini_objects::{Object, ObjectType, Payload};
@@ -28,22 +28,29 @@ struct BoundedBearer {
     stream: TcpStream,
     deadline: Instant,
     remaining: usize,
+    interrupt: DeliveryInterrupt,
 }
 impl BoundedBearer {
-    fn new(stream: TcpStream) -> Self {
+    fn new(stream: TcpStream, interrupt: &DeliveryInterrupt) -> Self {
         Self {
             stream,
             deadline: Instant::now() + DEADLINE,
             remaining: MAX_SESSION,
+            interrupt: interrupt.clone(),
         }
     }
     fn timeout(&self) -> mini_bearer::Result<Duration> {
+        if self.interrupt.is_stopped() {
+            return Err(BearerError::Io("owner stopped delivery".into()));
+        }
         self.deadline
             .checked_duration_since(Instant::now())
             .filter(|duration| !duration.is_zero())
+            .map(|duration| duration.min(Duration::from_millis(100)))
             .ok_or_else(|| BearerError::Io("delivery session deadline exceeded".into()))
     }
     fn reserve(&mut self, count: usize) -> mini_bearer::Result<()> {
+        self.timeout()?;
         self.remaining = self
             .remaining
             .checked_sub(count)
@@ -57,7 +64,16 @@ impl BoundedBearer {
             match self.stream.read(&mut bytes[offset..]) {
                 Ok(0) => return Err(BearerError::Closed),
                 Ok(count) => offset += count,
-                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::Interrupted
+                            | std::io::ErrorKind::WouldBlock
+                            | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    continue
+                }
                 Err(error) => return Err(error.into()),
             }
         }
@@ -70,7 +86,16 @@ impl BoundedBearer {
             match self.stream.write(&bytes[offset..]) {
                 Ok(0) => return Err(BearerError::Closed),
                 Ok(count) => offset += count,
-                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::Interrupted
+                            | std::io::ErrorKind::WouldBlock
+                            | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    continue
+                }
                 Err(error) => return Err(error.into()),
             }
         }
@@ -143,12 +168,15 @@ fn establish(
     device: &Kel,
     now_ms: u64,
     initiator: bool,
+    interrupt: &DeliveryInterrupt,
 ) -> Result<AuthenticatedConnection<BoundedBearer>, DeliveryFailure> {
+    check_stop(interrupt)?;
     let mut freshness = FreshnessPins::new();
     freshness.check_and_pin(root).map_err(rejected)?;
     freshness.check_and_pin(device).map_err(rejected)?;
     let mut replay = ReplayCache::new(4).map_err(rejected)?;
-    let mut bearer = BoundedBearer::new(stream);
+    let mut bearer = BoundedBearer::new(stream, interrupt);
+    check_stop(interrupt)?;
     let channel = if initiator {
         let (initiator, hello) = Initiator::start().map_err(unavailable)?;
         bearer.send(&hello).map_err(unavailable)?;
@@ -161,6 +189,7 @@ fn establish(
         bearer.send(&response).map_err(unavailable)?;
         channel
     };
+    check_stop(interrupt)?;
     let authenticate = if initiator {
         authenticate_established_initiator
     } else {
@@ -181,6 +210,22 @@ fn establish(
     .map_err(rejected)
 }
 
+fn check_stop(interrupt: &DeliveryInterrupt) -> Result<(), DeliveryFailure> {
+    if interrupt.is_stopped() {
+        Err(DeliveryFailure::Interrupted)
+    } else {
+        Ok(())
+    }
+}
+fn stopped_result<T>(
+    result: Result<T, DeliveryFailure>,
+    interrupt: &DeliveryInterrupt,
+) -> Result<T, DeliveryFailure> {
+    match result {
+        Err(_) if interrupt.is_stopped() => Err(DeliveryFailure::Interrupted),
+        other => other,
+    }
+}
 pub(crate) fn send(
     stream: TcpStream,
     local: LocalSessionIdentity<'_>,
@@ -188,12 +233,67 @@ pub(crate) fn send(
     peer_device: &Kel,
     object_bytes: &[u8],
     now_ms: u64,
+    interrupt: &DeliveryInterrupt,
 ) -> Result<(), DeliveryFailure> {
+    stopped_result(
+        send_inner(
+            stream,
+            local,
+            peer_root,
+            peer_device,
+            object_bytes,
+            now_ms,
+            interrupt,
+        ),
+        interrupt,
+    )
+}
+pub(crate) fn receive(
+    stream: TcpStream,
+    local: LocalSessionIdentity<'_>,
+    peer_root: &Kel,
+    peer_device: &Kel,
+    store: &mut Store<FsBackend>,
+    now_ms: u64,
+    interrupt: &DeliveryInterrupt,
+) -> Result<String, DeliveryFailure> {
+    stopped_result(
+        receive_inner(
+            stream,
+            local,
+            peer_root,
+            peer_device,
+            store,
+            now_ms,
+            interrupt,
+        ),
+        interrupt,
+    )
+}
+fn send_inner(
+    stream: TcpStream,
+    local: LocalSessionIdentity<'_>,
+    peer_root: &Kel,
+    peer_device: &Kel,
+    object_bytes: &[u8],
+    now_ms: u64,
+    interrupt: &DeliveryInterrupt,
+) -> Result<(), DeliveryFailure> {
+    check_stop(interrupt)?;
     let object = validate_object(object_bytes)?;
     if object.author_human != local.root || object.author_device != local.device.did() {
         return Err(DeliveryFailure::Rejected);
     }
-    let mut connection = establish(stream, local, peer_root, peer_device, now_ms, true)?;
+    let mut connection = establish(
+        stream,
+        local,
+        peer_root,
+        peer_device,
+        now_ms,
+        true,
+        interrupt,
+    )?;
+    check_stop(interrupt)?;
     let mut message = Vec::with_capacity(POST.len() + object_bytes.len());
     message.extend_from_slice(POST);
     message.extend_from_slice(object_bytes);
@@ -205,20 +305,32 @@ pub(crate) fn send(
     Ok(())
 }
 
-pub(crate) fn receive(
+fn receive_inner(
     stream: TcpStream,
     local: LocalSessionIdentity<'_>,
     peer_root: &Kel,
     peer_device: &Kel,
     store: &mut Store<FsBackend>,
     now_ms: u64,
+    interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
-    let mut connection = establish(stream, local, peer_root, peer_device, now_ms, false)?;
+    check_stop(interrupt)?;
+    let mut connection = establish(
+        stream,
+        local,
+        peer_root,
+        peer_device,
+        now_ms,
+        false,
+        interrupt,
+    )?;
     let message = connection.recv(AAD).map_err(unavailable)?;
     let bytes = message
         .strip_prefix(POST)
         .ok_or(DeliveryFailure::Rejected)?;
-    let id = ingest_post(peer_root, peer_device, store, bytes)?;
+    check_stop(interrupt)?;
+    let id = ingest_post(peer_root, peer_device, store, bytes, interrupt)?;
+    check_stop(interrupt)?;
     let mut receipt = ACK.to_vec();
     receipt.extend_from_slice(id.as_bytes());
     connection.send(&receipt, AAD).map_err(unavailable)?;
@@ -230,12 +342,15 @@ fn ingest_post(
     peer_device: &Kel,
     store: &mut Store<FsBackend>,
     bytes: &[u8],
+    interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
+    check_stop(interrupt)?;
     let object = validate_object(bytes)?;
     if object.author_human != peer_root.did() || object.author_device != peer_device.did() {
         return Err(DeliveryFailure::Rejected);
     }
     mini_objects::verify_provenance(&object, peer_root, peer_device).map_err(rejected)?;
+    check_stop(interrupt)?;
     store.insert(&object).map_err(unavailable)?;
     if store.get(object.id()).map_err(unavailable)?.to_bytes() != bytes {
         return Err(DeliveryFailure::Rejected);
@@ -309,6 +424,7 @@ mod tests {
                         &sender_device_kel,
                         1000,
                         false,
+                        &DeliveryInterrupt::default(),
                     )
                     .unwrap();
                     let message = connection.recv(AAD).unwrap();
@@ -317,6 +433,7 @@ mod tests {
                         &sender_device_kel,
                         &mut store,
                         message.strip_prefix(POST).unwrap(),
+                        &DeliveryInterrupt::default(),
                     )
                     .unwrap();
                     if round == 1 {
@@ -336,7 +453,8 @@ mod tests {
                         &sender_root_kel,
                         &sender_device_kel,
                         &mut store,
-                        1000
+                        1000,
+                        &DeliveryInterrupt::default()
                     )
                     .unwrap(),
                     expected_id.as_str()
@@ -353,6 +471,7 @@ mod tests {
                 &receiver_device_kel,
                 &bytes,
                 1000,
+                &DeliveryInterrupt::default(),
             );
             if round < 2 {
                 assert!(result.is_err());
@@ -381,7 +500,8 @@ mod tests {
                 &root,
                 &device,
                 1000,
-                false
+                false,
+                &DeliveryInterrupt::default()
             )
             .is_err());
         });
@@ -391,7 +511,8 @@ mod tests {
             &wrong.kel(),
             &wrong_device.kel(),
             &bytes,
-            1000
+            1000,
+            &DeliveryInterrupt::default()
         )
         .is_err());
         worker.join().unwrap();
@@ -410,12 +531,110 @@ mod tests {
         assert!(validate_object(&malformed_text).is_err());
     }
     #[test]
+    fn late_stop_preserves_verified_success_and_classifies_only_failed_work() {
+        let interrupt = DeliveryInterrupt::default();
+        let _guard = interrupt.stop();
+        assert_eq!(
+            stopped_result(
+                Ok::<_, DeliveryFailure>("verified exact acknowledgement"),
+                &interrupt
+            ),
+            Ok("verified exact acknowledgement")
+        );
+        assert_eq!(
+            stopped_result(Err::<(), _>(DeliveryFailure::Unavailable), &interrupt),
+            Err(DeliveryFailure::Interrupted)
+        );
+        drop(_guard);
+        assert_eq!(
+            stopped_result(Err::<(), _>(DeliveryFailure::Rejected), &interrupt),
+            Err(DeliveryFailure::Rejected)
+        );
+    }
+    #[test]
+    fn established_partial_frame_stops_promptly_without_inserting_or_acknowledging() {
+        let (sender, sender_device) = identity(12);
+        let (receiver, receiver_device) = identity(32);
+        let sender_root = sender.kel();
+        let sender_kel = sender_device.kel();
+        let receiver_root = receiver.kel();
+        let receiver_kel = receiver_device.kel();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let interrupt = DeliveryInterrupt::default();
+        let worker_interrupt = interrupt.clone();
+        let path = std::env::temp_dir().join(format!(
+            "mini-delivery-stop-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let cleanup = path.clone();
+        let worker = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut store = Store::new(FsBackend::open(&path).unwrap());
+            let result = receive(
+                stream,
+                local(&receiver, &receiver_device),
+                &sender_root,
+                &sender_kel,
+                &mut store,
+                1000,
+                &worker_interrupt,
+            );
+            assert!(store.all_ids().unwrap().is_empty());
+            result
+        });
+        let stream = TcpStream::connect(address).unwrap();
+        let mut raw = stream.try_clone().unwrap();
+        let mut connection = establish(
+            stream,
+            local(&sender, &sender_device),
+            &receiver_root,
+            &receiver_kel,
+            1000,
+            true,
+            &DeliveryInterrupt::default(),
+        )
+        .unwrap();
+        // Authentication completed; leave the next encrypted frame incomplete.
+        raw.write_all(&64u32.to_be_bytes()).unwrap();
+        raw.write_all(&[1, 2]).unwrap();
+        thread::sleep(Duration::from_millis(30));
+        let start = Instant::now();
+        let guard = interrupt.stop();
+        assert_eq!(worker.join().unwrap(), Err(DeliveryFailure::Interrupted));
+        assert!(start.elapsed() < Duration::from_secs(1));
+        assert!(connection.recv(AAD).is_err());
+        drop(guard);
+        std::fs::remove_dir_all(cleanup).unwrap();
+    }
+    #[test]
+    fn held_stop_prevents_any_outbound_frame_and_allows_no_authorization() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut peer = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (stream, _) = listener.accept().unwrap();
+        let interrupt = DeliveryInterrupt::default();
+        let mut bearer = BoundedBearer::new(stream, &interrupt);
+        let guard = interrupt.stop();
+        assert!(bearer.send(b"application frame").is_err());
+        peer.set_read_timeout(Some(Duration::from_millis(50)))
+            .unwrap();
+        let mut byte = [0];
+        assert!(peer.read(&mut byte).is_err());
+        drop(guard);
+        bearer.send(b"permitted only by caller policy").unwrap();
+        assert_eq!(peer.read(&mut byte).unwrap(), 1);
+    }
+    #[test]
     fn bounded_bearer_rejects_length_budget_and_absolute_dribble_deadline() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let mut peer = TcpStream::connect(address).unwrap();
         let (stream, _) = listener.accept().unwrap();
-        let mut bearer = BoundedBearer::new(stream);
+        let mut bearer = BoundedBearer::new(stream, &DeliveryInterrupt::default());
         peer.write_all(&((MAX_FRAME + 1) as u32).to_be_bytes())
             .unwrap();
         assert!(matches!(
