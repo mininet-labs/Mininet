@@ -247,3 +247,12 @@ storage, Authenticode code signing (builds are unsigned today, so SmartScreen
 warns on first run and is right to), reproducible compiler output, store-level
 cross-process coordination, and an independent security review. See
 `docs/WINDOWS_CLIENT_SECURITY.md`.
+
+The **Seed network** view provides explicit owner controls for a CLI
+node profile using the sibling `mini` executable (or an owner-selected installed
+path). It shows the selected node folder/store separately from the desktop vault.
+Owners can explicitly create a separate node identity, export public keys, and
+inspect/confirm peer pairing without a terminal. Existing identities are never
+replaced. It starts no seed networking on view entry. See
+[seed-network.md](../../docs/design/seed-network.md#desktop-owner-controls) for
+retention previews, bounded fetch, process lifetime and identity boundaries.

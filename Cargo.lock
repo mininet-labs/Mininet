@@ -2799,10 +2799,14 @@ dependencies = [
  "mini-presence",
  "mini-provenance",
  "mini-resident",
+ "mini-seed",
  "mini-selftest",
+ "mini-settlement",
+ "mini-storage",
  "mini-store",
  "mini-sync",
  "mini-windows-setup",
+ "serde",
  "serde_json",
  "tempfile",
  "zeroize",
@@ -2937,6 +2941,7 @@ dependencies = [
  "mp4",
  "openh264",
  "rodio",
+ "serde_json",
  "symphonia",
 ]
 
@@ -3350,6 +3355,18 @@ dependencies = [
  "mini-sync",
  "mini-transport-security",
  "mini-web-types",
+]
+
+[[package]]
+name = "mini-seed"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-durable",
+ "mini-objects",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

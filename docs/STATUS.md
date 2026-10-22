@@ -3189,3 +3189,50 @@ shared "community" list as one's own local rules (constitution principle
 convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
 still has its own separate `muted.txt`, and integrating both onto
 `mini-safety` is open follow-up.
+
+### Owner-controlled seed runtime (draft branch)
+
+The `mini-seed` pool and `mini seed` CLI connect owner-selected public signed
+objects to retention days, bounded quotas, authenticated seed-only serving,
+explicit-peer following and reseeding, and real mutually signed delivery
+receipts. Optional paid delivery accepts external wallet-signed settlement claims
+and exports their unchanged wire bytes as **pending**, never a finalized balance.
+No global discovery, automatic payout/finality reconciliation, fair-exchange
+escrow, web search/ranking pipeline integration, private-data seeding or remote deletion
+is claimed. This developer profile is documented in `docs/design/seed-network.md`.
+
+The draft seed runtime now also includes explicit owner-local seed contacts,
+signed expiring provider snapshots, rollback-resistant bounded catalogues,
+original-signature relay/import/export, multi-provider fallback and live mesh
+following. `mini seed search` verifies returned signed public UTF-8 source
+objects and produces excerpts locally, with literal matching and stable ID order;
+it does not feed payments/replica counts into ranking. Current KELs are rechecked
+before cached hints are used. Neither advertisements nor contact activation create
+a canonical provider registry, personhood proof or automatic trust. Global DHT,
+NAT traversal, web-ranking integration and finalized payouts remain unfinished.
+
+The seed runtime now supports bounded reviewed collections: typed native commit
+history and shared trees/blobs, strict media manifests/superblocks/chunks, or an
+explicit general public link closure. Exact previews bind the full owner/home/store
+selection and days; atomic pool admission publishes one manifest after all quota
+and source checks. Collection retrieval resumes from verified ordinary-store
+objects with shared attempt/body-byte windows, and media export streams verified
+whole-digest bytes without overwriting an existing destination. Reconstructed
+media and expanded source-tree work have independent bounds. Graph retrieval never
+automatically shares downloaded material or alters governance/canonical state.
+
+The draft desktop Seed network view now exposes the existing CLI node's pool,
+contacts/catalogues, verified search/retrieval, reviewed collection retention,
+bounded resumable fetch/export, authenticated hosting and explicit mesh following.
+It uses typed subprocess actions against an owner-selected existing CLI profile,
+separate from the desktop vault; view entry starts no jobs. This is a coding
+checkpoint, with desktop/hardware launch validation still pending. See the
+owner-control section in `docs/design/seed-network.md`.
+
+
+Desktop seed onboarding now supports explicitly creating a separate CLI identity,
+public-key export, verified KEL inspection, and exact-bundle-confirmed local trust.
+Both bundled logs/delegation verify before trust writes; existing trusted histories
+must extend without rollback/fork. Pairing does not activate an endpoint. Structured
+identity/KEL JSON preserves existing human CLI output. Desktop vault unification,
+OS-keychain protection for CLI seeds and CLI key rotation remain unfinished.

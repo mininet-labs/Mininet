@@ -62,6 +62,7 @@ mod release;
 mod remote;
 mod repo;
 mod resident;
+mod seed;
 mod selftest;
 mod sequence;
 mod service;

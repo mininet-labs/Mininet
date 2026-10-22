@@ -19,6 +19,8 @@ mod network_session;
 mod peer_link;
 mod player;
 mod resident;
+mod seed_panel;
+mod seed_runtime;
 mod theme;
 mod timeline;
 mod video;
@@ -76,6 +78,7 @@ enum View {
     Earnings,
     System,
     ResidentAI,
+    SeedNetwork,
     Diagnostics,
     Updates,
     Privacy,
@@ -165,6 +168,7 @@ impl Default for PrivacyState {
 struct MininetApp {
     workspace: Option<Workspace>,
     resident: resident::Panel,
+    seed_panel: seed_panel::Panel,
     app_service: Option<app_service::Client>,
     app_status: Option<AccountStatus>,
     app_status_rx: Option<Receiver<Result<AppReply, String>>>,
@@ -1627,6 +1631,7 @@ impl Default for MininetApp {
         };
         Self {
             resident: resident::Panel::default(),
+            seed_panel: seed_panel::Panel::default(),
             workspace,
             app_service,
             app_status: None,
@@ -1912,6 +1917,7 @@ impl eframe::App for MininetApp {
                             View::Library => self.library(ui),
                             View::Earnings => self.earnings(ui),
                             View::System => self.system(ui),
+                            View::SeedNetwork => self.seed_panel.ui(ui),
                             View::ResidentAI => self.resident.ui(ui, &resident::config_home()),
                             View::Diagnostics => self.diagnostics(ui),
                             View::Updates => self.updates(ui),
@@ -2875,6 +2881,7 @@ impl MininetApp {
                 self.nav_button(ui, View::Connections, "🔗", "Connections");
                 self.nav_button(ui, View::Library, "📋", "Library");
                 self.nav_button(ui, View::Earnings, "💰", "Earnings");
+                self.nav_button(ui, View::SeedNetwork, "◈", "Seed network");
                 self.nav_button(ui, View::ResidentAI, "✦", "Resident AI");
                 self.nav_button(ui, View::System, "🖥", "System & storage");
                 ui.add_space(12.0);
@@ -4583,6 +4590,7 @@ No tracking. No forced updates.",
 
     fn header(&self, ui: &mut egui::Ui) {
         let (title, subtitle) = match self.view {
+            View::SeedNetwork => ("Seed network", "Owner-controlled public collections, verified search and explicit peer hosting."),
             View::ResidentAI => ("Resident AI", "Owner-controlled local assistance. Preview the context you choose to share."),
             View::Onboarding => (
                 "Welcome to Mininet",
