@@ -196,6 +196,7 @@ impl Default for SnapshotBudget {
 
 fn excluded(name: &str) -> bool {
     matches!(name, ".git" | ".mininet" | ".mini")
+        || name.to_ascii_lowercase().starts_with(".resident")
 }
 
 fn read_snapshot(
@@ -531,11 +532,21 @@ mod workspace_tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("z.rs"), b"z").unwrap();
         fs::write(dir.path().join("a.rs"), b"a").unwrap();
+        fs::write(dir.path().join(".resident-patch.lock"), b"").unwrap();
+        fs::write(dir.path().join(".resident-draft.json"), b"private draft").unwrap();
+        fs::write(
+            dir.path().join(".resident-patch-recovery.old"),
+            b"old source bytes",
+        )
+        .unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
         fs::write(dir.path().join(".git/config"), b"credential").unwrap();
         let paths = [
             dir.path().join("z.rs"),
             dir.path().join(".git"),
+            dir.path().join(".resident-patch.lock"),
+            dir.path().join(".resident-draft.json"),
+            dir.path().join(".resident-patch-recovery.old"),
             dir.path().join("a.rs"),
         ];
         let entries = read_snapshot(&paths, 0, &mut SnapshotBudget::default()).unwrap();

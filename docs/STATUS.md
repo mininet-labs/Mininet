@@ -3189,3 +3189,27 @@ shared "community" list as one's own local rules (constitution principle
 convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
 still has its own separate `muted.txt`, and integrating both onto
 `mini-safety` is open follow-up.
+
+### Resident desktop reviewed local edits (draft)
+
+The Resident AI desktop now composes bounded local file replacements, displays
+original/replacement review and requires an exact preview-ID confirmation before
+apply. Model answers are literal unapplied drafts. Cooperating patch writers are
+serialized; staged originals support non-truncating best-effort rollback, and new
+files use no-overwrite publication. Recovery artifacts are excluded from context
+and Forge snapshots. This is an owner-reviewed local edit workflow, not autonomous
+coding, test execution, proposal submission, multi-file crash atomicity or a
+statement that the wider Mininet platform is production-ready.
+
+Resident reviewed edits now have explicit workspace-local staged-draft save,
+resume, metadata inspection and exact-ID removal in desktop and CLI. Resume
+revalidates current source, rebuilds original review text and restores no apply
+authorization. Private bounded source checkpoints are excluded from model context,
+Forge snapshots and Git staging rules in this repository. Unstaged editor text,
+autosave, durable execution receipts and automatic crash recovery are not added.
+
+Resident drafts now protect unsaved work on ordinary close/workspace changes,
+use compare-and-save in the desktop to reject competing checkpoint replacement,
+and expose stale replacement/current-source comparison for explicitly acknowledged
+manual repair. Recovery loads only an unstaged editor draft with the accepted
+current baseline; it never silently rebases, stages, applies or restores approval.

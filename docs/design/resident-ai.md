@@ -144,3 +144,168 @@ provider exchange, local tools, fees, diagnostics and confirmed patches; desktop
 state tests cover attachment snapshots and cancelled late output. These tests
 verify implementation behavior, not a particular model's capability or output
 truth. No real model inference or hardware benchmark is implied.
+
+## Desktop reviewed edit composer
+
+**Reviewed local code edits** now provides an owner-operated path from a draft
+to local file changes. Select a source workspace in Resident AI, enter a relative
+UTF-8 source path and load its baseline. Choose creation explicitly for a new
+path; its parent must already exist. Edit the complete replacement and stage it.
+Up to 16 files and 256 KiB replacement bytes may be staged. An empty replacement
+writes an empty file; this composer does not delete paths or create directories.
+
+**Use answer as unapplied replacement draft** copies the model answer literally
+into the editor. It does not parse code fences, commands, tool calls or JSON.
+Remove explanation/fences yourself and inspect the exact replacement. Drafts and
+file reads stay local unless separately selected as model request context.
+
+Create a fresh preview and compare every original with its complete replacement.
+The ID binds the backend's canonical workspace root, paths, original content
+hashes and replacement bytes. Applying requires typing that exact ID. Changes to
+the workspace, composer or staged list clear preview confirmation. The backend
+revalidates source at apply time and refuses stale edits. Success reports exact
+paths and the preview ID; it does not imply a commit, tests, review approval,
+merge or publication. Model text never authorizes a filesystem write.
+
+Reads/preview/apply run in a worker. Source-root editing is disabled while the
+worker runs, results are polled even when the owner navigates elsewhere, and
+ordinary window-close requests are deferred during an apply. Writes cannot be
+cancelled halfway through. OS termination, power loss and another local writer
+are outside this UI guard: keep a clean owner-controlled workspace and backups.
+
+Cooperating Resident writers take a workspace lock. Replacements and independent
+rollback copies are staged and synced before publication. Existing files use
+rename replacement; unsupported filesystem/platform replacement fails without a
+truncate/delete fallback. New files use no-overwrite hard links and therefore
+require hard-link support. Existing portable permissions are retained. Detected
+publication errors trigger best-effort restoration from staged originals, while
+intervening changed destinations are left for manual recovery. Failed recovery
+reports retained original paths. Individual files are published atomically;
+multiple files are not one crash-atomic transaction and ordinary editors do not
+participate in the Resident lock. Inspect the workspace after any uncertain
+result rather than assuming all-or-nothing completion.
+
+`.resident*` lock/staging/recovery artifacts are excluded from Resident context,
+inspection/search and native Forge workspace snapshots. Stale recovery files
+are not automatically imported, sent to a model or swept away; inspect and
+recover them before an owner removes them. Add `.resident-patch*` to `.gitignore`
+in any Git-backed workspace before mirroring it (this repository includes the
+rule); native Forge snapshots exclude these artifacts independently. No shell/test execution, automatic
+commit, native proposal submission, model-generated multi-step agent loop or
+production readiness of the wider ecosystem is claimed by this feature.
+
+## Save and resume staged edits
+
+The desktop edit composer now has **Save and resume staged edits locally**.
+Saving explicitly writes the staged file list into the selected workspace's
+`.resident-draft.json`, replacing that workspace's previous saved draft.
+Unstaged replacement text is not saved. This is one checkpoint per workspace,
+not an edit-history database. Nothing is saved automatically on navigation,
+conversation changes or application exit.
+
+The checkpoint contains replacement source text, original hashes, exact workspace
+binding and advisory provenance. It is plaintext: keep the workspace private.
+Unix files are created with mode 0600 and permissive or hard-linked saved files
+are refused; Windows inherits the owner-controlled workspace's ACL, with no
+keychain/encryption guarantee. Both saved files and their publication temporaries
+are excluded from Resident context/search and native Forge workspace snapshots.
+Add `.resident-draft*` to Git-backed workspaces' ignore rules (included here).
+Explicit preview exports likewise use private Unix creation and never overwrite
+an existing output.
+
+**Resume and revalidate stored staged edits** verifies the strict bounded saved
+schema, canonical workspace binding, exact preview hash, advisory provenance and
+current source baselines. Originals shown in review are read fresh from the
+workspace and matched to the saved hashes. A stale/foreign/tampered draft is
+refused without discarding it or altering source. Resuming replaces in-memory
+edits only after the owner's explicit acknowledgement when staged edits or editor
+text exist. It restores neither an apply confirmation nor an authorized preview:
+create a fresh preview and confirm normally before writing source.
+
+**Inspect stored draft metadata** displays its exact ID and file paths without
+claiming current source still matches. This allows stale drafts to be removed
+inside Mininet: type that exact ID to remove only the stored checkpoint. The ID
+is rechecked under the same workspace lock as saves/applies. Removal changes no
+source files or in-memory edits, and applying a patch does not silently erase its
+saved checkpoint. Corrupt/unsupported/permissive artifacts fail closed and need
+owner inspection outside this workflow. Saved bytes are bounded to 2 MiB, staged
+replacement bytes to 256 KiB/16 edits, and fresh original review bytes to at most
+16 individually bounded 256 KiB files.
+
+Equivalent owner-invoked CLI operations:
+
+```text
+mini --json resident draft-save --workspace <root> --edits edits.json
+mini --json resident draft-inspect --workspace <root>
+mini --json resident draft-resume --workspace <root> --output new-preview.json
+mini --json resident patch-apply --workspace <root> --preview new-preview.json --confirm <exact-preview-id>
+mini --json resident draft-clear --workspace <root> --confirm <exact-draft-id>
+```
+
+`draft-resume` creates a new private preview document and never applies it.
+Metadata inspection and clearing remain available for stale source. Saves and
+removal use the cooperative patch lock and durable publication barriers. A flush
+error can follow a completed publication/removal, so inspect stored metadata
+before retrying an uncertain result. Normal window close is deferred during
+save/removal as well as apply. Power loss, hostile local path races and multi-file
+source transaction atomicity remain outside the guarantees; saved drafts are not
+an automatic patch rollback journal or durable execution receipts.
+
+The desktop now marks staged edits as saved only when they match a successfully
+saved/resumed checkpoint. Unstaged editor changes remain unsaved even if an older
+staged draft was saved. Normal window close offers keep-editing/discard choices
+when work would be lost; it still defers all active writes. Changing the source
+workspace requires pressing **Use this workspace**, plus explicit acknowledgement
+when it would discard unsaved edits. Saved drafts remain in their original
+workspace. These guards do not intercept OS termination or a power failure.
+
+## Saved-draft conflicts and manual stale repair
+
+Desktop saves now compare the last inspected/saved/resumed draft ID while holding
+the workspace patch lock. If no checkpoint has been inspected, save creates one
+only if absent. If another cooperating window replaces it first, save refuses
+instead of silently losing that window's draft. Inspect the current stored ID
+and decide which staged version to retain before retrying. This is coordination
+between cooperating Resident writers, not a filesystem sandbox against external
+editors or administrators.
+
+A stale checkpoint can now be opened with **Compare saved replacements with
+current files**, even when normal Resume refuses. It shows each saved before hash,
+the current file or its absence, whether the baseline matches, and the saved
+replacement text. No old original text is invented: checkpoints store hashes,
+not complete original files. Missing parent directories, symlinks, nonregular
+files, oversized/binary text and other unsafe inputs still fail closed.
+
+Select one file and inspect its current content beside the saved replacement.
+Only the explicit acknowledgement **Replace the editor text and use this displayed
+current file state as the repair baseline** enables loading it for manual repair.
+That loads an *unstaged* replacement against the displayed current snapshot; it
+does not merge text, change the checkpoint, stage/apply a patch, or restore any
+confirmation. Reconcile your edits manually, stage the file, create a fresh
+preview, review it and confirm normally. A source change after comparison is
+rejected by the normal before-hash validation. If the file currently exists, it
+becomes a replacement; if its final path is absent, it becomes an explicit new
+file. Other staged files remain staged independently.
+
+CLI equivalents for coordinated saves and recovery-only comparisons:
+
+```text
+mini --json resident draft-save --workspace <root> --edits edits.json --create-only
+mini --json resident draft-save --workspace <root> --edits edits.json --expect <last-inspected-draft-id>
+mini --json resident draft-review --workspace <root>
+```
+
+`draft-review` returns saved edit data and fresh current snapshots with baseline
+match flags; it returns no apply-ready preview and performs no rebase or source
+write. It may expose source plaintext on stdout by this explicit local request.
+The legacy CLI/API save without either condition still means an explicitly
+requested unconditional replacement; the desktop always uses the conditional
+API. `--expect` and `--create-only` are mutually exclusive.
+
+Selecting a model answer or another staged replacement now preserves unstaged
+editor text until the owner chooses keep/replace. The candidate selection is
+held separately, does not change staged/saved content, and carries no apply
+authorization. Changing the relative filename or create mode retains actual
+unstaged replacement text while clearing its old file baseline; loading a new
+baseline and normal stage/preview confirmation remain required. These protections
+do not autosave editor text or make it part of an older saved checkpoint.
