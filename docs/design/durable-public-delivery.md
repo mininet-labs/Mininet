@@ -157,8 +157,8 @@ The composition check applies at manifest construction/parsing and at package
 writing, install planning/install and installed verification, including mutated
 in-memory manifests. It is a dependency-composition check, not proof that arbitrary
 file bytes are authentic or a working executable. Existing digest verification
-and owner approval/release evidence remain separate requirements. No installer is
-run or release activated by this change.
+and owner approval/release evidence remain separate requirements. Validation uses temporary fixtures and recording shells; no real Windows
+installation or release activation is performed.
 
 Desktop lookup uses only its sibling core executable, unless the owner explicitly
 sets the existing `MININET_APP_SERVICE` development override. Unix development
