@@ -757,24 +757,26 @@ mod tests {
         use mini_resident::DraftFileReview;
         let old_hash = mini_resident::content_hash(b"old");
         let current_hash = mini_resident::content_hash(b"owners new version");
-        let mut panel = Panel::default();
-        panel.recovery = Some(DraftReview {
-            id: "stored-id".into(),
-            files: vec![DraftFileReview {
-                edit: PatchEdit {
-                    path: "lib.rs".into(),
-                    before_hash: Some(old_hash),
-                    replacement: "saved replacement".into(),
-                },
-                current: Some(ContextItem {
-                    path: "lib.rs".into(),
-                    content: "owners new version".into(),
-                    hash: current_hash.clone(),
-                }),
-                matches_baseline: false,
-            }],
-        });
-        panel.recovery_index = Some(0);
+        let mut panel = Panel {
+            recovery: Some(DraftReview {
+                id: "stored-id".into(),
+                files: vec![DraftFileReview {
+                    edit: PatchEdit {
+                        path: "lib.rs".into(),
+                        before_hash: Some(old_hash),
+                        replacement: "saved replacement".into(),
+                    },
+                    current: Some(ContextItem {
+                        path: "lib.rs".into(),
+                        content: "owners new version".into(),
+                        hash: current_hash.clone(),
+                    }),
+                    matches_baseline: false,
+                }],
+            }),
+            recovery_index: Some(0),
+            ..Default::default()
+        };
         assert!(panel.recover_file().is_err());
         panel.accept_recovery = true;
         panel.recover_file().unwrap();
