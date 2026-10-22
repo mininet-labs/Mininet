@@ -227,11 +227,6 @@ fn parse_op<'a>(doc: &ObjectId, obj: &'a Object) -> Option<ParsedOp<'a>> {
     if obj.object_type != ObjectType::CRDT_OP {
         return None;
     }
-    // Must name this document.
-    let doc_link = obj.links.iter().find(|l| l.rel == "doc")?;
-    if doc_link.target != *doc {
-        return None;
-    }
     let bytes = match &obj.payload {
         Payload::Public(b) if !b.is_empty() => b,
         _ => return None,
@@ -249,16 +244,38 @@ fn parse_op<'a>(doc: &ObjectId, obj: &'a Object) -> Option<ParsedOp<'a>> {
     if body.len() > MAX_BODY_BYTES {
         return None;
     }
-    let target = obj
-        .links
-        .iter()
-        .find(|l| l.rel == target_rel)?
-        .target
-        .clone();
+    // Exactly the two links this op kind declares (`"doc"` naming this
+    // document, plus `target_rel`) — no duplicates and no extra links.
+    // `mini-social::decode_post` and `mini-messaging::decode_message` both
+    // reject any link shape beyond the one their object type defines rather
+    // than picking the first match and ignoring the rest; before this fix
+    // `parse_op` used `Vec::iter().find()`, so a CRDT_OP carrying a second,
+    // contradicting `"doc"`/target link, or any unrecognized extra link,
+    // silently parsed under whichever link happened to come first instead
+    // of being rejected as structurally invalid — a real interop hazard,
+    // since a stricter reader elsewhere in the workspace would reject the
+    // very same bytes this lenient one accepted.
+    if obj.links.len() != 2 {
+        return None;
+    }
+    let mut doc_target: Option<&ObjectId> = None;
+    let mut target: Option<&ObjectId> = None;
+    for link in &obj.links {
+        match link.rel.as_str() {
+            "doc" if doc_target.is_none() => doc_target = Some(&link.target),
+            rel if rel == target_rel && target.is_none() => target = Some(&link.target),
+            _ => return None,
+        }
+    }
+    let doc_target = doc_target?;
+    let target = target?;
+    if doc_target != doc {
+        return None;
+    }
     Some(ParsedOp {
         obj,
         kind,
-        target,
+        target: target.clone(),
         body,
     })
 }

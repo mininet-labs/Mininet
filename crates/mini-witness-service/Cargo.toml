@@ -3,7 +3,8 @@ name = "mini-witness-service"
 version = "0.0.1"
 description = "A durable, crash-recoverable backing store for did-mini's KEL witness journal (design doc Phase 6): persists what a witness accepted so it never forgets across a restart, by replaying did-mini's own state machine over what was durably recorded rather than trusting a bespoke restore path."
 edition.workspace = true
-rust-version.workspace = true
+# File::unlock matches mini-durable's OS-lock API baseline.
+rust-version = "1.89"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true

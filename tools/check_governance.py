@@ -817,7 +817,124 @@ def validate_session_charter(
             )
 
 
+PRE_GO_LIVE_DECISION = "docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md"
+PRE_GO_LIVE_PROFILE = "pre-go-live-anonymous-bootstrap-v2"
+PRE_GO_LIVE_DECISION_DIGEST = "690fabb4215f02d8671f5350a74e0b183377e48e21b9476ed3ebb6be8c75d5a4"
+
+
 def validate_bootstrap_operating_state(
+    root: Path,
+    errors: list[str],
+    warnings: list[str],
+    now: dt.datetime | None = None,
+    canonical_root: Path | None = None,
+) -> None:
+    """Keep historical D-0083 validation; bind v2 transitions to canonical data.
+
+    Once a canonical checkpoint records Go-Live, no candidate (including a
+    downgrade to v1) may restore bootstrap authority. This GitHub adapter fails
+    closed after Go-Live; live Forge governance must authorize further work.
+    """
+    state = read_json_object(root / BOOTSTRAP_STATE_PATH, "bootstrap operating state", errors)
+    if state is None:
+        return
+    canonical = None
+    if canonical_root is not None:
+        canonical = read_json_object(
+            canonical_root / BOOTSTRAP_STATE_PATH, "canonical bootstrap operating state", errors
+        )
+        if canonical is None:
+            return
+        if canonical.get("go_live") is True:
+            if state.get("go_live") is not True or state.get("forge_canonical") is not True:
+                fail(errors, "irreversible Go-Live transition cannot be rolled back")
+            fail(errors, "canonical Go-Live disables Founder GitHub integration authority")
+            return
+        if canonical.get("schema_version") == 2 and state.get("schema_version") != 2:
+            fail(errors, "canonical Pre-Go-Live operating profile cannot be downgraded")
+            return
+    if state.get("schema_version") == 1:
+        validate_legacy_bootstrap_operating_state(root, errors, warnings, now)
+        return
+
+    schema = read_json_object(root / BOOTSTRAP_STATE_SCHEMA_PATH, "bootstrap operating state schema", errors)
+    if schema is None:
+        return
+    expected = {
+        "$schema": "./bootstrap-operating-state.schema.json",
+        "schema_version": 2,
+        "profile_id": PRE_GO_LIVE_PROFILE,
+        "decision_ref": PRE_GO_LIVE_DECISION,
+        "superseded_by": None,
+    }
+    allowed = set(expected) | {
+        "status", "effective_at", "last_verified_at", "go_live", "forge_canonical",
+        "independent_non_founder_human_maintainers", "production_release_candidate",
+    }
+    if set(state) != allowed:
+        fail(errors, "Pre-Go-Live state has missing or unexpected fields")
+    for field, value in expected.items():
+        if state.get(field) != value or type(state.get(field)) is not type(value):
+            fail(errors, f"Pre-Go-Live state {field} must be {value!r}")
+    for field in ("go_live", "forge_canonical", "production_release_candidate"):
+        if type(state.get(field)) is not bool:
+            fail(errors, f"Pre-Go-Live state {field} must be boolean")
+    maintainers = state.get("independent_non_founder_human_maintainers")
+    if type(maintainers) is not int or maintainers < 0:
+        fail(errors, "bootstrap operating state requires a non-negative maintainer count")
+    if state.get("go_live") is True:
+        if state.get("forge_canonical") is not True:
+            fail(errors, "Go-Live requires canonical Forge")
+        if state.get("status") != "sunset":
+            fail(errors, "Go-Live requires the bootstrap profile to be sunset")
+        fail(errors, "Go-Live disables Founder GitHub integration authority")
+    elif state.get("status") != "active":
+        fail(errors, "Pre-Go-Live operating profile must be active before Go-Live")
+
+    check_time = now or dt.datetime.now(dt.timezone.utc)
+    if check_time.tzinfo is None:
+        fail(errors, "bootstrap operating-state validation time must include a timezone")
+        return
+    effective = parse_instant(state.get("effective_at"), "bootstrap profile effective time", errors)
+    verified = parse_instant(state.get("last_verified_at"), "bootstrap profile last-verified time", errors)
+    if effective and effective > check_time:
+        fail(errors, "Pre-Go-Live profile is not yet effective")
+    if verified and verified > check_time:
+        fail(errors, "bootstrap operating state last_verified_at is in the future")
+    elif verified and check_time - verified > BOOTSTRAP_STATE_MAX_VERIFICATION_AGE:
+        warnings.append("bootstrap operating state last_verified_at is more than 30 days old; "
+                        "re-confirm declared operating state against real network evidence")
+
+    # A proposal cannot give itself the pause just by inventing a profile.
+    authority_root = canonical_root or root
+    decision_path = authority_root / PRE_GO_LIVE_DECISION
+    if not decision_path.is_file():
+        fail(errors, "Pre-Go-Live profile requires canonical governance decision 52")
+    elif hashlib.sha256(decision_path.read_bytes()).hexdigest() != PRE_GO_LIVE_DECISION_DIGEST:
+        fail(errors, "canonical governance decision 52 digest mismatch")
+    policy_path = root / "governance/policy.yml"
+    if not policy_path.is_file():
+        fail(errors, "missing Pre-Go-Live governance policy")
+        return
+    policy = policy_path.read_text(encoding="utf-8")
+    for marker in (
+        f"id: {PRE_GO_LIVE_PROFILE}", f"authority_decision: {PRE_GO_LIVE_DECISION}",
+        "minimum_required_human_approvals: 0", "ai_approval_weight: 0",
+        "require_status_checks: true", "require_conversation_resolution: true",
+        "participant_identity: anonymous", "sunset_when: go_live_and_forge_canonical",
+        "transition: irreversible",
+    ):
+        if marker not in policy:
+            fail(errors, f"governance policy lacks Pre-Go-Live marker: {marker}")
+    for prohibition in (
+        "money_or_balance_grants_governance_weight", "permanent_owner_or_admin_key",
+        "forced_update_activation", "hidden_unmasking_path", "kill_switch",
+    ):
+        if f"  - {prohibition}" not in policy:
+            fail(errors, f"missing substantive constitutional prohibition: {prohibition}")
+
+
+def validate_legacy_bootstrap_operating_state(
     root: Path,
     errors: list[str],
     warnings: list[str],
@@ -1141,7 +1258,7 @@ def validate_baseline(
     validate_session_charter(
         root, errors, warnings, canonical_root, now, candidate_activation
     )
-    validate_bootstrap_operating_state(root, errors, warnings, now)
+    validate_bootstrap_operating_state(root, errors, warnings, now, canonical_root)
     validate_work_claims(root, errors, warnings, now)
 
 
@@ -1197,8 +1314,8 @@ def validate_proposal(body: str, changed: list[str], errors: list[str], warnings
         if pattern.search(body) and not re.search(r"reject|forbid|must not|no path|does not", body, re.I):
             warnings.append(f"proposal may contain prohibited constitutional claim: {name}")
 
-    if re.search(r"AI assisted", body, re.I) and not re.search(r"persistent.*identity|human|pseudonymous", body, re.I | re.S):
-        fail(errors, "AI-assisted proposal lacks a persistent submitting/authorizing identity declaration")
+    if re.search(r"AI assisted", body, re.I) and not re.search(r"anonymous|human|pseudonymous|persistent.*identity", body, re.I | re.S):
+        fail(errors, "AI-assisted proposal lacks an assistance/authority boundary declaration")
 
 
 def main() -> int:

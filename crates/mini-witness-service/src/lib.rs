@@ -99,6 +99,15 @@ pub struct PersistentWitnessJournal {
     witness_key: VerifyingKey,
     poisoned: bool,
 }
+// Release the owner-held lock explicitly before closing its handle. A process
+// spawned concurrently by another thread can briefly inherit a duplicate until
+// exec; closing our handle alone would let that duplicate retain the lock.
+impl Drop for PersistentWitnessJournal {
+    fn drop(&mut self) {
+        let _ = self._lock.unlock();
+    }
+}
+
 impl PersistentWitnessJournal {
     pub fn open(
         root: impl Into<PathBuf>,
@@ -776,6 +785,21 @@ mod tests {
             PersistentWitnessJournal::open(&root, witness, &key),
             Err(WitnessServiceError::MigrationRequired)
         ));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn dropping_the_journal_releases_a_duplicated_lock_handle() {
+        let root = temp_root("duplicated-lock");
+        let (witness, key) = a_witness();
+        let store = PersistentWitnessJournal::open(&root, witness.clone(), &key).unwrap();
+        // Deterministically model the descriptor inherited between fork and
+        // exec by an unrelated, concurrently spawned test process.
+        let inherited = store._lock.try_clone().unwrap();
+        drop(store);
+        let reopened = PersistentWitnessJournal::open(&root, witness, &key).unwrap();
+        drop(inherited);
+        drop(reopened);
         fs::remove_dir_all(root).unwrap();
     }
 

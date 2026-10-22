@@ -935,7 +935,7 @@ impl Workspace {
                 ok,
             ));
         }
-        rows.sort_by(|a, b| b.0.cmp(&a.0));
+        rows.sort_by_key(|b| std::cmp::Reverse(b.0));
         rows.into_iter()
             .map(|(_, id, micro, n, ok)| (id, micro, n, ok))
             .collect()

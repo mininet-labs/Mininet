@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Grants Mininet's own already-declared runtime permissions by default at
+  first boot, so a preinstalled system app doesn't show a first-run
+  permission dialog for capabilities the OS itself chose to ship it with.
+  This is a UX default only -- the user can still revoke any of these
+  later in Settings, same as for a user-installed app, GrapheneOS's
+  per-app permission model is unaffected.
+
+  Must be installed under a partition's etc/default-permissions/ directory
+  (see mininet_overlay.mk) with this exact <exceptions> root element --
+  Android's DefaultPermissionGrantPolicy only scans that directory name and
+  only recognizes this schema; a <config> document (the etc/sysconfig/
+  schema, used for unrelated allowlists like shared-user or hidden-api
+  overrides) is silently ignored here.
+-->
+<exceptions>
+    <exception package="org.mininet.app">
+        <permission name="android.permission.BLUETOOTH_SCAN" fixed="false" />
+        <permission name="android.permission.BLUETOOTH_ADVERTISE" fixed="false" />
+        <permission name="android.permission.BLUETOOTH_CONNECT" fixed="false" />
+    </exception>
+</exceptions>
