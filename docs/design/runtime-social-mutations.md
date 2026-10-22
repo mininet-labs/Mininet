@@ -223,3 +223,35 @@ is cleared after the matching receipt; no renderer key unlock or sequence
 allocation remains in this path. Publishing does not grant votes, standing or
 governance authority. General media publishing and other remaining signers still
 require their own runtime migrations.
+
+## Posts sharing existing media
+
+Library's Share as post action sends `PublishMediaPost { operation_id, media_id,
+caption }` through the same service. New signatures require an unlocked identity,
+a bounded caption (blank is allowed) and an existing canonical public media
+manifest, superblock or named collection header. Missing, private, unrelated and
+extra-link headers are refused before sequence reservation. The service parses
+only the selected header; it does not fetch descendants, verify availability of
+all parts, open file paths or assert trust in the source content.
+
+Named collection decoding now lives in mini-media and is reused by the desktop
+Library. The existing `mininet/media-collection/v1` wire format is unchanged;
+canonical headers contain only ordered `part` links, bounded names/content types
+and a total length within their part capacity. Unknown extra header links are
+refused rather than ignored. Existing Library round-trip/progress/export checks
+exercise the same decoder used by the service.
+
+The store-free media-post builder preserves the original POST wire bytes: one
+`media` link plus the caption. The journal binds that exact link and text before
+insertion. Completed receipts work while locked or after the header cache is
+removed; stale successful retries cannot allocate another signature. Desktop
+retains the target/raw caption while awaiting a reply and clears it only when
+the exact original editor snapshot remains selected. Edited or retargeted drafts
+survive late replies.
+
+`MediaPost` is a distinct IPC publication kind so the public-delivery picker can
+exclude linked-media posts without fetching object bytes. The outbox still does
+not transfer linked media, headers or file chunks. Publishing this post changes
+no network grant and uploads no file. Raw file import and Creator's direct media
+publication remain separate runtime migrations; this slice removes the legacy
+signer only from the Library share action.

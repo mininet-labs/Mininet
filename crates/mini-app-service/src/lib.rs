@@ -238,6 +238,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .feed_snapshot(order, scope, usize::from(limit))
                 .map(Reply::Feed),
+            Command::PublishMediaPost {
+                operation_id,
+                media_id,
+                caption,
+            } => self
+                .publish_media_post(&operation_id, &media_id, &caption)
+                .map(Reply::Published),
             Command::PublishWall {
                 operation_id,
                 draft,
@@ -548,6 +555,89 @@ impl<V: IdentityVault> Core<V> {
             build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
+            input,
+            objects: vec![object.to_bytes()],
+        };
+        self.journal.write_pending(&record)?;
+        let published = self.journal.commit_and_complete(&mut self.store, &record)?;
+        self.emit_published(&published);
+        Ok(published)
+    }
+
+    fn publish_media_post(
+        &mut self,
+        operation_id: &str,
+        media_id: &str,
+        caption: &str,
+    ) -> Result<PublishedObject, ServiceError> {
+        validate_operation(operation_id)?;
+        if media_id.is_empty()
+            || media_id.len() > MAX_OBJECT_ID_BYTES
+            || caption.len() > MAX_POST_BYTES
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "media caption post exceeds limits",
+            ));
+        }
+        let media = ObjectId::parse(media_id).map_err(storage_or_social)?;
+        let input = MutationInput::MediaPost {
+            media_id: media.as_str().into(),
+            caption: caption.into(),
+        };
+        if let Some(existing) = self.journal.existing(operation_id, &input)? {
+            return self.finish_existing(existing, ObjectKind::MediaPost);
+        }
+        self.ensure_signing_available()?;
+        let header = self.store.get(&media).map_err(storage_error)?;
+        if !matches!(&header.payload, Payload::Public(_)) {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "media sharing requires an existing public header",
+            ));
+        }
+        match &header.object_type {
+            kind if *kind == ObjectType::MEDIA_MANIFEST => {
+                mini_media::read_manifest(&header).map_err(storage_or_social)?;
+                if header.links.iter().any(|link| link.rel != "chunk") {
+                    return Err(ServiceError::new(
+                        ErrorCode::BadRequest,
+                        "noncanonical media manifest links",
+                    ));
+                }
+            }
+            ObjectType::Custom(name) if name == mini_media::SUPERBLOCK_TYPE => {
+                mini_media::read_superblock(&header).map_err(storage_or_social)?;
+                if header.links.iter().any(|link| link.rel != "part") {
+                    return Err(ServiceError::new(
+                        ErrorCode::BadRequest,
+                        "noncanonical superblock links",
+                    ));
+                }
+            }
+            ObjectType::Custom(name) if name == mini_media::COLLECTION_TYPE => {
+                mini_media::read_collection(&header).map_err(storage_or_social)?;
+                if header.links.iter().any(|link| link.rel != "part") {
+                    return Err(ServiceError::new(
+                        ErrorCode::BadRequest,
+                        "noncanonical collection links",
+                    ));
+                }
+            }
+            _ => {
+                return Err(ServiceError::new(
+                    ErrorCode::BadRequest,
+                    "unsupported media header type",
+                ))
+            }
+        }
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object =
+            mini_social::build_media_post(human, device, media, caption, now_ms(), sequence)
+                .map_err(storage_or_social)?;
+        let record = PendingMutation {
+            operation_id: operation_id.into(),
             input,
             objects: vec![object.to_bytes()],
         };
@@ -1327,6 +1417,10 @@ fn storage_or_social(error: impl core::fmt::Display) -> ServiceError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MutationInput {
+    MediaPost {
+        media_id: String,
+        caption: String,
+    },
     Wall {
         draft: PublicWallDraft,
     },
@@ -1374,6 +1468,7 @@ impl MutationInput {
             Self::Wall { .. } => ObjectKind::Wall,
             Self::Profile { .. } => ObjectKind::Profile,
             Self::Post { .. } => ObjectKind::Post,
+            Self::MediaPost { .. } => ObjectKind::MediaPost,
             Self::Follow { .. } => ObjectKind::Follow,
             Self::Like { .. } => ObjectKind::Reaction,
             Self::Comment { .. } => ObjectKind::Comment,
@@ -1664,6 +1759,33 @@ fn commit_record(
     record: &PendingMutation,
 ) -> Result<PublishedObject, ServiceError> {
     match &record.input {
+        MutationInput::MediaPost { media_id, caption } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "media post journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let post = mini_social::decode_post(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || post.text != *caption
+                || !matches!(&post.kind,mini_social::PostKind::Media{media} if media.as_str()==media_id)
+                || object.links.len() != 1
+                || object.links[0].rel != "media"
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "media post journal differs from exact target and caption",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::MediaPost,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Wall { draft } => {
             draft.validate().map_err(storage_or_social)?;
             if record.objects.len() != 2 {
@@ -2032,6 +2154,7 @@ fn encode_receipt(receipt: &MutationReceipt) -> Result<Vec<u8>, ServiceError> {
         ObjectKind::Membership => 5,
         ObjectKind::Community => 6,
         ObjectKind::Wall => 7,
+        ObjectKind::MediaPost => 8,
     });
     encoder.string(&receipt.object_id, 256)?;
     encoder.finish()
@@ -2051,6 +2174,7 @@ fn decode_receipt(bytes: &[u8]) -> Result<MutationReceipt, ServiceError> {
         5 => ObjectKind::Membership,
         6 => ObjectKind::Community,
         7 => ObjectKind::Wall,
+        8 => ObjectKind::MediaPost,
         _ => {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
@@ -2216,6 +2340,11 @@ impl JournalEncoder {
     }
     fn input(&mut self, input: &MutationInput) -> Result<(), ServiceError> {
         match input {
+            MutationInput::MediaPost { media_id, caption } => {
+                self.u8(10);
+                self.string(media_id, MAX_OBJECT_ID_BYTES)?;
+                self.string(caption, MAX_POST_BYTES)?;
+            }
             MutationInput::Wall { draft } => {
                 draft.validate().map_err(storage_or_social)?;
                 self.u8(9);
@@ -2420,6 +2549,12 @@ impl<'a> JournalDecoder<'a> {
     }
     fn input(&mut self) -> Result<MutationInput, ServiceError> {
         match self.u8()? {
+            10 => {
+                let media_id = self.string(MAX_OBJECT_ID_BYTES)?;
+                ObjectId::parse(&media_id).map_err(storage_error)?;
+                let caption = self.string(MAX_POST_BYTES)?;
+                Ok(MutationInput::MediaPost { media_id, caption })
+            }
             9 => {
                 let display_name = self.string(mini_app_protocol::MAX_WALL_NAME_BYTES)?;
                 let bio = self.string(mini_app_protocol::MAX_WALL_BIO_BYTES)?;
@@ -4765,6 +4900,227 @@ mod tests {
                     panic!("wrong reply")
                 };
                 assert!(reply.duplicate);
+                drop(core);
+            }
+            fs::remove_dir_all(path).unwrap();
+        }
+    }
+    fn media_share_test_headers(human: &Did, device: &Controller) -> Vec<Object> {
+        let missing = build_post(human, device, "descendant absent by design", 1, 1).unwrap();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&24u32.to_be_bytes());
+        payload.extend_from_slice(b"application/octet-stream");
+        payload.extend_from_slice(&1u64.to_be_bytes());
+        payload.extend_from_slice(&[0; 32]);
+        let manifest = mini_objects::ObjectBuilder::new(ObjectType::MEDIA_MANIFEST)
+            .link("chunk", missing.id().clone())
+            .payload(Payload::Public(payload.clone()))
+            .sign(human, device)
+            .unwrap();
+        let superblock = mini_objects::ObjectBuilder::new(ObjectType::Custom(
+            mini_media::SUPERBLOCK_TYPE.into(),
+        ))
+        .link("part", missing.id().clone())
+        .payload(Payload::Public(payload))
+        .sign(human, device)
+        .unwrap();
+        let mut payload = vec![1];
+        for value in ["file.bin", "application/octet-stream"] {
+            payload.extend_from_slice(&(value.len() as u32).to_be_bytes());
+            payload.extend_from_slice(value.as_bytes());
+        }
+        payload.extend_from_slice(&1u64.to_be_bytes());
+        let collection = mini_objects::ObjectBuilder::new(ObjectType::Custom(
+            mini_media::COLLECTION_TYPE.into(),
+        ))
+        .link("part", missing.id().clone())
+        .payload(Payload::Public(payload))
+        .sign(human, device)
+        .unwrap();
+        vec![manifest, superblock, collection]
+    }
+    #[test]
+    fn media_share_accepts_three_public_headers_without_fetch_and_keeps_locked_exact_receipts() {
+        let path = temp_root("media-share");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+        core.unlock().unwrap();
+        let (human, device) = core.signing_identity().unwrap();
+        let headers = media_share_test_headers(human, device);
+        let mut published = Vec::new();
+        for (index, header) in headers.iter().enumerate() {
+            core.store.insert(header).unwrap();
+            let Reply::Published(post) = core
+                .handle(Command::PublishMediaPost {
+                    operation_id: format!("media-share:{index}"),
+                    media_id: header.id().as_str().into(),
+                    caption: String::new(),
+                })
+                .unwrap()
+            else {
+                panic!("wrong reply")
+            };
+            assert_eq!(post.kind, ObjectKind::MediaPost);
+            published.push(post);
+        }
+        let target = headers[0].id().as_str();
+        let old = Command::PublishMediaPost {
+            operation_id: "media-share:0".into(),
+            media_id: target.into(),
+            caption: String::new(),
+        };
+        core.handle(Command::PublishMediaPost {
+            operation_id: "media-share:newer".into(),
+            media_id: target.into(),
+            caption: "new caption".into(),
+        })
+        .unwrap();
+        let before = core.store.by_type(&ObjectType::POST).unwrap().len();
+        let Reply::Published(stale) = core.handle(old.clone()).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(stale.duplicate);
+        assert_eq!(core.store.by_type(&ObjectType::POST).unwrap().len(), before);
+        let post_id = ObjectId::parse(&published[0].object_id).unwrap();
+        let bytes = core.store.get(&post_id).unwrap().to_bytes();
+        assert!(core
+            .handle(Command::PreviewPublicDelivery {
+                object_id: published[0].object_id.clone()
+            })
+            .is_err());
+        drop(core);
+        let mut core = Core::open_inner(path.clone(), vault, false).unwrap();
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        fs::remove_file(path.join("blobs").join(&target[..2]).join(target)).unwrap();
+        let Reply::Published(retry) = core.handle(old).unwrap() else {
+            panic!("wrong reply")
+        };
+        assert!(retry.duplicate);
+        assert_eq!(retry.object_id, published[0].object_id);
+        assert_eq!(core.store.get(&post_id).unwrap().to_bytes(), bytes);
+        assert!(core
+            .handle(Command::PublishMediaPost {
+                operation_id: "media-share:0".into(),
+                media_id: target.into(),
+                caption: "changed".into()
+            })
+            .is_err());
+        assert!(core
+            .handle(Command::PublishMediaPost {
+                operation_id: "media-share:locked".into(),
+                media_id: headers[1].id().as_str().into(),
+                caption: String::new()
+            })
+            .is_err());
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn missing_private_unrelated_and_noncanonical_media_headers_never_reserve_sequence() {
+        let path = temp_root("media-share-invalid");
+        let mut core = Core::open_inner(path.clone(), MemoryVault::seeded(), false).unwrap();
+        core.unlock().unwrap();
+        let (human, device) = core.signing_identity().unwrap();
+        let headers = media_share_test_headers(human, device);
+        let private = mini_objects::ObjectBuilder::new(ObjectType::MEDIA_MANIFEST)
+            .payload(Payload::Encrypted(vec![1]))
+            .sign(human, device)
+            .unwrap();
+        let unrelated = build_post(human, device, "not media", 1, 1).unwrap();
+        let extra = mini_objects::ObjectBuilder::new(ObjectType::MEDIA_MANIFEST)
+            .link("chunk", headers[0].links[0].target.clone())
+            .link("extra", unrelated.id().clone())
+            .payload(headers[0].payload.clone())
+            .sign(human, device)
+            .unwrap();
+        for object in [&private, &unrelated, &extra] {
+            core.store.insert(object).unwrap();
+        }
+        let sequence = fs::read(&core.journal.sequence).unwrap();
+        let next = core.next_sequence;
+        for (index, id) in [headers[0].id(), private.id(), unrelated.id(), extra.id()]
+            .into_iter()
+            .enumerate()
+        {
+            assert!(core
+                .handle(Command::PublishMediaPost {
+                    operation_id: format!("bad-media:{index}"),
+                    media_id: id.as_str().into(),
+                    caption: String::new()
+                })
+                .is_err());
+        }
+        assert_eq!(core.next_sequence, next);
+        assert_eq!(fs::read(&core.journal.sequence).unwrap(), sequence);
+        drop(core);
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn pending_media_share_recovery_binds_exact_caption_media_and_no_extra_or_zero_links() {
+        for mode in 0..5 {
+            let path = temp_root("media-share-recover");
+            let vault = MemoryVault::seeded();
+            let mut core = Core::open_inner(path.clone(), vault.clone(), false).unwrap();
+            core.unlock().unwrap();
+            let (human, device) = core.signing_identity().unwrap();
+            let headers = media_share_test_headers(human, device);
+            let base = mini_social::build_media_post(
+                human,
+                device,
+                headers[0].id().clone(),
+                "caption",
+                77,
+                9,
+            )
+            .unwrap();
+            let object = match mode {
+                3 => mini_objects::ObjectBuilder::new(ObjectType::POST)
+                    .link("media", headers[0].id().clone())
+                    .link("extra", headers[1].id().clone())
+                    .payload(base.payload.clone())
+                    .sign(human, device)
+                    .unwrap(),
+                4 => build_post(human, device, "caption", 77, 9).unwrap(),
+                _ => base,
+            };
+            let id = object.id().clone();
+            let record = PendingMutation {
+                operation_id: "media-share:recover".into(),
+                input: MutationInput::MediaPost {
+                    media_id: headers[if mode == 2 { 1 } else { 0 }].id().as_str().into(),
+                    caption: if mode == 1 {
+                        "changed".into()
+                    } else {
+                        "caption".into()
+                    },
+                },
+                objects: vec![object.to_bytes()],
+            };
+            core.journal.write_pending(&record).unwrap();
+            drop(core);
+            let recovered = Core::open_inner(path.clone(), vault, false);
+            if mode != 0 {
+                assert!(recovered.is_err());
+                let store = Store::new(FsBackend::open(&path).unwrap());
+                assert!(store.get(&id).is_err());
+            } else {
+                let mut core = recovered.unwrap();
+                assert_eq!(core.store.get(&id).unwrap().to_bytes(), object.to_bytes());
+                let Reply::Published(reply) = core
+                    .handle(Command::PublishMediaPost {
+                        operation_id: "media-share:recover".into(),
+                        media_id: headers[0].id().as_str().into(),
+                        caption: "caption".into(),
+                    })
+                    .unwrap()
+                else {
+                    panic!("wrong reply")
+                };
+                assert!(reply.duplicate);
+                assert_eq!(reply.kind, ObjectKind::MediaPost);
                 drop(core);
             }
             fs::remove_dir_all(path).unwrap();

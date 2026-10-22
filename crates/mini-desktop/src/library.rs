@@ -13,20 +13,17 @@
 use did_mini::{Controller, Did};
 use mini_media::{
     assemble_to_writer, missing_chunks, publish_media, read_manifest, Manifest, CHUNK_SIZE,
-    MAX_TOTAL_LEN,
 };
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
 use mini_store::{Backend, Store};
 use std::io::{Read, Write};
 use std::path::Path;
 
-pub const COLLECTION_TYPE: &str = "mininet/media-collection/v1";
-const COLLECTION_VERSION: u8 = 1;
-pub const MAX_PARTS: usize = 256;
-pub const MAX_NAME_BYTES: usize = 255;
-pub const MAX_CONTENT_TYPE_BYTES: usize = 128;
-/// Bytes per part; the largest a single manifest may carry.
-pub const PART_BYTES: u64 = MAX_TOTAL_LEN;
+pub use mini_media::{
+    COLLECTION_PART_BYTES as PART_BYTES, COLLECTION_TYPE, COLLECTION_VERSION,
+    MAX_COLLECTION_CONTENT_TYPE_BYTES as MAX_CONTENT_TYPE_BYTES,
+    MAX_COLLECTION_NAME_BYTES as MAX_NAME_BYTES, MAX_COLLECTION_PARTS as MAX_PARTS,
+};
 
 /// What a library entry is backed by.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,76 +67,11 @@ fn put_str(out: &mut Vec<u8>, s: &str) {
     out.extend_from_slice(s.as_bytes());
 }
 
-fn get_str(bytes: &[u8], pos: &mut usize, max: usize) -> Option<String> {
-    let len = u32::from_be_bytes(bytes.get(*pos..*pos + 4)?.try_into().ok()?) as usize;
-    *pos += 4;
-    if len > max {
-        return None;
-    }
-    let s = String::from_utf8(bytes.get(*pos..*pos + len)?.to_vec()).ok()?;
-    *pos += len;
-    Some(s)
-}
-
-/// Decoded collection header.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Collection {
-    pub id: ObjectId,
-    pub name: String,
-    pub content_type: String,
-    pub total_len: u64,
-    pub parts: Vec<ObjectId>,
-    pub author: Did,
-    pub timestamp_ms: u64,
-}
-
+/// Shared canonical collection header (legacy desktop type name).
+pub type Collection = mini_media::MediaCollection;
+/// Decode metadata only; this does not fetch or publish collection parts.
 pub fn read_collection(object: &Object) -> Result<Collection, String> {
-    if object.object_type != ObjectType::Custom(COLLECTION_TYPE.into()) {
-        return Err("not a media collection".into());
-    }
-    let Payload::Public(bytes) = &object.payload else {
-        return Err("collection payload is not public".into());
-    };
-    let mut pos = 0;
-    if bytes.first() != Some(&COLLECTION_VERSION) {
-        return Err("unknown collection version".into());
-    }
-    pos += 1;
-    let name = get_str(bytes, &mut pos, MAX_NAME_BYTES).ok_or("malformed collection name")?;
-    let content_type =
-        get_str(bytes, &mut pos, MAX_CONTENT_TYPE_BYTES).ok_or("malformed content type")?;
-    let total_len = u64::from_be_bytes(
-        bytes
-            .get(pos..pos + 8)
-            .ok_or("malformed length")?
-            .try_into()
-            .map_err(|_| "malformed length")?,
-    );
-    pos += 8;
-    if pos != bytes.len() {
-        return Err("trailing bytes in collection".into());
-    }
-    let parts: Vec<ObjectId> = object
-        .links
-        .iter()
-        .filter(|link| link.rel == "part")
-        .map(|link| link.target.clone())
-        .collect();
-    if parts.is_empty() || parts.len() > MAX_PARTS {
-        return Err("collection has no parts or too many".into());
-    }
-    if total_len > parts.len() as u64 * PART_BYTES {
-        return Err("collection length exceeds its parts".into());
-    }
-    Ok(Collection {
-        id: object.id().clone(),
-        name,
-        content_type,
-        total_len,
-        parts,
-        author: object.author_human.clone(),
-        timestamp_ms: object.timestamp_ms,
-    })
+    mini_media::read_collection(object)
 }
 
 /// Guess a content type from a file extension; unknown becomes
