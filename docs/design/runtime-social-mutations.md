@@ -156,6 +156,44 @@ Editor snapshots and public intent are separate: private disabled field text is
 never sent in the public draft. Exact public intent retains its operation ID
 across uncertain replies. A delayed success preserves edits made while pending
 and clears photo/removal inputs only for an unchanged original snapshot. Existing
-avatars can be retained or removed. New-photo preparation/import is the next
-stacked slice; a selected path is never silently ignored or signed by a renderer
-fallback. Updated journal tags require the updated service.
+avatars can be retained or removed. New-photo preparation/import is supplied by the next
+stacked slice described below; a selected path is never silently ignored or
+signed by a renderer fallback. Updated journal tags require the updated service.
+
+## Reviewed profile photos
+
+Creator accepts an owner-selected PNG/JPEG/WebP/GIF source up to 8 MiB and
+4096×4096. Preparation runs one bounded worker at a time, reads at most 8 MiB plus
+one overflow byte and never sends its local path to the service. The worker fits
+the image within 256×256, composites transparency on white, strips source file
+metadata and encodes a JPEG up to 96 KiB. The displayed preview decodes those
+actual encoded bytes. The original file is unchanged. A changed selection cannot
+reuse an unrelated preparation, and preparing a new image requires fresh signing
+confirmation. File changes after preparation are not silently reread at publish.
+
+`PublishProfileWithPhoto { operation_id, draft, photo }` sends those exact reviewed
+JPEG bytes and public fields; the draft cannot also supply an avatar ID. The core
+requires unlock and validates byte/dimension/allocation bounds before reserving
+one consecutive two-sequence range. The existing media builder writes only to an
+in-memory store during preparation. One pending operation then persists four exact
+signed objects: chunk, image manifest, v2 profile and HEAD. Existing 128 KiB object
+and 256 KiB journal bounds remain unchanged; only this input variant permits four
+objects. The durable input/receipt contains public fields, photo digest and length,
+not another copy of the image.
+
+Before any filesystem insertion, recovery checks canonical bytes and integrity,
+all identities/timestamps/sequences, the exact JPEG digest/length, manifest/chunk
+link and assembled bytes, and the profile/HEAD with its derived avatar ID. Storage
+may be interrupted between object writes; replay inserts the same objects and
+completes the HEAD and receipt without re-signing. This is recoverable publication,
+not rollback of already stored content. Exact completed retries work while locked
+or after media cache removal.
+
+Desktop retries bind both public fields and exact prepared bytes. A shared typed
+intent retires the previous variant when switching between photo and ordinary
+profile edits, so an old pre-photo receipt cannot satisfy a new removal action. A successful
+receipt preserves newer form edits and clears the selected path only for an
+unchanged original snapshot. This migrates profile photo signing, not general
+media uploads or authenticated transfer of avatars to other devices. Existing
+media exchange remains a separate transport workflow; hardware acceptance and
+installed-device lifecycle checks remain open.

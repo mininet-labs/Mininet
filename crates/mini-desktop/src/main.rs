@@ -19,6 +19,7 @@ mod network_session;
 mod peer_link;
 mod player;
 mod profile_editor;
+mod profile_photo;
 mod public_delivery;
 mod theme;
 mod timeline;
@@ -107,6 +108,11 @@ enum CoreAction {
         parent: String,
         text: String,
         draft: CommentDraft,
+    },
+    PublishProfileWithPhoto {
+        draft: PublicProfileDetails,
+        editor: profile_editor::Snapshot,
+        photo: Vec<u8>,
     },
     PublishProfileDetails {
         draft: PublicProfileDetails,
@@ -228,7 +234,7 @@ struct MininetApp {
     like_operation: Option<(String, bool, String)>,
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
-    profile_details_operation: Option<(PublicProfileDetails, String)>,
+    profile_details_operation: Option<(profile_editor::Intent, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
@@ -327,6 +333,8 @@ struct MininetApp {
     profile_name: String,
     profile_bio: String,
     profile_photo_path: String,
+    prepared_profile_photo: Option<profile_photo::Prepared>,
+    profile_photo_rx: Option<Receiver<Result<profile_photo::Prepared, String>>>,
     profile_avatar: Option<mini_objects::ObjectId>,
     profile_remove_photo: bool,
     profile_location: String,
@@ -1604,6 +1612,8 @@ impl Default for MininetApp {
                 .map(|profile| profile.bio.clone())
                 .unwrap_or_default(),
             profile_photo_path: String::new(),
+            prepared_profile_photo: None,
+            profile_photo_rx: None,
             profile_avatar: existing_profile
                 .as_ref()
                 .and_then(|profile| profile.avatar.clone()),
@@ -1778,6 +1788,7 @@ impl eframe::App for MininetApp {
             self.apply_launch_policy();
         }
         self.poll_app_service();
+        self.poll_profile_photo();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
         self.poll_netsearch();
@@ -1810,6 +1821,7 @@ impl eframe::App for MininetApp {
             || self.visibility_rx.is_some()
             || self.selftest_rx.is_some()
             || self.timeline_rx.is_some()
+            || self.profile_photo_rx.is_some()
             || self.app_status_rx.is_some()
             || self.app_action.is_some()
             || self.app_events_rx.is_some()
@@ -2126,13 +2138,60 @@ impl MininetApp {
                 self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
             }
             (
+                CoreAction::PublishProfileWithPhoto {
+                    draft,
+                    editor,
+                    photo,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Profile => {
+                let unchanged = editor == self.profile_editor_snapshot()
+                    && self.profile_photo_rx.is_none()
+                    && self
+                        .prepared_profile_photo
+                        .as_ref()
+                        .is_some_and(|prepared| prepared.matches(&editor.photo_path, &photo));
+                self.reload_workspace();
+                let avatar = self.workspace.as_ref().and_then(|workspace| {
+                    let id = mini_objects::ObjectId::parse(&published.object_id).ok()?;
+                    let profile = workspace.store.get(&id).ok()?;
+                    mini_social::decode_profile(&profile).ok()?.avatar
+                });
+                let Some(avatar) = avatar else {
+                    self.notice = "Profile receipt saved, but its new avatar could not be reloaded. The exact request is retained; retry it to recover.".into();
+                    return;
+                };
+                if self
+                    .profile_details_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| {
+                        old == &profile_editor::Intent::Photo {
+                            draft: draft.clone(),
+                            photo: photo.clone(),
+                        }
+                    })
+                {
+                    self.profile_details_operation = None;
+                }
+                self.profile_avatar = Some(avatar);
+                if unchanged {
+                    self.profile_photo_path.clear();
+                    self.profile_remove_photo = false;
+                    self.prepared_profile_photo = None;
+                }
+                self.profile_textures.clear();
+                self.signing_confirmation = false;
+                self.request_core_status();
+                self.notice = "Reviewed avatar and public profile saved through the application core. Newer editor changes have been preserved; exchange with peers to share the profile.".into();
+            }
+            (
                 CoreAction::PublishProfileDetails { draft, editor },
                 Ok(AppReply::Published(published)),
             ) if published.kind == mini_app_protocol::ObjectKind::Profile => {
                 if self
                     .profile_details_operation
                     .as_ref()
-                    .is_some_and(|(old, _)| old == &draft)
+                    .is_some_and(|(old, _)| old == &profile_editor::Intent::Details(draft.clone()))
                 {
                     self.profile_details_operation = None;
                 }
@@ -7875,6 +7934,100 @@ No tracking. No forced updates.",
         });
     }
 
+    fn poll_profile_photo(&mut self) {
+        let result =
+            self.profile_photo_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => Some(Err(
+                        "Photo preparation stopped. Prepare the photo again.".into(),
+                    )),
+                });
+        if let Some(result) = result {
+            self.profile_photo_rx = None;
+            match result {
+                Ok(photo) if photo.source_path == self.profile_photo_path.trim() => {
+                    self.prepared_profile_photo = Some(photo);
+                    self.signing_confirmation = false;
+                    self.notice = "Photo prepared locally. Review the preview and public fields, then confirm signing.".into();
+                }
+                Ok(_) => self.notice =
+                    "Photo selection changed while preparing it. Prepare the current photo again."
+                        .into(),
+                Err(error) => self.notice = error,
+            }
+        }
+    }
+
+    fn prepare_profile_photo(&mut self) {
+        if self.profile_photo_rx.is_some() {
+            return;
+        }
+        let path = self.profile_photo_path.trim().to_string();
+        if path.is_empty() {
+            self.notice = "Select a local image first.".into();
+            return;
+        }
+        self.prepared_profile_photo = None;
+        self.signing_confirmation = false;
+        let (sender, receiver) = mpsc::sync_channel(1);
+        self.profile_photo_rx = Some(receiver);
+        std::thread::spawn(move || {
+            let _ = sender.send(profile_photo::prepare(&path));
+        });
+    }
+
+    fn publish_profile_editor(&mut self) {
+        let editor = self.profile_editor_snapshot();
+        if editor.photo_path.trim().is_empty() {
+            match editor.details(None) {
+                Ok(draft) => self.publish_profile_details_via_core(draft, Some(editor)),
+                Err(error) => self.notice = error,
+            }
+            return;
+        }
+        let Some(photo) = self
+            .prepared_profile_photo
+            .as_ref()
+            .filter(|photo| photo.source_path == editor.photo_path.trim())
+            .map(|photo| photo.bytes.clone())
+        else {
+            self.notice = "Prepare and review the selected photo before signing.".into();
+            return;
+        };
+        let mut draft = match editor.details(Some("pending-reviewed-avatar")) {
+            Ok(draft) => draft,
+            Err(error) => {
+                self.notice = error;
+                return;
+            }
+        };
+        // The core derives the new content-addressed avatar from the exact
+        // reviewed bytes; the renderer cannot supply a competing avatar ID.
+        draft.avatar = None;
+        let operation_id = profile_editor::request_id(
+            &mut self.profile_details_operation,
+            profile_editor::Intent::Photo {
+                draft: draft.clone(),
+                photo: photo.clone(),
+            },
+        );
+        self.start_core_action(
+            CoreAction::PublishProfileWithPhoto {
+                draft: draft.clone(),
+                editor,
+                photo: photo.clone(),
+            },
+            AppCommand::PublishProfileWithPhoto {
+                operation_id,
+                draft,
+                photo,
+            },
+        );
+    }
+
     fn profile_editor_snapshot(&self) -> profile_editor::Snapshot {
         profile_editor::Snapshot {
             name: self.profile_name.clone(),
@@ -7899,7 +8052,10 @@ No tracking. No forced updates.",
             self.notice = "Finish the pending signed action before publishing a profile.".into();
             return;
         }
-        let operation_id = profile_editor::request_id(&mut self.profile_details_operation, &draft);
+        let operation_id = profile_editor::request_id(
+            &mut self.profile_details_operation,
+            profile_editor::Intent::Details(draft.clone()),
+        );
         self.start_core_action(
             CoreAction::PublishProfileDetails {
                 draft: draft.clone(),
@@ -7960,7 +8116,15 @@ No tracking. No forced updates.",
                 ui.label("Drop an image onto this window or paste its local path:");
                 ui.text_edit_singleline(&mut self.profile_photo_path);
             });
-            ui.label("PNG, JPEG, WebP, or GIF; maximum 8 MiB. The image is stored as signed Mininet media, not uploaded to a third party.");
+            ui.label("PNG, JPEG, WebP, or GIF source up to 8 MiB / 4096×4096. Prepare a JPEG avatar up to 256×256; transparency uses white and file metadata is removed. The original is unchanged.");
+            if ui.add_enabled(self.profile_photo_rx.is_none(), egui::Button::new("Prepare photo preview")).clicked() {
+                self.prepare_profile_photo();
+            }
+            if self.profile_photo_rx.is_some() { ui.spinner(); ui.label("Preparing a bounded local preview…"); }
+            if let Some(photo) = self.prepared_profile_photo.as_mut().filter(|photo| photo.source_path == self.profile_photo_path.trim()) {
+                photo.show(ui);
+                ui.label("Only this reviewed preview will be published. Prepare again to use later changes to the file.");
+            }
             if self.profile_avatar.is_some() {
                 ui.checkbox(
                     &mut self.profile_remove_photo,
@@ -7999,15 +8163,11 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I reviewed these details and want to publish them in my signed public profile",
             );
-            if ui.add_enabled(self.app_action.is_none(), egui::Button::new("Save signed public profile")).clicked() {
+            if ui.add_enabled(self.app_action.is_none() && self.profile_photo_rx.is_none(), egui::Button::new("Save signed public profile")).clicked() {
                 if !self.signing_confirmation {
                     self.notice = "Review the profile and confirm signing before publishing.".into();
                 } else {
-                    let editor = self.profile_editor_snapshot();
-                    match editor.details(None) {
-                        Ok(draft) => self.publish_profile_details_via_core(draft, Some(editor)),
-                        Err(error) => self.notice = error,
-                    }
+                    self.publish_profile_editor();
                 }
             }
         });

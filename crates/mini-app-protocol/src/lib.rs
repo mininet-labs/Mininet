@@ -31,6 +31,7 @@ pub const MAX_DID_BYTES: usize = 256;
 pub const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
 pub const MAX_LOCATION_BYTES: usize = 128;
+pub const MAX_PROFILE_PHOTO_BYTES: usize = 96 * 1024;
 pub const MAX_PROFILE_FIELDS: usize = 16;
 pub const MAX_PROFILE_FIELD_LABEL_BYTES: usize = 32;
 pub const MAX_PROFILE_FIELD_VALUE_BYTES: usize = 256;
@@ -262,6 +263,20 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
                 }
             }
+            Command::PublishProfileWithPhoto {
+                operation_id,
+                draft,
+                photo,
+            } => {
+                validate_operation_id(operation_id)?;
+                draft.validate()?;
+                if draft.avatar.is_some()
+                    || photo.is_empty()
+                    || photo.len() > MAX_PROFILE_PHOTO_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("reviewed profile JPEG"));
+                }
+            }
             Command::PublishProfileDetails {
                 operation_id,
                 draft,
@@ -420,6 +435,11 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishProfileWithPhoto {
+        operation_id: String,
+        draft: PublicProfileDetails,
+        photo: Vec<u8>,
+    },
     PublishProfileDetails {
         operation_id: String,
         draft: PublicProfileDetails,
@@ -796,6 +816,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             });
             encoder.u16(*limit);
         }
+        Command::PublishProfileWithPhoto {
+            operation_id,
+            draft,
+            photo,
+        } => {
+            encoder.u8(31);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encode_profile_details(encoder, draft)?;
+            encoder.byte_string(photo, MAX_PROFILE_PHOTO_BYTES)?;
+        }
         Command::PublishProfileDetails {
             operation_id,
             draft,
@@ -972,6 +1002,11 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        31 => Ok(Command::PublishProfileWithPhoto {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            draft: decode_profile_details(decoder)?,
+            photo: decoder.byte_string(MAX_PROFILE_PHOTO_BYTES)?,
+        }),
         30 => Ok(Command::PublishProfileDetails {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             draft: decode_profile_details(decoder)?,
@@ -2547,6 +2582,62 @@ mod profile_details_protocol_tests {
                     Command::PublishProfileDetails {
                         operation_id: "details:1".into(),
                         draft
+                    }
+                )
+            )
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod profile_photo_protocol_tests {
+    use super::*;
+    fn draft() -> PublicProfileDetails {
+        PublicProfileDetails {
+            display_name: "Alice".into(),
+            bio: "About".into(),
+            avatar: None,
+            location: None,
+            age: None,
+            fields: Vec::new(),
+        }
+    }
+    #[test]
+    fn reviewed_photo_command_round_trip_rejects_large_empty_or_preexisting_avatar() {
+        let request = Request::new(
+            26,
+            Command::PublishProfileWithPhoto {
+                operation_id: "photo:1".into(),
+                draft: draft(),
+                photo: vec![1; MAX_PROFILE_PHOTO_BYTES],
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        for (details, photo) in [
+            (draft(), Vec::new()),
+            (draft(), vec![0; MAX_PROFILE_PHOTO_BYTES + 1]),
+            (
+                PublicProfileDetails {
+                    avatar: Some("old-avatar".into()),
+                    ..draft()
+                },
+                vec![1],
+            ),
+        ] {
+            assert!(write_request(
+                &mut Vec::new(),
+                &Request::new(
+                    26,
+                    Command::PublishProfileWithPhoto {
+                        operation_id: "photo:1".into(),
+                        draft: details,
+                        photo
                     }
                 )
             )

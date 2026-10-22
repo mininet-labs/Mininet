@@ -74,15 +74,21 @@ impl Snapshot {
     }
 }
 
-pub(crate) fn request_id(
-    pending: &mut Option<(PublicProfileDetails, String)>,
-    draft: &PublicProfileDetails,
-) -> String {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Intent {
+    Details(PublicProfileDetails),
+    Photo {
+        draft: PublicProfileDetails,
+        photo: Vec<u8>,
+    },
+}
+
+pub(crate) fn request_id(pending: &mut Option<(Intent, String)>, intent: Intent) -> String {
     match pending {
-        Some((previous, id)) if previous == draft => id.clone(),
+        Some((previous, id)) if previous == &intent => id.clone(),
         _ => {
-            let id = crate::app_service::operation_id("profile-details");
-            *pending = Some((draft.clone(), id.clone()));
+            let id = crate::app_service::operation_id("profile");
+            *pending = Some((intent, id.clone()));
             id
         }
     }
@@ -141,15 +147,47 @@ mod tests {
         );
     }
     #[test]
+    fn switching_profile_variants_retires_old_intent_and_photo_retries_bind_exact_bytes() {
+        let draft = editor().details(None).unwrap();
+        let mut pending = None;
+        let first = request_id(&mut pending, Intent::Details(draft.clone()));
+        let photo = Intent::Photo {
+            draft: draft.clone(),
+            photo: b"photo-a".to_vec(),
+        };
+        let second = request_id(&mut pending, photo.clone());
+        assert_ne!(first, second);
+        assert_eq!(request_id(&mut pending, photo), second);
+        let replaced = request_id(
+            &mut pending,
+            Intent::Photo {
+                draft: draft.clone(),
+                photo: b"photo-b".to_vec(),
+            },
+        );
+        assert_ne!(replaced, second);
+        // An explicit metadata/removal action after a photo must not return an
+        // old receipt from before that photo, even for identical old fields.
+        let third = request_id(&mut pending, Intent::Details(draft));
+        assert_ne!(third, first);
+        assert_ne!(third, replaced);
+    }
+    #[test]
     fn retries_bind_every_public_field_and_snapshot_detects_late_edits() {
         let editor = editor();
         let draft = editor.details(None).unwrap();
         let mut pending = None;
-        let original = request_id(&mut pending, &draft);
-        assert_eq!(request_id(&mut pending, &draft), original);
+        let original = request_id(&mut pending, Intent::Details(draft.clone()));
+        assert_eq!(
+            request_id(&mut pending, Intent::Details(draft.clone())),
+            original
+        );
         let mut changed = draft.clone();
         changed.age = Some(23);
-        assert_ne!(request_id(&mut pending, &changed), original);
+        assert_ne!(
+            request_id(&mut pending, Intent::Details(changed.clone())),
+            original
+        );
         let mut changed_editor = editor.clone();
         changed_editor.photo_path = "later.png".into();
         assert_ne!(editor, changed_editor);
