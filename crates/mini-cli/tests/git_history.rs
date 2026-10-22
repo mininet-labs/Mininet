@@ -378,3 +378,65 @@ fn git_history_busy_lock_prevents_publication_and_retry_is_idempotent() {
     assert!(second.contains("\"imported_commits\":0"));
     assert_eq!(checkpoints(&home, "sha1"), 1);
 }
+
+#[test]
+fn git_history_recovers_published_mapping_after_index_loss() {
+    let temp = tempfile::tempdir().unwrap();
+    let repo = temp.path().join("source");
+    let source = root(&repo, "sha1");
+    let home = temp.path().join("home");
+    let store = temp.path().join("store");
+    let args = ["import-history", repo.to_str().unwrap()];
+    let first = run(&home, &store, &args).unwrap();
+    fs::remove_file(home.join("git-history/sha1").join(source)).unwrap();
+    let second = run(&home, &store, &args).unwrap();
+    assert_eq!(field(&first, "commit_id"), field(&second, "commit_id"));
+    assert_eq!(
+        field(&first, "provenance_id"),
+        field(&second, "provenance_id")
+    );
+    assert!(second.contains("\"imported_commits\":0"));
+    assert_eq!(checkpoints(&home, "sha1"), 1);
+}
+
+#[test]
+fn history_batch_streams_past_the_old_4096_commit_enumeration_cap() {
+    use std::io::Write;
+    use std::process::Stdio;
+    let temp = tempfile::tempdir().unwrap();
+    let repo = temp.path().join("source");
+    fs::create_dir(&repo).unwrap();
+    git(&repo, &["init", "--quiet"]);
+    let mut child = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&repo)
+        .args(["fast-import", "--quiet"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut input = child.stdin.take().unwrap();
+    for _ in 0..4100 {
+        input.write_all(b"commit refs/heads/main\ncommitter Import Test <test@example.invalid> 1 +0000\ndata 1\nx\n\n").unwrap();
+    }
+    input.write_all(b"done\n").unwrap();
+    drop(input);
+    assert!(child.wait().unwrap().success());
+    let home = temp.path().join("home");
+    let store = temp.path().join("store");
+    let args = [
+        "import-history",
+        repo.to_str().unwrap(),
+        "--ref",
+        "refs/heads/main",
+        "--batch-commits",
+        "1",
+    ];
+    let first = run(&home, &store, &args).unwrap();
+    assert!(first.contains("\"complete\":false"));
+    assert_eq!(checkpoints(&home, "sha1"), 1);
+    let second = run(&home, &store, &args).unwrap();
+    assert_ne!(field(&first, "commit_id"), field(&second, "commit_id"));
+    assert_eq!(checkpoints(&home, "sha1"), 2);
+}
