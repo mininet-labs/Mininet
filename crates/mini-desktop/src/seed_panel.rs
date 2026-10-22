@@ -875,8 +875,10 @@ mod tests {
     }
     #[test]
     fn pairing_review_is_invalidated_by_bundle_edits_and_profile_changes() {
-        let mut panel = Panel::default();
-        panel.pairing_hex = "abcd".into();
+        let mut panel = Panel {
+            pairing_hex: "abcd".into(),
+            ..Default::default()
+        };
         let key = panel.pairing_key();
         let doc = serde_json::json!({"result":{"human_did":"human","device_did":"device","bundle_id":"a".repeat(64),"trusted":false}});
         panel.pairing = pairing_review(key.clone(), &doc);
