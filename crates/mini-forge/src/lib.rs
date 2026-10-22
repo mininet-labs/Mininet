@@ -76,6 +76,9 @@ use mini_store::{Backend, Store, StoreError};
 /// File blob object type (≤ envelope payload cap; larger files use media
 /// manifests in a later batch).
 pub const FILE_TYPE: &str = "mini/fblob";
+/// File bytes with the portable Git executable bit set. Older readers must
+/// upgrade before accepting trees that contain this additive blob type.
+pub const EXECUTABLE_FILE_TYPE: &str = "mini/fblob-exec-v1";
 /// Tree object type.
 pub const TREE_TYPE: &str = "mini/tree";
 /// Build attestation object type.
@@ -197,6 +200,21 @@ impl From<did_mini::IdentityError> for ForgeError {
     }
 }
 
+/// Maximum bytes in one source-tree path segment. Nodes predating this
+/// extension must be upgraded to read trees containing names over 64 bytes.
+pub const MAX_FILENAME_BYTES: usize = 255;
+
+/// A safe source-tree filename, preserving the forge's restricted ASCII
+/// alphabet and excluding separators and traversal components.
+pub fn file_name_is_well_formed(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= MAX_FILENAME_BYTES
+        && s.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.')
+        && s != "."
+        && s != ".."
+}
+
 pub(crate) fn valid_name(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 64
@@ -231,6 +249,20 @@ pub fn put_file<B: Backend>(
     Ok(obj.id().clone())
 }
 
+/// Store file bytes while preserving the portable executable bit.
+pub fn put_executable_file<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    bytes: &[u8],
+) -> Result<ObjectId> {
+    let obj = ObjectBuilder::new(ObjectType::Custom(EXECUTABLE_FILE_TYPE.to_string()))
+        .payload(Payload::Public(bytes.to_vec()))
+        .sign(human, device)?;
+    store.insert(&obj)?;
+    Ok(obj.id().clone())
+}
+
 /// Store a tree of entries; returns its id. Entries are canonically sorted by
 /// name, so the same content always yields the same tree id.
 pub fn put_tree<B: Backend>(
@@ -254,7 +286,7 @@ pub fn put_tree<B: Backend>(
     payload.extend_from_slice(&(sorted.len() as u32).to_be_bytes());
     let mut builder = ObjectBuilder::new(ObjectType::Custom(TREE_TYPE.to_string()));
     for e in &sorted {
-        if !valid_name(&e.name) {
+        if !file_name_is_well_formed(&e.name) {
             return Err(ForgeError::BadName);
         }
         payload.push(u8::from(e.is_dir));
@@ -299,7 +331,7 @@ fn read_tree(obj: &Object) -> Result<Vec<TreeEntry>> {
         };
         off += 1;
         let name = take_str(b, &mut off).ok_or(ForgeError::BadObject)?;
-        if !valid_name(&name) {
+        if !file_name_is_well_formed(&name) {
             return Err(ForgeError::BadObject);
         }
         // Canonical order: strictly ascending names (also rules out duplicates
@@ -393,6 +425,19 @@ pub fn checkout<B: Backend>(
     store: &Store<B>,
     commit_id: &ObjectId,
 ) -> Result<Vec<(String, Vec<u8>)>> {
+    Ok(checkout_with_modes(store, commit_id)?
+        .into_iter()
+        .map(|(path, bytes, _)| (path, bytes))
+        .collect())
+}
+
+/// Materialize source paths, bytes, and portable executable flags. Callers
+/// writing a working tree should use this API to preserve executable scripts.
+#[allow(clippy::type_complexity)]
+pub fn checkout_with_modes<B: Backend>(
+    store: &Store<B>,
+    commit_id: &ObjectId,
+) -> Result<Vec<(String, Vec<u8>, bool)>> {
     let c = store.get(commit_id)?;
     let tree = validated_commit_tree(&c)?;
     let mut out = Vec::new();
@@ -449,7 +494,7 @@ fn walk<B: Backend>(
     tree_id: &ObjectId,
     prefix: &str,
     depth: usize,
-    out: &mut Vec<(String, Vec<u8>)>,
+    out: &mut Vec<(String, Vec<u8>, bool)>,
     budget: &mut Budget,
 ) -> Result<()> {
     if depth > MAX_TREE_DEPTH {
@@ -473,7 +518,9 @@ fn walk<B: Backend>(
             walk(store, &e.target, &path, depth + 1, out, budget)?;
         } else {
             let blob = store.get(&e.target)?;
-            if blob.object_type != ObjectType::Custom(FILE_TYPE.to_string()) {
+            let executable =
+                blob.object_type == ObjectType::Custom(EXECUTABLE_FILE_TYPE.to_string());
+            if !executable && blob.object_type != ObjectType::Custom(FILE_TYPE.to_string()) {
                 return Err(ForgeError::BadObject);
             }
             match &blob.payload {
@@ -483,7 +530,7 @@ fn walk<B: Backend>(
                     }
                     budget.files -= 1;
                     budget.bytes -= b.len();
-                    out.push((path, b.clone()));
+                    out.push((path, b.clone(), executable));
                 }
                 Payload::Encrypted(_) => return Err(ForgeError::BadObject),
             }

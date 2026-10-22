@@ -1632,3 +1632,168 @@ fn empty_or_oversized_findings_are_rejected() {
         Err(ForgeError::FieldTooLarge)
     ));
 }
+
+#[test]
+fn proposal_inspection_binds_quorum_and_exposes_stale_base() {
+    let mut w = world();
+    let oracle = w.oracle();
+    let head = a_commit(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        b"review me",
+        1,
+    );
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "ready",
+        head.id(),
+        &w.proj,
+        100,
+        2,
+    )
+    .unwrap();
+    let initial = mini_forge::inspect_proposal(&w.store, &oracle, pr.id()).unwrap();
+    assert_eq!(initial.head, *head.id());
+    assert_eq!(initial.approvals, 0);
+    assert!(!initial.stale);
+    // Self review and a verdict on another exact commit never count.
+    approve(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        pr.id(),
+        head.id(),
+        true,
+        101,
+        3,
+    )
+    .unwrap();
+    let other = a_commit(&mut w.store, &w.a.0.did(), &w.a.1, b"other", 4);
+    approve(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        other.id(),
+        true,
+        102,
+        5,
+    )
+    .unwrap();
+    assert_eq!(
+        mini_forge::inspect_proposal(&w.store, &oracle, pr.id())
+            .unwrap()
+            .approvals,
+        0
+    );
+    approve(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        head.id(),
+        true,
+        103,
+        6,
+    )
+    .unwrap();
+    approve(
+        &mut w.store,
+        &w.b.0.did(),
+        &w.b.1,
+        pr.id(),
+        head.id(),
+        true,
+        104,
+        7,
+    )
+    .unwrap();
+    assert_eq!(
+        mini_forge::inspect_proposal(&w.store, &oracle, pr.id())
+            .unwrap()
+            .approvals,
+        2
+    );
+    let entry = merge(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        &w.proj,
+        &w.proj,
+        pr.id(),
+        105,
+        8,
+    )
+    .unwrap();
+    let view = mini_forge::inspect_proposal(&w.store, &oracle, pr.id()).unwrap();
+    assert!(view.stale);
+    assert_eq!(view.current_tip, *entry.id());
+    assert_eq!(view.current_branch_head, Some(head.id().clone()));
+    assert_eq!(
+        mini_forge::list_proposals(&w.store, &oracle, &w.proj)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(mini_forge::inspect_proposal(&w.store, &KelDirectory::new(), pr.id()).is_err());
+}
+
+#[test]
+fn proposal_inspection_rejects_ambiguous_links_and_labels_review_evidence() {
+    let mut w = world();
+    let oracle = w.oracle();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"code", 1);
+    let mut bytes = Vec::new();
+    put_str_for_test(&mut bytes, "main");
+    put_str_for_test(&mut bytes, "ambiguous");
+    let bad = ObjectBuilder::new(ObjectType::Custom(mini_forge::PR_TYPE.into()))
+        .payload(Payload::Public(bytes))
+        .link("project", w.proj.clone())
+        .link("head", head.id().clone())
+        .link("base", w.proj.clone())
+        .link("unexpected", head.id().clone())
+        .sign(&w.contrib.0.did(), &w.contrib.1)
+        .unwrap();
+    w.store.insert(&bad).unwrap();
+    assert!(mini_forge::inspect_proposal(&w.store, &oracle, bad.id()).is_err());
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "review",
+        head.id(),
+        &w.proj,
+        100,
+        2,
+    )
+    .unwrap();
+    approve(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        head.id(),
+        false,
+        101,
+        3,
+    )
+    .unwrap();
+    let reviews = mini_forge::proposal_reviews(&w.store, &oracle, pr.id()).unwrap();
+    assert_eq!(reviews.len(), 1);
+    assert_eq!(reviews[0].reviewer, w.a.0.did());
+    assert!(!reviews[0].approved);
+    assert!(!reviews[0].eligible_approval);
+    assert_eq!(
+        mini_forge::list_proposals(&w.store, &oracle, &w.proj)
+            .unwrap()
+            .len(),
+        1
+    );
+}

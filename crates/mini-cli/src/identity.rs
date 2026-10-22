@@ -12,8 +12,10 @@
 //! identity. It is written with owner-only permissions on Unix; there is
 //! no OS keychain integration yet.
 
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use zeroize::Zeroizing;
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_crypto::SigningKey;
@@ -48,27 +50,67 @@ fn device_seed_path(home: &Path) -> PathBuf {
     home.join("device.seed")
 }
 
-fn write_seed_file(path: &Path, current: [u8; 32], next: [u8; 32]) -> Result<(), CliError> {
-    let mut bytes = Vec::with_capacity(SEED_FILE_LEN);
-    bytes.extend_from_slice(&current);
-    bytes.extend_from_slice(&next);
-    fs::write(path, &bytes).map_err(|e| CliError::Io(e.to_string()))?;
+fn write_seed_file(path: &Path, current: &[u8; 32], next: &[u8; 32]) -> Result<(), CliError> {
+    let mut bytes = Zeroizing::new([0u8; SEED_FILE_LEN]);
+    bytes[..32].copy_from_slice(current);
+    bytes[32..].copy_from_slice(next);
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        let perms = fs::Permissions::from_mode(0o600);
-        fs::set_permissions(path, perms).map_err(|e| CliError::Io(e.to_string()))?;
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
     }
-    Ok(())
+    // Exclusive creation with private mode: secret bytes are never written to
+    // an existing file, symlink, or a temporarily world-readable file.
+    let mut file = options
+        .open(path)
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    file.write_all(bytes.as_ref())
+        .and_then(|_| file.sync_all())
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    mini_durable::sync_parent(path).map_err(|e| CliError::Io(e.to_string()))
 }
 
-fn read_seed_file(path: &Path) -> Result<([u8; 32], [u8; 32]), CliError> {
-    let bytes = fs::read(path).map_err(|_| CliError::NotInitialized)?;
-    if bytes.len() != SEED_FILE_LEN {
+type SeedPair = (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>);
+
+fn read_seed_file(path: &Path) -> Result<SeedPair, CliError> {
+    let metadata = fs::symlink_metadata(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            CliError::NotInitialized
+        } else {
+            CliError::Io(error.to_string())
+        }
+    })?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
         return Err(CliError::CorruptSeedFile);
     }
-    let mut current = [0u8; 32];
-    let mut next = [0u8; 32];
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        if metadata.permissions().mode() & 0o077 != 0 || metadata.nlink() != 1 {
+            return Err(CliError::Identity(
+                "seed file must be owner-only and not hard-linked".into(),
+            ));
+        }
+    }
+    let mut file = fs::File::open(path).map_err(|e| CliError::Io(e.to_string()))?;
+    let opened = file.metadata().map_err(|e| CliError::Io(e.to_string()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if opened.dev() != metadata.dev() || opened.ino() != metadata.ino() {
+            return Err(CliError::CorruptSeedFile);
+        }
+    }
+    if opened.len() != SEED_FILE_LEN as u64 {
+        return Err(CliError::CorruptSeedFile);
+    }
+    let mut bytes = Zeroizing::new([0u8; SEED_FILE_LEN]);
+    file.read_exact(bytes.as_mut())
+        .map_err(|_| CliError::CorruptSeedFile)?;
+    let mut current = Zeroizing::new([0u8; 32]);
+    let mut next = Zeroizing::new([0u8; 32]);
     current.copy_from_slice(&bytes[..32]);
     next.copy_from_slice(&bytes[32..]);
     Ok((current, next))
@@ -77,31 +119,62 @@ fn read_seed_file(path: &Path) -> Result<([u8; 32], [u8; 32]), CliError> {
 /// Create a fresh human root + delegated device identity under `home`.
 /// Errors if one already exists — use [`load`] to reuse it.
 pub fn init(home: &Path) -> Result<Identity, CliError> {
-    fs::create_dir_all(home).map_err(|e| CliError::Io(e.to_string()))?;
-    if human_seed_path(home).exists() {
+    if home.is_symlink() {
+        return Err(CliError::Identity(
+            "identity home must not be a symlink".into(),
+        ));
+    }
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder
+        .create(home)
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    let _identity_lock = mini_durable::lock_exclusive(&home.join("identity.lock"))
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    if human_seed_path(home).symlink_metadata().is_ok()
+        || device_seed_path(home).symlink_metadata().is_ok()
+    {
         return Err(CliError::AlreadyInitialized);
     }
 
     let (h_current, h_next) = fresh_seed_pair()?;
     let human = Controller::incept_single_from_seeds(&h_current, &h_next)
         .map_err(|e| CliError::Identity(e.to_string()))?;
-    write_seed_file(&human_seed_path(home), h_current, h_next)?;
 
     let (d_current, d_next) = fresh_seed_pair()?;
     let mut human = human;
     let device = Controller::incept_device_single_from_seeds(&human.did(), &d_current, &d_next)
         .map_err(|e| CliError::Identity(e.to_string()))?;
-    write_seed_file(&device_seed_path(home), d_current, d_next)?;
+
     human
         .delegate_device(&device.did(), Capabilities::primary())
         .map_err(|e| CliError::Identity(e.to_string()))?;
 
+    // The human seed is the final publication marker. Interrupted initialization
+    // fails closed on a retained device seed; it never invents a replacement.
+    write_seed_file(&device_seed_path(home), &d_current, &d_next)?;
+    write_seed_file(&human_seed_path(home), &h_current, &h_next)?;
     Ok(Identity { human, device })
 }
 
 /// Reconstruct the identity at `home` from its saved seeds, replaying the
 /// same deterministic inception + delegation sequence [`init`] performed.
 pub fn load(home: &Path) -> Result<Identity, CliError> {
+    if !home.exists() {
+        return Err(CliError::NotInitialized);
+    }
+    if home.is_symlink() {
+        return Err(CliError::Identity(
+            "identity home must not be a symlink".into(),
+        ));
+    }
+    let _identity_lock = mini_durable::lock_exclusive(&home.join("identity.lock"))
+        .map_err(|e| CliError::Io(e.to_string()))?;
     let (h_current, h_next) = read_seed_file(&human_seed_path(home))?;
     let mut human = Controller::incept_single_from_seeds(&h_current, &h_next)
         .map_err(|e| CliError::Identity(e.to_string()))?;
@@ -218,10 +291,13 @@ pub(crate) fn hex_decode(s: &str) -> Result<Vec<u8>, CliError> {
         .collect()
 }
 
-fn fresh_seed_pair() -> Result<([u8; 32], [u8; 32]), CliError> {
+fn fresh_seed_pair() -> Result<SeedPair, CliError> {
     let current = SigningKey::generate().map_err(|e| CliError::Identity(e.to_string()))?;
     let next = SigningKey::generate().map_err(|e| CliError::Identity(e.to_string()))?;
-    Ok((current.to_seed_bytes(), next.to_seed_bytes()))
+    Ok((
+        Zeroizing::new(current.to_seed_bytes()),
+        Zeroizing::new(next.to_seed_bytes()),
+    ))
 }
 
 #[cfg(test)]
@@ -269,6 +345,70 @@ mod tests {
         let a = init(&dir_a).unwrap();
         let b = init(&dir_b).unwrap();
         assert_ne!(a.human_did(), b.human_did());
+    }
+
+    #[test]
+    fn partial_initialization_never_overwrites_an_existing_device() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            device_seed_path(dir.path()),
+            b"retained partial initialization",
+        )
+        .unwrap();
+        assert!(matches!(
+            init(dir.path()),
+            Err(CliError::AlreadyInitialized)
+        ));
+        assert_eq!(
+            fs::read(device_seed_path(dir.path())).unwrap(),
+            b"retained partial initialization"
+        );
+        assert!(!human_seed_path(dir.path()).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn secret_files_are_private_and_links_or_widened_permissions_are_refused() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+        let dir = tempfile::tempdir().unwrap();
+        init(dir.path()).unwrap();
+        let path = human_seed_path(dir.path());
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(matches!(load(dir.path()), Err(CliError::Identity(_))));
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        let moved = dir.path().join("retained.seed");
+        fs::rename(&path, &moved).unwrap();
+        symlink(&moved, &path).unwrap();
+        assert!(matches!(load(dir.path()), Err(CliError::CorruptSeedFile)));
+        fs::remove_file(&path).unwrap();
+        fs::hard_link(&moved, &path).unwrap();
+        assert!(matches!(load(dir.path()), Err(CliError::Identity(_))));
+    }
+
+    #[test]
+    fn concurrent_initializers_publish_only_one_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut threads = Vec::new();
+        for _ in 0..4 {
+            let path = dir.path().to_path_buf();
+            threads.push(std::thread::spawn(move || init(&path)));
+        }
+        let mut winner = None;
+        for thread in threads {
+            match thread.join().unwrap() {
+                Ok(identity) => {
+                    assert!(winner.is_none());
+                    winner = Some(identity.human_did());
+                }
+                Err(CliError::AlreadyInitialized) => {}
+                Err(error) => panic!("unexpected initialization failure: {error}"),
+            }
+        }
+        assert_eq!(winner.unwrap(), load(dir.path()).unwrap().human_did());
     }
 
     fn tempdir() -> PathBuf {
