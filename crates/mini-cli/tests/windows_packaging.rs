@@ -127,7 +127,10 @@ fn pack_writes_a_readable_manifest_beside_the_container() {
         .lines()
         .filter(|line| line.starts_with("file "))
         .collect();
-    assert_eq!(file_lines.len(), 4);
+    assert_eq!(file_lines.len(), 5);
+    assert!(file_lines
+        .iter()
+        .any(|line| line.ends_with("mininet-app-service.exe")));
     for line in file_lines {
         let parts: Vec<&str> = line.split(' ').collect();
         assert_eq!(parts[2].len(), 64, "blake3 column");
