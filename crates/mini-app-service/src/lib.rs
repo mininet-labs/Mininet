@@ -1465,9 +1465,7 @@ impl MutationJournal {
                 )
             })?;
             if file_name.ends_with(".tmp") {
-                fs::remove_file(&path)
-                    .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string()))?;
-                mini_durable::sync_parent(&path)
+                mini_durable::remove_file(&path)
                     .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string()))?;
                 continue;
             }
@@ -1527,9 +1525,8 @@ impl MutationJournal {
 
     fn remove_pending(&self, operation_id: &str) -> Result<(), ServiceError> {
         let path = self.pending_path(operation_id);
-        match fs::remove_file(&path) {
-            Ok(()) => mini_durable::sync_parent(&path)
-                .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string())),
+        match mini_durable::remove_file(&path) {
+            Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(error) => Err(ServiceError::new(ErrorCode::Io, error.to_string())),
         }
