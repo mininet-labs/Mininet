@@ -114,9 +114,9 @@ fn two_homes_can_drive_campaign_finding_and_disposition() {
         "--finding",
         &finding,
         "--disposition",
-        "needs-changes",
+        "corrected",
         "--notes",
-        "will fix",
+        "fixed; independent verification pending",
     ]));
     assert!(!disposition.is_empty());
 
@@ -135,7 +135,9 @@ fn two_homes_can_drive_campaign_finding_and_disposition() {
     assert!(show_json.contains(&format!("\"id\":\"{disposition}\"")));
     assert!(show_json.contains("Test Beta Campaign"));
     assert!(show_json.contains("found a minor issue in the flow"));
-    assert!(show_json.contains("needs-changes"));
+    assert!(show_json.contains("corrected"));
+    assert!(show_json.contains("author_identity_root"));
+    assert!(!show_json.contains("\"author\":"));
 
     let _ = std::fs::remove_dir_all(store);
     let _ = std::fs::remove_dir_all(alice);
