@@ -24,7 +24,7 @@ Each Beta account uses a fresh account-scoped `did:mini` root/device pair. It is
 The account id is derived, not arbitrary:
 
 ```text
-BetaAccountId = BLAKE3("mininet/beta/account/v1" || owner_root_did || random_nonce)
+BetaAccountId = BLAKE3(UTF8("mininet/beta/account/v1") || beta_epoch[32] || UTF8(owner_root_did) || random_nonce[32])
 ```
 
 The registration object contains:
@@ -34,7 +34,7 @@ The registration object contains:
 - derived `BetaAccountId`;
 - optional non-identifying local display hint only if it is not part of canonical payload.
 
-The object author root is the account owner. Validation re-derives the id from author root + nonce. Another DID therefore cannot register the same account id merely after observing it.
+The object author root is the account owner. Validation re-derives the id from epoch + author root + nonce. Another DID therefore cannot register the same account id merely after observing it.
 
 A user may have many Beta accounts. Account continuity exists only for spending that account; it creates no personhood, governance, contributor reputation, or future production entitlement.
 
@@ -274,3 +274,13 @@ Required before this slice can leave draft:
 ## Exit condition
 
 The #337 durable-execution core is complete when authenticated account/transfer objects, deterministic fail-closed resolver, restart/two-node convergence tests, dependency wall, and unmistakable Beta/provisional wallet surfaces are green on exact-head CI. Canonical irreversible finality and bootstrap-authority retirement remain #338 rather than being hidden behind a local tie-break.
+
+
+### Issuance trust input
+
+`resolve_snapshot` requires an `EpochIssuancePolicy` for the exact selected epoch.
+Its campaign-ID set must come from an independently authorized operational policy,
+never from collecting authenticated campaigns out of the replicated store. An empty
+set issues no outputs. Campaign target and contribution source objects must be
+available; valid signatures alone do not authorize issuance. This is a test-value
+selection boundary, not production currency or governance activation.

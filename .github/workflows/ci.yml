@@ -38,6 +38,12 @@ jobs:
       - name: Install wasm32-wasip2 target
         run: rustup target add wasm32-wasip2
 
+      - name: Validate Beta interchange adapters
+        run: |
+          python3 -m venv "$RUNNER_TEMP/beta-payload-validator"
+          "$RUNNER_TEMP/beta-payload-validator/bin/python" -m pip install -r tools/requirements-beta-interchange.txt
+          "$RUNNER_TEMP/beta-payload-validator/bin/python" -m unittest discover -s tools -p test_check_beta_payload.py
+
       - name: Format
         run: cargo fmt --all -- --check
 

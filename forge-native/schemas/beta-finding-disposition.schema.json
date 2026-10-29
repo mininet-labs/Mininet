@@ -1,13 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Open Beta Finding Disposition payload",
-  "description": "Append-only Forge-native semantic schema for mininet.beta/finding-disposition/v1. A disposition never mutates or deletes the original finding.",
+  "description": "Append-only Forge-native semantic schema for mininet.beta/finding-disposition/v1. A disposition never mutates or deletes the original finding. Adapters must run tools/check_beta_payload.py; x-mininet keywords and did-mini format checks are mandatory. Signed-object Rust validation remains required.",
   "type": "object",
-  "required": ["finding_id", "state", "rationale"],
+  "required": [
+    "finding_id",
+    "state",
+    "rationale"
+  ],
   "properties": {
-    "finding_id": { "type": "string", "minLength": 1 },
-    "task_id": { "type": ["string", "null"] },
-    "resolved_in": { "type": ["string", "null"] },
+    "finding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "resolved_in": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "state": {
       "enum": [
         "accepted",
@@ -18,14 +35,32 @@
         "rejected"
       ]
     },
-    "rationale": { "type": "string", "minLength": 1, "maxLength": 16384 }
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384
+    }
   },
   "allOf": [
     {
-      "if": { "properties": { "state": { "const": "fixed" } } },
+      "if": {
+        "properties": {
+          "state": {
+            "const": "fixed"
+          }
+        }
+      },
       "then": {
-        "required": ["resolved_in"],
-        "properties": { "resolved_in": { "type": "string", "minLength": 1 } }
+        "required": [
+          "resolved_in"
+        ],
+        "properties": {
+          "resolved_in": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     }
   ],

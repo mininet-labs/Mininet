@@ -91,3 +91,36 @@ resettable and disposable. Production value, if activated, comes through the
 separately audited production value/custody/settlement path. Historical beta
 contribution evidence may remain useful evidence, but it is not a protocol debt
 or automatic token allocation.
+
+
+## Required JSON adapter validation
+
+Before constructing an object from Beta interchange JSON, install the validator's
+pinned dependency and run the schema plus semantic checks:
+
+```sh
+python3 -m pip install -r tools/requirements-beta-interchange.txt
+python3 tools/check_beta_payload.py finding /path/to/finding.json
+```
+
+Use the schema suffix as the kind (`account`, `campaign`, `finding`, `grant`,
+`grant-policy`, `grant-approval`, `finding-disposition`, or `contribution`).
+All `x-mininet-maxUtf8Bytes` and `x-mininet-orderedFields` annotations and the
+`did-mini` format are mandatory. Plain JSON Schema validation that ignores these
+checks is insufficient. Text limits count UTF-8 bytes; campaign and policy windows
+must move forward; authorizers must use canonical supported multihash SCIDs.
+The signed Rust parsers still validate account derivation, links, signatures and
+campaign-scoped policy against the actual store; JSON validation never grants
+issuance, workflow or governance authority.
+
+`mini beta claim new` creates private claim-proof material and a public commitment
+only. It does not advertise a fabricated reward account. Authenticated account
+registration and its retained spending keys are a separate prerequisite to rewards.
+
+`mini beta disposition list|show` presents attributed responses as untrusted by
+default. Supply each independently authorized operational signer using repeatable
+`--authorized-operator <did>`, and trust its root/device KELs using the existing
+`mini kel trust` flow. Only matching provenance-verified signers populate JSON
+`state`; other responses retain `claimed_state`, `record_author` and
+`operator_authorized: false`, with `state: null`. Selecting a DID does not establish
+personhood or governance authority. Original signed responses remain inspectable.

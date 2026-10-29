@@ -1,8 +1,8 @@
 # Mininet Open Beta — start here
 
-**Open Beta participation is open. Production/Go-Live is not.**
+**Source, toolchain and documentation contributions are open. Installable phone Beta routes remain gated.**
 
-This is the public door into Mininet's final pre-Go-Live phase. You do not need
+This is the contribution entry point for Mininet's pre-Go-Live work. You do not need
 to be a programmer, disclose a legal identity, own special hardware, buy
 anything, or ask permission to begin. What matters is reproducible evidence tied
 to an exact build/state.
@@ -12,14 +12,25 @@ private production data, or safety-critical communications into this beta.
 Prototype cryptography and production-value paths remain subject to their
 substantive external review gates.
 
+## Phone installation gate
+
+No exact public installable APK is linked by this page. The phone-only and
+emulator product routes below are **pending**, not open acceptance journeys.
+They open only when this page links an exact release/commit, installable artifact,
+checksum and supported installation instructions. Source builds and individual
+component experiments do not establish that the complete phone product is ready.
+See [Beta status](BETA_STATUS.md) for current wiring and device acceptance gaps.
+A phone-only participant can contribute documentation/usability observations now;
+there is no requirement to build Rust or Android merely to follow an install route.
+
 ## Pick the easiest useful thing you can do
 
 | What you have | Good first contribution | What to submit |
 |---|---|---|
-| One Android phone | install/start/lifecycle, permission denial, Bluetooth off/on, local UI, restart/recovery | one-device Beta test report |
-| Two Android phones | direct LAN/QR/BLE discovery, connect, exchange, reconnect, replay rejection, internet-off behavior | two-device Beta test report |
-| Three or more phones | A—B—C relay, churn, duplicate paths, partitions/merges, slow peer, multi-vendor behavior | multi-hop Beta test report |
-| Emulator only | UI/state/error handling that does not require real radio claims | emulator-class report |
+| One Android phone | **Pending APK gate**; then install/start/lifecycle, permission denial, Bluetooth off/on, local UI, restart/recovery | one-device Beta test report |
+| Two Android phones | **Pending APK gate**; then direct LAN/QR/BLE discovery, connect, exchange, reconnect, replay rejection, internet-off behavior | two-device Beta test report |
+| Three or more phones | **Pending APK gate**; then A—B—C relay, churn, duplicate paths, partitions/merges, slow peer, multi-vendor behavior | multi-hop Beta test report |
+| Emulator only | **Pending product build gate**; then UI/state/error handling that does not require real radio claims | emulator-class report |
 | Rust toolchain | reproduce CI/test failures, fuzz boundaries, write regression tests, inspect invariants | Rust/toolchain report or implementation PR |
 | Security/research skills | attack assumptions, protocol analysis, malformed/adversarial cases, threat model, external review | security route; use private disclosure for exploitable secrets |
 | Accessibility/usability experience | first-run clarity, readable errors, permission flow, recovery, assistive technology | accessibility report |
