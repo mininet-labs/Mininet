@@ -562,24 +562,24 @@ impl PatchStage {
             recovery.write_all(&bytes)?;
             recovery.set_permissions(permissions)?;
             recovery.sync_all()?;
+            drop(recovery);
+            mini_durable::persist_staged_file(stage.original.as_ref().unwrap())?;
         }
         file.sync_all()?;
-        // Persist both stage names before replacing any original source entry.
-        mini_durable::sync_parent(&stage.replacement)?;
+        drop(file);
+        // Persist private recovery/staging names before changing an original.
+        mini_durable::persist_staged_file(&stage.replacement)?;
         Ok(stage)
     }
     fn publish(&mut self) -> std::io::Result<()> {
+        // Publication may commit before a barrier error. Conservatively attempt
+        // hash-checked rollback on any error; never overwrite an intervening edit.
+        self.published = true;
         if self.original.is_some() {
-            // No truncate/remove fallback: unsupported replacement (including
-            // platform read-only-file restrictions) fails without deleting old data.
-            fs::rename(&self.replacement, &self.destination)?;
-            self.published = true;
+            mini_durable::publish_staged_file(&self.replacement, &self.destination)
         } else {
-            fs::hard_link(&self.replacement, &self.destination)?;
-            self.published = true;
-            fs::remove_file(&self.replacement)?;
+            mini_durable::publish_staged_file_new(&self.replacement, &self.destination)
         }
-        mini_durable::sync_parent(&self.destination)
     }
     fn rollback(&mut self) -> std::io::Result<()> {
         if !self.published {
@@ -601,11 +601,10 @@ impl PatchStage {
             ));
         }
         if let Some(original) = &self.original {
-            fs::rename(original, &self.destination)?;
+            mini_durable::publish_staged_file(original, &self.destination)
         } else {
-            fs::remove_file(&self.destination)?;
+            mini_durable::remove_file(&self.destination)
         }
-        mini_durable::sync_parent(&self.destination)
     }
 }
 impl Drop for PatchStage {
