@@ -189,7 +189,8 @@ impl Default for SnapshotBudget {
         Self {
             files: mini_forge::MAX_CHECKOUT_FILES,
             bytes: mini_forge::MAX_CHECKOUT_BYTES,
-            nodes: mini_forge::MAX_CHECKOUT_FILES,
+            nodes: mini_forge::MAX_CHECKOUT_FILES
+                + mini_forge::MAX_CHECKOUT_FILES * mini_forge::MAX_TREE_DEPTH,
         }
     }
 }
@@ -562,6 +563,26 @@ mod workspace_tests {
         assert!(read_snapshot(&paths, 0, &mut SnapshotBudget::default())
             .unwrap()
             .is_empty());
+    }
+
+    #[test]
+    fn snapshot_accepts_checkout_sized_files_with_directory_overhead() {
+        let root = tempfile::tempdir().unwrap();
+        let mut paths = Vec::new();
+        for directory in 0..128 {
+            let path = root.path().join(format!("dir-{directory}"));
+            fs::create_dir(&path).unwrap();
+            for file in 0..32 {
+                fs::write(path.join(format!("file-{file}")), b"x").unwrap();
+            }
+            paths.push(path);
+        }
+        let mut budget = SnapshotBudget::default();
+        assert!(read_snapshot(&paths, 0, &mut budget).is_ok());
+        assert_eq!(budget.files, 0);
+        let extra = root.path().join("extra");
+        fs::write(&extra, b"x").unwrap();
+        assert!(read_snapshot(&[extra], 0, &mut budget).is_err());
     }
 
     #[test]

@@ -179,12 +179,12 @@ fn run(
     allowed_peers: Vec<did_mini::Did>,
 ) -> Result<CommandResult> {
     crate::identity::load(home)?;
-    quota::initialize(store).map_err(|e| CliError::Store(e.to_string()))?;
     // Serialize startup with stop/status so an acknowledged stop cannot be
     // removed as a stale request while a new service is starting.
     let control = mini_durable::lock_exclusive(&home.join("service.control.lock")).map_err(io)?;
     let _owner = mini_durable::try_lock_exclusive(&home.join("service.lock"))
         .map_err(|e| CliError::Io(format!("service already running or lock unavailable: {e}")))?;
+    quota::initialize(store).map_err(|e| CliError::Store(e.to_string()))?;
     let listener = TcpListener::bind(addr).map_err(io)?;
     listener.set_nonblocking(true).map_err(io)?;
     let mut state = State {
