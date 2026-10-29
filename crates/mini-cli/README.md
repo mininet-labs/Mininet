@@ -110,3 +110,21 @@ cargo run -p mini-cli -- identity init
 ```
 
 License: CC0-1.0 (public domain).
+
+
+### Beta finding responses and private claims
+
+`mini beta finding show <id>` includes the required evidence references in human
+output. Lists skip malformed custom Beta payloads from peers rather than preventing
+all valid records from being shown.
+
+`mini beta disposition list [--finding <id>]` and `show <id>` expose attributed
+claims and signer trust. Repeat `--authorized-operator <did>` for independently
+selected operational signers whose root/device KELs are locally trusted. Default
+responses are untrusted: JSON `state` is null and `claimed_state` remains visible;
+`operator_authorized` becomes true only after provenance and allowlist checks.
+This selection gives no governance or personhood weight.
+
+`mini beta claim new` generates a private claim secret and public commitment only.
+It returns `account_registration_required: true`; it does not create a spendable
+account or reward destination. Preserve the private secret outside public reports.

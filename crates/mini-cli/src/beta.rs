@@ -13,12 +13,12 @@
 
 use std::path::Path;
 
-use did_mini::{Capabilities, Controller};
+use did_mini::{Capabilities, Controller, Did};
 use mini_beta::{
     create_contribution_receipt, create_finding, create_finding_disposition, read_campaign,
-    read_contribution_receipt, read_finding, read_finding_disposition, BetaAccountId, ClaimTag,
-    ContributionKind, EvidenceClass, FindingSeverity, FindingState, SubmissionTag,
-    BETA_CAMPAIGN_TYPE, BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
+    read_contribution_receipt, read_finding, read_finding_disposition, ClaimTag, ContributionKind,
+    EvidenceClass, FindingSeverity, FindingState, SubmissionTag, BETA_CAMPAIGN_TYPE,
+    BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
 };
 use mini_crypto::{random_32, SigningKey};
 use mini_forge::{create_task_brief, create_work_claim};
@@ -233,8 +233,9 @@ pub fn campaign_list(_home: &Path, store_path: &Path, args: Vec<String>) -> Resu
         .map_err(|e| CliError::Store(e.to_string()))?;
     let mut campaigns = Vec::new();
     for id in ids {
-        let campaign = read_campaign(&store, &id).map_err(beta_err)?;
-        campaigns.push(campaign);
+        if let Ok(campaign) = read_campaign(&store, &id) {
+            campaigns.push(campaign);
+        }
     }
     campaigns.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
     let human = if campaigns.is_empty() {
@@ -375,7 +376,9 @@ pub fn finding_list(
         .map_err(|e| CliError::Store(e.to_string()))?;
     let mut findings = Vec::new();
     for id in ids {
-        let finding = read_finding(&store, &id).map_err(beta_err)?;
+        let Ok(finding) = read_finding(&store, &id) else {
+            continue;
+        };
         if campaign_filter
             .as_ref()
             .map(|campaign| &finding.campaign_id == campaign)
@@ -418,7 +421,7 @@ pub fn finding_show(
     let store = open_store(store_path)?;
     let finding = read_finding(&store, &id).map_err(beta_err)?;
     let human = format!(
-        "finding {}\ncampaign: {}\nclass: {}\nseverity: {}\ncomponent: {}\nsummary: {}\nenvironment: {}\nsteps: {}\nexpected: {}\nobserved: {}\nlimitations: {}",
+        "finding {}\ncampaign: {}\nclass: {}\nseverity: {}\ncomponent: {}\nsummary: {}\nenvironment: {}\nsteps: {}\nexpected: {}\nobserved: {}\nevidence:\n  {}\nlimitations: {}",
         finding.id.as_str(),
         finding.campaign_id.as_str(),
         finding.evidence_class.as_str(),
@@ -429,6 +432,7 @@ pub fn finding_show(
         finding.steps,
         finding.expected,
         finding.observed,
+        finding.evidence.join("\n  "),
         finding.limitations
     );
     Ok(CommandResult::new(human).field("finding", finding_json(&finding)))
@@ -644,36 +648,79 @@ pub fn contribution_show(
     Ok(CommandResult::new(human).field("contribution", contribution_json(&contribution)))
 }
 
+/// Generate claim proof material only. A claim commitment is not a registered
+/// spendable account; no reward destination is fabricated by this command.
 pub fn claim_new(_home: &Path, _store_path: &Path, args: Vec<String>) -> Result<CommandResult> {
     reject_remaining(args, "beta claim new")?;
     let (secret, tag) = fresh_claim_secret()?;
-    let account = BetaAccountId::new(random_32().map_err(crypto_err)?).map_err(beta_err)?;
     Ok(CommandResult::new(format!(
-        "PRIVATE claim secret: {}\npublic claim commitment: {}\nopaque beta account: {}\nThe account is a test handle only; authenticated wallet ownership belongs to #337.",
-        hex(&secret),
-        hex(tag.as_bytes()),
-        hex(account.as_bytes())
+        "PRIVATE claim secret: {}\npublic claim commitment: {}\nThis proves a claim only. A separate authenticated Beta account registration is required before receiving rewards.",
+        hex(&secret), hex(tag.as_bytes())
     ))
     .field("claim_secret", JsonValue::str(hex(&secret)))
     .field("claim_commitment", JsonValue::str(hex(tag.as_bytes())))
-    .field("beta_account", JsonValue::str(hex(account.as_bytes())))
+    .field("account_registration_required", JsonValue::Bool(true))
     .field("sensitive_output", JsonValue::Bool(true)))
 }
 
+fn disposition_trust(
+    home: &Path,
+    args: &mut Vec<String>,
+) -> Result<(Vec<Did>, Option<mini_forge::KelDirectory>)> {
+    let operators = extract_flag_multi(args, "--authorized-operator")
+        .iter()
+        .map(|value| Did::parse(value).map_err(|error| CliError::Identity(error.to_string())))
+        .collect::<Result<Vec<_>>>()?;
+    let oracle = if operators.is_empty() {
+        None
+    } else {
+        let identity = crate::identity::load(home)?;
+        Some(crate::store::build_oracle(home, &identity)?)
+    };
+    Ok((operators, oracle))
+}
+
+fn authorized_disposition<B: Backend>(
+    store: &Store<B>,
+    item: &mini_beta::FindingDisposition,
+    operators: &[Did],
+    oracle: Option<&mini_forge::KelDirectory>,
+) -> bool {
+    use mini_forge::IdentityOracle;
+    if !operators.contains(&item.record_author) {
+        return false;
+    }
+    let Some(oracle) = oracle else { return false };
+    let Ok(object) = store.get(&item.id) else {
+        return false;
+    };
+    let (Some(root), Some(device)) = (
+        oracle.kel(&object.author_human),
+        oracle.kel(&object.author_device),
+    ) else {
+        return false;
+    };
+    mini_objects::verify_provenance(&object, root, device).is_ok()
+}
+
 pub fn disposition_show(
-    _home: &Path,
+    home: &Path,
     store_path: &Path,
     mut args: Vec<String>,
 ) -> Result<CommandResult> {
     let id = parse_id(&next(&mut args, "beta disposition show")?)?;
+    let (operators, oracle) = disposition_trust(home, &mut args)?;
     reject_remaining(args, "beta disposition show")?;
     let store = open_store(store_path)?;
     let disposition = read_finding_disposition(&store, &id).map_err(beta_err)?;
+    let authorized = authorized_disposition(&store, &disposition, &operators, oracle.as_ref());
     Ok(CommandResult::new(format!(
-        "disposition {}\nfinding: {}\nstate: {}\nrationale: {}",
+        "disposition {}\nfinding: {}\nclaimed state: {}\noperator: {}\noperator authorized: {}\nrationale: {}",
         disposition.id.as_str(),
         disposition.finding_id.as_str(),
         disposition.state.as_str(),
+        disposition.record_author.as_str(),
+        authorized,
         disposition.rationale
     ))
     .field(
@@ -686,12 +733,15 @@ pub fn disposition_show(
             ),
             (
                 "state".to_string(),
-                JsonValue::str(disposition.state.as_str()),
+                if authorized { JsonValue::str(disposition.state.as_str()) } else { JsonValue::Null },
             ),
             (
                 "rationale".to_string(),
                 JsonValue::str(disposition.rationale),
             ),
+            ("claimed_state".into(), JsonValue::str(disposition.state.as_str())),
+            ("operator_authorized".into(), JsonValue::Bool(authorized)),
+            ("record_author".into(), JsonValue::str(disposition.record_author.as_str())),
             (
                 "task_id".to_string(),
                 JsonValue::opt_str(disposition.task_id.as_ref().map(ObjectId::as_str)),
@@ -805,13 +855,14 @@ fn contribution_json(contribution: &mini_beta::ContributionReceipt) -> JsonValue
 
 /// List dispositions without creating a second mutable state system.
 pub fn disposition_list(
-    _home: &Path,
+    home: &Path,
     store_path: &Path,
     mut args: Vec<String>,
 ) -> Result<CommandResult> {
     let finding_filter = extract_flag(&mut args, "--finding")
         .map(|value| parse_id(&value))
         .transpose()?;
+    let (operators, oracle) = disposition_trust(home, &mut args)?;
     reject_remaining(args, "beta disposition list")?;
     let store = open_store(store_path)?;
     let ids = store
@@ -821,7 +872,9 @@ pub fn disposition_list(
         .map_err(|e| CliError::Store(e.to_string()))?;
     let mut dispositions = Vec::new();
     for id in ids {
-        let disposition = read_finding_disposition(&store, &id).map_err(beta_err)?;
+        let Ok(disposition) = read_finding_disposition(&store, &id) else {
+            continue;
+        };
         if finding_filter
             .as_ref()
             .map(|finding| &disposition.finding_id == finding)
@@ -838,10 +891,12 @@ pub fn disposition_list(
             .iter()
             .map(|item| {
                 format!(
-                    "{} [{}] finding {}",
+                    "{} [claimed state: {}; operator authorized: {}] finding {} by {}",
                     item.id.as_str(),
                     item.state.as_str(),
-                    item.finding_id.as_str()
+                    authorized_disposition(&store, item, &operators, oracle.as_ref()),
+                    item.finding_id.as_str(),
+                    item.record_author.as_str()
                 )
             })
             .collect::<Vec<_>>()
@@ -859,7 +914,28 @@ pub fn disposition_list(
                             "finding_id".to_string(),
                             JsonValue::str(item.finding_id.as_str()),
                         ),
-                        ("state".to_string(), JsonValue::str(item.state.as_str())),
+                        ("claimed_state".into(), JsonValue::str(item.state.as_str())),
+                        (
+                            "record_author".into(),
+                            JsonValue::str(item.record_author.as_str()),
+                        ),
+                        (
+                            "operator_authorized".into(),
+                            JsonValue::Bool(authorized_disposition(
+                                &store,
+                                item,
+                                &operators,
+                                oracle.as_ref(),
+                            )),
+                        ),
+                        (
+                            "state".into(),
+                            if authorized_disposition(&store, item, &operators, oracle.as_ref()) {
+                                JsonValue::str(item.state.as_str())
+                            } else {
+                                JsonValue::Null
+                            },
+                        ),
                     ])
                 })
                 .collect(),
@@ -883,7 +959,9 @@ pub fn contribution_list(
         .map_err(|e| CliError::Store(e.to_string()))?;
     let mut contributions = Vec::new();
     for id in ids {
-        let contribution = read_contribution_receipt(&store, &id).map_err(beta_err)?;
+        let Ok(contribution) = read_contribution_receipt(&store, &id) else {
+            continue;
+        };
         if campaign_filter
             .as_ref()
             .map(|campaign| contribution.campaign_id.as_ref() == Some(campaign))

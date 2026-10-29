@@ -333,3 +333,175 @@ fn accepted_contribution_stores_only_claim_commitment_not_private_preimage() {
         "private claim preimage must never be stored in the public contribution object"
     );
 }
+
+#[test]
+fn malformed_peer_records_cannot_block_lists_and_dispositions_require_operator_trust() {
+    use mini_beta::{
+        create_contribution_receipt, create_finding, create_finding_disposition, ClaimTag,
+        ContributionKind, EvidenceClass, FindingSeverity, FindingState, SubmissionTag,
+        BETA_CAMPAIGN_TYPE, BETA_FINDING_DISPOSITION_TYPE,
+    };
+    let home = tempfile::tempdir().unwrap();
+    let path = tempfile::tempdir().unwrap();
+    let identity = mini_cli::identity::init(home.path()).unwrap();
+    let root = identity.human_did();
+    let mut store = mini_cli::store::open_store(path.path()).unwrap();
+    let target = ObjectBuilder::new(ObjectType::Custom("test/target".into()))
+        .payload(Payload::Public(b"target".to_vec()))
+        .sign(&root, &identity.device)
+        .unwrap();
+    store.insert(&target).unwrap();
+    let campaign = create_campaign(
+        &mut store,
+        &root,
+        &identity.device,
+        target.id(),
+        BetaEpochId::new([1; 32]).unwrap(),
+        "campaign",
+        "instructions",
+        &["cli".into()],
+        100,
+        10000,
+        100,
+        100,
+        1,
+    )
+    .unwrap();
+    let finding = create_finding(
+        &mut store,
+        &root,
+        &identity.device,
+        campaign.id(),
+        SubmissionTag::new(mini_crypto::random_32().unwrap()).unwrap(),
+        EvidenceClass::RustToolchain,
+        FindingSeverity::Low,
+        "cli",
+        "finding",
+        "environment",
+        "steps",
+        "expected",
+        "observed",
+        &["digest:required-evidence".into()],
+        "test only",
+        true,
+        101,
+        2,
+    )
+    .unwrap();
+    let response = create_finding_disposition(
+        &mut store,
+        &root,
+        &identity.device,
+        finding.id(),
+        None,
+        None,
+        FindingState::Accepted,
+        "operator response",
+        102,
+        3,
+    )
+    .unwrap();
+    let receipt = create_contribution_receipt(
+        &mut store,
+        &root,
+        &identity.device,
+        finding.id(),
+        Some(campaign.id()),
+        ClaimTag::new(mini_crypto::random_32().unwrap()).unwrap(),
+        ContributionKind::Testing,
+        "receipt",
+        &["digest:test".into()],
+        103,
+        4,
+    )
+    .unwrap();
+    let outsider = did_mini::Controller::incept_single().unwrap();
+    let untrusted = create_finding_disposition(
+        &mut store,
+        &outsider.did(),
+        &outsider,
+        finding.id(),
+        None,
+        None,
+        FindingState::Rejected,
+        "untrusted response",
+        104,
+        1,
+    )
+    .unwrap();
+    for kind in [
+        BETA_CAMPAIGN_TYPE,
+        BETA_FINDING_TYPE,
+        BETA_FINDING_DISPOSITION_TYPE,
+        BETA_CONTRIBUTION_TYPE,
+    ] {
+        let malformed = ObjectBuilder::new(ObjectType::Custom(kind.into()))
+            .payload(Payload::Public(b"malformed".to_vec()))
+            .sign(&outsider.did(), &outsider)
+            .unwrap();
+        store.insert(&malformed).unwrap();
+    }
+    drop(store);
+    for (kind, id) in [
+        ("campaign", campaign.id()),
+        ("finding", finding.id()),
+        ("disposition", response.id()),
+        ("contribution", receipt.id()),
+    ] {
+        let output = run(&[
+            "--json",
+            "--home",
+            home.path().to_str().unwrap(),
+            "--store",
+            path.path().to_str().unwrap(),
+            "beta",
+            kind,
+            "list",
+        ]);
+        assert!(output.contains(id.as_str()));
+    }
+    let human = run(&[
+        "--home",
+        home.path().to_str().unwrap(),
+        "--store",
+        path.path().to_str().unwrap(),
+        "beta",
+        "finding",
+        "show",
+        finding.id().as_str(),
+    ]);
+    assert!(human.contains("digest:required-evidence"));
+    let unselected = run(&[
+        "--json",
+        "--home",
+        home.path().to_str().unwrap(),
+        "--store",
+        path.path().to_str().unwrap(),
+        "beta",
+        "disposition",
+        "list",
+    ]);
+    assert!(unselected.contains("\"operator_authorized\":false"));
+    assert!(!unselected.contains("\"operator_authorized\":true"));
+    assert!(unselected.contains("\"state\":null"));
+    let selected = run(&[
+        "--json",
+        "--home",
+        home.path().to_str().unwrap(),
+        "--store",
+        path.path().to_str().unwrap(),
+        "beta",
+        "disposition",
+        "list",
+        "--authorized-operator",
+        root.as_str(),
+    ]);
+    assert!(selected.contains("\"operator_authorized\":true"));
+    assert!(selected.contains("\"operator_authorized\":false"));
+    assert!(selected.contains(untrusted.id().as_str()));
+    assert!(selected.contains("\"state\":\"accepted\""));
+    assert!(!selected.contains("\"state\":\"rejected\""));
+    let claim = run(&["--json", "beta", "claim", "new"]);
+    assert!(!claim.contains("beta_account"));
+    assert!(claim.contains("\"account_registration_required\":true"));
+}
