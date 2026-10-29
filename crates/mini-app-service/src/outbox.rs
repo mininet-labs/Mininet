@@ -181,9 +181,8 @@ impl Outbox {
             }
         }
         for path in orphans {
-            fs::remove_file(path).map_err(io)?;
+            mini_durable::remove_file(&path).map_err(io)?;
         }
-        mini_durable::sync_directory(&outbox.root).map_err(io)?;
         Ok(outbox)
     }
     fn path(&self, id: &str) -> PathBuf {
