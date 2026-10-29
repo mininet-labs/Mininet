@@ -13,7 +13,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use did_mini::{Controller, Did};
 use mini_beta::{
@@ -373,9 +373,26 @@ struct GrantCandidate {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum VisitState {
-    Visiting,
     Valid,
     Invalid,
+}
+
+/// Caller-supplied issuance trust anchor for one test-value epoch.
+/// Construct this only from independently authorized campaign IDs, never by
+/// collecting every campaign from the replicated store. Authentication alone
+/// does not authorize issuance. Empty membership authorizes no issuance.
+#[derive(Debug, Clone)]
+pub struct EpochIssuancePolicy {
+    epoch: BetaEpochId,
+    campaigns: HashSet<ObjectId>,
+}
+impl EpochIssuancePolicy {
+    pub fn new(epoch: BetaEpochId, authorized_campaigns: &[ObjectId]) -> Self {
+        Self {
+            epoch,
+            campaigns: authorized_campaigns.iter().cloned().collect(),
+        }
+    }
 }
 
 /// Resolve a deterministic provisional snapshot from one complete verified
@@ -384,10 +401,14 @@ pub fn resolve_snapshot<B: Backend>(
     store: &Store<B>,
     epoch: BetaEpochId,
     limits: BetaMiniPolicy,
+    issuance_policy: &EpochIssuancePolicy,
 ) -> Result<BetaSnapshot> {
+    if issuance_policy.epoch != epoch {
+        return Err(BetaExecError::WrongEpoch);
+    }
     let (registrations, mut account_conflicts) = resolve_registrations(store, epoch)?;
     let (grant_outputs, total_issued, issuance_conflict) =
-        resolve_grant_outputs(store, epoch, limits, &registrations)?;
+        resolve_grant_outputs(store, epoch, limits, &registrations, issuance_policy)?;
 
     let mut transfers = HashMap::<ObjectId, BetaTransfer>::new();
     let transfer_ids = store.by_type(&ObjectType::Custom(BETA_TRANSFER_TYPE.to_string()))?;
@@ -412,15 +433,14 @@ pub fn resolve_snapshot<B: Backend>(
                 }
             }
             Ok(_) => {}
-            Err(_) => invalid_transfers.push(id),
+            // Diagnostics belong only to a classifiable selected epoch.
+            // Foreign or truncated payloads cannot churn this epoch's digest.
+            Err(_) if transfer_epoch(&object) == Some(epoch) => invalid_transfers.push(id),
+            Err(_) => {}
         }
     }
 
-    let mut visit = HashMap::<ObjectId, VisitState>::new();
-    let ids: Vec<ObjectId> = transfers.keys().cloned().collect();
-    for id in &ids {
-        let _ = economic_valid(id, &transfers, &grant_outputs, &registrations, &mut visit);
-    }
+    let visit = resolve_economic_graph(&transfers, &grant_outputs, &registrations);
     let base_valid: HashSet<ObjectId> = visit
         .iter()
         .filter_map(|(id, state)| (*state == VisitState::Valid).then_some(id.clone()))
@@ -585,6 +605,7 @@ fn resolve_grant_outputs<B: Backend>(
     epoch: BetaEpochId,
     limits: BetaMiniPolicy,
     registrations: &HashMap<BetaAccountId, BetaAccountRegistration>,
+    issuance_policy: &EpochIssuancePolicy,
 ) -> Result<(HashMap<BetaOutputRef, OutputValue>, u64, bool)> {
     let approval_objects =
         store.by_type(&ObjectType::Custom(BETA_GRANT_APPROVAL_TYPE.to_string()))?;
@@ -604,13 +625,19 @@ fn resolve_grant_outputs<B: Backend>(
             Ok(_) => continue,
             Err(_) => continue,
         };
-        if !registrations.contains_key(&grant.account) {
+        if !issuance_policy.campaigns.contains(&grant.campaign_id)
+            || !registrations.contains_key(&grant.account)
+        {
             continue;
         }
         let campaign = match read_campaign(store, &grant.campaign_id) {
             Ok(campaign) if campaign.epoch == epoch => campaign,
             Ok(_) | Err(_) => continue,
         };
+        // The exact campaign target must be available before its grant can mint.
+        if store.get(&campaign.target_id).is_err() {
+            continue;
+        }
         let policy = match resolve_unique_campaign_policy(store, &campaign.id) {
             Ok(policy) => policy,
             Err(GrantAcceptanceError::InvalidPolicy) => continue,
@@ -714,19 +741,79 @@ fn grant_within_limits(grant: &BetaGrantAuthorization, limits: BetaMiniPolicy) -
     }
 }
 
+fn transfer_epoch(object: &Object) -> Option<BetaEpochId> {
+    if object.object_type != ObjectType::Custom(BETA_TRANSFER_TYPE.into()) {
+        return None;
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return None;
+    };
+    if bytes.first() != Some(&PAYLOAD_VERSION) {
+        return None;
+    }
+    BetaEpochId::new(bytes.get(1..33)?.try_into().ok()?).ok()
+}
+
+// Kahn's algorithm uses heap storage rather than one call frame per transfer.
+// Each distinct dependency is visited once; unresolved cycles remain invalid.
+fn resolve_economic_graph(
+    transfers: &HashMap<ObjectId, BetaTransfer>,
+    grants: &HashMap<BetaOutputRef, OutputValue>,
+    registrations: &HashMap<BetaAccountId, BetaAccountRegistration>,
+) -> HashMap<ObjectId, VisitState> {
+    let mut pending = HashMap::new();
+    let mut consumers: HashMap<ObjectId, Vec<ObjectId>> = HashMap::new();
+    let mut ready = VecDeque::new();
+    for (id, transfer) in transfers {
+        let dependencies: HashSet<_> = transfer
+            .inputs
+            .iter()
+            .filter(|input| {
+                !grants.contains_key(*input) && transfers.contains_key(&input.source_id)
+            })
+            .map(|input| input.source_id.clone())
+            .collect();
+        pending.insert(id.clone(), dependencies.len());
+        if dependencies.is_empty() {
+            ready.push_back(id.clone());
+        }
+        for dependency in dependencies {
+            consumers.entry(dependency).or_default().push(id.clone());
+        }
+    }
+    let mut visit = HashMap::new();
+    while let Some(id) = ready.pop_front() {
+        let valid = economic_valid(&id, transfers, grants, registrations, &visit);
+        visit.insert(
+            id.clone(),
+            if valid {
+                VisitState::Valid
+            } else {
+                VisitState::Invalid
+            },
+        );
+        for consumer in consumers.remove(&id).unwrap_or_default() {
+            let count = pending.get_mut(&consumer).expect("known transfer");
+            *count -= 1;
+            if *count == 0 {
+                ready.push_back(consumer);
+            }
+        }
+    }
+    for id in transfers.keys() {
+        visit.entry(id.clone()).or_insert(VisitState::Invalid);
+    }
+    visit
+}
+
 fn economic_valid(
     id: &ObjectId,
     transfers: &HashMap<ObjectId, BetaTransfer>,
     grants: &HashMap<BetaOutputRef, OutputValue>,
     registrations: &HashMap<BetaAccountId, BetaAccountRegistration>,
-    visit: &mut HashMap<ObjectId, VisitState>,
+    visit: &HashMap<ObjectId, VisitState>,
 ) -> bool {
-    if let Some(state) = visit.get(id) {
-        return *state == VisitState::Valid;
-    }
-    visit.insert(id.clone(), VisitState::Visiting);
     let Some(transfer) = transfers.get(id) else {
-        visit.insert(id.clone(), VisitState::Invalid);
         return false;
     };
     let mut input_sum = 0u64;
@@ -734,9 +821,7 @@ fn economic_valid(
         let value = if let Some(value) = grants.get(input) {
             Some(value.clone())
         } else if let Some(producer) = transfers.get(&input.source_id) {
-            if matches!(visit.get(&input.source_id), Some(VisitState::Visiting))
-                || !economic_valid(&input.source_id, transfers, grants, registrations, visit)
-            {
+            if visit.get(&input.source_id) != Some(&VisitState::Valid) {
                 None
             } else {
                 producer
@@ -751,17 +836,14 @@ fn economic_valid(
             None
         };
         let Some(value) = value else {
-            visit.insert(id.clone(), VisitState::Invalid);
             return false;
         };
         if value.account != transfer.sender || !registrations.contains_key(&value.account) {
-            visit.insert(id.clone(), VisitState::Invalid);
             return false;
         }
         input_sum = match input_sum.checked_add(value.amount) {
             Some(sum) => sum,
             None => {
-                visit.insert(id.clone(), VisitState::Invalid);
                 return false;
             }
         };
@@ -771,21 +853,11 @@ fn economic_valid(
         output_sum = match output_sum.checked_add(output.amount) {
             Some(sum) => sum,
             None => {
-                visit.insert(id.clone(), VisitState::Invalid);
                 return false;
             }
         };
     }
-    let valid = input_sum == output_sum;
-    visit.insert(
-        id.clone(),
-        if valid {
-            VisitState::Valid
-        } else {
-            VisitState::Invalid
-        },
-    );
-    valid
+    input_sum == output_sum
 }
 
 fn snapshot_digest(snapshot: &BetaSnapshot) -> [u8; 32] {

@@ -625,3 +625,26 @@ fn outsider_policy_shaped_objects_cannot_veto_the_campaign_policy() {
     .unwrap();
     assert_eq!(accepted.distinct_approvers, 2);
 }
+
+#[test]
+fn participation_grant_rejects_a_receipt_with_missing_source() {
+    let mut f = Fixture::new();
+    let receipt = f.contribution(17, 12);
+    let grant = f.participation_grant(
+        BetaAccountId::new([17; 32]).unwrap(),
+        receipt.id(),
+        25,
+        "accepted work",
+        14,
+    );
+    let a = f.approve(0, grant.id(), 20);
+    let b = f.approve(1, grant.id(), 21);
+    let c = f.approve(2, grant.id(), 22);
+    let approvals = [a.id().clone(), b.id().clone(), c.id().clone()];
+    assert!(validate_grant_acceptance(&f.store, f.policy.id(), grant.id(), &approvals).is_ok());
+    let mut partial = Store::new(MemoryBackend::new());
+    for object in [&f.campaign, &f.policy, &receipt, &grant, &a, &b, &c] {
+        partial.insert(object).unwrap();
+    }
+    assert!(validate_grant_acceptance(&partial, f.policy.id(), grant.id(), &approvals).is_err());
+}

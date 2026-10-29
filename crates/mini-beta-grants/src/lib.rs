@@ -443,6 +443,7 @@ pub fn validate_grant_against_policy<B: Backend>(
                 .as_ref()
                 .ok_or(GrantAcceptanceError::GrantRuleViolation)?;
             let contribution = read_contribution_receipt(store, contribution_id)?;
+            let _source = store.get(&contribution.source_id)?;
             if contribution.campaign_id.as_ref() != Some(&policy.campaign_id) {
                 return Err(GrantAcceptanceError::GrantRuleViolation);
             }

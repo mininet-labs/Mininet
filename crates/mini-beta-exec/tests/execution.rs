@@ -6,7 +6,7 @@ use mini_beta::{
 use mini_beta_exec::{
     create_account_registration, create_transfer, derive_account_id,
     parse_account_registration_object, resolve_snapshot, BetaExecError, BetaOutputRef,
-    BetaTransferOutput,
+    BetaTransferOutput, EpochIssuancePolicy,
 };
 use mini_beta_grants::{create_grant_approval, create_grant_policy};
 use mini_objects::{Object, ObjectBuilder, ObjectType, Payload};
@@ -18,9 +18,7 @@ fn signer(seed: u8) -> Controller {
 }
 
 fn random_nonce() -> [u8; 32] {
-    let mut nonce = [0u8; 32];
-    OsRng.fill_bytes(&mut nonce);
-    nonce
+    std::array::from_fn(|_| OsRng.next_u32() as u8)
 }
 
 fn limits(max_supply: u64) -> BetaMiniPolicy {
@@ -278,7 +276,13 @@ fn another_author_cannot_claim_an_observed_account_id() {
 #[test]
 fn accepted_grant_is_one_durable_unspent_output() {
     let f = Fixture::new();
-    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1_000)).unwrap();
+    let snapshot = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert!(!snapshot.issuance_conflict);
     assert_eq!(snapshot.total_issued, 100);
     assert_eq!(snapshot.balance(&f.alice_account), 100);
@@ -315,7 +319,13 @@ fn signed_transfer_conserves_value_and_moves_only_owned_inputs() {
         1,
     )
     .unwrap();
-    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1_000)).unwrap();
+    let snapshot = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert_eq!(snapshot.balance(&f.alice_account), 40);
     assert_eq!(snapshot.balance(&f.bob_account), 60);
     assert!(snapshot
@@ -348,7 +358,13 @@ fn non_owner_authored_transfer_is_invalid() {
         1,
     )
     .unwrap();
-    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1_000)).unwrap();
+    let snapshot = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert_eq!(snapshot.balance(&f.alice_account), 100);
     assert_eq!(snapshot.balance(&f.bob_account), 0);
     assert!(snapshot.invalid_transfers.contains(transfer.id()));
@@ -410,7 +426,13 @@ fn two_spends_of_one_output_invalidate_all_consumers_without_a_local_winner() {
     )
     .unwrap();
 
-    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1_000)).unwrap();
+    let snapshot = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert_eq!(snapshot.balance(&f.alice_account), 100);
     assert_eq!(snapshot.balance(&f.bob_account), 0);
     assert_eq!(snapshot.balance(&f.carol_account), 0);
@@ -445,7 +467,13 @@ fn non_conserving_transfer_is_invalid_not_a_mint_or_burn() {
         1,
     )
     .unwrap();
-    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1_000)).unwrap();
+    let snapshot = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert_eq!(snapshot.balance(&f.alice_account), 100);
     assert!(snapshot.invalid_transfers.contains(transfer.id()));
 }
@@ -454,7 +482,13 @@ fn non_conserving_transfer_is_invalid_not_a_mint_or_burn() {
 fn accepted_issuance_above_epoch_cap_fails_closed_instead_of_hash_ordering_winners() {
     let mut f = Fixture::new();
     f.add_second_testing_grant();
-    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(150)).unwrap();
+    let snapshot = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(150),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert!(snapshot.issuance_conflict);
     assert_eq!(snapshot.total_issued, 0);
     assert_eq!(snapshot.balance(&f.alice_account), 0);
@@ -488,13 +522,25 @@ fn identical_object_sets_converge_independent_of_insertion_order() {
     )
     .unwrap();
     f.objects.push(transfer);
-    let expected = resolve_snapshot(&f.store, f.epoch, limits(1_000)).unwrap();
+    let expected = resolve_snapshot(
+        &f.store,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
 
     let mut reverse = Store::new(MemoryBackend::new());
     for object in f.objects.iter().rev() {
         reverse.insert(object).unwrap();
     }
-    let observed = resolve_snapshot(&reverse, f.epoch, limits(1_000)).unwrap();
+    let observed = resolve_snapshot(
+        &reverse,
+        f.epoch,
+        limits(1_000),
+        &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+    )
+    .unwrap();
     assert_eq!(expected, observed);
     assert_eq!(expected.digest, observed.digest);
 }
@@ -510,13 +556,119 @@ fn filesystem_restart_rederives_the_same_snapshot_without_a_balance_database() {
         for object in &f.objects {
             store.insert(object).unwrap();
         }
-        resolve_snapshot(&store, f.epoch, limits(1_000)).unwrap()
+        resolve_snapshot(
+            &store,
+            f.epoch,
+            limits(1_000),
+            &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+        )
+        .unwrap()
     };
     let second = {
         let backend = FsBackend::open(&path).unwrap();
         let store = Store::new(backend);
-        resolve_snapshot(&store, f.epoch, limits(1_000)).unwrap()
+        resolve_snapshot(
+            &store,
+            f.epoch,
+            limits(1_000),
+            &EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]),
+        )
+        .unwrap()
     };
     assert_eq!(first, second);
     assert_eq!(first.digest, second.digest);
+}
+
+#[test]
+fn issuance_requires_explicit_trusted_campaign_and_matching_epoch() {
+    let f = Fixture::new();
+    let untrusted = EpochIssuancePolicy::new(f.epoch, &[]);
+    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1_000), &untrusted).unwrap();
+    assert_eq!(snapshot.total_issued, 0);
+    assert_eq!(snapshot.balance(&f.alice_account), 0);
+    let other_epoch = BetaEpochId::new([42; 32]).unwrap();
+    assert!(matches!(
+        resolve_snapshot(&f.store, other_epoch, limits(1_000), &untrusted),
+        Err(BetaExecError::WrongEpoch)
+    ));
+}
+
+#[test]
+fn dangling_campaign_target_cannot_issue_outputs() {
+    let f = Fixture::new();
+    let mut partial = Store::new(MemoryBackend::new());
+    for object in f.objects.iter().skip(1) {
+        partial.insert(object).unwrap();
+    }
+    let policy = EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]);
+    assert_eq!(
+        resolve_snapshot(&partial, f.epoch, limits(1_000), &policy)
+            .unwrap()
+            .total_issued,
+        0
+    );
+}
+
+#[test]
+fn malformed_foreign_epoch_transfer_cannot_change_snapshot_digest() {
+    let mut f = Fixture::new();
+    let policy = EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]);
+    let expected = resolve_snapshot(&f.store, f.epoch, limits(1_000), &policy).unwrap();
+    let other_epoch = BetaEpochId::new([42; 32]).unwrap();
+    let mut payload = vec![1];
+    payload.extend_from_slice(other_epoch.as_bytes());
+    payload.extend_from_slice(&[0; 4]);
+    let object = ObjectBuilder::new(ObjectType::Custom(
+        mini_beta_exec::BETA_TRANSFER_TYPE.into(),
+    ))
+    .payload(Payload::Public(payload))
+    .sign(&f.alice.did(), &f.alice)
+    .unwrap();
+    f.store.insert(&object).unwrap();
+    let observed = resolve_snapshot(&f.store, f.epoch, limits(1_000), &policy).unwrap();
+    assert_eq!(expected, observed);
+}
+
+#[test]
+fn long_transfer_chain_resolves_without_call_stack_growth() {
+    let mut f = Fixture::new();
+    let mut input = f.grant_ref();
+    for index in 0..4096u64 {
+        let transfer = create_transfer(
+            &mut f.store,
+            &f.alice.did(),
+            &f.alice,
+            f.epoch,
+            f.alice_account,
+            &[input],
+            &[BetaTransferOutput {
+                account: f.alice_account,
+                amount: 100,
+            }],
+            "long-chain regression",
+            1000 + index,
+            1000 + index,
+        )
+        .unwrap();
+        input = BetaOutputRef {
+            source_id: transfer.id().clone(),
+            index: 0,
+        };
+    }
+    let policy = EpochIssuancePolicy::new(f.epoch, &[f.campaign.id().clone()]);
+    let snapshot = resolve_snapshot(&f.store, f.epoch, limits(1000), &policy).unwrap();
+    assert!(snapshot.invalid_transfers.is_empty());
+    assert_eq!(snapshot.balance(&f.alice_account), 100);
+    assert_eq!(
+        snapshot
+            .outputs
+            .iter()
+            .filter(|output| !output.spent)
+            .count(),
+        1
+    );
+    assert!(snapshot
+        .outputs
+        .iter()
+        .any(|output| output.output_ref == input && !output.spent));
 }
