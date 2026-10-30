@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1245,
     "headings": 4220,
-    "rust_symbols": 14797
+    "rust_symbols": 14798
   },
   "crates": {
     "askama_derive": {
@@ -20934,7 +20934,7 @@
       "title": "use core::fmt;"
     },
     {
-      "bytes": 56173,
+      "bytes": 57929,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -20963,9 +20963,9 @@
         "source",
         "read"
       ],
-      "lines": 1445,
+      "lines": 1478,
       "path": "crates/mini-cli/src/git.rs",
-      "sha256": "bc0018c4dee9e71d5c53031744ac62b9dfb998288b60e95d98f68f1bd261eb9b",
+      "sha256": "fd8652b4961f7bae95026f565479cd1bf41d8e06e387e45681b5a40d97b79b95",
       "symbols": [
         {
           "kind": "const",
@@ -21164,37 +21164,42 @@
         },
         {
           "kind": "fn",
-          "line": 804,
+          "line": 805,
           "name": "import_history"
         },
         {
           "kind": "fn",
-          "line": 1091,
+          "line": 1092,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 1098,
+          "line": 1099,
           "name": "rewrite_body"
         },
         {
           "kind": "fn",
-          "line": 1154,
+          "line": 1155,
           "name": "write_mirror_objects"
         },
         {
           "kind": "fn",
-          "line": 1243,
+          "line": 1254,
+          "name": "verify_native_ancestry"
+        },
+        {
+          "kind": "fn",
+          "line": 1276,
           "name": "preflight_export"
         },
         {
           "kind": "fn",
-          "line": 1274,
+          "line": 1307,
           "name": "export"
         },
         {
           "kind": "fn",
-          "line": 1354,
+          "line": 1387,
           "name": "dispatch"
         }
       ],
@@ -24991,112 +24996,107 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 13222,
+      "bytes": 12888,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
-        "string",
         "json",
+        "string",
         "str",
         "unwrap",
         "args",
         "home",
+        "beta",
         "std",
         "key",
         "store",
+        "operator",
         "run",
-        "beta",
+        "field",
         "to_string",
         "needle",
-        "operator",
         "epoch_hex",
-        "field",
         "world",
         "path",
+        "campaign",
         "account",
         "new",
         "wallet",
-        "controller",
         "tag",
         "format"
       ],
-      "lines": 493,
+      "lines": 484,
       "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
-      "sha256": "c35b8296c5b9dcf13d8c0b7b5a6c78001dcb02bd69f204a994552c474f72b4da",
+      "sha256": "b549db031e48cb47a2cb2e7a0cc3a038707ff597a3914d73f44f66303a553fdb",
       "symbols": [
         {
           "kind": "const",
-          "line": 13,
+          "line": 8,
           "name": "EPOCH_HEX"
         },
         {
           "kind": "fn",
-          "line": 15,
+          "line": 10,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 28,
+          "line": 23,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 33,
+          "line": 28,
           "name": "run_err"
         },
         {
           "kind": "fn",
-          "line": 41,
+          "line": 36,
           "name": "field"
         },
         {
           "kind": "fn",
-          "line": 50,
+          "line": 45,
           "name": "number"
         },
         {
-          "kind": "fn",
-          "line": 64,
-          "name": "signer"
-        },
-        {
           "kind": "struct",
-          "line": 68,
+          "line": 59,
           "name": "World"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 71,
           "name": "world"
         },
         {
           "kind": "fn",
-          "line": 229,
+          "line": 220,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 241,
           "name": "accepted_grant_funds_a_balance_that_is_always_labelled_beta_and_provisional"
         },
         {
           "kind": "fn",
-          "line": 289,
+          "line": 280,
           "name": "transfer_moves_value_with_change_and_conserves_the_supply"
         },
         {
           "kind": "fn",
-          "line": 364,
+          "line": 355,
           "name": "unsafe_transfers_are_refused_before_anything_is_signed"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 402,
           "name": "issuance_needs_an_explicit_campaign_anchor_and_a_valid_epoch"
         },
         {
           "kind": "fn",
-          "line": 457,
+          "line": 448,
           "name": "accounts_are_fresh_per_registration_and_listed_per_owner"
         }
       ],
@@ -25548,7 +25548,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 15843,
+      "bytes": 17205,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25577,9 +25577,9 @@
         "original",
         "store"
       ],
-      "lines": 443,
+      "lines": 476,
       "path": "crates/mini-cli/tests/git_history.rs",
-      "sha256": "06af6609513af132a0495a231d4e7e04e59c0970345a96e3277603ff5a416b6a",
+      "sha256": "0ebcb6d7179dc5cbf9fd01f8bad7071858d9332d4224a3952ea5cb5ce733c9c7",
       "symbols": [
         {
           "kind": "fn",
@@ -25635,6 +25635,11 @@
           "kind": "fn",
           "line": 403,
           "name": "history_batch_streams_past_the_old_4096_commit_enumeration_cap"
+        },
+        {
+          "kind": "fn",
+          "line": 445,
+          "name": "resumed_history_fails_when_a_native_ancestor_was_lost_from_the_store"
         }
       ],
       "title": "use std::fs;"
