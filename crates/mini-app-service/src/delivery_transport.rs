@@ -802,13 +802,15 @@ mod tests {
         let interrupt = DeliveryInterrupt::default();
         let mut bearer = BoundedBearer::new(stream, &interrupt);
         let guard = interrupt.stop();
-        assert!(bearer.send(b"application frame").is_err());
+        // Frame content is irrelevant; derive it rather than hard-coding bytes.
+        let frame = std::process::id().to_be_bytes();
+        assert!(bearer.send(&frame).is_err());
         peer.set_read_timeout(Some(Duration::from_millis(50)))
             .unwrap();
         let mut byte = [0];
         assert!(peer.read(&mut byte).is_err());
         drop(guard);
-        bearer.send(b"permitted only by caller policy").unwrap();
+        bearer.send(&frame).unwrap();
         assert_eq!(peer.read(&mut byte).unwrap(), 1);
     }
     #[test]
