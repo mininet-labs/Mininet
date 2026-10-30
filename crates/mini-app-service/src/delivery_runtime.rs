@@ -235,6 +235,9 @@ impl<V: IdentityVault> Core<V> {
                         .accept();
                     match accepted {
                         Ok((stream, _)) => {
+                            // Windows accepted sockets inherit the listener's
+                            // non-blocking mode; the handshake needs blocking I/O.
+                            stream.set_nonblocking(false).map_err(io)?;
                             let identity = self.identity.as_ref().expect("unlocked");
                             let routing = mini_crypto::AgreementSecretKey::generate()
                                 .map_err(io)?
