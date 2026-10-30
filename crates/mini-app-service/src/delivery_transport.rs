@@ -18,6 +18,8 @@ const MAX_OBJECT: usize = 128 * 1024;
 const MAX_FRAME: usize = 160 * 1024;
 const MAX_SESSION: usize = 512 * 1024;
 const DEADLINE: Duration = Duration::from_secs(5);
+/// Longest single socket wait, so an owner stop is observed promptly.
+const POLL_SLICE: Duration = Duration::from_millis(100);
 const AAD: &[u8] = b"MININET/APP-PUBLIC-DELIVERY/1";
 const POST: &[u8] = b"MINIPOST1";
 const ACK: &[u8] = b"MINIACK1";
@@ -47,7 +49,7 @@ impl BoundedBearer {
         self.deadline
             .checked_duration_since(Instant::now())
             .filter(|duration| !duration.is_zero())
-            .map(|duration| duration.min(Duration::from_millis(100)))
+            .map(|duration| duration.min(POLL_SLICE))
             .ok_or_else(|| BearerError::Io("delivery session deadline exceeded".into()))
     }
     fn reserve(&mut self, count: usize) -> mini_bearer::Result<()> {
