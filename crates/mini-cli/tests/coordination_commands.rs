@@ -54,6 +54,95 @@ fn value_after(output: &str, marker: &str) -> String {
 }
 
 #[test]
+fn two_homes_can_drive_campaign_finding_and_disposition() {
+    let store = tempdir("store_campaign");
+    let alice = tempdir("alice_campaign");
+    let bob = tempdir("bob_campaign");
+    let store_arg = store.to_str().unwrap().to_string();
+
+    run(&["--home", alice.to_str().unwrap(), "identity", "init"]);
+    run(&["--home", bob.to_str().unwrap(), "identity", "init"]);
+    let bob_kel = run(&["--home", bob.to_str().unwrap(), "kel", "export"]);
+    let alice_kel = run(&["--home", alice.to_str().unwrap(), "kel", "export"]);
+
+    run(&["--home", bob.to_str().unwrap(), "kel", "trust", &alice_kel]);
+    run(&["--home", alice.to_str().unwrap(), "kel", "trust", &bob_kel]);
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let expires = now_ms + 10_000;
+
+    let campaign = last_word(&run(&[
+        "--home",
+        alice.to_str().unwrap(),
+        "--store",
+        &store_arg,
+        "campaign",
+        "create",
+        "--title",
+        "Test Beta Campaign",
+        "--description",
+        "verify the new coordination flow",
+        "--expires-ms",
+        &expires.to_string(),
+    ]));
+    assert!(!campaign.is_empty());
+
+    let finding = last_word(&run(&[
+        "--home",
+        bob.to_str().unwrap(),
+        "--store",
+        &store_arg,
+        "finding",
+        "create",
+        "--target",
+        &campaign,
+        "--findings",
+        "found a minor issue in the flow",
+    ]));
+    assert!(!finding.is_empty());
+
+    let disposition = last_word(&run(&[
+        "--home",
+        alice.to_str().unwrap(),
+        "--store",
+        &store_arg,
+        "disposition",
+        "create",
+        "--finding",
+        &finding,
+        "--disposition",
+        "deferred",
+        "--notes",
+        "will fix",
+    ]));
+    assert!(!disposition.is_empty());
+
+    let show_json = run(&[
+        "--json",
+        "--home",
+        alice.to_str().unwrap(),
+        "--store",
+        &store_arg,
+        "campaign",
+        "show",
+        &campaign,
+    ]);
+    assert!(show_json.contains(&format!("\"id\":\"{campaign}\"")));
+    assert!(show_json.contains(&format!("\"id\":\"{finding}\"")));
+    assert!(show_json.contains(&format!("\"id\":\"{disposition}\"")));
+    assert!(show_json.contains("Test Beta Campaign"));
+    assert!(show_json.contains("found a minor issue in the flow"));
+    assert!(show_json.contains("deferred"));
+
+    let _ = std::fs::remove_dir_all(store);
+    let _ = std::fs::remove_dir_all(alice);
+    let _ = std::fs::remove_dir_all(bob);
+}
+
+#[test]
 fn two_homes_can_drive_charter_task_claim_and_review() {
     let store = tempdir("store");
     let alice = tempdir("alice");
