@@ -3,11 +3,6 @@
 
 use std::path::PathBuf;
 
-use did_mini::Controller;
-use mini_beta::{
-    create_campaign, create_grant_authorization, BetaAccountId, BetaEpochId, GrantClass,
-};
-use mini_beta_grants::{create_grant_approval, create_grant_policy};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 
 const EPOCH_HEX: &str = "0707070707070707070707070707070707070707070707070707070707070707";
@@ -59,10 +54,6 @@ fn number(json: &str, key: &str) -> u64 {
         .collect::<String>()
         .parse()
         .unwrap()
-}
-
-fn signer(seed: u8) -> Controller {
-    Controller::incept_single_from_seeds(&[seed; 32], &[seed.wrapping_add(1); 32]).unwrap()
 }
 
 struct World {
