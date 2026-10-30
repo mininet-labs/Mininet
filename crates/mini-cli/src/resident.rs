@@ -66,7 +66,12 @@ fn write_new(path: &Path, data: &[u8]) -> Result<()> {
     file.write_all(data)
         .and_then(|_| file.sync_all())
         .map_err(error)?;
-    mini_durable::sync_parent(path).map_err(error)
+    // Windows has no directory barrier (see mini-durable); the file itself is
+    // already flushed, so only Unix performs the parent sync.
+    #[cfg(unix)]
+    return mini_durable::sync_parent(path).map_err(error);
+    #[cfg(not(unix))]
+    Ok(())
 }
 fn number(args: &mut Vec<String>, flag: &str) -> Result<u64> {
     required(args, flag)?

@@ -237,6 +237,10 @@ impl Panel {
         }
         match result {
             Err(error) => {
+                // A failed storage operation may have changed the checkpoint
+                // (for example a removal whose final barrier failed), so the
+                // in-memory edits can no longer be assumed saved.
+                self.saved_edits = None;
                 self.invalidate();
                 self.status =
                     format!("Edit operation failed: {error}. Inspect files before retrying.");
@@ -259,6 +263,13 @@ impl Panel {
                 self.status = "Preview ready. Review every original and replacement; type the exact ID to authorize these writes.".into();
             }
             Ok(Outcome::Recovery(review)) => {
+                if self
+                    .saved_info
+                    .as_ref()
+                    .is_some_and(|old| old.id != review.id)
+                {
+                    self.saved_edits = None;
+                }
                 self.invalidate();
                 self.saved_info = Some(DraftInfo {
                     id: review.id.clone(),
