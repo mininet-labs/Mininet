@@ -21,3 +21,6 @@ mini-objects = { path = "../mini-objects" }
 mini-social = { path = "../mini-social" }
 mini-store = { path = "../mini-store" }
 mini-windows-vault = { path = "../mini-windows-vault" }
+mini-bearer = { path = "../mini-bearer" }
+mini-crypto = { path = "../mini-crypto" }
+mini-transport-security = { path = "../mini-transport-security" }

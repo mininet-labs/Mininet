@@ -2696,10 +2696,13 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-app-protocol",
+ "mini-bearer",
+ "mini-crypto",
  "mini-durable",
  "mini-objects",
  "mini-social",
  "mini-store",
+ "mini-transport-security",
  "mini-windows-vault",
 ]
 
@@ -2946,6 +2949,9 @@ dependencies = [
 [[package]]
 name = "mini-durable"
 version = "0.0.1"
+dependencies = [
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "mini-econ-sim"
