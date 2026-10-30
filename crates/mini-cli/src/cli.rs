@@ -12,7 +12,7 @@ use did_mini::Did;
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
 use crate::{
-    build, coordination, git, identity, installer, intake, keystone, pr, provenance, release,
+    beta, build, coordination, git, identity, installer, intake, keystone, pr, provenance, release,
     remote, repo, resident, service, store, sync,
 };
 
@@ -157,6 +157,7 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "resident" => resident::dispatch(home, store_path, args, json),
         "team" => dispatch_team(home, store_path, args, json),
         "task" => dispatch_task(home, store_path, args, json),
+        "beta" => dispatch_beta(home, store_path, args, json),
         "campaign" => dispatch_campaign(home, store_path, args, json),
         "finding" => dispatch_finding(home, store_path, args, json),
         "disposition" => dispatch_disposition(home, store_path, args, json),
@@ -177,6 +178,74 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "selftest" => dispatch_selftest(args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
+}
+
+fn dispatch_beta(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "beta")?;
+    let sub = next(&mut args, &format!("beta {noun}"))?;
+    let (kind, result) = match (noun.as_str(), sub.as_str()) {
+        ("campaign", "list") => (
+            "beta.campaign-list",
+            beta::campaign_list(home, store_path, args),
+        ),
+        ("campaign", "show") => (
+            "beta.campaign-show",
+            beta::campaign_show(home, store_path, args),
+        ),
+        ("finding", "submit") => (
+            "beta.finding-submit",
+            beta::finding_submit(home, store_path, args),
+        ),
+        ("finding", "list") => (
+            "beta.finding-list",
+            beta::finding_list(home, store_path, args),
+        ),
+        ("finding", "show") => (
+            "beta.finding-show",
+            beta::finding_show(home, store_path, args),
+        ),
+        ("finding", "disposition") => (
+            "beta.finding-disposition",
+            beta::finding_disposition(home, store_path, args),
+        ),
+        ("finding", "to-task") => (
+            "beta.finding-to-task",
+            beta::finding_to_task(home, store_path, args),
+        ),
+        ("disposition", "list") => (
+            "beta.disposition-list",
+            beta::disposition_list(home, store_path, args),
+        ),
+        ("disposition", "show") => (
+            "beta.disposition-show",
+            beta::disposition_show(home, store_path, args),
+        ),
+        ("task", "claim") => ("beta.task-claim", beta::task_claim(home, store_path, args)),
+        ("contribution", "accept") => (
+            "beta.contribution-accept",
+            beta::contribution_accept(home, store_path, args),
+        ),
+        ("contribution", "list") => (
+            "beta.contribution-list",
+            beta::contribution_list(home, store_path, args),
+        ),
+        ("contribution", "show") => (
+            "beta.contribution-show",
+            beta::contribution_show(home, store_path, args),
+        ),
+        ("claim", "new") => ("beta.claim-new", beta::claim_new(home, store_path, args)),
+        _ => {
+            return Err(CliError::Usage(format!(
+                "unknown `beta` command: {noun:?} {sub:?}"
+            )))
+        }
+    };
+    result.map(|value| value.render(json, kind))
 }
 
 fn dispatch_campaign(

@@ -19,6 +19,9 @@ mini-messaging	direct	core-service	Messages	W1	Current shared-key beta remains l
 mini-social	direct	core-service	Home People Communities	W1	User-selected feeds and portable moderation; no paid influence over governance
 mini-media	direct	core-service	Media Library Creator	W1	Chunked local-first media with explicit bandwidth/seeding policy
 mini-forge	none	forge-service	Forge	W4	Separate governance/build service; must not acquire a dependency path into wallet/value code
+mini-beta	none	forge-service	Forge	W4	Open-Beta campaign/finding/contribution coordination objects; resettable test currency only, code-level walled from mini-value/mini-treasury/mini-chain/mini-forge governance authority
+mini-beta-exec	none	forge-service	Forge	W4	Durable/replicated execution for resettable Beta MINI test value; not production settlement, shares mini-beta's process boundary and value/governance wall
+mini-beta-grants	none	forge-service	Forge	W4	Campaign-scoped multi-party Beta MINI grant acceptance evidence; no production value or governance authority
 mini-bootstrap	none	core-service	Setup and recovery	W4	Offline bootstrap transport must be real before claiming no-internet recovery
 mini-update	none	setup-tool	Updates	W1	Evaluation is read-only; activation always requires explicit owner approval for an exact release
 mini-chain	none	node-service	Node	W6	Testnet/full-node mode only until consensus/value external gates are satisfied

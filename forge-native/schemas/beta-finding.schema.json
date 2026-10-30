@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Open Beta Finding payload",
+  "description": "Forge-native semantic schema for mininet.beta/finding/v1. Deliberately contains no contributor DID, username, legal name, persistent pseudonym, reputation id, payment destination, or reward account. Adapters must run tools/check_beta_payload.py; x-mininet keywords and did-mini format checks are mandatory. Signed-object Rust validation remains required.",
+  "type": "object",
+  "required": [
+    "campaign_id",
+    "submission_tag",
+    "evidence_class",
+    "severity",
+    "component",
+    "summary",
+    "environment",
+    "steps",
+    "expected",
+    "observed",
+    "evidence",
+    "limitations",
+    "privacy_redacted"
+  ],
+  "properties": {
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1,
+      "format": "mininet-object-id"
+    },
+    "submission_tag": {
+      "type": "string",
+      "pattern": "^(?!0{64}$)[0-9a-fA-F]{64}$"
+    },
+    "evidence_class": {
+      "enum": [
+        "physical-device",
+        "emulator",
+        "rust-toolchain",
+        "research",
+        "external-review",
+        "accessibility",
+        "other"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "observation",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "component": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "x-mininet-maxUtf8Bytes": 512,
+      "pattern": "\\S"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "x-mininet-maxUtf8Bytes": 512,
+      "pattern": "\\S"
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
+    },
+    "steps": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
+    },
+    "expected": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
+    },
+    "observed": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024,
+        "x-mininet-maxUtf8Bytes": 1024,
+        "pattern": "\\S"
+      }
+    },
+    "limitations": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
+    },
+    "privacy_redacted": {
+      "const": true
+    }
+  },
+  "additionalProperties": false
+}
