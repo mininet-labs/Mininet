@@ -3220,6 +3220,30 @@ use compare-and-save in the desktop to reject competing checkpoint replacement,
 and expose stale replacement/current-source comparison for explicitly acknowledged
 manual repair. Recovery loads only an unstaged editor draft with the accepted
 current baseline; it never silently rebases, stages, applies or restores approval.
+
+### Native source snapshot review (draft)
+
+The native CLI now previews a complete unsigned workspace manifest and can require
+its exact snapshot ID before signing a source commit. Bytes, portable executable
+modes, paths/empty directories and canonical root are bound; confirmed signing
+uses the same in-memory snapshot and requires an existing identity. Source-only
+confirmation does not bind project/branch/message/parent metadata, submit a
+proposal, change governance or imply checks have run. See
+`docs/design/reviewed-native-workspace.md` for the supported boundary.
+
+Native reviewed workspace commits now also have a full signing-plan preview and
+exact confirmation path binding source plus selected profile/store, signer DIDs,
+project/branch/message and captured governed context. This is proposed-commit
+construction, not canonical adoption, one-use authorization, distributed state
+locking, source test execution or release approval.
+
+Native proposal handoff now previews and confirms a plan binding exact commit
+head, signer, project, title, branch and governed base/context. The reviewed path
+checks head provenance and bounded checkout shape before sequence allocation,
+rejects stale plans, and signs from the captured context. It creates a local
+proposal only; replication, approval, quorum and merge remain explicit. Focused
+CLI and unit checks cover end-to-end handoff, stale metadata/governance, untrusted
+head provenance and missing-store refusal. No hardware or production claim.
 ## Proposed integrated runtime delivery slice
 
 Draft PR #379 extends the existing application core with a bounded durable

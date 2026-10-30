@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 89,
-    "files": 1174,
-    "headings": 4040,
-    "rust_symbols": 13578
+    "files": 1176,
+    "headings": 4049,
+    "rust_symbols": 13630
   },
   "crates": {
     "askama_derive": {
@@ -16958,7 +16958,7 @@
       "title": "Only for the Capability/ResourceLimits request types and the"
     },
     {
-      "bytes": 9193,
+      "bytes": 12355,
       "group": "crate:mini-cli",
       "headings": [
         {
@@ -16978,36 +16978,65 @@
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 74,
           "text": "Honest limits"
         },
         {
           "level": 2,
-          "line": 114,
+          "line": 118,
           "text": "Native migration and collaboration"
         },
         {
+          "level": 3,
+          "line": 132,
+          "text": "Review an exact commit and proposal plan"
+        },
+        {
+          "level": 1,
+          "line": 141,
+          "text": "Inspect the complete bounded source manifest; file contents are not printed."
+        },
+        {
+          "level": 1,
+          "line": 144,
+          "text": "Review source, signer, project, message and current governed parent together."
+        },
+        {
+          "level": 1,
+          "line": 147,
+          "text": "Copy plan_id from that review; keep the inputs identical."
+        },
+        {
+          "level": 1,
+          "line": 150,
+          "text": "Use the returned commit_id as the proposal's exact head."
+        },
+        {
           "level": 2,
-          "line": 128,
+          "line": 180,
           "text": "Resident AI"
         },
         {
           "level": 3,
-          "line": 136,
+          "line": 188,
           "text": "Campaign review evidence"
         }
       ],
       "keywords": [
-        "path",
-        "text",
         "project",
-        "task",
+        "path",
         "repo",
-        "home",
+        "text",
         "review",
-        "kel",
+        "task",
+        "home",
+        "dir",
+        "branch",
         "route",
-        "trust",
+        "head",
+        "commit-id",
+        "commit",
+        "message",
         "evidence",
         "real",
         "identity",
@@ -17016,16 +17045,12 @@
         "store",
         "show",
         "name",
-        "local",
-        "branch",
-        "commit-id",
-        "pr-id",
-        "findings",
-        "list"
+        "workspace",
+        "title"
       ],
-      "lines": 157,
+      "lines": 209,
       "path": "crates/mini-cli/README.md",
-      "sha256": "5c53ecb82753ce0a54b624d85ff9edf66db600f50d94049f84785a3b4dfdf2d8",
+      "sha256": "5c08894b8b8a6ae2c148c33dc8fb266c5dee30101aee6fb4111df63f7f52e067",
       "symbols": [],
       "title": "mini-cli"
     },
@@ -17162,38 +17187,38 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 43596,
+      "bytes": 49809,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "args",
         "json",
-        "home",
-        "store_path",
-        "string",
-        "dispatch",
+        "text",
         "pathbuf",
+        "repo",
+        "string",
         "flag",
-        "vec",
-        "reject_json",
-        "pos",
-        "extract_flag",
-        "map",
-        "std",
+        "home",
+        "branch",
+        "help",
+        "project",
         "path",
-        "clierror",
-        "result",
-        "git",
-        "remote",
+        "store",
+        "vec",
+        "pos",
+        "some",
+        "extract_flag",
         "str",
-        "remove",
-        "verb",
-        "extract_bool_flag",
-        "default_home"
+        "map",
+        "group",
+        "commit_id",
+        "head",
+        "proposal_id",
+        "workspace"
       ],
-      "lines": 1075,
+      "lines": 1221,
       "path": "crates/mini-cli/src/cli.rs",
-      "sha256": "6d92f6136a58abf8c59d109aa3f2739059d40537d389b66e7c239433682f1197",
+      "sha256": "274b71137208f9203780d6b4ad05d5ca8e7f6c7d4702a2c9970b1783acc956de",
       "symbols": [
         {
           "kind": "fn",
@@ -17227,147 +17252,152 @@
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 91,
+          "name": "contribution_help"
+        },
+        {
+          "kind": "fn",
+          "line": 128,
           "name": "reject_json"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 138,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 182,
           "name": "dispatch_campaign"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 201,
           "name": "dispatch_finding"
         },
         {
           "kind": "fn",
-          "line": 171,
+          "line": 218,
           "name": "dispatch_disposition"
         },
         {
           "kind": "fn",
-          "line": 188,
+          "line": 235,
           "name": "dispatch_team"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 258,
           "name": "dispatch_task"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 288,
           "name": "dispatch_identity"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 299,
           "name": "dispatch_intake"
         },
         {
           "kind": "fn",
-          "line": 278,
+          "line": 325,
           "name": "dispatch_kel"
         },
         {
           "kind": "fn",
-          "line": 292,
+          "line": 339,
           "name": "dispatch_repo"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 508,
           "name": "dispatch_pr"
         },
         {
           "kind": "fn",
-          "line": 500,
+          "line": 646,
           "name": "dispatch_sync"
         },
         {
           "kind": "fn",
-          "line": 525,
+          "line": 671,
           "name": "dispatch_keystone"
         },
         {
           "kind": "fn",
-          "line": 540,
+          "line": 686,
           "name": "now_ms_wall_clock"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 693,
           "name": "extract_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 556,
+          "line": 702,
           "name": "extract_u32_flag"
         },
         {
           "kind": "fn",
-          "line": 565,
+          "line": 711,
           "name": "required_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 569,
+          "line": 715,
           "name": "required_path_flag"
         },
         {
           "kind": "fn",
-          "line": 575,
+          "line": 721,
           "name": "dispatch_build"
         },
         {
           "kind": "fn",
-          "line": 663,
+          "line": 809,
           "name": "dispatch_release"
         },
         {
           "kind": "fn",
-          "line": 787,
+          "line": 933,
           "name": "dispatch_provenance"
         },
         {
           "kind": "fn",
-          "line": 840,
+          "line": 986,
           "name": "dispatch_selftest"
         },
         {
           "kind": "fn",
-          "line": 876,
+          "line": 1022,
           "name": "dispatch_windows"
         },
         {
           "kind": "fn",
-          "line": 888,
+          "line": 1034,
           "name": "reject_leftover"
         },
         {
           "kind": "fn",
-          "line": 898,
+          "line": 1044,
           "name": "dispatch_windows_noun"
         },
         {
           "kind": "fn",
-          "line": 973,
+          "line": 1119,
           "name": "windows_install_options"
         },
         {
           "kind": "fn",
-          "line": 992,
+          "line": 1138,
           "name": "dispatch_installer"
         },
         {
           "kind": "fn",
-          "line": 1069,
+          "line": 1215,
           "name": "next"
         }
       ],
@@ -18866,38 +18896,38 @@
       "title": "use crate::{CliError, Result};"
     },
     {
-      "bytes": 20337,
+      "bytes": 40627,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "identity",
-        "head",
+        "home",
         "str",
         "store",
-        "home",
+        "branch",
         "clierror",
-        "map_err",
-        "to_string",
-        "jsonvalue",
-        "as_str",
-        "path",
-        "objectid",
-        "sequence",
         "base",
         "store_path",
-        "field",
-        "pr_id",
+        "objectid",
+        "path",
+        "project",
+        "map_err",
+        "to_string",
+        "title",
+        "head",
         "project_id",
-        "forge",
-        "obj",
-        "approve",
         "mini_forge",
-        "object",
-        "result"
+        "jsonvalue",
+        "tip",
+        "forge",
+        "default_base",
+        "propose",
+        "merge",
+        "governance"
       ],
-      "lines": 549,
+      "lines": 1176,
       "path": "crates/mini-cli/src/pr.rs",
-      "sha256": "983eee7c4acab8e190c857b0a389ddde446c6ce70afe6d65ece0d2eeb3c3cc63",
+      "sha256": "b0d5b171925605d69b734a80ba7f573d52d25952ea706f9b7f684945097b1412",
       "symbols": [
         {
           "kind": "fn",
@@ -18910,52 +18940,117 @@
           "name": "propose_pr"
         },
         {
+          "kind": "struct",
+          "line": 81,
+          "name": "ProposalContext"
+        },
+        {
           "kind": "fn",
-          "line": 82,
+          "line": 95,
+          "name": "capture_proposal"
+        },
+        {
+          "kind": "fn",
+          "line": 269,
+          "name": "preview_proposal"
+        },
+        {
+          "kind": "fn",
+          "line": 295,
+          "name": "propose_planned"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "record_planned_proposal"
+        },
+        {
+          "kind": "fn",
+          "line": 337,
           "name": "approve_pr"
         },
         {
           "kind": "fn",
-          "line": 159,
+          "line": 414,
           "name": "merge_pr"
         },
         {
           "kind": "fn",
-          "line": 220,
+          "line": 475,
           "name": "set_ai_assisted"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 504,
           "name": "show_findings"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 532,
           "name": "proposal_json"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 560,
           "name": "list_prs"
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 587,
           "name": "show_pr"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 660,
           "name": "diff_pr"
         },
         {
           "kind": "fn",
-          "line": 505,
+          "line": 760,
           "name": "add_findings"
+        },
+        {
+          "kind": "mod",
+          "line": 806,
+          "name": "proposal_plan_tests"
+        },
+        {
+          "kind": "struct",
+          "line": 808,
+          "name": "World"
+        },
+        {
+          "kind": "fn",
+          "line": 815,
+          "name": "world"
+        },
+        {
+          "kind": "fn",
+          "line": 839,
+          "name": "id"
+        },
+        {
+          "kind": "fn",
+          "line": 852,
+          "name": "proposal_plan_changes_require_fresh_confirmation_before_any_writes"
+        },
+        {
+          "kind": "fn",
+          "line": 966,
+          "name": "outsider"
+        },
+        {
+          "kind": "fn",
+          "line": 980,
+          "name": "proposal_preview_requires_trusted_head_provenance_and_existing_backend"
+        },
+        {
+          "kind": "fn",
+          "line": 1061,
+          "name": "governed_base_changes_invalidate_plan_but_captured_proposal_is_not_re_resolved"
         }
       ],
-      "title": "use std::path::Path;"
+      "title": "use std::path::{Path, PathBuf};"
     },
     {
       "bytes": 3846,
@@ -19291,38 +19386,38 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 26896,
+      "bytes": 62083,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "branch",
+        "path",
         "str",
         "name",
         "home",
-        "identity",
-        "path",
-        "store",
         "clierror",
-        "project",
-        "jsonvalue",
-        "as_str",
-        "commit",
-        "store_path",
-        "obj",
-        "field",
         "message",
+        "store_path",
+        "store",
+        "result",
+        "identity",
+        "paths",
         "snapshot",
+        "pathbuf",
+        "project",
         "commandresult",
+        "project_ref",
+        "usage",
         "repo",
         "track",
-        "tree",
-        "result",
+        "commit",
+        "objectid",
         "maintainers",
         "min_approvals"
       ],
-      "lines": 733,
+      "lines": 1729,
       "path": "crates/mini-cli/src/repo.rs",
-      "sha256": "8c2be73bd0a44f7d57f4e6154e9cc8b45adb46b1bf882b27168e0f7e07b27390",
+      "sha256": "cdaabfd047f4c4ad19efd842268e344dd0e3e7f578251d2c53f73a90ef8fb27a",
       "symbols": [
         {
           "kind": "fn",
@@ -19346,103 +19441,253 @@
         },
         {
           "kind": "fn",
-          "line": 154,
-          "name": "commit_workspace"
+          "line": 102,
+          "name": "commit_snapshot"
         },
         {
           "kind": "enum",
-          "line": 182,
-          "name": "Snapshot"
+          "line": 120,
+          "name": "ContextMode"
         },
         {
           "kind": "struct",
-          "line": 187,
-          "name": "SnapshotBudget"
-        },
-        {
-          "kind": "impl",
-          "line": 192,
-          "name": "Default"
+          "line": 125,
+          "name": "CommitContext"
         },
         {
           "kind": "fn",
-          "line": 193,
-          "name": "default"
+          "line": 138,
+          "name": "validate_commit_metadata"
         },
         {
           "kind": "fn",
-          "line": 203,
-          "name": "excluded"
+          "line": 172,
+          "name": "capture_context"
         },
         {
           "kind": "fn",
-          "line": 208,
-          "name": "read_snapshot"
+          "line": 257,
+          "name": "sign_snapshot"
         },
         {
           "kind": "fn",
           "line": 303,
+          "name": "commit_workspace"
+        },
+        {
+          "kind": "fn",
+          "line": 323,
+          "name": "workspace_snapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 352,
+          "name": "preview_workspace"
+        },
+        {
+          "kind": "fn",
+          "line": 393,
+          "name": "commit_workspace_confirmed"
+        },
+        {
+          "kind": "fn",
+          "line": 429,
+          "name": "commit_plan_fields"
+        },
+        {
+          "kind": "fn",
+          "line": 474,
+          "name": "commit_plan_id"
+        },
+        {
+          "kind": "fn",
+          "line": 492,
+          "name": "preview_workspace_commit"
+        },
+        {
+          "kind": "fn",
+          "line": 544,
+          "name": "commit_workspace_planned"
+        },
+        {
+          "kind": "struct",
+          "line": 574,
+          "name": "SnapshotSummary"
+        },
+        {
+          "kind": "fn",
+          "line": 583,
+          "name": "hash_field"
+        },
+        {
+          "kind": "const",
+          "line": 587,
+          "name": "MAX_MANIFEST_ENTRIES"
+        },
+        {
+          "kind": "const",
+          "line": 588,
+          "name": "MAX_MANIFEST_PATH_BYTES"
+        },
+        {
+          "kind": "fn",
+          "line": 589,
+          "name": "snapshot_summary"
+        },
+        {
+          "kind": "fn",
+          "line": 618,
+          "name": "manifest_nodes"
+        },
+        {
+          "kind": "enum",
+          "line": 676,
+          "name": "Snapshot"
+        },
+        {
+          "kind": "struct",
+          "line": 681,
+          "name": "SnapshotBudget"
+        },
+        {
+          "kind": "impl",
+          "line": 686,
+          "name": "Default"
+        },
+        {
+          "kind": "fn",
+          "line": 687,
+          "name": "default"
+        },
+        {
+          "kind": "fn",
+          "line": 697,
+          "name": "excluded"
+        },
+        {
+          "kind": "fn",
+          "line": 702,
+          "name": "read_snapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 797,
           "name": "reject_symlink_components"
         },
         {
           "kind": "fn",
-          "line": 324,
+          "line": 818,
           "name": "store_snapshot"
         },
         {
           "kind": "fn",
-          "line": 364,
+          "line": 858,
           "name": "checkout_commit"
         },
         {
           "kind": "fn",
-          "line": 464,
+          "line": 958,
           "name": "branch"
         },
         {
           "kind": "fn",
-          "line": 514,
+          "line": 1008,
           "name": "status"
         },
         {
           "kind": "mod",
-          "line": 537,
+          "line": 1031,
           "name": "workspace_tests"
         },
         {
           "kind": "fn",
-          "line": 541,
+          "line": 1035,
           "name": "snapshot_is_sorted_and_omits_repository_metadata"
         },
         {
           "kind": "fn",
-          "line": 571,
+          "line": 1065,
           "name": "snapshot_excludes_case_variants_of_secret_metadata"
         },
         {
           "kind": "fn",
-          "line": 586,
+          "line": 1080,
           "name": "snapshot_accepts_checkout_sized_files_with_directory_overhead"
         },
         {
           "kind": "fn",
-          "line": 609,
+          "line": 1103,
           "name": "snapshot_refuses_duplicate_names_and_exhausted_budget"
         },
         {
           "kind": "fn",
-          "line": 635,
+          "line": 1129,
           "name": "snapshot_refuses_symlink_files_and_ancestor_directories"
         },
         {
           "kind": "fn",
-          "line": 650,
+          "line": 1144,
           "name": "native_workspace_preserves_executable_modes"
         },
         {
           "kind": "fn",
-          "line": 705,
+          "line": 1199,
           "name": "failed_checkout_preserves_existing_destination"
+        },
+        {
+          "kind": "fn",
+          "line": 1227,
+          "name": "snapshot_id"
+        },
+        {
+          "kind": "fn",
+          "line": 1240,
+          "name": "workspace_preview_is_sorted_private_and_binds_bytes_empty_dirs_and_root"
+        },
+        {
+          "kind": "fn",
+          "line": 1320,
+          "name": "confirmed_workspace_rejects_stale_or_wrong_id_before_identity_or_store_creation"
+        },
+        {
+          "kind": "fn",
+          "line": 1363,
+          "name": "confirmed_commit_uses_only_the_reviewed_in_memory_snapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 1432,
+          "name": "review_metadata_limits_fail_without_truncating_large_manifests"
+        },
+        {
+          "kind": "fn",
+          "line": 1445,
+          "name": "deep"
+        },
+        {
+          "kind": "fn",
+          "line": 1461,
+          "name": "plan_id"
+        },
+        {
+          "kind": "fn",
+          "line": 1474,
+          "name": "planned_commit_refuses_changed_metadata_project_profile_and_source_without_writes"
+        },
+        {
+          "kind": "fn",
+          "line": 1559,
+          "name": "commit_plan_preview_requires_existing_backend_and_never_initializes_it"
+        },
+        {
+          "kind": "fn",
+          "line": 1577,
+          "name": "advance_governed_test_branch"
+        },
+        {
+          "kind": "fn",
+          "line": 1655,
+          "name": "plan_checks_governed_parent_and_signing_never_reresolves_captured_context"
         }
       ],
       "title": "use std::fs;"
@@ -21254,6 +21499,83 @@
         }
       ],
       "title": "use std::io::Write;"
+    },
+    {
+      "bytes": 12878,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "path",
+        "store",
+        "root",
+        "home",
+        "join",
+        "args",
+        "run",
+        "temp",
+        "write",
+        "assert_eq",
+        "state",
+        "source",
+        "output",
+        "first",
+        "call",
+        "to_str",
+        "exists",
+        "assert",
+        "snapshot_id",
+        "string",
+        "vec",
+        "create_dir",
+        "repo"
+      ],
+      "lines": 447,
+      "path": "crates/mini-cli/tests/native_workspace_review.rs",
+      "sha256": "7b69a15e60793342abf761d5ab5be1278c04d67698e4ee520e457e4bbb345f70",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 6,
+          "name": "call"
+        },
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 22,
+          "name": "state"
+        },
+        {
+          "kind": "fn",
+          "line": 23,
+          "name": "walk"
+        },
+        {
+          "kind": "fn",
+          "line": 48,
+          "name": "source_preview_is_read_only_complete_and_deterministic"
+        },
+        {
+          "kind": "fn",
+          "line": 90,
+          "name": "confirmation_rejects_stale_source_before_store_writes_and_never_initializes_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 173,
+          "name": "full_commit_plan_binds_reviewed_source_and_signing_metadata_before_any_writes"
+        },
+        {
+          "kind": "fn",
+          "line": 330,
+          "name": "proposal_plan_handoff_binds_metadata_without_approving_or_merging"
+        }
+      ],
+      "title": "use serde_json::Value;"
     },
     {
       "bytes": 3162,
@@ -104068,7 +104390,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 215073,
+      "bytes": 216571,
       "group": "docs",
       "headings": [
         {
@@ -104222,8 +104544,13 @@
           "text": "Resident desktop reviewed local edits (draft)"
         },
         {
+          "level": 3,
+          "line": 3224,
+          "text": "Native source snapshot review (draft)"
+        },
+        {
           "level": 2,
-          "line": 3223,
+          "line": 3247,
           "text": "Proposed integrated runtime delivery slice"
         }
       ],
@@ -104253,9 +104580,9 @@
         "closed",
         "exists"
       ],
-      "lines": 3233,
+      "lines": 3257,
       "path": "docs/STATUS.md",
-      "sha256": "e79cf85cb25a64f0242cc24261daf159bd86ba1fe4d2198ea584aee24ef2a6fc",
+      "sha256": "73d5cb1aa230c75cb1378a2037988a6db22a420c03c6169ce949bc8a68f8d57f",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -112891,7 +113218,7 @@
       "title": "Native Forge software launch profile"
     },
     {
-      "bytes": 8698,
+      "bytes": 9788,
       "group": "docs",
       "headings": [
         {
@@ -112911,17 +113238,17 @@
         },
         {
           "level": 2,
-          "line": 83,
+          "line": 89,
           "text": "Exchange updates directly"
         },
         {
           "level": 2,
-          "line": 112,
+          "line": 118,
           "text": "Keep a replaceable Git mirror"
         },
         {
           "level": 2,
-          "line": 127,
+          "line": 133,
           "text": "Release acceptance"
         }
       ],
@@ -112930,30 +113257,30 @@
         "json",
         "git",
         "source",
-        "review",
         "project",
+        "author-home",
         "exact",
         "workspace",
-        "remain",
-        "author-home",
-        "evidence",
-        "files",
         "branch",
-        "reviewer-home",
-        "proposal-id",
-        "existing",
-        "build",
-        "snapshot",
-        "paths",
+        "review",
+        "main",
+        "files",
+        "repo",
         "commit-id",
         "head",
-        "approval",
+        "reviewer-home",
+        "proposal-id",
         "native",
-        "migration"
+        "work",
+        "remain",
+        "build",
+        "snapshot",
+        "describe",
+        "change"
       ],
-      "lines": 149,
+      "lines": 163,
       "path": "docs/design/native-forge-migration.md",
-      "sha256": "19e1f11de27449f764722563f17b1b37de8fd5f9caf19d46015b1e08f26cfcad",
+      "sha256": "30b7c8df0696239b7ed53de9f64a2f526066c0800eabe56d24cdc05b936b9739",
       "symbols": [],
       "title": "Native Forge migration and collaboration"
     },
@@ -113578,6 +113905,58 @@
       "sha256": "20ef3f14ed03c86571d037cef20f131e8f9046f3de4636b4cf235fe6fa074641",
       "symbols": [],
       "title": "Resident AI"
+    },
+    {
+      "bytes": 6717,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Review a workspace before native signing"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "Review the full signing plan"
+        },
+        {
+          "level": 2,
+          "line": 86,
+          "text": "Hand a reviewed commit to a native proposal"
+        }
+      ],
+      "keywords": [
+        "source",
+        "signing",
+        "path",
+        "workspace",
+        "store",
+        "review",
+        "snapshot",
+        "commit",
+        "plan",
+        "reviewed",
+        "existing",
+        "identity",
+        "branch",
+        "message",
+        "preview",
+        "manifest",
+        "native",
+        "exact",
+        "file",
+        "bytes",
+        "full",
+        "project",
+        "json",
+        "repo"
+      ],
+      "lines": 104,
+      "path": "docs/design/reviewed-native-workspace.md",
+      "sha256": "8ff7c63557ce64839050c72df10cec6a3ba50ded1ae255c749bdd13f09aecfde",
+      "symbols": [],
+      "title": "Review a workspace before native signing"
     },
     {
       "bytes": 4708,
@@ -126749,7 +127128,7 @@
       "title": "PR #327 finding F-17 (D-0492): the record's own last_verified_at timestamp"
     },
     {
-      "bytes": 4722,
+      "bytes": 4749,
       "group": "tools",
       "headings": [],
       "keywords": [
@@ -126780,7 +127159,7 @@
       ],
       "lines": 96,
       "path": "tools/check_native_forge.py",
-      "sha256": "492af083828983f6f602cb7804663d44f8bcbc5ed2198e1728965656f112c8a9",
+      "sha256": "b99b88377b9897322b12691d6a6e7c0d67bad25e934993307c0dd14613442584",
       "symbols": [],
       "title": "\"\"\"Focused native Forge software acceptance without building the Wasm runner."
     },
