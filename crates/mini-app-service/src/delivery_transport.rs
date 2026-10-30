@@ -469,7 +469,7 @@ mod tests {
         LocalSessionIdentity::new(
             root.did(),
             device,
-            AgreementSecretKey::from_seed(&[99; 32]).public_key(),
+            AgreementSecretKey::generate().unwrap().public_key(),
         )
     }
     fn post(root: &Controller, device: &Controller) -> Vec<u8> {
