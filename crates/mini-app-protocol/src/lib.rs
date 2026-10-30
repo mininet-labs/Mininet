@@ -21,6 +21,9 @@ pub const MAX_PROFILE_NAME_BYTES: usize = 64;
 pub const MAX_PROFILE_BIO_BYTES: usize = 1024;
 pub const MAX_FEED_ITEMS: u16 = 50;
 pub const MAX_EVENTS_PER_RESPONSE: u16 = 64;
+pub const MAX_DELIVERIES_PER_RESPONSE: u16 = 64;
+pub const MAX_DELIVERY_KEL_BYTES: usize = 16 * 1024;
+pub const MAX_DELIVERY_PEERS: u16 = 64;
 const MAX_DID_BYTES: usize = 256;
 const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
@@ -91,6 +94,60 @@ pub struct PublishedObject {
     pub duplicate: bool,
 }
 
+/// Public identity material explicitly exported for pairing. Never seed bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryIdentity {
+    pub root_kel: Vec<u8>,
+    pub device_kel: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryPeerView {
+    pub peer_id: String,
+    pub endpoint: String,
+    pub root_did: String,
+    pub device_did: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryRuntimeView {
+    pub enabled: bool,
+    pub listener_peer: Option<String>,
+    pub listener_endpoint: Option<String>,
+    pub listening: bool,
+}
+
+/// Durable outbound state. Delivered means the named peer acknowledged verified
+/// storage, not that a person read it or governance accepted it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeliveryState {
+    Queued,
+    InFlight,
+    RetryWaiting,
+    Delivered,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeliveryFailure {
+    Unavailable,
+    Rejected,
+    Interrupted,
+}
+
+/// Metadata only: signed bytes and identity secrets never cross this reply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryView {
+    pub operation_id: String,
+    pub peer_id: String,
+    pub object_id: String,
+    pub state: DeliveryState,
+    pub attempts: u32,
+    pub next_attempt_ms: u64,
+    pub last_failure: Option<DeliveryFailure>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceEvent {
     pub event_id: u64,
@@ -103,6 +160,7 @@ pub enum ServiceEventKind {
     IdentityChanged { unlocked: bool },
     ObjectPublished { kind: ObjectKind, object_id: String },
     FeedChanged,
+    DeliveryChanged(DeliveryView),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,6 +216,67 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("event count"));
                 }
             }
+            Command::QueuePublicDelivery {
+                operation_id,
+                peer_id,
+                object_id,
+            } => {
+                validate_operation_id(operation_id)?;
+                validate_operation_id(peer_id)?;
+                if object_id.is_empty() || object_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("delivery object id"));
+                }
+            }
+            Command::DeliveryStatus { operation_id } | Command::CancelDelivery { operation_id } => {
+                validate_operation_id(operation_id)?;
+            }
+            Command::ListDeliveriesAfter {
+                after_operation_id,
+                limit,
+            } => {
+                if let Some(after) = after_operation_id {
+                    validate_operation_id(after)?;
+                }
+                if *limit == 0 || *limit > MAX_DELIVERIES_PER_RESPONSE {
+                    return Err(ProtocolError::LimitExceeded("delivery count"));
+                }
+            }
+            Command::ListDeliveries { limit } => {
+                if *limit == 0 || *limit > MAX_DELIVERIES_PER_RESPONSE {
+                    return Err(ProtocolError::LimitExceeded("delivery count"));
+                }
+            }
+            Command::AuthorizeDeliveryPeer {
+                peer_id,
+                endpoint,
+                root_kel,
+                device_kel,
+            } => {
+                validate_operation_id(peer_id)?;
+                if endpoint.is_empty() || endpoint.len() > 128 {
+                    return Err(ProtocolError::LimitExceeded("delivery endpoint"));
+                }
+                if root_kel.is_empty()
+                    || device_kel.is_empty()
+                    || root_kel.len() > MAX_DELIVERY_KEL_BYTES
+                    || device_kel.len() > MAX_DELIVERY_KEL_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("delivery KEL"));
+                }
+            }
+            Command::RevokeDeliveryPeer { peer_id } => validate_operation_id(peer_id)?,
+            Command::AttemptDelivery { operation_id } => validate_operation_id(operation_id)?,
+            Command::SetDeliveryListener { peer_id, endpoint } => {
+                validate_operation_id(peer_id)?;
+                if endpoint.is_empty() || endpoint.len() > 128 {
+                    return Err(ProtocolError::LimitExceeded("delivery bind endpoint"));
+                }
+            }
+            Command::DeliveryRuntimeStatus
+            | Command::ExportDeliveryIdentity
+            | Command::DeliveryPeers
+            | Command::SetDeliveryEnabled { .. }
+            | Command::StopDeliveryListener => {}
             Command::Status
             | Command::CreateRoot
             | Command::UnlockIdentity
@@ -193,6 +312,47 @@ pub enum Command {
     DrainEvents {
         limit: u16,
     },
+    QueuePublicDelivery {
+        operation_id: String,
+        peer_id: String,
+        object_id: String,
+    },
+    DeliveryStatus {
+        operation_id: String,
+    },
+    ListDeliveriesAfter {
+        after_operation_id: Option<String>,
+        limit: u16,
+    },
+    ListDeliveries {
+        limit: u16,
+    },
+    CancelDelivery {
+        operation_id: String,
+    },
+    DeliveryRuntimeStatus,
+    ExportDeliveryIdentity,
+    AuthorizeDeliveryPeer {
+        peer_id: String,
+        endpoint: String,
+        root_kel: Vec<u8>,
+        device_kel: Vec<u8>,
+    },
+    RevokeDeliveryPeer {
+        peer_id: String,
+    },
+    DeliveryPeers,
+    AttemptDelivery {
+        operation_id: String,
+    },
+    SetDeliveryEnabled {
+        enabled: bool,
+    },
+    SetDeliveryListener {
+        peer_id: String,
+        endpoint: String,
+    },
+    StopDeliveryListener,
     Shutdown,
 }
 
@@ -235,6 +395,11 @@ pub enum Reply {
     Feed(Vec<FeedCard>),
     Published(PublishedObject),
     Events(Vec<ServiceEvent>),
+    Delivery(DeliveryView),
+    Deliveries(Vec<DeliveryView>),
+    DeliveryIdentity(DeliveryIdentity),
+    DeliveryPeers(Vec<DeliveryPeerView>),
+    DeliveryRuntime(DeliveryRuntimeView),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -423,7 +588,70 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.u8(8);
             encoder.u16(*limit);
         }
+        Command::DeliveryRuntimeStatus => encoder.u8(22),
+        Command::ExportDeliveryIdentity => encoder.u8(14),
+        Command::AuthorizeDeliveryPeer {
+            peer_id,
+            endpoint,
+            root_kel,
+            device_kel,
+        } => {
+            encoder.u8(15);
+            encoder.string(peer_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(endpoint, 128)?;
+            encoder.byte_string(root_kel, MAX_DELIVERY_KEL_BYTES)?;
+            encoder.byte_string(device_kel, MAX_DELIVERY_KEL_BYTES)?;
+        }
+        Command::RevokeDeliveryPeer { peer_id } => {
+            encoder.u8(16);
+            encoder.string(peer_id, MAX_OPERATION_ID_BYTES)?;
+        }
+        Command::DeliveryPeers => encoder.u8(17),
+        Command::AttemptDelivery { operation_id } => {
+            encoder.u8(18);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+        }
+        Command::SetDeliveryEnabled { enabled } => {
+            encoder.u8(19);
+            encoder.bool(*enabled);
+        }
+        Command::SetDeliveryListener { peer_id, endpoint } => {
+            encoder.u8(20);
+            encoder.string(peer_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(endpoint, 128)?;
+        }
+        Command::StopDeliveryListener => encoder.u8(21),
         Command::Shutdown => encoder.u8(9),
+        Command::QueuePublicDelivery {
+            operation_id,
+            peer_id,
+            object_id,
+        } => {
+            encoder.u8(10);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(peer_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Command::DeliveryStatus { operation_id } => {
+            encoder.u8(11);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+        }
+        Command::ListDeliveriesAfter {
+            after_operation_id,
+            limit,
+        } => {
+            encoder.u8(23);
+            encoder.option_string(after_operation_id.as_deref(), MAX_OPERATION_ID_BYTES)?;
+            encoder.u16(*limit);
+        }
+        Command::ListDeliveries { limit } => {
+            encoder.u8(12);
+            encoder.u16(*limit);
+        }
+        Command::CancelDelivery { operation_id } => {
+            encoder.u8(13);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+        }
     }
     Ok(())
 }
@@ -473,6 +701,47 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             limit: decoder.u16()?,
         }),
         9 => Ok(Command::Shutdown),
+        22 => Ok(Command::DeliveryRuntimeStatus),
+        14 => Ok(Command::ExportDeliveryIdentity),
+        15 => Ok(Command::AuthorizeDeliveryPeer {
+            peer_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            endpoint: decoder.string(128)?,
+            root_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
+            device_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
+        }),
+        16 => Ok(Command::RevokeDeliveryPeer {
+            peer_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+        }),
+        17 => Ok(Command::DeliveryPeers),
+        18 => Ok(Command::AttemptDelivery {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+        }),
+        19 => Ok(Command::SetDeliveryEnabled {
+            enabled: decoder.bool()?,
+        }),
+        20 => Ok(Command::SetDeliveryListener {
+            peer_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            endpoint: decoder.string(128)?,
+        }),
+        21 => Ok(Command::StopDeliveryListener),
+        10 => Ok(Command::QueuePublicDelivery {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            peer_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            object_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        11 => Ok(Command::DeliveryStatus {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+        }),
+        23 => Ok(Command::ListDeliveriesAfter {
+            after_operation_id: decoder.option_string(MAX_OPERATION_ID_BYTES)?,
+            limit: decoder.u16()?,
+        }),
+        12 => Ok(Command::ListDeliveries {
+            limit: decoder.u16()?,
+        }),
+        13 => Ok(Command::CancelDelivery {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+        }),
         tag => Err(ProtocolError::Decode(format!("unknown command tag {tag}"))),
     }
 }
@@ -512,6 +781,46 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
                 encode_event(encoder, event)?;
             }
         }
+        Reply::Delivery(delivery) => {
+            encoder.u8(6);
+            encode_delivery(encoder, delivery)?;
+        }
+        Reply::Deliveries(deliveries) => {
+            encoder.u8(7);
+            if deliveries.len() > usize::from(MAX_DELIVERIES_PER_RESPONSE) {
+                return Err(ProtocolError::LimitExceeded("delivery count"));
+            }
+            encoder.u16(deliveries.len() as u16);
+            for delivery in deliveries {
+                encode_delivery(encoder, delivery)?;
+            }
+        }
+        Reply::DeliveryIdentity(identity) => {
+            encoder.u8(8);
+            encoder.byte_string(&identity.root_kel, MAX_DELIVERY_KEL_BYTES)?;
+            encoder.byte_string(&identity.device_kel, MAX_DELIVERY_KEL_BYTES)?;
+        }
+        Reply::DeliveryPeers(peers) => {
+            encoder.u8(9);
+            if peers.len() > usize::from(MAX_DELIVERY_PEERS) {
+                return Err(ProtocolError::LimitExceeded("delivery peer count"));
+            }
+            encoder.u16(peers.len() as u16);
+            for peer in peers {
+                encoder.string(&peer.peer_id, MAX_OPERATION_ID_BYTES)?;
+                encoder.string(&peer.endpoint, 128)?;
+                encoder.string(&peer.root_did, MAX_DID_BYTES)?;
+                encoder.string(&peer.device_did, MAX_DID_BYTES)?;
+                encoder.bool(peer.enabled);
+            }
+        }
+        Reply::DeliveryRuntime(view) => {
+            encoder.u8(10);
+            encoder.bool(view.enabled);
+            encoder.option_string(view.listener_peer.as_deref(), MAX_OPERATION_ID_BYTES)?;
+            encoder.option_string(view.listener_endpoint.as_deref(), 128)?;
+            encoder.bool(view.listening);
+        }
     }
     Ok(())
 }
@@ -544,8 +853,105 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
             }
             Ok(Reply::Events(events))
         }
+        6 => Ok(Reply::Delivery(decode_delivery(decoder)?)),
+        7 => {
+            let count = decoder.u16()?;
+            if count > MAX_DELIVERIES_PER_RESPONSE {
+                return Err(ProtocolError::LimitExceeded("delivery count"));
+            }
+            let mut deliveries = Vec::with_capacity(usize::from(count));
+            for _ in 0..count {
+                deliveries.push(decode_delivery(decoder)?);
+            }
+            Ok(Reply::Deliveries(deliveries))
+        }
+        8 => Ok(Reply::DeliveryIdentity(DeliveryIdentity {
+            root_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
+            device_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
+        })),
+        9 => {
+            let count = decoder.u16()?;
+            if count > MAX_DELIVERY_PEERS {
+                return Err(ProtocolError::LimitExceeded("delivery peer count"));
+            }
+            let mut peers = Vec::with_capacity(usize::from(count));
+            for _ in 0..count {
+                peers.push(DeliveryPeerView {
+                    peer_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+                    endpoint: decoder.string(128)?,
+                    root_did: decoder.string(MAX_DID_BYTES)?,
+                    device_did: decoder.string(MAX_DID_BYTES)?,
+                    enabled: decoder.bool()?,
+                });
+            }
+            Ok(Reply::DeliveryPeers(peers))
+        }
+        10 => Ok(Reply::DeliveryRuntime(DeliveryRuntimeView {
+            enabled: decoder.bool()?,
+            listener_peer: decoder.option_string(MAX_OPERATION_ID_BYTES)?,
+            listener_endpoint: decoder.option_string(128)?,
+            listening: decoder.bool()?,
+        })),
         tag => Err(ProtocolError::Decode(format!("unknown reply tag {tag}"))),
     }
+}
+
+fn encode_delivery(encoder: &mut Encoder, delivery: &DeliveryView) -> Result<(), ProtocolError> {
+    validate_operation_id(&delivery.operation_id)?;
+    validate_operation_id(&delivery.peer_id)?;
+    encoder.string(&delivery.operation_id, MAX_OPERATION_ID_BYTES)?;
+    encoder.string(&delivery.peer_id, MAX_OPERATION_ID_BYTES)?;
+    encoder.string(&delivery.object_id, MAX_OBJECT_ID_BYTES)?;
+    encoder.u8(match delivery.state {
+        DeliveryState::Queued => 0,
+        DeliveryState::InFlight => 1,
+        DeliveryState::RetryWaiting => 2,
+        DeliveryState::Delivered => 3,
+        DeliveryState::Cancelled => 4,
+    });
+    encoder.u32(delivery.attempts);
+    encoder.u64(delivery.next_attempt_ms);
+    encoder.u8(match delivery.last_failure {
+        None => 0,
+        Some(DeliveryFailure::Unavailable) => 1,
+        Some(DeliveryFailure::Rejected) => 2,
+        Some(DeliveryFailure::Interrupted) => 3,
+    });
+    Ok(())
+}
+
+fn decode_delivery(decoder: &mut Decoder<'_>) -> Result<DeliveryView, ProtocolError> {
+    let operation_id = decoder.string(MAX_OPERATION_ID_BYTES)?;
+    let peer_id = decoder.string(MAX_OPERATION_ID_BYTES)?;
+    validate_operation_id(&operation_id)?;
+    validate_operation_id(&peer_id)?;
+    let object_id = decoder.string(MAX_OBJECT_ID_BYTES)?;
+    let state = match decoder.u8()? {
+        0 => DeliveryState::Queued,
+        1 => DeliveryState::InFlight,
+        2 => DeliveryState::RetryWaiting,
+        3 => DeliveryState::Delivered,
+        4 => DeliveryState::Cancelled,
+        _ => return Err(ProtocolError::Decode("invalid delivery state".into())),
+    };
+    let attempts = decoder.u32()?;
+    let next_attempt_ms = decoder.u64()?;
+    let last_failure = match decoder.u8()? {
+        0 => None,
+        1 => Some(DeliveryFailure::Unavailable),
+        2 => Some(DeliveryFailure::Rejected),
+        3 => Some(DeliveryFailure::Interrupted),
+        _ => return Err(ProtocolError::Decode("invalid delivery failure".into())),
+    };
+    Ok(DeliveryView {
+        operation_id,
+        peer_id,
+        object_id,
+        state,
+        attempts,
+        next_attempt_ms,
+        last_failure,
+    })
 }
 
 fn encode_status(encoder: &mut Encoder, status: &AccountStatus) -> Result<(), ProtocolError> {
@@ -689,6 +1095,10 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
         ServiceEventKind::FeedChanged => encoder.u8(3),
+        ServiceEventKind::DeliveryChanged(delivery) => {
+            encoder.u8(4);
+            encode_delivery(encoder, delivery)?;
+        }
     }
     Ok(())
 }
@@ -718,6 +1128,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
             }
         }
         3 => ServiceEventKind::FeedChanged,
+        4 => ServiceEventKind::DeliveryChanged(decode_delivery(decoder)?),
         tag => return Err(ProtocolError::Decode(format!("unknown event tag {tag}"))),
     };
     Ok(ServiceEvent { event_id, kind })
@@ -829,6 +1240,15 @@ impl Encoder {
         self.bytes.extend_from_slice(&value.to_be_bytes());
     }
 
+    fn byte_string(&mut self, value: &[u8], max: usize) -> Result<(), ProtocolError> {
+        if value.len() > max {
+            return Err(ProtocolError::LimitExceeded("byte string"));
+        }
+        self.u32(value.len() as u32);
+        self.bytes.extend_from_slice(value);
+        Ok(())
+    }
+
     fn string(&mut self, value: &str, max: usize) -> Result<(), ProtocolError> {
         if value.len() > max {
             return Err(ProtocolError::LimitExceeded("string"));
@@ -919,6 +1339,14 @@ impl<'a> Decoder<'a> {
         Ok(u64::from_be_bytes(bytes))
     }
 
+    fn byte_string(&mut self, max: usize) -> Result<Vec<u8>, ProtocolError> {
+        let length = self.u32()? as usize;
+        if length > max {
+            return Err(ProtocolError::LimitExceeded("byte string"));
+        }
+        Ok(self.take(length)?.to_vec())
+    }
+
     fn string(&mut self, max: usize) -> Result<String, ProtocolError> {
         let length = self.u32()? as usize;
         if length > max {
@@ -940,6 +1368,164 @@ impl<'a> Decoder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delivery_peer_and_runtime_capabilities_round_trip_with_bounded_public_material() {
+        let commands = vec![
+            Command::ExportDeliveryIdentity,
+            Command::AuthorizeDeliveryPeer {
+                peer_id: "alice".into(),
+                endpoint: "127.0.0.1:7773".into(),
+                root_kel: vec![1, 2],
+                device_kel: vec![3, 4],
+            },
+            Command::RevokeDeliveryPeer {
+                peer_id: "alice".into(),
+            },
+            Command::DeliveryPeers,
+            Command::AttemptDelivery {
+                operation_id: "delivery:1".into(),
+            },
+            Command::SetDeliveryEnabled { enabled: true },
+            Command::SetDeliveryListener {
+                peer_id: "alice".into(),
+                endpoint: "0.0.0.0:7773".into(),
+            },
+            Command::StopDeliveryListener,
+            Command::DeliveryRuntimeStatus,
+            Command::ListDeliveriesAfter {
+                after_operation_id: Some("send:previous".into()),
+                limit: 64,
+            },
+        ];
+        for command in commands {
+            let request = Request::new(3, command);
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::DeliveryIdentity(DeliveryIdentity {
+                root_kel: vec![1, 2],
+                device_kel: vec![3, 4],
+            }),
+            Reply::DeliveryPeers(vec![DeliveryPeerView {
+                peer_id: "alice".into(),
+                endpoint: "127.0.0.1:7773".into(),
+                root_did: "root".into(),
+                device_did: "device".into(),
+                enabled: false,
+            }]),
+            Reply::DeliveryRuntime(DeliveryRuntimeView {
+                enabled: false,
+                listener_peer: Some("alice".into()),
+                listener_endpoint: Some("0.0.0.0:7773".into()),
+                listening: false,
+            }),
+        ] {
+            let response = Response::ok(3, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        assert!(Request::new(
+            3,
+            Command::AuthorizeDeliveryPeer {
+                peer_id: "alice".into(),
+                endpoint: "127.0.0.1:7773".into(),
+                root_kel: vec![0; MAX_DELIVERY_KEL_BYTES + 1],
+                device_kel: vec![3]
+            }
+        )
+        .validate()
+        .is_err());
+    }
+
+    #[test]
+    fn durable_delivery_contract_round_trips_and_rejects_unbounded_lists() {
+        let commands = vec![
+            Command::QueuePublicDelivery {
+                operation_id: "delivery:1".into(),
+                peer_id: "alice".into(),
+                object_id: "exact-object".into(),
+            },
+            Command::DeliveryStatus {
+                operation_id: "delivery:1".into(),
+            },
+            Command::CancelDelivery {
+                operation_id: "delivery:1".into(),
+            },
+            Command::ListDeliveries {
+                limit: MAX_DELIVERIES_PER_RESPONSE,
+            },
+        ];
+        for command in commands {
+            let request = Request::new(17, command);
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for state in [
+            DeliveryState::Queued,
+            DeliveryState::InFlight,
+            DeliveryState::RetryWaiting,
+            DeliveryState::Delivered,
+            DeliveryState::Cancelled,
+        ] {
+            let delivery = DeliveryView {
+                operation_id: "delivery:1".into(),
+                peer_id: "alice".into(),
+                object_id: "exact-object".into(),
+                state,
+                attempts: 4,
+                next_attempt_ms: 1234,
+                last_failure: Some(DeliveryFailure::Interrupted),
+            };
+            for reply in [
+                Reply::Delivery(delivery.clone()),
+                Reply::Deliveries(vec![delivery.clone()]),
+                Reply::Events(vec![ServiceEvent {
+                    event_id: 9,
+                    kind: ServiceEventKind::DeliveryChanged(delivery.clone()),
+                }]),
+            ] {
+                let response = Response::ok(17, reply);
+                let mut bytes = Vec::new();
+                write_response(&mut bytes, &response).unwrap();
+                assert_eq!(
+                    read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                    response
+                );
+            }
+        }
+        assert!(Request::new(
+            1,
+            Command::ListDeliveries {
+                limit: MAX_DELIVERIES_PER_RESPONSE + 1
+            }
+        )
+        .validate()
+        .is_err());
+        assert!(Request::new(
+            1,
+            Command::QueuePublicDelivery {
+                operation_id: "../escape".into(),
+                peer_id: "alice".into(),
+                object_id: "obj".into()
+            }
+        )
+        .validate()
+        .is_err());
+    }
 
     #[test]
     fn request_round_trip_is_framed_versioned_and_bounded() {

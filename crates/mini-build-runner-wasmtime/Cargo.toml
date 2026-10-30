@@ -62,8 +62,8 @@ mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 # October 22 security patch: RUSTSEC-2026-0378 and -0379 fix component
 # host-stream panics and aarch64 br_table code generation respectively.
 # Keep the isolated runtime and WASI packages on the same patched release.
-wasmtime = { version = "=48.0.7", default-features = false, features = ["cranelift", "runtime", "std"] }
-wasmtime-wasi = { version = "=48.0.7", default-features = false }
+wasmtime = { version = "=48.0.8", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=48.0.8", default-features = false }
 # `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
 # implements `rand_core::TryRng<Error = Infallible>`, which blanket-
 # implements the `Rng` trait `WasiCtxBuilder::secure_random`/
