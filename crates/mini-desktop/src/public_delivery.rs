@@ -31,7 +31,10 @@ fn parse_pair(code: &str) -> Result<Pair, String> {
         .and_then(|s| s.split_once(':'))
         .ok_or("Invalid public pairing code")?;
     fn decode(text: &str) -> Result<Vec<u8>, String> {
-        if text.is_empty() || text.len() > MAX_DELIVERY_KEL_BYTES * 2 || !text.len().is_multiple_of(2) {
+        if text.is_empty()
+            || text.len() > MAX_DELIVERY_KEL_BYTES * 2
+            || !text.len().is_multiple_of(2)
+        {
             return Err("Invalid public record length".into());
         }
         text.as_bytes()
