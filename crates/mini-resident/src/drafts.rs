@@ -227,13 +227,15 @@ fn write_document(workspace: &Workspace, bytes: &[u8]) -> Result<()> {
     // No permissive-mode temporary file is ever created: atomic_replace's
     // default creation mode is unsuitable for private source drafts.
     check_file(&destination)?;
+    // Publish through mini-durable's own commit primitives rather than a raw
+    // rename/hard_link followed by a direct sync_parent: directory fsync is
+    // Unix-only (see mini-durable's lib.rs), and these helpers already carry
+    // the Windows write-through equivalent plus the Unix directory barrier.
     if replacing {
-        fs::rename(&stage.0, &destination)?;
+        mini_durable::publish_staged_file(&stage.0, &destination)?;
     } else {
-        fs::hard_link(&stage.0, &destination)?;
-        fs::remove_file(&stage.0)?;
+        mini_durable::publish_staged_file_new(&stage.0, &destination)?;
     }
-    mini_durable::sync_parent(&destination)?;
     Ok(())
 }
 impl Workspace {
@@ -350,8 +352,10 @@ impl Workspace {
             ));
         }
         let path = self.root_path().join(NAME);
-        fs::remove_file(&path)?;
-        mini_durable::sync_parent(&path)?;
+        // mini_durable::remove_file durably removes on both platforms; a raw
+        // fs::remove_file plus sync_parent is Unix-only (directory fsync is
+        // unsupported on Windows, see mini-durable's lib.rs).
+        mini_durable::remove_file(&path)?;
         Ok(())
     }
 }
