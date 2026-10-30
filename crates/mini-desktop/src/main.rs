@@ -22,7 +22,6 @@ mod resident;
 mod seed_panel;
 mod seed_runtime;
 
-
 mod private_relationship;
 mod theme;
 mod timeline;
