@@ -153,6 +153,9 @@ impl PeerBook {
                 return Err(bad("peer book cannot contain parent traversal"));
             }
             checked.push(component);
+            if matches!(component, Component::Prefix(_) | Component::RootDir) {
+                continue;
+            }
             match fs::symlink_metadata(&checked) {
                 Ok(meta) if !meta.is_dir() || meta.file_type().is_symlink() => {
                     return Err(bad("peer book components must be real directories"))
