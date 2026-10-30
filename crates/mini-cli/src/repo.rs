@@ -162,7 +162,12 @@ pub fn commit_workspace(
     reject_symlink_components(workspace)?;
     let mut paths = Vec::new();
     for entry in fs::read_dir(workspace).map_err(|e| CliError::Io(e.to_string()))? {
-        paths.push(entry.map_err(|e| CliError::Io(e.to_string()))?.path());
+        let entry = entry.map_err(|e| CliError::Io(e.to_string()))?;
+        // Excluded metadata and Resident artifacts never count toward the limit.
+        if entry.file_name().to_str().is_some_and(excluded) {
+            continue;
+        }
+        paths.push(entry.path());
         if paths.len() > mini_forge::MAX_TREE_ENTRIES + 3 {
             return Err(CliError::Usage(
                 "workspace exceeds forge entry limit".into(),
@@ -196,10 +201,8 @@ impl Default for SnapshotBudget {
 }
 
 fn excluded(name: &str) -> bool {
-    matches!(
-        name.to_ascii_lowercase().as_str(),
-        ".git" | ".mininet" | ".mini"
-    )
+    let lower = name.to_ascii_lowercase();
+    matches!(lower.as_str(), ".git" | ".mininet" | ".mini") || lower.starts_with(".resident")
 }
 
 fn read_snapshot(
@@ -244,7 +247,11 @@ fn read_snapshot(
         if metadata.is_dir() {
             let mut children = Vec::new();
             for entry in fs::read_dir(&path).map_err(|e| CliError::Io(e.to_string()))? {
-                children.push(entry.map_err(|e| CliError::Io(e.to_string()))?.path());
+                let entry = entry.map_err(|e| CliError::Io(e.to_string()))?;
+                if entry.file_name().to_str().is_some_and(excluded) {
+                    continue;
+                }
+                children.push(entry.path());
                 if children.len() > mini_forge::MAX_TREE_ENTRIES + 3 {
                     return Err(CliError::Usage(
                         "directory exceeds forge entry limit".into(),
@@ -535,11 +542,21 @@ mod workspace_tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("z.rs"), b"z").unwrap();
         fs::write(dir.path().join("a.rs"), b"a").unwrap();
+        fs::write(dir.path().join(".resident-patch.lock"), b"").unwrap();
+        fs::write(dir.path().join(".resident-draft.json"), b"private draft").unwrap();
+        fs::write(
+            dir.path().join(".resident-patch-recovery.old"),
+            b"old source bytes",
+        )
+        .unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
         fs::write(dir.path().join(".git/config"), b"credential").unwrap();
         let paths = [
             dir.path().join("z.rs"),
             dir.path().join(".git"),
+            dir.path().join(".resident-patch.lock"),
+            dir.path().join(".resident-draft.json"),
+            dir.path().join(".resident-patch-recovery.old"),
             dir.path().join("a.rs"),
         ];
         let entries = read_snapshot(&paths, 0, &mut SnapshotBudget::default()).unwrap();

@@ -19,6 +19,7 @@ mod network_session;
 mod peer_link;
 mod player;
 mod resident;
+mod resident_patch;
 
 mod private_relationship;
 mod theme;
@@ -1834,6 +1835,18 @@ impl Default for MininetApp {
 
 impl eframe::App for MininetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.resident.poll_edits();
+        if self.resident.edit_in_progress() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            if ctx.input(|i| i.viewport().close_requested()) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            }
+        }
+        if ctx.input(|i| i.viewport().close_requested()) && self.resident.request_close() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.view = View::ResidentAI;
+        }
+        self.resident.close_dialog(ctx);
         if !self.theme_applied {
             theme::apply(ctx);
             self.theme_applied = true;

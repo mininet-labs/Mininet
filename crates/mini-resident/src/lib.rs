@@ -4,8 +4,10 @@
 #![warn(missing_debug_implementations)]
 
 mod config;
+mod drafts;
 mod workspace;
 pub use config::*;
+pub use drafts::*;
 pub mod provider;
 pub use provider::*;
 pub use workspace::*;
