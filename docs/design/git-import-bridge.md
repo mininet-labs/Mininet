@@ -1,7 +1,10 @@
 # Git import bridge
 
-**Status:** doctrine design doc, no code shipped yet. Companion code lands
-as a follow-up PR under this same decision.
+**Status:** the SHA-256 object-level bridge is implemented in `mini-forge`
+(D-0418). The [native migration runbook](native-forge-migration.md) describes
+the additional local SHA-1/SHA-256 snapshot driver and Git export mirrors.
+The original design below records the object-level scope; it is not a claim
+that the CLI imports arbitrary original Git history.
 
 **Refs:** D-0004 (SHA-256 retained for the git-object interop path);
 `docs/design/self-hosted-forge-spine.md` (names the export bridge shipped

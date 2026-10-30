@@ -1723,6 +1723,27 @@ given time.
 
 ## 10. Self-hosted forge spine (D-0066, tracking issue #102)
 
+**Native Forge Unix launch profile:** history migration now preserves merge
+parents and executable bits with verified bounded continuation; iterative Git
+mirrors support deep ancestry. The persistent service adds pinned, trusted-KEL
+mutual endpoint authentication, allowlists, bounded workers and graceful stop;
+paged/windowed exchange supports stores beyond a single ID frame. Local seed
+initialization/loading is hardened. The repeatable software gate is
+`python3 tools/check_native_forge.py --release`. See
+[the profile and remaining external boundaries](design/native-forge-launch.md).
+This is source-collaboration readiness, not a governance cutover or a claim
+that hardware, research, external audit or global launch gates are closed.
+
+
+**Native migration/workspace/review implementation:** local SHA-1/SHA-256 Git
+snapshot import with signed provenance, new Git export mirrors, bounded native
+source workspaces, structured exact-head proposal/review/diff commands and saved
+peer synchronization now compose the existing Forge primitives. This is
+engineering preparation, not a governance cutover or external gate closure.
+See [Native Forge migration and collaboration](design/native-forge-migration.md)
+for commands, compatibility boundaries and acceptance evidence.
+
+
 Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
 external-audit-driven development-sequencing initiative
 (`docs/design/self-hosted-forge-spine.md`). Batches 1-4 (developer →
