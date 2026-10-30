@@ -107,6 +107,9 @@ fn directory(root: &Path) -> Result<PathBuf, ServiceError> {
             return Err(bad("outbox directory cannot contain parent traversal"));
         }
         checked.push(component);
+        if matches!(component, Component::Prefix(_) | Component::RootDir) {
+            continue;
+        }
         match fs::symlink_metadata(&checked) {
             Ok(meta) if !meta.is_dir() || meta.file_type().is_symlink() => {
                 return Err(storage(
