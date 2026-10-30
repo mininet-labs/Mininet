@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Open Beta Accepted Contribution payload",
+  "description": "Forge-native semantic schema for mininet.beta/contribution/v1. The claim_tag is fresh for one accepted artifact and is not a persistent contributor identity or reputation key. Adapters must run tools/check_beta_payload.py; x-mininet keywords and did-mini format checks are mandatory. Signed-object Rust validation remains required.",
+  "type": "object",
+  "required": [
+    "source_id",
+    "claim_tag",
+    "kind",
+    "summary",
+    "evidence"
+  ],
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "format": "mininet-object-id"
+    },
+    "campaign_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "mininet-object-id"
+    },
+    "claim_tag": {
+      "type": "string",
+      "pattern": "^(?!0{64}$)[0-9a-fA-F]{64}$"
+    },
+    "kind": {
+      "enum": [
+        "testing",
+        "reproduction",
+        "hardware",
+        "accessibility",
+        "documentation",
+        "security",
+        "research",
+        "code",
+        "review",
+        "reproducibility",
+        "operations"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024,
+        "x-mininet-maxUtf8Bytes": 1024,
+        "pattern": "\\S"
+      }
+    }
+  },
+  "additionalProperties": false
+}

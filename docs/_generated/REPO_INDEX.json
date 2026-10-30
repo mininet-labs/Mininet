@@ -1,9 +1,9 @@
 {
   "counts": {
-    "crates": 90,
-    "files": 1188,
-    "headings": 4061,
-    "rust_symbols": 13947
+    "crates": 93,
+    "files": 1224,
+    "headings": 4192,
+    "rust_symbols": 14305
   },
   "crates": {
     "askama_derive": {
@@ -37,6 +37,18 @@
     "mini-bearer": {
       "group": "crate:mini-bearer",
       "manifest": "crates/mini-bearer/Cargo.toml"
+    },
+    "mini-beta": {
+      "group": "crate:mini-beta",
+      "manifest": "crates/mini-beta/Cargo.toml"
+    },
+    "mini-beta-exec": {
+      "group": "crate:mini-beta-exec",
+      "manifest": "crates/mini-beta-exec/Cargo.toml"
+    },
+    "mini-beta-grants": {
+      "group": "crate:mini-beta-grants",
+      "manifest": "crates/mini-beta-grants/Cargo.toml"
     },
     "mini-bootstrap": {
       "group": "crate:mini-bootstrap",
@@ -405,38 +417,38 @@
       "title": "name: External audit or legitimacy gate"
     },
     {
-      "bytes": 2790,
+      "bytes": 5578,
       "group": "ci",
       "headings": [],
       "keywords": [
         "label",
-        "true",
-        "required",
         "type",
         "attributes",
+        "true",
         "validations",
-        "textarea",
-        "report",
-        "description",
-        "evidence",
-        "data",
-        "release",
+        "required",
         "beta",
-        "revision",
-        "secrets",
-        "personal",
+        "evidence",
+        "description",
+        "textarea",
         "device",
-        "android",
-        "missing",
-        "production",
+        "toolchain",
+        "options",
+        "other",
+        "open",
         "exact",
-        "value",
-        "claim",
-        "include"
+        "revision",
+        "private",
+        "identifiers",
+        "account",
+        "emulator",
+        "grant",
+        "release",
+        "forge"
       ],
-      "lines": 88,
+      "lines": 142,
       "path": ".github/ISSUE_TEMPLATE/beta-test-report.yml",
-      "sha256": "bb17fe64deb533f0eb916b0573edadd1b31360b414d70594f11e006f4c24db9c",
+      "sha256": "4d4da2671444e934f6591e8ec8610266022350e13dac2bddf5bf5543e8f3f33b",
       "symbols": [],
       "title": "name: Beta test report"
     },
@@ -513,74 +525,74 @@
       "title": "name: Bug report"
     },
     {
-      "bytes": 409,
+      "bytes": 658,
       "group": "ci",
       "headings": [],
       "keywords": [
         "github",
         "name",
-        "security",
-        "report",
         "url",
         "https",
         "com",
         "mininet-labs",
-        "new",
         "about",
+        "report",
+        "security",
+        "new",
         "issue_template",
         "config",
         "yml",
         "blank_issues_enabled",
         "true",
         "contact_links",
-        "private",
-        "advisories",
-        "genuinely",
-        "vulnerability",
-        "privately",
-        "known",
-        "audit",
-        "gaps"
+        "open",
+        "beta",
+        "start",
+        "here",
+        "blob",
+        "main",
+        "beta_open",
+        "pick"
       ],
-      "lines": 9,
+      "lines": 12,
       "path": ".github/ISSUE_TEMPLATE/config.yml",
-      "sha256": "3e726d974603d7a098cf5dc0242e9446e5ecebc6ac588d84ee9a4725ee52c42b",
+      "sha256": "68550a581c414021b10dcf616ab96d5284481e7d30aeefda463b864f80a4bd61",
       "symbols": [],
       "title": "blank_issues_enabled: true"
     },
     {
-      "bytes": 3020,
+      "bytes": 4323,
       "group": "ci",
       "headings": [],
       "keywords": [
         "label",
-        "required",
-        "true",
         "type",
         "attributes",
-        "description",
+        "true",
+        "required",
+        "beta",
         "task",
-        "validations",
+        "description",
         "testing",
-        "what",
-        "you",
-        "textarea",
-        "first",
+        "github",
+        "participation",
         "authority",
+        "validations",
+        "textarea",
+        "open",
+        "rewards",
+        "value",
+        "anonymous",
+        "account",
+        "identity",
         "private",
         "employer",
-        "preferred",
-        "options",
-        "rust",
-        "android",
-        "relationship",
-        "github",
-        "contributor",
-        "documentation"
+        "contribution",
+        "review"
       ],
-      "lines": 75,
+      "lines": 79,
       "path": ".github/ISSUE_TEMPLATE/contributor-intake.yml",
-      "sha256": "378fd16a85a195f92218d4c7ce5f61d043aa094634ee2d0d5ba099a02fad652d",
+      "sha256": "0ed1abfbd13e71970543983e98de83fdaaa4ef3055400060309d9b3232ddf97a",
       "symbols": [],
       "title": "name: Contributor intake"
     },
@@ -1034,7 +1046,7 @@
       "title": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
     },
     {
-      "bytes": 25729,
+      "bytes": 26094,
       "group": "ci",
       "headings": [
         {
@@ -1052,13 +1064,14 @@
         "run",
         "name",
         "install",
-        "check",
         "cargo",
         "cargo-audit",
-        "never",
+        "check",
         "toolchain",
+        "own",
         "job",
         "scanner",
+        "never",
         "needs",
         "advisories",
         "d-0441",
@@ -1067,16 +1080,15 @@
         "toml",
         "rustup",
         "target",
-        "own",
-        "because",
         "repository",
         "pin",
         "set",
-        "json"
+        "repo",
+        "runs"
       ],
-      "lines": 506,
+      "lines": 512,
       "path": ".github/workflows/ci.yml",
-      "sha256": "2e3b60d7a239fe4ef0f4bd44be8f5988a7ec541e7e3b3d4cf9ff22d72a803ffc",
+      "sha256": "7c1598bf75c294bf23e6602a2584e073c3537fcd6e475e92aad6feedd79ebc9d",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -1603,7 +1615,7 @@
       "title": "Contributing"
     },
     {
-      "bytes": 171364,
+      "bytes": 171825,
       "group": "root",
       "headings": [
         {
@@ -1643,14 +1655,14 @@
         "alsa-sys",
         "bitflags"
       ],
-      "lines": 7319,
+      "lines": 7353,
       "path": "Cargo.lock",
-      "sha256": "350ea23d9f1640fbf1a4f862c666b9d6f817c599899c8df20762ac09cb30e92e",
+      "sha256": "5c2d3bd76feb09989c53c1b109c7037d234f15a32c1e4aa92318a6013d359ba7",
       "symbols": [],
       "title": "This file is automatically @generated by Cargo."
     },
     {
-      "bytes": 4988,
+      "bytes": 5072,
       "group": "root",
       "headings": [
         {
@@ -1675,107 +1687,107 @@
         },
         {
           "level": 1,
-          "line": 110,
+          "line": 113,
           "text": "Deterministic codegen helps us toward SPEC-11's frozen \"verified reproducible\""
         },
         {
           "level": 1,
-          "line": 111,
+          "line": 114,
           "text": "release requirement. (Full hermetic/reproducible builds are a later batch; this"
         },
         {
           "level": 1,
-          "line": 112,
+          "line": 115,
           "text": "is the cheap, non-surprising part.) panic strategy is left at the default so"
         },
         {
           "level": 1,
-          "line": 113,
+          "line": 116,
           "text": "`cargo test --release` keeps working."
         },
         {
           "level": 1,
-          "line": 117,
+          "line": 120,
           "text": "Optimize the curve arithmetic even in debug builds."
         },
         {
           "level": 1,
-          "line": 119,
+          "line": 122,
           "text": "`cargo test` (CI's `check` job runs it unoptimized) spends nearly all of its"
         },
         {
           "level": 1,
-          "line": 120,
+          "line": 123,
           "text": "time in Ristretto scalar multiplication: a Bulletproof range proof and a"
         },
         {
           "level": 1,
-          "line": 121,
+          "line": 124,
           "text": "16-member two-column MLSAG per shielded payment, times a few hundred"
         },
         {
           "level": 1,
-          "line": 122,
+          "line": 125,
           "text": "payments across the test suites. Unoptimized, curve25519-dalek is roughly"
         },
         {
           "level": 1,
-          "line": 123,
+          "line": 126,
           "text": "thirty times slower than optimized, which turned one crate's tests into"
         },
         {
           "level": 1,
-          "line": 124,
+          "line": 127,
           "text": "most of CI's wall clock."
         },
         {
           "level": 1,
-          "line": 126,
+          "line": 129,
           "text": "This changes speed only. `debug-assertions` and `overflow-checks` stay on,"
         },
         {
           "level": 1,
-          "line": 127,
+          "line": 130,
           "text": "so every `debug_assert!` in this tree -- including the one in"
         },
         {
           "level": 1,
-          "line": 128,
+          "line": 131,
           "text": "`mini_private_payment::build` proving the memos are not part of their own"
         },
         {
           "level": 1,
-          "line": 129,
+          "line": 132,
           "text": "binding digest -- still runs, and an integer overflow still panics rather"
         },
         {
           "level": 1,
-          "line": 130,
+          "line": 133,
           "text": "than wrapping. The cost is that stepping through these three crates in a"
         },
         {
           "level": 1,
-          "line": 131,
+          "line": 134,
           "text": "debugger is less pleasant; the crates they are called *from* are untouched."
         },
         {
           "level": 1,
-          "line": 141,
+          "line": 144,
           "text": "The bundled OpenH264 C/C++ decoder is unusable at -O0 (about 12 fps at"
         },
         {
           "level": 1,
-          "line": 142,
+          "line": 145,
           "text": "720p); optimize it even in dev builds so a debug client can play video."
         },
         {
           "level": 1,
-          "line": 148,
+          "line": 151,
           "text": "UniFFI 0.32 pins Askama 0.16. This source patch replaces the abandoned"
         },
         {
           "level": 1,
-          "line": 149,
+          "line": 152,
           "text": "basic-toml parser without changing the mobile binding generator API."
         }
       ],
@@ -1805,9 +1817,9 @@
         "curve25519-dalek",
         "openh264"
       ],
-      "lines": 152,
+      "lines": 155,
       "path": "Cargo.toml",
-      "sha256": "d7b30365971e69f551d3b8cbf1903b0c006f636de1ec817dfe1dafecef3e7b65",
+      "sha256": "71b3261d6cb07f170a8c3694ae913b1dab678d2be1e8636e9c7b6d6566cbb241",
       "symbols": [],
       "title": "Mininet \u2014 Cargo workspace for the self-contained Rust core."
     },
@@ -12430,6 +12442,2091 @@
       "title": "use mini_bearer::{"
     },
     {
+      "bytes": 645,
+      "group": "crate:mini-beta-exec",
+      "headings": [],
+      "keywords": [
+        "workspace",
+        "true",
+        "path",
+        "mini-beta-exec",
+        "version",
+        "did-mini",
+        "mini-beta",
+        "mini-beta-grants",
+        "mini-objects",
+        "mini-store",
+        "cargo",
+        "toml",
+        "package",
+        "name",
+        "description",
+        "durable",
+        "authenticated",
+        "fail-closed",
+        "replicated",
+        "execution",
+        "resettable",
+        "beta",
+        "value",
+        "edition"
+      ],
+      "lines": 23,
+      "path": "crates/mini-beta-exec/Cargo.toml",
+      "sha256": "4886feda4f3f4d2f8e9cbb8f041185cac2ee078ddbccc5bc2f9cc23ffa5b28f0",
+      "symbols": [],
+      "title": "[package]"
+    },
+    {
+      "bytes": 35047,
+      "group": "crate:mini-beta-exec",
+      "headings": [],
+      "keywords": [
+        "beta",
+        "self",
+        "write",
+        "betaexecerror",
+        "const",
+        "object",
+        "account",
+        "value",
+        "transfer",
+        "result",
+        "fmt",
+        "derive",
+        "debug",
+        "core",
+        "grantacceptanceerror",
+        "betaerror",
+        "storeerror",
+        "objecterror",
+        "durable",
+        "output",
+        "store",
+        "clone",
+        "partialeq",
+        "struct"
+      ],
+      "lines": 1003,
+      "path": "crates/mini-beta-exec/src/lib.rs",
+      "sha256": "aa4e38e756695deaa8f03f4bee594f22cd9627ddd5139abe0c044570f632dc77",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 31,
+          "name": "BETA_ACCOUNT_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 33,
+          "name": "BETA_TRANSFER_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 35,
+          "name": "ACCOUNT_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 36,
+          "name": "SNAPSHOT_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 37,
+          "name": "PAYLOAD_VERSION"
+        },
+        {
+          "kind": "const",
+          "line": 38,
+          "name": "MAX_TRANSFER_INPUTS"
+        },
+        {
+          "kind": "const",
+          "line": 39,
+          "name": "MAX_TRANSFER_OUTPUTS"
+        },
+        {
+          "kind": "const",
+          "line": 40,
+          "name": "MAX_MEMO_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 41,
+          "name": "MAX_OBJECT_ID_BYTES"
+        },
+        {
+          "kind": "type",
+          "line": 44,
+          "name": "Result"
+        },
+        {
+          "kind": "enum",
+          "line": 49,
+          "name": "BetaExecError"
+        },
+        {
+          "kind": "impl",
+          "line": 63,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 64,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 81,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "impl",
+          "line": 83,
+          "name": "From<GrantAcceptanceError>"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 88,
+          "name": "From<BetaError>"
+        },
+        {
+          "kind": "fn",
+          "line": 89,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
+          "name": "From<StoreError>"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 98,
+          "name": "From<ObjectError>"
+        },
+        {
+          "kind": "fn",
+          "line": 99,
+          "name": "from"
+        },
+        {
+          "kind": "struct",
+          "line": 106,
+          "name": "BetaAccountRegistration"
+        },
+        {
+          "kind": "struct",
+          "line": 119,
+          "name": "BetaOutputRef"
+        },
+        {
+          "kind": "struct",
+          "line": 126,
+          "name": "BetaTransferOutput"
+        },
+        {
+          "kind": "struct",
+          "line": 133,
+          "name": "BetaTransfer"
+        },
+        {
+          "kind": "struct",
+          "line": 147,
+          "name": "ResolvedOutput"
+        },
+        {
+          "kind": "struct",
+          "line": 156,
+          "name": "AccountBalance"
+        },
+        {
+          "kind": "struct",
+          "line": 163,
+          "name": "BetaSnapshot"
+        },
+        {
+          "kind": "impl",
+          "line": 175,
+          "name": "BetaSnapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 176,
+          "name": "balance"
+        },
+        {
+          "kind": "fn",
+          "line": 186,
+          "name": "is_provisional"
+        },
+        {
+          "kind": "fn",
+          "line": 192,
+          "name": "derive_account_id"
+        },
+        {
+          "kind": "fn",
+          "line": 208,
+          "name": "create_account_registration"
+        },
+        {
+          "kind": "fn",
+          "line": 236,
+          "name": "parse_account_registration_object"
+        },
+        {
+          "kind": "fn",
+          "line": 264,
+          "name": "read_account_registration"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "create_transfer"
+        },
+        {
+          "kind": "fn",
+          "line": 311,
+          "name": "parse_transfer_object"
+        },
+        {
+          "kind": "fn",
+          "line": 359,
+          "name": "read_transfer"
+        },
+        {
+          "kind": "struct",
+          "line": 364,
+          "name": "OutputValue"
+        },
+        {
+          "kind": "struct",
+          "line": 370,
+          "name": "GrantCandidate"
+        },
+        {
+          "kind": "enum",
+          "line": 375,
+          "name": "VisitState"
+        },
+        {
+          "kind": "struct",
+          "line": 385,
+          "name": "EpochIssuancePolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 389,
+          "name": "EpochIssuancePolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 390,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 400,
+          "name": "resolve_snapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 571,
+          "name": "resolve_registrations"
+        },
+        {
+          "kind": "fn",
+          "line": 603,
+          "name": "resolve_grant_outputs"
+        },
+        {
+          "kind": "fn",
+          "line": 705,
+          "name": "candidate_approval_ids"
+        },
+        {
+          "kind": "fn",
+          "line": 737,
+          "name": "grant_within_limits"
+        },
+        {
+          "kind": "fn",
+          "line": 744,
+          "name": "transfer_epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 759,
+          "name": "resolve_economic_graph"
+        },
+        {
+          "kind": "fn",
+          "line": 809,
+          "name": "economic_valid"
+        },
+        {
+          "kind": "fn",
+          "line": 863,
+          "name": "snapshot_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 895,
+          "name": "output_order"
+        },
+        {
+          "kind": "fn",
+          "line": 903,
+          "name": "validate_transfer_shape"
+        },
+        {
+          "kind": "fn",
+          "line": 924,
+          "name": "ensure_type_no_links"
+        },
+        {
+          "kind": "fn",
+          "line": 931,
+          "name": "public_payload"
+        },
+        {
+          "kind": "fn",
+          "line": 938,
+          "name": "put_u16"
+        },
+        {
+          "kind": "fn",
+          "line": 941,
+          "name": "put_u64"
+        },
+        {
+          "kind": "fn",
+          "line": 944,
+          "name": "put_str"
+        },
+        {
+          "kind": "fn",
+          "line": 952,
+          "name": "take_u8"
+        },
+        {
+          "kind": "fn",
+          "line": 957,
+          "name": "take_u16"
+        },
+        {
+          "kind": "fn",
+          "line": 965,
+          "name": "take_u64"
+        },
+        {
+          "kind": "fn",
+          "line": 973,
+          "name": "take_32"
+        },
+        {
+          "kind": "fn",
+          "line": 979,
+          "name": "take_str"
+        },
+        {
+          "kind": "fn",
+          "line": 987,
+          "name": "take_str_allow_empty"
+        }
+      ],
+      "title": "use std::collections::{HashMap, HashSet, VecDeque};"
+    },
+    {
+      "bytes": 1515,
+      "group": "crate:mini-beta-exec",
+      "headings": [],
+      "keywords": [
+        "dependency",
+        "line",
+        "manifest",
+        "forbidden",
+        "section",
+        "split",
+        "str",
+        "mini-beta-exec",
+        "runtime_dependencies_are_explicit_and_bounded",
+        "include_str",
+        "cargo",
+        "toml",
+        "next",
+        "names",
+        "map",
+        "trim",
+        "dependency_wall",
+        "structural",
+        "wall",
+        "durable",
+        "beta",
+        "execution",
+        "remains",
+        "test-value"
+      ],
+      "lines": 58,
+      "path": "crates/mini-beta-exec/tests/dependency_wall.rs",
+      "sha256": "8f6c3072dc526f4ed16866ae9fdc08b6afad1ca7970b34f2ffc695dad464a31a",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 4,
+          "name": "durable_beta_execution_has_no_production_authority_dependencies"
+        },
+        {
+          "kind": "fn",
+          "line": 31,
+          "name": "runtime_dependencies_are_explicit_and_bounded"
+        }
+      ],
+      "title": "fn durable_beta_execution_has_no_production_authority_dependencies() {"
+    },
+    {
+      "bytes": 19400,
+      "group": "crate:mini-beta-exec",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "store",
+        "campaign_author",
+        "signer",
+        "did",
+        "controller",
+        "objects",
+        "new",
+        "epoch",
+        "clone",
+        "random_nonce",
+        "object",
+        "vec",
+        "campaign",
+        "push",
+        "fixture",
+        "betaaccountid",
+        "create_account_registration",
+        "parse_account_registration_object",
+        "authorizers",
+        "policy",
+        "alice",
+        "bob",
+        "grant"
+      ],
+      "lines": 675,
+      "path": "crates/mini-beta-exec/tests/execution.rs",
+      "sha256": "af8315eed7609d5ac23077ab4b352a741a11e4e78427355729e04176a5893afd",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "signer"
+        },
+        {
+          "kind": "fn",
+          "line": 20,
+          "name": "random_nonce"
+        },
+        {
+          "kind": "fn",
+          "line": 24,
+          "name": "limits"
+        },
+        {
+          "kind": "struct",
+          "line": 32,
+          "name": "Fixture"
+        },
+        {
+          "kind": "impl",
+          "line": 48,
+          "name": "Fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 49,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "grant_ref"
+        },
+        {
+          "kind": "fn",
+          "line": 200,
+          "name": "add_second_testing_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 235,
+          "name": "account_id_binds_epoch_owner_and_nonce"
+        },
+        {
+          "kind": "fn",
+          "line": 252,
+          "name": "another_author_cannot_claim_an_observed_account_id"
+        },
+        {
+          "kind": "fn",
+          "line": 277,
+          "name": "accepted_grant_is_one_durable_unspent_output"
+        },
+        {
+          "kind": "fn",
+          "line": 297,
+          "name": "signed_transfer_conserves_value_and_moves_only_owned_inputs"
+        },
+        {
+          "kind": "fn",
+          "line": 342,
+          "name": "non_owner_authored_transfer_is_invalid"
+        },
+        {
+          "kind": "fn",
+          "line": 374,
+          "name": "two_spends_of_one_output_invalidate_all_consumers_without_a_local_winner"
+        },
+        {
+          "kind": "fn",
+          "line": 451,
+          "name": "non_conserving_transfer_is_invalid_not_a_mint_or_burn"
+        },
+        {
+          "kind": "fn",
+          "line": 482,
+          "name": "accepted_issuance_above_epoch_cap_fails_closed_instead_of_hash_ordering_winners"
+        },
+        {
+          "kind": "fn",
+          "line": 499,
+          "name": "identical_object_sets_converge_independent_of_insertion_order"
+        },
+        {
+          "kind": "fn",
+          "line": 549,
+          "name": "filesystem_restart_rederives_the_same_snapshot_without_a_balance_database"
+        },
+        {
+          "kind": "fn",
+          "line": 583,
+          "name": "issuance_requires_explicit_trusted_campaign_and_matching_epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 597,
+          "name": "dangling_campaign_target_cannot_issue_outputs"
+        },
+        {
+          "kind": "fn",
+          "line": 613,
+          "name": "malformed_foreign_epoch_transfer_cannot_change_snapshot_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 633,
+          "name": "long_transfer_chain_resolves_without_call_stack_growth"
+        }
+      ],
+      "title": "use did_mini::Controller;"
+    },
+    {
+      "bytes": 508,
+      "group": "crate:mini-beta-grants",
+      "headings": [],
+      "keywords": [
+        "workspace",
+        "true",
+        "path",
+        "mini-beta-grants",
+        "did-mini",
+        "mini-beta",
+        "mini-objects",
+        "mini-store",
+        "cargo",
+        "toml",
+        "package",
+        "name",
+        "version",
+        "description",
+        "campaign-scoped",
+        "multi-party",
+        "acceptance",
+        "evidence",
+        "beta",
+        "grants",
+        "production",
+        "value",
+        "governance",
+        "authority"
+      ],
+      "lines": 17,
+      "path": "crates/mini-beta-grants/Cargo.toml",
+      "sha256": "e17fd0c2642dff6077a61332e393815f6e8109634963745b2d053ea8e26e5049",
+      "symbols": [],
+      "title": "[package]"
+    },
+    {
+      "bytes": 4853,
+      "group": "crate:mini-beta-grants",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "mini-beta-grants"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "What it proves"
+        },
+        {
+          "level": 2,
+          "line": 22,
+          "text": "Policy-fork and outsider-noise boundary"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "Authenticity boundary"
+        },
+        {
+          "level": 2,
+          "line": 38,
+          "text": "What it does **not** prove"
+        },
+        {
+          "level": 2,
+          "line": 46,
+          "text": "Hard walls"
+        }
+      ],
+      "keywords": [
+        "policy",
+        "campaign",
+        "does",
+        "grant",
+        "boundary",
+        "one",
+        "authority",
+        "objects",
+        "mini-beta-grants",
+        "what",
+        "beta",
+        "valid",
+        "validation",
+        "acceptance",
+        "may",
+        "github",
+        "multiple",
+        "authorizer",
+        "exact",
+        "approval",
+        "participation",
+        "did",
+        "cannot",
+        "contribution"
+      ],
+      "lines": 59,
+      "path": "crates/mini-beta-grants/README.md",
+      "sha256": "a531301c67c3b3c8106fa4a98b49e72a7baad6e7fc3ca3d93b628a1a0bbef23a",
+      "symbols": [],
+      "title": "mini-beta-grants"
+    },
+    {
+      "bytes": 31557,
+      "group": "crate:mini-beta-grants",
+      "headings": [],
+      "keywords": [
+        "beta",
+        "self",
+        "grant",
+        "policy",
+        "object",
+        "write",
+        "grantacceptanceerror",
+        "const",
+        "result",
+        "fmt",
+        "evidence",
+        "campaign",
+        "store",
+        "approval",
+        "value",
+        "core",
+        "betaerror",
+        "storeerror",
+        "objecterror",
+        "one",
+        "did",
+        "error",
+        "signed",
+        "author"
+      ],
+      "lines": 865,
+      "path": "crates/mini-beta-grants/src/lib.rs",
+      "sha256": "1874fd779f3088606bd195febc5d9f1eb9b5d18e0ae74d5faa7131d0b9b5d0fe",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 30,
+          "name": "BETA_GRANT_POLICY_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 32,
+          "name": "BETA_GRANT_APPROVAL_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 34,
+          "name": "PAYLOAD_VERSION"
+        },
+        {
+          "kind": "const",
+          "line": 35,
+          "name": "MAX_AUTHORIZERS"
+        },
+        {
+          "kind": "const",
+          "line": 36,
+          "name": "MIN_AUTHORIZERS"
+        },
+        {
+          "kind": "const",
+          "line": 37,
+          "name": "MAX_REWARD_BANDS"
+        },
+        {
+          "kind": "const",
+          "line": 38,
+          "name": "MAX_APPROVAL_EVIDENCE"
+        },
+        {
+          "kind": "type",
+          "line": 41,
+          "name": "Result"
+        },
+        {
+          "kind": "enum",
+          "line": 46,
+          "name": "GrantAcceptanceError"
+        },
+        {
+          "kind": "impl",
+          "line": 71,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 72,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 100,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "impl",
+          "line": 102,
+          "name": "From<BetaError>"
+        },
+        {
+          "kind": "fn",
+          "line": 103,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 108,
+          "name": "From<StoreError>"
+        },
+        {
+          "kind": "fn",
+          "line": 109,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 114,
+          "name": "From<ObjectError>"
+        },
+        {
+          "kind": "fn",
+          "line": 115,
+          "name": "from"
+        },
+        {
+          "kind": "struct",
+          "line": 126,
+          "name": "BetaGrantPolicy"
+        },
+        {
+          "kind": "struct",
+          "line": 157,
+          "name": "BetaGrantApproval"
+        },
+        {
+          "kind": "struct",
+          "line": 174,
+          "name": "GrantAcceptance"
+        },
+        {
+          "kind": "struct",
+          "line": 186,
+          "name": "AuthorizerEquivocation"
+        },
+        {
+          "kind": "enum",
+          "line": 193,
+          "name": "GrantScope"
+        },
+        {
+          "kind": "fn",
+          "line": 200,
+          "name": "create_grant_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 271,
+          "name": "create_grant_approval"
+        },
+        {
+          "kind": "fn",
+          "line": 308,
+          "name": "parse_grant_policy_object"
+        },
+        {
+          "kind": "fn",
+          "line": 365,
+          "name": "parse_grant_approval_object"
+        },
+        {
+          "kind": "fn",
+          "line": 382,
+          "name": "validate_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 409,
+          "name": "read_grant_approval"
+        },
+        {
+          "kind": "fn",
+          "line": 417,
+          "name": "validate_grant_against_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 458,
+          "name": "resolve_unique_campaign_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 500,
+          "name": "validate_grant_acceptance"
+        },
+        {
+          "kind": "fn",
+          "line": 558,
+          "name": "detect_authorizer_equivocations"
+        },
+        {
+          "kind": "struct",
+          "line": 648,
+          "name": "SharedBetaLedger"
+        },
+        {
+          "kind": "impl",
+          "line": 652,
+          "name": "SharedBetaLedger"
+        },
+        {
+          "kind": "fn",
+          "line": 653,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 659,
+          "name": "epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 663,
+          "name": "total_issued"
+        },
+        {
+          "kind": "fn",
+          "line": 667,
+          "name": "balance"
+        },
+        {
+          "kind": "fn",
+          "line": 671,
+          "name": "transfer"
+        },
+        {
+          "kind": "fn",
+          "line": 683,
+          "name": "apply_accepted_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 696,
+          "name": "rollover"
+        },
+        {
+          "kind": "fn",
+          "line": 704,
+          "name": "validate_policy_fields"
+        },
+        {
+          "kind": "fn",
+          "line": 741,
+          "name": "ensure_type_and_links"
+        },
+        {
+          "kind": "fn",
+          "line": 763,
+          "name": "required_link"
+        },
+        {
+          "kind": "fn",
+          "line": 772,
+          "name": "public_payload"
+        },
+        {
+          "kind": "fn",
+          "line": 779,
+          "name": "put_u16"
+        },
+        {
+          "kind": "fn",
+          "line": 783,
+          "name": "put_u64"
+        },
+        {
+          "kind": "fn",
+          "line": 787,
+          "name": "put_str"
+        },
+        {
+          "kind": "fn",
+          "line": 792,
+          "name": "take_u8"
+        },
+        {
+          "kind": "fn",
+          "line": 798,
+          "name": "take_u16"
+        },
+        {
+          "kind": "fn",
+          "line": 812,
+          "name": "take_u64"
+        },
+        {
+          "kind": "fn",
+          "line": 826,
+          "name": "take_32"
+        },
+        {
+          "kind": "fn",
+          "line": 838,
+          "name": "take_str"
+        }
+      ],
+      "title": "use std::collections::{HashMap, HashSet};"
+    },
+    {
+      "bytes": 19377,
+      "group": "crate:mini-beta-grants",
+      "headings": [],
+      "keywords": [
+        "self",
+        "store",
+        "campaign_author",
+        "sequence",
+        "object",
+        "unwrap",
+        "signer",
+        "new",
+        "target",
+        "controller",
+        "did",
+        "campaign",
+        "fixture",
+        "epoch",
+        "authorizers",
+        "u64",
+        "betaaccountid",
+        "memorybackend",
+        "policy",
+        "grant",
+        "account",
+        "memo",
+        "acceptance",
+        "testing_grant"
+      ],
+      "lines": 651,
+      "path": "crates/mini-beta-grants/tests/acceptance.rs",
+      "sha256": "4a93671e9cb48c36474b1d8dc85afc6391202cb7242907bb4fb4197e33e8a7d3",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 13,
+          "name": "signer"
+        },
+        {
+          "kind": "fn",
+          "line": 17,
+          "name": "target"
+        },
+        {
+          "kind": "struct",
+          "line": 30,
+          "name": "Fixture"
+        },
+        {
+          "kind": "impl",
+          "line": 41,
+          "name": "Fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 42,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 95,
+          "name": "testing_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 113,
+          "name": "contribution"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "participation_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 155,
+          "name": "approve"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
+          "name": "one_authorizer_cannot_mint_testing_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 191,
+          "name": "duplicate_approvals_from_one_did_never_increase_weight"
+        },
+        {
+          "kind": "fn",
+          "line": 213,
+          "name": "distinct_members_reach_testing_threshold_and_order_does_not_matter"
+        },
+        {
+          "kind": "fn",
+          "line": 240,
+          "name": "participation_uses_the_stronger_threshold"
+        },
+        {
+          "kind": "fn",
+          "line": 278,
+          "name": "nonmember_cannot_create_valid_approval"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
+          "name": "approval_for_another_grant_cannot_be_reused"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "campaign_author_cannot_delegate_policy_authorship_to_arbitrary_key"
+        },
+        {
+          "kind": "fn",
+          "line": 343,
+          "name": "testing_amount_is_deterministic_not_authorizer_discretion"
+        },
+        {
+          "kind": "fn",
+          "line": 368,
+          "name": "participation_amount_must_be_an_explicit_reward_band"
+        },
+        {
+          "kind": "fn",
+          "line": 386,
+          "name": "expired_or_future_approval_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 403,
+          "name": "threshold_approval_still_cannot_reward_one_contribution_twice"
+        },
+        {
+          "kind": "fn",
+          "line": 433,
+          "name": "authorizer_equivocation_is_detected_but_not_given_hidden_blacklist_power"
+        },
+        {
+          "kind": "fn",
+          "line": 449,
+          "name": "three_way_equivocation_evidence_does_not_depend_on_arrival_order"
+        },
+        {
+          "kind": "fn",
+          "line": 491,
+          "name": "offline_store_converges_after_the_same_immutable_evidence_arrives"
+        },
+        {
+          "kind": "fn",
+          "line": 530,
+          "name": "epoch_rollover_carries_no_beta_balance"
+        },
+        {
+          "kind": "fn",
+          "line": 551,
+          "name": "competing_valid_campaign_policies_fail_closed_instead_of_local_tie_breaking"
+        },
+        {
+          "kind": "fn",
+          "line": 591,
+          "name": "outsider_policy_shaped_objects_cannot_veto_the_campaign_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 630,
+          "name": "participation_grant_rejects_a_receipt_with_missing_source"
+        }
+      ],
+      "title": "use did_mini::Controller;"
+    },
+    {
+      "bytes": 1813,
+      "group": "crate:mini-beta-grants",
+      "headings": [],
+      "keywords": [
+        "dependency",
+        "dependency_section",
+        "line",
+        "manifest",
+        "mini-beta-grants",
+        "dependencies",
+        "forbidden",
+        "split",
+        "str",
+        "beta-only",
+        "include_str",
+        "cargo",
+        "toml",
+        "next",
+        "names",
+        "map",
+        "trim",
+        "dependency_wall",
+        "structural",
+        "safety",
+        "wall",
+        "decentralized",
+        "beta",
+        "grant"
+      ],
+      "lines": 60,
+      "path": "crates/mini-beta-grants/tests/dependency_wall.rs",
+      "sha256": "adc151a656ccb385d82854a34c62390cd04834f1db66ab085cc675cc8e9aa855",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 9,
+          "name": "grant_acceptance_has_no_production_value_or_governance_dependencies"
+        },
+        {
+          "kind": "fn",
+          "line": 37,
+          "name": "manifest_contains_only_the_expected_runtime_dependencies"
+        }
+      ],
+      "title": "fn grant_acceptance_has_no_production_value_or_governance_dependencies() {"
+    },
+    {
+      "bytes": 519,
+      "group": "crate:mini-beta",
+      "headings": [],
+      "keywords": [
+        "workspace",
+        "true",
+        "path",
+        "mini-beta",
+        "did-mini",
+        "mini-objects",
+        "mini-store",
+        "cargo",
+        "toml",
+        "package",
+        "name",
+        "version",
+        "description",
+        "open-beta",
+        "coordination",
+        "objects",
+        "resettable",
+        "beta",
+        "currency",
+        "deliberately",
+        "isolated",
+        "production",
+        "value",
+        "settlement"
+      ],
+      "lines": 16,
+      "path": "crates/mini-beta/Cargo.toml",
+      "sha256": "79c41bf89d3e929493cf4867be778519a52e18285f4afcff5247a181618ae965",
+      "symbols": [],
+      "title": "[package]"
+    },
+    {
+      "bytes": 3364,
+      "group": "crate:mini-beta",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "mini-beta"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Hard separation from production value"
+        },
+        {
+          "level": 2,
+          "line": 35,
+          "text": "Anonymous bootstrap participation"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "Forge-native object types"
+        },
+        {
+          "level": 2,
+          "line": 67,
+          "text": "Authority boundary"
+        },
+        {
+          "level": 2,
+          "line": 75,
+          "text": "Build"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "mini-beta",
+        "production",
+        "grant",
+        "governance",
+        "participation",
+        "object",
+        "objects",
+        "accepted",
+        "contribution",
+        "contributor",
+        "value",
+        "anonymous",
+        "forge",
+        "dependency",
+        "byte",
+        "epoch",
+        "remain",
+        "fresh",
+        "github",
+        "hard",
+        "separation",
+        "bootstrap",
+        "forge-native"
+      ],
+      "lines": 82,
+      "path": "crates/mini-beta/README.md",
+      "sha256": "e2d943e74ef4cde87a680c72849fd50e753b6fd9eda43a8857aa8a6ea3cd2518",
+      "symbols": [],
+      "title": "mini-beta"
+    },
+    {
+      "bytes": 57889,
+      "group": "crate:mini-beta",
+      "headings": [],
+      "keywords": [
+        "beta",
+        "self",
+        "object",
+        "const",
+        "grant",
+        "betaerror",
+        "store",
+        "write",
+        "result",
+        "new",
+        "epoch",
+        "type",
+        "fmt",
+        "micro_beta_mini_per_beta_mini",
+        "core",
+        "storeerror",
+        "mini_objects",
+        "as_bytes",
+        "as_str",
+        "parse",
+        "value",
+        "str",
+        "error",
+        "objecterror"
+      ],
+      "lines": 1663,
+      "path": "crates/mini-beta/src/lib.rs",
+      "sha256": "2b8a7e6068440a42becdaeb22a7fe56ad655adf45feeca9cd5ec3aa35695ce6d",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "BETA_CAMPAIGN_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 28,
+          "name": "BETA_FINDING_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 30,
+          "name": "BETA_FINDING_DISPOSITION_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 32,
+          "name": "BETA_CONTRIBUTION_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 34,
+          "name": "BETA_GRANT_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 37,
+          "name": "MICRO_BETA_MINI_PER_BETA_MINI"
+        },
+        {
+          "kind": "const",
+          "line": 39,
+          "name": "DEFAULT_MAX_TESTING_GRANT"
+        },
+        {
+          "kind": "const",
+          "line": 41,
+          "name": "DEFAULT_MAX_PARTICIPATION_GRANT"
+        },
+        {
+          "kind": "const",
+          "line": 43,
+          "name": "DEFAULT_MAX_EPOCH_SUPPLY"
+        },
+        {
+          "kind": "const",
+          "line": 45,
+          "name": "PAYLOAD_VERSION"
+        },
+        {
+          "kind": "const",
+          "line": 46,
+          "name": "MAX_ITEMS"
+        },
+        {
+          "kind": "const",
+          "line": 47,
+          "name": "MAX_SHORT_TEXT_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 48,
+          "name": "MAX_TEXT_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 49,
+          "name": "MAX_EVIDENCE_REF_BYTES"
+        },
+        {
+          "kind": "type",
+          "line": 52,
+          "name": "Result"
+        },
+        {
+          "kind": "enum",
+          "line": 57,
+          "name": "BetaError"
+        },
+        {
+          "kind": "impl",
+          "line": 76,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 91,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
+          "name": "From<StoreError>"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 99,
+          "name": "From<mini_objects::ObjectError>"
+        },
+        {
+          "kind": "fn",
+          "line": 100,
+          "name": "from"
+        },
+        {
+          "kind": "struct",
+          "line": 107,
+          "name": "BetaEpochId"
+        },
+        {
+          "kind": "impl",
+          "line": 109,
+          "name": "BetaEpochId"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 119,
+          "name": "as_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 127,
+          "name": "SubmissionTag"
+        },
+        {
+          "kind": "impl",
+          "line": 129,
+          "name": "SubmissionTag"
+        },
+        {
+          "kind": "fn",
+          "line": 131,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "as_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 147,
+          "name": "ClaimTag"
+        },
+        {
+          "kind": "impl",
+          "line": 149,
+          "name": "ClaimTag"
+        },
+        {
+          "kind": "fn",
+          "line": 151,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "as_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 166,
+          "name": "BetaAccountId"
+        },
+        {
+          "kind": "impl",
+          "line": 168,
+          "name": "BetaAccountId"
+        },
+        {
+          "kind": "fn",
+          "line": 170,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 178,
+          "name": "as_bytes"
+        },
+        {
+          "kind": "enum",
+          "line": 186,
+          "name": "EvidenceClass"
+        },
+        {
+          "kind": "impl",
+          "line": 203,
+          "name": "EvidenceClass"
+        },
+        {
+          "kind": "fn",
+          "line": 205,
+          "name": "as_str"
+        },
+        {
+          "kind": "fn",
+          "line": 217,
+          "name": "parse"
+        },
+        {
+          "kind": "enum",
+          "line": 233,
+          "name": "FindingSeverity"
+        },
+        {
+          "kind": "impl",
+          "line": 246,
+          "name": "FindingSeverity"
+        },
+        {
+          "kind": "fn",
+          "line": 248,
+          "name": "as_str"
+        },
+        {
+          "kind": "fn",
+          "line": 258,
+          "name": "parse"
+        },
+        {
+          "kind": "enum",
+          "line": 272,
+          "name": "FindingState"
+        },
+        {
+          "kind": "impl",
+          "line": 287,
+          "name": "FindingState"
+        },
+        {
+          "kind": "fn",
+          "line": 289,
+          "name": "as_str"
+        },
+        {
+          "kind": "fn",
+          "line": 300,
+          "name": "parse"
+        },
+        {
+          "kind": "enum",
+          "line": 315,
+          "name": "ContributionKind"
+        },
+        {
+          "kind": "impl",
+          "line": 340,
+          "name": "ContributionKind"
+        },
+        {
+          "kind": "fn",
+          "line": 342,
+          "name": "as_str"
+        },
+        {
+          "kind": "fn",
+          "line": 358,
+          "name": "parse"
+        },
+        {
+          "kind": "enum",
+          "line": 378,
+          "name": "GrantClass"
+        },
+        {
+          "kind": "impl",
+          "line": 385,
+          "name": "GrantClass"
+        },
+        {
+          "kind": "fn",
+          "line": 387,
+          "name": "as_str"
+        },
+        {
+          "kind": "fn",
+          "line": 394,
+          "name": "parse"
+        },
+        {
+          "kind": "struct",
+          "line": 405,
+          "name": "BetaCampaign"
+        },
+        {
+          "kind": "struct",
+          "line": 434,
+          "name": "BetaFinding"
+        },
+        {
+          "kind": "struct",
+          "line": 473,
+          "name": "FindingDisposition"
+        },
+        {
+          "kind": "struct",
+          "line": 497,
+          "name": "ContributionReceipt"
+        },
+        {
+          "kind": "struct",
+          "line": 523,
+          "name": "BetaGrantAuthorization"
+        },
+        {
+          "kind": "fn",
+          "line": 550,
+          "name": "create_campaign"
+        },
+        {
+          "kind": "fn",
+          "line": 595,
+          "name": "create_finding"
+        },
+        {
+          "kind": "fn",
+          "line": 655,
+          "name": "create_finding_disposition"
+        },
+        {
+          "kind": "fn",
+          "line": 705,
+          "name": "create_contribution_receipt"
+        },
+        {
+          "kind": "fn",
+          "line": 749,
+          "name": "create_grant_authorization"
+        },
+        {
+          "kind": "fn",
+          "line": 809,
+          "name": "read_campaign"
+        },
+        {
+          "kind": "fn",
+          "line": 814,
+          "name": "read_finding"
+        },
+        {
+          "kind": "fn",
+          "line": 819,
+          "name": "read_finding_disposition"
+        },
+        {
+          "kind": "fn",
+          "line": 827,
+          "name": "read_contribution_receipt"
+        },
+        {
+          "kind": "fn",
+          "line": 835,
+          "name": "read_grant_authorization"
+        },
+        {
+          "kind": "fn",
+          "line": 843,
+          "name": "parse_campaign_object"
+        },
+        {
+          "kind": "fn",
+          "line": 877,
+          "name": "parse_finding_object"
+        },
+        {
+          "kind": "fn",
+          "line": 928,
+          "name": "parse_finding_disposition_object"
+        },
+        {
+          "kind": "fn",
+          "line": 962,
+          "name": "parse_contribution_object"
+        },
+        {
+          "kind": "fn",
+          "line": 992,
+          "name": "parse_grant_object"
+        },
+        {
+          "kind": "struct",
+          "line": 1032,
+          "name": "BetaMiniPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 1041,
+          "name": "BetaMiniPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 1043,
+          "name": "open_beta_default"
+        },
+        {
+          "kind": "fn",
+          "line": 1051,
+          "name": "validate"
+        },
+        {
+          "kind": "struct",
+          "line": 1073,
+          "name": "BetaMiniLedger"
+        },
+        {
+          "kind": "impl",
+          "line": 1082,
+          "name": "BetaMiniLedger"
+        },
+        {
+          "kind": "fn",
+          "line": 1084,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 1097,
+          "name": "epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 1102,
+          "name": "total_issued"
+        },
+        {
+          "kind": "fn",
+          "line": 1107,
+          "name": "balance"
+        },
+        {
+          "kind": "fn",
+          "line": 1117,
+          "name": "apply_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 1195,
+          "name": "transfer"
+        },
+        {
+          "kind": "fn",
+          "line": 1223,
+          "name": "rollover"
+        },
+        {
+          "kind": "fn",
+          "line": 1231,
+          "name": "validate_text"
+        },
+        {
+          "kind": "fn",
+          "line": 1238,
+          "name": "validate_list"
+        },
+        {
+          "kind": "fn",
+          "line": 1248,
+          "name": "put_u64"
+        },
+        {
+          "kind": "fn",
+          "line": 1252,
+          "name": "put_str"
+        },
+        {
+          "kind": "fn",
+          "line": 1257,
+          "name": "put_list"
+        },
+        {
+          "kind": "fn",
+          "line": 1264,
+          "name": "take_u8"
+        },
+        {
+          "kind": "fn",
+          "line": 1270,
+          "name": "take_u64"
+        },
+        {
+          "kind": "fn",
+          "line": 1279,
+          "name": "take_32"
+        },
+        {
+          "kind": "fn",
+          "line": 1286,
+          "name": "take_str"
+        },
+        {
+          "kind": "fn",
+          "line": 1305,
+          "name": "take_list"
+        },
+        {
+          "kind": "fn",
+          "line": 1329,
+          "name": "public_payload"
+        },
+        {
+          "kind": "fn",
+          "line": 1336,
+          "name": "ensure_type_and_links"
+        },
+        {
+          "kind": "fn",
+          "line": 1357,
+          "name": "required_link"
+        },
+        {
+          "kind": "fn",
+          "line": 1361,
+          "name": "optional_link"
+        },
+        {
+          "kind": "mod",
+          "line": 1371,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 1375,
+          "name": "signer"
+        },
+        {
+          "kind": "fn",
+          "line": 1379,
+          "name": "strings"
+        },
+        {
+          "kind": "fn",
+          "line": 1383,
+          "name": "target"
+        },
+        {
+          "kind": "fn",
+          "line": 1393,
+          "name": "forge_beta_objects_round_trip_without_a_contributor_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 1503,
+          "name": "beta_mini_is_bounded_transferable_test_value_and_resets_between_epochs"
+        },
+        {
+          "kind": "fn",
+          "line": 1560,
+          "name": "participation_grants_require_accepted_contribution_evidence"
+        },
+        {
+          "kind": "fn",
+          "line": 1599,
+          "name": "cross_epoch_grants_cannot_be_applied_after_reset"
+        },
+        {
+          "kind": "fn",
+          "line": 1644,
+          "name": "zero_handles_are_rejected_so_missing_values_are_not_ambiguous"
+        }
+      ],
+      "title": "use std::collections::{HashMap, HashSet};"
+    },
+    {
+      "bytes": 1806,
+      "group": "crate:mini-beta",
+      "headings": [],
+      "keywords": [
+        "dependency",
+        "dependency_section",
+        "line",
+        "mini-beta",
+        "manifest",
+        "forbidden",
+        "split",
+        "str",
+        "change",
+        "production",
+        "value",
+        "isolated",
+        "include_str",
+        "cargo",
+        "toml",
+        "next",
+        "names",
+        "map",
+        "trim",
+        "dependency_wall",
+        "structural",
+        "regression",
+        "hardest",
+        "safety"
+      ],
+      "lines": 55,
+      "path": "crates/mini-beta/tests/dependency_wall.rs",
+      "sha256": "3660105e2e61210bbc8b8576d113316474aec29fb377cbc17f57aab060f8b810",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 9,
+          "name": "beta_test_currency_has_no_production_value_or_authority_dependencies"
+        },
+        {
+          "kind": "fn",
+          "line": 35,
+          "name": "beta_manifest_contains_only_the_expected_runtime_dependencies"
+        }
+      ],
+      "title": "fn beta_test_currency_has_no_production_value_or_authority_dependencies() {"
+    },
+    {
+      "bytes": 9664,
+      "group": "crate:mini-beta",
+      "headings": [],
+      "keywords": [
+        "signer",
+        "store",
+        "unwrap",
+        "payload",
+        "object",
+        "sequence",
+        "campaign",
+        "contribution",
+        "epoch",
+        "target",
+        "new",
+        "controller",
+        "objectid",
+        "memorybackend",
+        "did",
+        "ledger",
+        "account",
+        "u64",
+        "extend_from_slice",
+        "put_str",
+        "betaepochid",
+        "grantclass",
+        "to_string",
+        "campaign_id"
+      ],
+      "lines": 317,
+      "path": "crates/mini-beta/tests/ledger_adversarial.rs",
+      "sha256": "e9ac3e39fe64a7245d6eda628a73932811c3df204a3b7250d8265cf57abd9f65",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 10,
+          "name": "signer"
+        },
+        {
+          "kind": "fn",
+          "line": 14,
+          "name": "target"
+        },
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "campaign"
+        },
+        {
+          "kind": "fn",
+          "line": 51,
+          "name": "contribution"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "put_str"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "raw_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "one_contribution_cannot_back_two_distinct_participation_grants"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "two_receipts_for_the_same_source_cannot_each_back_a_participation_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 223,
+          "name": "participation_grant_rechecks_contribution_campaign_on_apply"
+        },
+        {
+          "kind": "fn",
+          "line": 255,
+          "name": "synced_testing_grant_cannot_bypass_campaign_cap"
+        },
+        {
+          "kind": "fn",
+          "line": 285,
+          "name": "self_transfer_still_requires_sufficient_balance"
+        }
+      ],
+      "title": "use did_mini::Controller;"
+    },
+    {
       "bytes": 863,
       "group": "crate:mini-bootstrap",
       "headings": [
@@ -16895,37 +18992,37 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 2294,
+      "bytes": 2332,
       "group": "crate:mini-cli",
       "headings": [
         {
           "level": 1,
-          "line": 41,
+          "line": 42,
           "text": "Only for the Capability/ResourceLimits request types and the"
         },
         {
           "level": 1,
-          "line": 42,
+          "line": 43,
           "text": "ExecutionRequest/ExecutionResult wire framing `mini build run` speaks to"
         },
         {
           "level": 1,
-          "line": 43,
+          "line": 44,
           "text": "the real mini-build-runner-wasmtime binary over a pipe -- mini-cli never"
         },
         {
           "level": 1,
-          "line": 44,
+          "line": 45,
           "text": "links mini-build-runner-wasmtime itself (D-0069's \"never link Wasmtime"
         },
         {
           "level": 1,
-          "line": 45,
+          "line": 46,
           "text": "outside that one crate\" rule); it locates and spawns the binary as a"
         },
         {
           "level": 1,
-          "line": 46,
+          "line": 47,
           "text": "real subprocess (see `crate::build::runner_binary_path`)."
         }
       ],
@@ -16955,14 +19052,14 @@
         "speaks",
         "pipe"
       ],
-      "lines": 56,
+      "lines": 57,
       "path": "crates/mini-cli/Cargo.toml",
-      "sha256": "07bd9d77f08d629e4d210bc9f494249f629b4540e10d8a0147fd173124292ecb",
+      "sha256": "9a6e9a8f4e9fd603ea3f6bd4dc18137882edaa248c372df1d87d20365514e0a2",
       "symbols": [],
       "title": "Only for the Capability/ResourceLimits request types and the"
     },
     {
-      "bytes": 13398,
+      "bytes": 14357,
       "group": "crate:mini-cli",
       "headings": [
         {
@@ -16986,43 +19083,48 @@
           "text": "Honest limits"
         },
         {
+          "level": 3,
+          "line": 119,
+          "text": "Beta finding responses and private claims"
+        },
+        {
           "level": 2,
-          "line": 118,
+          "line": 136,
           "text": "Native migration and collaboration"
         },
         {
           "level": 3,
-          "line": 132,
+          "line": 150,
           "text": "Review an exact commit and proposal plan"
         },
         {
           "level": 1,
-          "line": 141,
+          "line": 159,
           "text": "Inspect the complete bounded source manifest; file contents are not printed."
         },
         {
           "level": 1,
-          "line": 144,
+          "line": 162,
           "text": "Review source, signer, project, message and current governed parent together."
         },
         {
           "level": 1,
-          "line": 147,
+          "line": 165,
           "text": "Copy plan_id from that review; keep the inputs identical."
         },
         {
           "level": 1,
-          "line": 150,
+          "line": 168,
           "text": "Use the returned commit_id as the proposal's exact head."
         },
         {
           "level": 2,
-          "line": 180,
+          "line": 198,
           "text": "Resident AI"
         },
         {
           "level": 3,
-          "line": 204,
+          "line": 222,
           "text": "Campaign review evidence"
         }
       ],
@@ -17052,11 +19154,253 @@
         "workspace",
         "title"
       ],
-      "lines": 225,
+      "lines": 243,
       "path": "crates/mini-cli/README.md",
-      "sha256": "7d89196e9d9e2d2dfe475d38a1770845e83f55db5d4c3049e67251c967f300d7",
+      "sha256": "10f4a17c605645392ddf8d84fb8d5300075da7763aea1b1da95a397c92638e7f",
       "symbols": [],
       "title": "mini-cli"
+    },
+    {
+      "bytes": 40934,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "args",
+        "value",
+        "clierror",
+        "str",
+        "string",
+        "flag",
+        "vec",
+        "evidenceclass",
+        "error",
+        "result",
+        "context",
+        "format",
+        "findingseverity",
+        "pos",
+        "values",
+        "usage",
+        "err",
+        "beta",
+        "extract_flag",
+        "identity",
+        "remove",
+        "extract_flag_multi",
+        "findingstate",
+        "objectid"
+      ],
+      "lines": 1126,
+      "path": "crates/mini-cli/src/beta.rs",
+      "sha256": "60da156cc66838b4decc1fc3873cd420393bbfa9bde6d65335714c06cedbd7cf",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 35,
+          "name": "CLAIM_DOMAIN"
+        },
+        {
+          "kind": "fn",
+          "line": 37,
+          "name": "extract_flag"
+        },
+        {
+          "kind": "fn",
+          "line": 46,
+          "name": "extract_flag_multi"
+        },
+        {
+          "kind": "fn",
+          "line": 54,
+          "name": "extract_bool_flag"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "required_flag"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "required_items"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "reject_remaining"
+        },
+        {
+          "kind": "fn",
+          "line": 88,
+          "name": "next"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "parse_id"
+        },
+        {
+          "kind": "fn",
+          "line": 100,
+          "name": "beta_err"
+        },
+        {
+          "kind": "fn",
+          "line": 104,
+          "name": "forge_err"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "crypto_err"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "parse_evidence_class"
+        },
+        {
+          "kind": "fn",
+          "line": 127,
+          "name": "parse_severity"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
+          "name": "parse_finding_state"
+        },
+        {
+          "kind": "fn",
+          "line": 154,
+          "name": "parse_contribution_kind"
+        },
+        {
+          "kind": "fn",
+          "line": 177,
+          "name": "ephemeral_artifact_signer"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "hex"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "fresh_claim_secret"
+        },
+        {
+          "kind": "fn",
+          "line": 228,
+          "name": "campaign_list"
+        },
+        {
+          "kind": "fn",
+          "line": 296,
+          "name": "campaign_show"
+        },
+        {
+          "kind": "fn",
+          "line": 336,
+          "name": "finding_submit"
+        },
+        {
+          "kind": "fn",
+          "line": 412,
+          "name": "finding_list"
+        },
+        {
+          "kind": "fn",
+          "line": 462,
+          "name": "finding_show"
+        },
+        {
+          "kind": "fn",
+          "line": 489,
+          "name": "finding_disposition"
+        },
+        {
+          "kind": "fn",
+          "line": 534,
+          "name": "finding_to_task"
+        },
+        {
+          "kind": "fn",
+          "line": 588,
+          "name": "task_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 626,
+          "name": "contribution_accept"
+        },
+        {
+          "kind": "fn",
+          "line": 674,
+          "name": "contribution_show"
+        },
+        {
+          "kind": "fn",
+          "line": 717,
+          "name": "claim_new"
+        },
+        {
+          "kind": "fn",
+          "line": 730,
+          "name": "disposition_trust"
+        },
+        {
+          "kind": "fn",
+          "line": 747,
+          "name": "authorized_disposition"
+        },
+        {
+          "kind": "fn",
+          "line": 759,
+          "name": "authorized_record"
+        },
+        {
+          "kind": "fn",
+          "line": 783,
+          "name": "disposition_show"
+        },
+        {
+          "kind": "fn",
+          "line": 835,
+          "name": "with_trust"
+        },
+        {
+          "kind": "fn",
+          "line": 849,
+          "name": "trust_note"
+        },
+        {
+          "kind": "fn",
+          "line": 860,
+          "name": "campaign_json"
+        },
+        {
+          "kind": "fn",
+          "line": 889,
+          "name": "finding_json"
+        },
+        {
+          "kind": "fn",
+          "line": 932,
+          "name": "contribution_json"
+        },
+        {
+          "kind": "fn",
+          "line": 960,
+          "name": "disposition_list"
+        },
+        {
+          "kind": "fn",
+          "line": 1050,
+          "name": "contribution_list"
+        }
+      ],
+      "title": "use std::path::Path;"
     },
     {
       "bytes": 18935,
@@ -17191,7 +19535,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 50774,
+      "bytes": 53228,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -17220,9 +19564,9 @@
         "proposal_id",
         "workspace"
       ],
-      "lines": 1239,
+      "lines": 1308,
       "path": "crates/mini-cli/src/cli.rs",
-      "sha256": "0153f617b9fc4f9e72e456268f7607883c6c4eeec7022f8ca796c5e73c441773",
+      "sha256": "725906085ab3dfde226a50daf759a32798c81a89e4e3278ae8e92a47aea95f8c",
       "symbols": [
         {
           "kind": "fn",
@@ -17271,137 +19615,142 @@
         },
         {
           "kind": "fn",
-          "line": 177,
+          "line": 178,
+          "name": "dispatch_beta"
+        },
+        {
+          "kind": "fn",
+          "line": 246,
           "name": "dispatch_campaign"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 265,
           "name": "dispatch_finding"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 282,
           "name": "dispatch_disposition"
         },
         {
           "kind": "fn",
-          "line": 230,
+          "line": 299,
           "name": "dispatch_team"
         },
         {
           "kind": "fn",
-          "line": 253,
+          "line": 322,
           "name": "dispatch_task"
         },
         {
           "kind": "fn",
-          "line": 283,
+          "line": 352,
           "name": "dispatch_identity"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 367,
           "name": "dispatch_intake"
         },
         {
           "kind": "fn",
-          "line": 324,
+          "line": 393,
           "name": "dispatch_kel"
         },
         {
           "kind": "fn",
-          "line": 357,
+          "line": 426,
           "name": "dispatch_repo"
         },
         {
           "kind": "fn",
-          "line": 526,
+          "line": 595,
           "name": "dispatch_pr"
         },
         {
           "kind": "fn",
-          "line": 664,
+          "line": 733,
           "name": "dispatch_sync"
         },
         {
           "kind": "fn",
-          "line": 689,
+          "line": 758,
           "name": "dispatch_keystone"
         },
         {
           "kind": "fn",
-          "line": 704,
+          "line": 773,
           "name": "now_ms_wall_clock"
         },
         {
           "kind": "fn",
-          "line": 711,
+          "line": 780,
           "name": "extract_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 720,
+          "line": 789,
           "name": "extract_u32_flag"
         },
         {
           "kind": "fn",
-          "line": 729,
+          "line": 798,
           "name": "required_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 733,
+          "line": 802,
           "name": "required_path_flag"
         },
         {
           "kind": "fn",
-          "line": 739,
+          "line": 808,
           "name": "dispatch_build"
         },
         {
           "kind": "fn",
-          "line": 827,
+          "line": 896,
           "name": "dispatch_release"
         },
         {
           "kind": "fn",
-          "line": 951,
+          "line": 1020,
           "name": "dispatch_provenance"
         },
         {
           "kind": "fn",
-          "line": 1004,
+          "line": 1073,
           "name": "dispatch_selftest"
         },
         {
           "kind": "fn",
-          "line": 1040,
+          "line": 1109,
           "name": "dispatch_windows"
         },
         {
           "kind": "fn",
-          "line": 1052,
+          "line": 1121,
           "name": "reject_leftover"
         },
         {
           "kind": "fn",
-          "line": 1062,
+          "line": 1131,
           "name": "dispatch_windows_noun"
         },
         {
           "kind": "fn",
-          "line": 1137,
+          "line": 1206,
           "name": "windows_install_options"
         },
         {
           "kind": "fn",
-          "line": 1156,
+          "line": 1225,
           "name": "dispatch_installer"
         },
         {
           "kind": "fn",
-          "line": 1233,
+          "line": 1302,
           "name": "next"
         }
       ],
@@ -18649,7 +20998,7 @@
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 4679,
+      "bytes": 4689,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -18678,147 +21027,152 @@
         "two",
         "commit"
       ],
-      "lines": 119,
+      "lines": 120,
       "path": "crates/mini-cli/src/lib.rs",
-      "sha256": "54374b0aa60aed5c2c15ef9dcfe258192151a24224439200cdbac7cc7ee18ff4",
+      "sha256": "d228af34397f483efe275385f1bcf52cb41e6a77672a162de646a374e3dc642b",
       "symbols": [
         {
           "kind": "mod",
           "line": 47,
-          "name": "build"
+          "name": "beta"
         },
         {
           "kind": "mod",
           "line": 48,
-          "name": "cli"
+          "name": "build"
         },
         {
           "kind": "mod",
           "line": 49,
-          "name": "coordination"
+          "name": "cli"
         },
         {
           "kind": "mod",
           "line": 50,
-          "name": "error"
+          "name": "coordination"
         },
         {
           "kind": "mod",
           "line": 51,
-          "name": "git"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "identity"
+          "name": "git"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "installer"
+          "name": "identity"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "intake"
+          "name": "installer"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "json"
+          "name": "intake"
         },
         {
           "kind": "mod",
           "line": 56,
-          "name": "keystone"
+          "name": "json"
         },
         {
           "kind": "mod",
           "line": 57,
-          "name": "maintenance"
+          "name": "keystone"
         },
         {
           "kind": "mod",
           "line": 58,
-          "name": "pr"
+          "name": "maintenance"
         },
         {
           "kind": "mod",
           "line": 59,
-          "name": "project"
+          "name": "pr"
         },
         {
           "kind": "mod",
           "line": 60,
-          "name": "provenance"
+          "name": "project"
         },
         {
           "kind": "mod",
           "line": 61,
-          "name": "release"
+          "name": "provenance"
         },
         {
           "kind": "mod",
           "line": 62,
-          "name": "remote"
+          "name": "release"
         },
         {
           "kind": "mod",
           "line": 63,
-          "name": "repo"
+          "name": "remote"
         },
         {
           "kind": "mod",
           "line": 64,
-          "name": "resident"
+          "name": "repo"
         },
         {
           "kind": "mod",
           "line": 65,
-          "name": "seed"
+          "name": "resident"
         },
         {
           "kind": "mod",
           "line": 66,
-          "name": "selftest"
+          "name": "seed"
         },
         {
           "kind": "mod",
           "line": 67,
-          "name": "sequence"
+          "name": "selftest"
         },
         {
           "kind": "mod",
           "line": 68,
-          "name": "service"
+          "name": "sequence"
         },
         {
           "kind": "mod",
           "line": 69,
-          "name": "store"
+          "name": "service"
         },
         {
           "kind": "mod",
           "line": 70,
-          "name": "sync"
+          "name": "store"
         },
         {
           "kind": "mod",
           "line": 71,
+          "name": "sync"
+        },
+        {
+          "kind": "mod",
+          "line": 72,
           "name": "windows"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 86,
           "name": "json_error_envelope"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 94,
           "name": "command_kind"
         }
       ],
-      "title": "mod build;"
+      "title": "mod beta;"
     },
     {
       "bytes": 761,
@@ -21461,6 +23815,145 @@
         }
       ],
       "title": "mod common;"
+    },
+    {
+      "bytes": 4975,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "contains",
+        "home",
+        "run",
+        "list",
+        "store",
+        "beta",
+        "home_s",
+        "store_s",
+        "assert",
+        "tempdir",
+        "claim",
+        "args",
+        "json_list",
+        "finding",
+        "std",
+        "unwrap",
+        "campaign",
+        "claim_out",
+        "json",
+        "disposition",
+        "owned",
+        "to_str",
+        "campaign_list",
+        "campaigns"
+      ],
+      "lines": 162,
+      "path": "crates/mini-cli/tests/beta_cli_smoke.rs",
+      "sha256": "0e653e45cbf4c50386a9895dc8e7ce2e489cd597434d2544aaf3d65aa655b1fd",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 12,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 30,
+          "name": "run_expect_err"
+        },
+        {
+          "kind": "fn",
+          "line": 36,
+          "name": "beta_empty_lists_and_claim_new_smoke"
+        },
+        {
+          "kind": "fn",
+          "line": 115,
+          "name": "beta_finding_submit_requires_privacy_redacted_flag"
+        }
+      ],
+      "title": "use std::path::PathBuf;"
+    },
+    {
+      "bytes": 15525,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "run",
+        "std",
+        "to_string",
+        "error",
+        "value",
+        "tempdir",
+        "str",
+        "args",
+        "string",
+        "to_str",
+        "alice",
+        "evidence",
+        "identity",
+        "mini_cli",
+        "alice_home",
+        "home",
+        "owned",
+        "vec",
+        "map",
+        "collect",
+        "alice_store",
+        "campaign",
+        "alice_objects"
+      ],
+      "lines": 508,
+      "path": "crates/mini-cli/tests/beta_native_flow.rs",
+      "sha256": "b7aad1e60dc01c201fca66e4c692c1232814d89d84d4cb25fa3aa6d2d98d6502",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 29,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 34,
+          "name": "run_with_retry"
+        },
+        {
+          "kind": "fn",
+          "line": 49,
+          "name": "free_loopback_addr"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
+          "name": "hex_decode"
+        },
+        {
+          "kind": "fn",
+          "line": 69,
+          "name": "anonymous_finding_round_trips_over_verified_sync_without_persistent_author_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 269,
+          "name": "accepted_contribution_stores_only_claim_commitment_not_private_preimage"
+        },
+        {
+          "kind": "fn",
+          "line": 338,
+          "name": "malformed_peer_records_cannot_block_lists_and_dispositions_require_operator_trust"
+        }
+      ],
+      "title": "use std::net::TcpListener;"
     },
     {
       "bytes": 12198,
@@ -77482,7 +79975,7 @@
       "title": "use crate::{Check, Outcome, Report};"
     },
     {
-      "bytes": 21010,
+      "bytes": 21828,
       "group": "crate:mini-selftest",
       "headings": [],
       "keywords": [
@@ -77511,9 +80004,9 @@
         "run",
         "process"
       ],
-      "lines": 612,
+      "lines": 630,
       "path": "crates/mini-selftest/src/coverage.rs",
-      "sha256": "ac82652f745b9b851eaf5f24e139eab4a3896dbca6c7f1b7227b284e45c7a66b",
+      "sha256": "ac089a7aebe37752455f19e5314c308dff4018979fbf7804f3eddda3872882f9",
       "symbols": [
         {
           "kind": "enum",
@@ -77552,17 +80045,17 @@
         },
         {
           "kind": "fn",
-          "line": 581,
+          "line": 599,
           "name": "runnable_count"
         },
         {
           "kind": "fn",
-          "line": 589,
+          "line": 607,
           "name": "gaps"
         },
         {
           "kind": "fn",
-          "line": 600,
+          "line": 618,
           "name": "summary"
         }
       ],
@@ -104151,143 +106644,367 @@
       "title": "Start here \u2014 for an auditor or skeptic"
     },
     {
-      "bytes": 6869,
+      "bytes": 7910,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Beta contributor guide"
+          "text": "Open Beta contributor guide"
         },
         {
           "level": 2,
-          "line": 8,
-          "text": "Current Beta boundary"
+          "line": 11,
+          "text": "Current boundary"
         },
         {
           "level": 2,
-          "line": 27,
+          "line": 23,
           "text": "Choose a route"
         },
         {
           "level": 2,
-          "line": 43,
+          "line": 41,
+          "text": "Pre-Go-Live anonymity"
+        },
+        {
+          "level": 2,
+          "line": 60,
           "text": "The contribution path"
         },
         {
           "level": 2,
-          "line": 62,
-          "text": "Teams, employees, and consultants"
-        },
-        {
-          "level": 2,
           "line": 85,
-          "text": "Releases and public confirmation"
+          "text": "Beta MINI participation"
         },
         {
           "level": 2,
-          "line": 93,
-          "text": "What to say in a report"
+          "line": 111,
+          "text": "GitHub is an adapter, Forge is the destination"
         },
         {
           "level": 2,
-          "line": 109,
+          "line": 124,
+          "text": "What to say in every report"
+        },
+        {
+          "level": 2,
+          "line": 141,
           "text": "Further reading"
         }
       ],
       "keywords": [
         "beta",
         "evidence",
-        "issues",
-        "governance",
-        "issue",
-        "android",
-        "review",
-        "contributor",
+        "open",
+        "task",
+        "contribution",
+        "build",
+        "exact",
+        "claim",
+        "route",
+        "participation",
+        "github",
+        "work",
         "current",
         "choose",
-        "route",
-        "path",
-        "authority",
-        "work",
-        "device",
-        "implementation",
-        "gates",
-        "research",
-        "you",
-        "claim",
+        "pre-go-live",
+        "forge",
+        "governance",
+        "state",
+        "finding",
+        "review",
+        "contributor",
         "guide",
-        "public",
-        "report",
-        "real"
+        "path",
+        "report"
       ],
-      "lines": 119,
+      "lines": 154,
       "path": "docs/BETA_CONTRIBUTOR_GUIDE.md",
-      "sha256": "65a8bc6d190f62d43c9c5f321fcd612a8f2b2e7747fe47c9caa5476a0e941895",
+      "sha256": "a8cab47588676efca37253726db79918df321380ceddb3d9390b05489d5166e0",
       "symbols": [],
-      "title": "Beta contributor guide"
+      "title": "Open Beta contributor guide"
     },
     {
-      "bytes": 8083,
+      "bytes": 2045,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Beta status"
+          "text": "Native Open Beta proof status"
         },
         {
           "level": 2,
-          "line": 20,
-          "text": "What stands between here and a demoable beta (honest list)"
+          "line": 5,
+          "text": "Proven in the branch"
         },
         {
           "level": 2,
-          "line": 108,
-          "text": "Before trusting any of this"
-        },
-        {
-          "level": 2,
-          "line": 122,
-          "text": "UI beta (the product layer)"
-        },
-        {
-          "level": 2,
-          "line": 129,
-          "text": "Post-beta (not on the critical path)"
+          "line": 21,
+          "text": "Not proven by that test"
         }
       ],
       "keywords": [
         "beta",
-        "real",
-        "still",
-        "honest",
-        "generated",
-        "bearer",
-        "ble",
-        "bleradio",
-        "gatt",
+        "native",
+        "proof",
+        "proven",
+        "contribution",
+        "branch",
+        "focused",
+        "campaign",
+        "artifact-scoped",
+        "evidence",
+        "open",
         "status",
-        "what",
-        "here",
-        "path",
-        "see",
-        "cargo",
-        "trait",
-        "demo",
-        "protocol",
-        "actually",
-        "each",
-        "mini-keystone",
-        "own",
-        "replayguard",
-        "stands"
+        "proves",
+        "integration",
+        "forge",
+        "two",
+        "stores",
+        "through",
+        "finding",
+        "findings",
+        "local",
+        "user",
+        "author",
+        "did"
       ],
-      "lines": 135,
-      "path": "docs/BETA_STATUS.md",
-      "sha256": "489ad48a347fad55e375cc6462dbdd0dc00f37c1236da446ac6a4ad450ceafd1",
+      "lines": 33,
+      "path": "docs/BETA_NATIVE_PROOF.md",
+      "sha256": "f09bfd984cd8e13497acf9bb063fb6b663e59a5529afeebae649aece6e83c822",
       "symbols": [],
-      "title": "Beta status"
+      "title": "Native Open Beta proof status"
+    },
+    {
+      "bytes": 11034,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet Open Beta \u2014 start here"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Phone installation gate"
+        },
+        {
+          "level": 2,
+          "line": 26,
+          "text": "Pick the easiest useful thing you can do"
+        },
+        {
+          "level": 2,
+          "line": 43,
+          "text": "Submit a finding"
+        },
+        {
+          "level": 3,
+          "line": 71,
+          "text": "What happens to a good finding"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "Beta MINI"
+        },
+        {
+          "level": 2,
+          "line": 129,
+          "text": "Core physical-device itinerary"
+        },
+        {
+          "level": 3,
+          "line": 135,
+          "text": "1. One-phone lifecycle"
+        },
+        {
+          "level": 3,
+          "line": 148,
+          "text": "2. Two-phone direct path"
+        },
+        {
+          "level": 3,
+          "line": 160,
+          "text": "3. Three-phone relay"
+        },
+        {
+          "level": 3,
+          "line": 172,
+          "text": "4. Churn and hostile-resource cases"
+        },
+        {
+          "level": 3,
+          "line": 188,
+          "text": "5. Privacy review"
+        },
+        {
+          "level": 2,
+          "line": 200,
+          "text": "Contribution routes beyond findings"
+        },
+        {
+          "level": 2,
+          "line": 222,
+          "text": "Forge transition is the milestone"
+        },
+        {
+          "level": 2,
+          "line": 237,
+          "text": "What Open Beta does not mean"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "report",
+        "open",
+        "what",
+        "gate",
+        "build",
+        "phone",
+        "useful",
+        "you",
+        "finding",
+        "review",
+        "evidence",
+        "exact",
+        "private",
+        "apk",
+        "product",
+        "pending",
+        "contribution",
+        "does",
+        "toolchain",
+        "work",
+        "rust",
+        "issue",
+        "start"
+      ],
+      "lines": 254,
+      "path": "docs/BETA_OPEN.md",
+      "sha256": "ba34015682b328a5642f7928d05bd43f2ecf110ac1acb8834d34e1c1a01800f0",
+      "symbols": [],
+      "title": "Mininet Open Beta \u2014 start here"
+    },
+    {
+      "bytes": 8911,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Open Beta status"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "Beta target"
+        },
+        {
+          "level": 2,
+          "line": 20,
+          "text": "What is implemented now"
+        },
+        {
+          "level": 3,
+          "line": 22,
+          "text": "Transport and local networking"
+        },
+        {
+          "level": 3,
+          "line": 39,
+          "text": "Identity, presence, replay, and developer harness"
+        },
+        {
+          "level": 3,
+          "line": 53,
+          "text": "Open Beta findings and contribution flow \u2014 PR #334"
+        },
+        {
+          "level": 3,
+          "line": 76,
+          "text": "Beta MINI \u2014 test value only"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "How to participate"
+        },
+        {
+          "level": 2,
+          "line": 126,
+          "text": "Pre-Go-Live identity boundary"
+        },
+        {
+          "level": 2,
+          "line": 137,
+          "text": "What still stands between Open Beta and Go-Live"
+        },
+        {
+          "level": 3,
+          "line": 139,
+          "text": "Physical/product acceptance"
+        },
+        {
+          "level": 3,
+          "line": 150,
+          "text": "Beta MINI product/durability work"
+        },
+        {
+          "level": 3,
+          "line": 159,
+          "text": "Forge canonicality"
+        },
+        {
+          "level": 3,
+          "line": 172,
+          "text": "Substantive production safety gates"
+        },
+        {
+          "level": 2,
+          "line": 183,
+          "text": "Build and test"
+        },
+        {
+          "level": 2,
+          "line": 210,
+          "text": "Overall readiness statement"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "open",
+        "evidence",
+        "production",
+        "identity",
+        "contribution",
+        "product",
+        "work",
+        "testing",
+        "android",
+        "now",
+        "presence",
+        "value",
+        "forge",
+        "beta_open",
+        "real",
+        "path",
+        "personhood",
+        "multi-hop",
+        "task",
+        "issue",
+        "status",
+        "target",
+        "what"
+      ],
+      "lines": 218,
+      "path": "docs/BETA_STATUS.md",
+      "sha256": "b8b93481c4d2cf52aa81aafb1b31bdccf1f4d4e7cf2a54abd14dc1534436f80d",
+      "symbols": [],
+      "title": "Open Beta status"
     },
     {
       "bytes": 11187,
@@ -105261,6 +107978,78 @@
       "sha256": "e881478b5e8cf81bf06262ad8a1a45c0c8f480eca4dafd050449fc87fafd19be",
       "symbols": [],
       "title": "The Mininet Failure Book"
+    },
+    {
+      "bytes": 7547,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Open Beta -> Forge migration matrix"
+        },
+        {
+          "level": 2,
+          "line": 6,
+          "text": "Rule"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "Current matrix"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "What must be proven before `forge_canonical = true`"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "Beta MINI durability path"
+        },
+        {
+          "level": 2,
+          "line": 81,
+          "text": "Contribution reward doctrine"
+        },
+        {
+          "level": 2,
+          "line": 95,
+          "text": "Exact failure point"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "forge",
+        "github",
+        "coded",
+        "finding",
+        "contribution",
+        "bootstrap",
+        "work",
+        "task",
+        "review",
+        "matrix",
+        "issue",
+        "cli",
+        "evidence",
+        "claim",
+        "grant",
+        "true",
+        "state",
+        "surface",
+        "mini-forge",
+        "native",
+        "accepted",
+        "release",
+        "current"
+      ],
+      "lines": 106,
+      "path": "docs/FORGE_BETA_MIGRATION.md",
+      "sha256": "03f5c7623eda068375bb03f226d93e704bc4fce1f38d4c4c357bad8945c87109",
+      "symbols": [],
+      "title": "Open Beta -> Forge migration matrix"
     },
     {
       "bytes": 11899,
@@ -111547,6 +114336,118 @@
       "title": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
     },
     {
+      "bytes": 8678,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Open Beta and Forge Transition Milestone"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "Purpose"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Non-negotiable safety boundary"
+        },
+        {
+          "level": 3,
+          "line": 17,
+          "text": "Beta MINI is not production MINI"
+        },
+        {
+          "level": 3,
+          "line": 31,
+          "text": "Participation reward evidence is separate from identity and authority"
+        },
+        {
+          "level": 2,
+          "line": 39,
+          "text": "Milestone tracks"
+        },
+        {
+          "level": 3,
+          "line": 41,
+          "text": "A. Open public Beta"
+        },
+        {
+          "level": 3,
+          "line": 54,
+          "text": "B. Findings as structured evidence"
+        },
+        {
+          "level": 3,
+          "line": 70,
+          "text": "C. Beta MINI test currency"
+        },
+        {
+          "level": 3,
+          "line": 81,
+          "text": "D. Contribution and reward flow"
+        },
+        {
+          "level": 3,
+          "line": 98,
+          "text": "E. Forge-first coordination"
+        },
+        {
+          "level": 3,
+          "line": 117,
+          "text": "F. Go-Live transition readiness"
+        },
+        {
+          "level": 2,
+          "line": 129,
+          "text": "Initial implementation slices in PR #334"
+        },
+        {
+          "level": 2,
+          "line": 140,
+          "text": "Explicit non-goals"
+        },
+        {
+          "level": 2,
+          "line": 154,
+          "text": "Success condition"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "evidence",
+        "milestone",
+        "contribution",
+        "production",
+        "work",
+        "reward",
+        "findings",
+        "github",
+        "never",
+        "open",
+        "forge",
+        "transition",
+        "participation",
+        "authority",
+        "go-live",
+        "testing",
+        "accepted",
+        "value",
+        "governance",
+        "release",
+        "boundary",
+        "identity",
+        "public"
+      ],
+      "lines": 157,
+      "path": "docs/design/beta-open-forge-transition.md",
+      "sha256": "cd67de3e2d3fc9601ad4301f7f1bda59720bbf15b96ecd872526a3c1edef2cd2",
+      "symbols": [],
+      "title": "Open Beta and Forge Transition Milestone"
+    },
+    {
       "bytes": 8118,
       "group": "docs",
       "headings": [
@@ -112541,6 +115442,143 @@
       "title": "Day-0 transparent balance ledger"
     },
     {
+      "bytes": 10936,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Decentralized Beta MINI grant acceptance"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Exact failure being closed"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "Chosen mechanism"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "Why the other candidate mechanisms are not used alone"
+        },
+        {
+          "level": 3,
+          "line": 35,
+          "text": "Self-service faucet only \u2014 rejected"
+        },
+        {
+          "level": 3,
+          "line": 39,
+          "text": "Contribution/reward bands alone \u2014 rejected"
+        },
+        {
+          "level": 3,
+          "line": 43,
+          "text": "One threshold signer set forever \u2014 rejected"
+        },
+        {
+          "level": 3,
+          "line": 47,
+          "text": "Token/stake weighted authorization \u2014 rejected"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "Bootstrap trust that remains"
+        },
+        {
+          "level": 2,
+          "line": 59,
+          "text": "Deterministic rules"
+        },
+        {
+          "level": 3,
+          "line": 61,
+          "text": "Policy validity"
+        },
+        {
+          "level": 3,
+          "line": 76,
+          "text": "One-policy-per-campaign safety rule"
+        },
+        {
+          "level": 3,
+          "line": 92,
+          "text": "Approval validity"
+        },
+        {
+          "level": 3,
+          "line": 104,
+          "text": "Testing grants"
+        },
+        {
+          "level": 3,
+          "line": 114,
+          "text": "Participation grants"
+        },
+        {
+          "level": 2,
+          "line": 123,
+          "text": "Equivocation and convergence"
+        },
+        {
+          "level": 2,
+          "line": 138,
+          "text": "Crate boundary"
+        },
+        {
+          "level": 2,
+          "line": 153,
+          "text": "Adversarial acceptance tests"
+        },
+        {
+          "level": 2,
+          "line": 174,
+          "text": "Values verdict"
+        },
+        {
+          "level": 2,
+          "line": 184,
+          "text": "Exit condition"
+        }
+      ],
+      "keywords": [
+        "policy",
+        "grant",
+        "campaign",
+        "authorization",
+        "rejected",
+        "threshold",
+        "one",
+        "beta",
+        "exact",
+        "validity",
+        "testing",
+        "acceptance",
+        "contribution",
+        "reward",
+        "set",
+        "participation",
+        "dids",
+        "alone",
+        "self-service",
+        "faucet",
+        "bands",
+        "bootstrap",
+        "deterministic",
+        "rule"
+      ],
+      "lines": 187,
+      "path": "docs/design/decentralized-beta-grant-acceptance.md",
+      "sha256": "3e1cb2897434a431d49d68c6cd34668cf814ee6b6f10e5a2d2d12d025c814647",
+      "symbols": [],
+      "title": "Decentralized Beta MINI grant acceptance"
+    },
+    {
       "bytes": 8195,
       "group": "docs",
       "headings": [
@@ -112606,6 +115644,163 @@
       "sha256": "015986bfcfd40dfa4a7a81c278d51e52f4150a9368d499b7a235e765de124b0e",
       "symbols": [],
       "title": "Device hierarchy design (issue #14, D-0530)"
+    },
+    {
+      "bytes": 13662,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Durable Beta MINI execution and authenticated wallet accounts"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "Exact failure being closed"
+        },
+        {
+          "level": 2,
+          "line": 16,
+          "text": "Core model: authenticated accounts + UTXO-style Beta outputs"
+        },
+        {
+          "level": 3,
+          "line": 18,
+          "text": "Beta account registration"
+        },
+        {
+          "level": 3,
+          "line": 41,
+          "text": "Durable outputs"
+        },
+        {
+          "level": 3,
+          "line": 58,
+          "text": "Signed transfer"
+        },
+        {
+          "level": 2,
+          "line": 77,
+          "text": "Deterministic replicated resolver"
+        },
+        {
+          "level": 3,
+          "line": 83,
+          "text": "Phase A \u2014 registrations"
+        },
+        {
+          "level": 3,
+          "line": 91,
+          "text": "Phase B \u2014 accepted grants"
+        },
+        {
+          "level": 3,
+          "line": 104,
+          "text": "Phase C \u2014 transfer candidates"
+        },
+        {
+          "level": 3,
+          "line": 110,
+          "text": "Phase D \u2014 double-spend conflict rule"
+        },
+        {
+          "level": 3,
+          "line": 118,
+          "text": "Phase E \u2014 dependency resolution"
+        },
+        {
+          "level": 2,
+          "line": 130,
+          "text": "Late-arriving conflicts and provisional status"
+        },
+        {
+          "level": 2,
+          "line": 143,
+          "text": "Durable restart model"
+        },
+        {
+          "level": 2,
+          "line": 154,
+          "text": "Wallet secret storage"
+        },
+        {
+          "level": 2,
+          "line": 166,
+          "text": "Claim handoff"
+        },
+        {
+          "level": 2,
+          "line": 174,
+          "text": "Epoch reset / retirement"
+        },
+        {
+          "level": 2,
+          "line": 188,
+          "text": "Product surface"
+        },
+        {
+          "level": 2,
+          "line": 210,
+          "text": "Replication acceptance"
+        },
+        {
+          "level": 2,
+          "line": 227,
+          "text": "Crate boundary"
+        },
+        {
+          "level": 2,
+          "line": 241,
+          "text": "Adversarial tests"
+        },
+        {
+          "level": 2,
+          "line": 264,
+          "text": "Values verdict"
+        },
+        {
+          "level": 2,
+          "line": 274,
+          "text": "Exit condition"
+        },
+        {
+          "level": 3,
+          "line": 279,
+          "text": "Issuance trust input"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "account",
+        "epoch",
+        "transfer",
+        "grant",
+        "outputs",
+        "phase",
+        "output",
+        "one",
+        "object",
+        "durable",
+        "accounts",
+        "exact",
+        "registration",
+        "registrations",
+        "authenticated",
+        "accepted",
+        "same",
+        "wallet",
+        "closed",
+        "signed",
+        "resolver",
+        "local",
+        "root"
+      ],
+      "lines": 287,
+      "path": "docs/design/durable-beta-mini-execution.md",
+      "sha256": "bcd5973faebb882901a500243a8373b8819eb8586b10e362248d6e99233f74cc",
+      "symbols": [],
+      "title": "Durable Beta MINI execution and authenticated wallet accounts"
     },
     {
       "bytes": 5311,
@@ -113325,6 +116520,118 @@
       "sha256": "75402c7c36f1ae55a5bc85f324221fb7dede8cd009eac726d2f61db5178a567d",
       "symbols": [],
       "title": "Federated search exchange, merging, local re-ranking, and observation history: Track F1/F2/F3/F4/F7"
+    },
+    {
+      "bytes": 9489,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Forge-native Open Beta CLI"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "line": 27,
+          "text": "Privacy model"
+        },
+        {
+          "level": 2,
+          "line": 46,
+          "text": "Native command surface"
+        },
+        {
+          "level": 2,
+          "line": 71,
+          "text": "Finding submission"
+        },
+        {
+          "level": 2,
+          "line": 92,
+          "text": "Finding disposition"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "Finding -> task"
+        },
+        {
+          "level": 2,
+          "line": 114,
+          "text": "Anonymous task claim"
+        },
+        {
+          "level": 2,
+          "line": 122,
+          "text": "Contribution acceptance and private reward handoff"
+        },
+        {
+          "level": 2,
+          "line": 137,
+          "text": "Verification and sync boundary"
+        },
+        {
+          "level": 2,
+          "line": 154,
+          "text": "No-GitHub acceptance test"
+        },
+        {
+          "level": 2,
+          "line": 173,
+          "text": "Authority wall"
+        },
+        {
+          "level": 2,
+          "line": 188,
+          "text": "Deliberate limits"
+        },
+        {
+          "level": 2,
+          "line": 194,
+          "text": "Exit criteria"
+        },
+        {
+          "level": 2,
+          "line": 204,
+          "text": "Values verdict"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "finding",
+        "task",
+        "claim",
+        "identity",
+        "disposition",
+        "evidence",
+        "campaign",
+        "contribution",
+        "command",
+        "anonymous",
+        "authority",
+        "forge",
+        "fresh",
+        "object",
+        "acceptance",
+        "handoff",
+        "existing",
+        "accepted",
+        "remains",
+        "persistent",
+        "root",
+        "list",
+        "show"
+      ],
+      "lines": 211,
+      "path": "docs/design/forge-native-beta-cli.md",
+      "sha256": "7d088f63dbaf659aa4cb4f6001760207f039e7c5a6567d87ce5f9724fa40a577",
+      "symbols": [],
+      "title": "Forge-native Open Beta CLI"
     },
     {
       "bytes": 7972,
@@ -127166,6 +130473,78 @@
       "title": "Forge-native Founding Parliament objects"
     },
     {
+      "bytes": 5403,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Forge-native Open Beta workflow"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Object chain"
+        },
+        {
+          "level": 2,
+          "line": 36,
+          "text": "Bootstrap anonymity"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "Authority boundary"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "Minimum native surfaces before Forge canonicality"
+        },
+        {
+          "level": 2,
+          "line": 87,
+          "text": "No silent production upgrade"
+        },
+        {
+          "level": 2,
+          "line": 96,
+          "text": "Required JSON adapter validation"
+        }
+      ],
+      "keywords": [
+        "beta",
+        "finding",
+        "contribution",
+        "json",
+        "account",
+        "authority",
+        "forge",
+        "production",
+        "forge-native",
+        "object",
+        "campaign",
+        "grant",
+        "workflow",
+        "validation",
+        "these",
+        "claim",
+        "accepted",
+        "evidence",
+        "canonical",
+        "value",
+        "open",
+        "bootstrap",
+        "upgrade",
+        "adapter"
+      ],
+      "lines": 127,
+      "path": "forge-native/OPEN_BETA.md",
+      "sha256": "a0aff97b91dfc9e77510f7fd7c9f84d43e2737c8f1a5d977e6f7a9f5c687e81c",
+      "symbols": [],
+      "title": "Forge-native Open Beta workflow"
+    },
+    {
       "bytes": 497,
       "group": "root",
       "headings": [],
@@ -127306,6 +130685,294 @@
       "lines": 65,
       "path": "forge-native/schemas/amendment-proposal.schema.json",
       "sha256": "b6dffa920a1669dd347baaed6c3209abd4a369bea3a530006379a585251985ac",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 938,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "schema",
+        "type",
+        "account_id",
+        "beta_epoch",
+        "nonce",
+        "string",
+        "pattern",
+        "a-fa-f",
+        "beta",
+        "account",
+        "rust",
+        "required",
+        "forge-native",
+        "schemas",
+        "beta-account",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "registration",
+        "payload",
+        "description"
+      ],
+      "lines": 27,
+      "path": "forge-native/schemas/beta-account.schema.json",
+      "sha256": "e035e2d784dad01515ca154f8b877d44215562648ffdf20ee36d4fc7fc6c3b5d",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1808,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "minlength",
+        "title",
+        "campaign",
+        "starts_ms",
+        "ends_ms",
+        "maxlength",
+        "x-mininet-maxutf8bytes",
+        "integer",
+        "minimum",
+        "maximum",
+        "forge-native",
+        "beta",
+        "payload",
+        "object",
+        "format",
+        "required",
+        "target_id",
+        "beta_epoch",
+        "instructions",
+        "routes",
+        "default_testing_grant_micro"
+      ],
+      "lines": 73,
+      "path": "forge-native/schemas/beta-campaign.schema.json",
+      "sha256": "2acbe3178394981dc0269b6e6343fb36c51862805fe1794e7f8b81ffc1d00871",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1665,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "claim_tag",
+        "format",
+        "minlength",
+        "pattern",
+        "forge-native",
+        "beta",
+        "accepted",
+        "contribution",
+        "required",
+        "source_id",
+        "kind",
+        "summary",
+        "evidence",
+        "mininet-object-id",
+        "maxlength",
+        "x-mininet-maxutf8bytes",
+        "schemas",
+        "beta-contribution",
+        "json",
+        "https",
+        "json-schema"
+      ],
+      "lines": 67,
+      "path": "forge-native/schemas/beta-contribution.schema.json",
+      "sha256": "8dd927b7ffe89cb7ffa35694db7218323046138654367eafabb2f199c0d5fdf4",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1603,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "format",
+        "required",
+        "state",
+        "properties",
+        "minlength",
+        "mininet-object-id",
+        "resolved_in",
+        "forge-native",
+        "beta",
+        "finding",
+        "disposition",
+        "finding_id",
+        "rationale",
+        "null",
+        "fixed",
+        "schemas",
+        "beta-finding-disposition",
+        "json",
+        "https",
+        "json-schema",
+        "org"
+      ],
+      "lines": 72,
+      "path": "forge-native/schemas/beta-finding-disposition.schema.json",
+      "sha256": "11de6802588e97e7ebe742d0f93b28bbf1d2b00b83e8c9d63944dc6edd28aa50",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 2795,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "minlength",
+        "pattern",
+        "maxlength",
+        "x-mininet-maxutf8bytes",
+        "schema",
+        "forge-native",
+        "beta",
+        "finding",
+        "format",
+        "required",
+        "campaign_id",
+        "submission_tag",
+        "evidence_class",
+        "severity",
+        "component",
+        "summary",
+        "environment",
+        "steps",
+        "expected",
+        "observed",
+        "evidence",
+        "limitations"
+      ],
+      "lines": 118,
+      "path": "forge-native/schemas/beta-finding.schema.json",
+      "sha256": "8b680f1db3c17809f794e5551d4672fb5f9e7eb4cc07a2209a323c2703f2553d",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 841,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "schema",
+        "one",
+        "beta",
+        "format",
+        "type",
+        "forge-native",
+        "grant",
+        "approval",
+        "exact",
+        "required",
+        "policy_id",
+        "grant_id",
+        "string",
+        "minlength",
+        "mininet-object-id",
+        "schemas",
+        "beta-grant-approval",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "payload"
+      ],
+      "lines": 24,
+      "path": "forge-native/schemas/beta-grant-approval.schema.json",
+      "sha256": "686cd3069879f276c5288f5fdad3cb60ed5269e27e9fd40abcdd34b625f5502c",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 2177,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "maximum",
+        "schema",
+        "format",
+        "valid_from_ms",
+        "valid_until_ms",
+        "string",
+        "forge-native",
+        "beta",
+        "did-mini",
+        "required",
+        "campaign_id",
+        "beta_epoch",
+        "authorizers",
+        "testing_threshold",
+        "participation_threshold",
+        "testing_grant_amount_micro",
+        "participation_reward_bands_micro",
+        "pattern",
+        "array",
+        "minitems",
+        "maxitems"
+      ],
+      "lines": 83,
+      "path": "forge-native/schemas/beta-grant-policy.schema.json",
+      "sha256": "03650ee4e5446818f1076ee61d5284f73750ca0d69e40c3814ab10ce17ba54bf",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1816,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "beta",
+        "format",
+        "required",
+        "grant_class",
+        "properties",
+        "minlength",
+        "contribution_id",
+        "forge-native",
+        "grant",
+        "campaign_id",
+        "beta_epoch",
+        "account_id",
+        "amount_micro",
+        "memo",
+        "mininet-object-id",
+        "pattern",
+        "a-fa-f",
+        "participation",
+        "schemas",
+        "beta-grant",
+        "json"
+      ],
+      "lines": 77,
+      "path": "forge-native/schemas/beta-grant.schema.json",
+      "sha256": "6fd14f5c1fe445ff3e3bdca34d3f84f0fccd6688ce8b9b04e77bfea991ddcefd",
       "symbols": [],
       "title": "{"
     },
@@ -129086,6 +132753,42 @@
       "title": "\"\"\"Export public PR evidence without interpreting it as review or approval."
     },
     {
+      "bytes": 4979,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "value",
+        "raw",
+        "len",
+        "body",
+        "return",
+        "schema",
+        "number",
+        "beta",
+        "kind",
+        "json",
+        "type",
+        "validationerror",
+        "def",
+        "false",
+        "scid",
+        "payload",
+        "schemas",
+        "path",
+        "valueerror",
+        "members",
+        "parser",
+        "checks",
+        "import",
+        "formats"
+      ],
+      "lines": 124,
+      "path": "tools/check_beta_payload.py",
+      "sha256": "e0678eed965e726ca4f79652f08637d2fedc732513b0849c53c6851956f10494",
+      "symbols": [],
+      "title": "\"\"\"Validate Beta interchange JSON before constructing a signed Rust object."
+    },
+    {
       "bytes": 12014,
       "group": "tools",
       "headings": [
@@ -129758,6 +133461,22 @@
       "title": "The no-GitHub outage demo (D-0081, self-hosted forge spine roadmap #102)."
     },
     {
+      "bytes": 19,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "tools",
+        "requirements-beta-interchange",
+        "txt",
+        "jsonschema"
+      ],
+      "lines": 2,
+      "path": "tools/requirements-beta-interchange.txt",
+      "sha256": "44ff0dc2f1e40311b8239e83146749ab9d9cee2a650e699f5464755d552ee20d",
+      "symbols": [],
+      "title": "jsonschema==4.25.1"
+    },
+    {
       "bytes": 7444,
       "group": "tools",
       "headings": [],
@@ -129792,6 +133511,42 @@
       "sha256": "14d290b9e0e1c4dad53ac8bf53f65227989aa21f567102a619ba676597e89a88",
       "symbols": [],
       "title": "\"\"\""
+    },
+    {
+      "bytes": 4846,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "validate_payload",
+        "self",
+        "object_id",
+        "finding",
+        "campaign",
+        "validationerror",
+        "assertraises",
+        "bad",
+        "did",
+        "def",
+        "account",
+        "beta_epoch",
+        "grant",
+        "campaign_id",
+        "summary",
+        "contribution",
+        "key",
+        "component",
+        "evidence",
+        "title",
+        "import",
+        "unittest",
+        "canonical_did",
+        "account_id"
+      ],
+      "lines": 84,
+      "path": "tools/test_check_beta_payload.py",
+      "sha256": "bf8ff7727cf0079f4d945325bc4cb3caf3be8439cdac1184a77591d83fdac148",
+      "symbols": [],
+      "title": "import unittest"
     },
     {
       "bytes": 46279,
@@ -134171,10 +137926,19 @@
     "deploy/verification/lock-packages.sh",
     "deploy/verification/verify.sh",
     "forge-native/FOUNDING_PARLIAMENT.md",
+    "forge-native/OPEN_BETA.md",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",
     "forge-native/schemas/amendment-proposal.schema.json",
+    "forge-native/schemas/beta-account.schema.json",
+    "forge-native/schemas/beta-campaign.schema.json",
+    "forge-native/schemas/beta-contribution.schema.json",
+    "forge-native/schemas/beta-finding-disposition.schema.json",
+    "forge-native/schemas/beta-finding.schema.json",
+    "forge-native/schemas/beta-grant-approval.schema.json",
+    "forge-native/schemas/beta-grant-policy.schema.json",
+    "forge-native/schemas/beta-grant.schema.json",
     "forge-native/schemas/bounty-offer.schema.json",
     "forge-native/schemas/conformance-claim.schema.json",
     "forge-native/schemas/governance-object.schema.json",

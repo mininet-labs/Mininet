@@ -182,6 +182,24 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         Coverage::Exercised { area: "forge" },
     ),
     (
+        "mini-beta",
+        Coverage::Gap {
+            reason: "resettable, test-domain-only Open Beta coordination and Beta MINI ledger, code-level walled from production value/governance; its own campaign/finding/contribution/grant round-trip tests already cover this, a diagnostic would only repeat them",
+        },
+    ),
+    (
+        "mini-beta-exec",
+        Coverage::Gap {
+            reason: "durable/replicated execution for the same resettable test currency; covered by its own crash-recovery and replication tests, not by this in-process diagnostics suite",
+        },
+    ),
+    (
+        "mini-beta-grants",
+        Coverage::Gap {
+            reason: "campaign-scoped multi-party Beta MINI grant acceptance evidence; covered by its own acceptance/duplicate-rejection tests",
+        },
+    ),
+    (
         "mini-bootstrap",
         Coverage::Gap {
             reason: "genesis capsules are a first-run network-formation step; a client that already has an identity has nothing meaningful to bootstrap from",
