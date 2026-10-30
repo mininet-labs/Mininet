@@ -67,11 +67,11 @@ pub fn create_dir_all(path: &Path) -> io::Result<()> {
         // caller recreates on open. File contents and names inside it are still
         // committed by the write-through file moves above, so no authoritative
         // record depends on the directory barrier.
-        return match fs::create_dir(path) {
+        match fs::create_dir(path) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => Ok(()),
             Err(e) => Err(e),
-        };
+        }
     }
     #[cfg(not(windows))]
     match fs::create_dir(path) {
