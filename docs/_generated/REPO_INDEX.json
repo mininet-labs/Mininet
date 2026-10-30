@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1246,
+    "files": 1247,
     "headings": 4220,
-    "rust_symbols": 14806
+    "rust_symbols": 14818
   },
   "crates": {
     "askama_derive": {
@@ -25071,6 +25071,103 @@
         }
       ],
       "title": "use std::path::PathBuf;"
+    },
+    {
+      "bytes": 11356,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "home",
+        "store",
+        "json",
+        "str",
+        "string",
+        "args",
+        "run",
+        "node",
+        "std",
+        "unwrap",
+        "self",
+        "operator",
+        "tempdir",
+        "sync",
+        "to_string",
+        "key",
+        "needle",
+        "kel",
+        "full",
+        "clone",
+        "tester",
+        "trust",
+        "as_identity",
+        "format"
+      ],
+      "lines": 406,
+      "path": "crates/mini-cli/tests/beta_two_node_loop.rs",
+      "sha256": "a80b3e3f42381307e3c9eb4ea22a637511ed8e95aff18e381f8ddda30b150759",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 12,
+          "name": "EPOCH"
+        },
+        {
+          "kind": "fn",
+          "line": 14,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 27,
+          "name": "field"
+        },
+        {
+          "kind": "fn",
+          "line": 36,
+          "name": "number"
+        },
+        {
+          "kind": "fn",
+          "line": 50,
+          "name": "run"
+        },
+        {
+          "kind": "struct",
+          "line": 55,
+          "name": "Node"
+        },
+        {
+          "kind": "impl",
+          "line": 60,
+          "name": "Node"
+        },
+        {
+          "kind": "fn",
+          "line": 61,
+          "name": "json"
+        },
+        {
+          "kind": "fn",
+          "line": 64,
+          "name": "plain"
+        },
+        {
+          "kind": "fn",
+          "line": 68,
+          "name": "as_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "sync"
+        },
+        {
+          "kind": "fn",
+          "line": 126,
+          "name": "the_beta_loop_converges_across_two_independent_stores_over_real_sync"
+        }
+      ],
+      "title": "use std::net::TcpListener;"
     },
     {
       "bytes": 12888,
@@ -110143,7 +110240,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 9767,
+      "bytes": 9990,
       "group": "docs",
       "headings": [
         {
@@ -110255,7 +110352,7 @@
       ],
       "lines": 224,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "29482f1d7a08a262767c6ea3995aa1ca48f4f3cf9201975fa933d8e23c74a577",
+      "sha256": "8416b25aa8203d9654452110545c4f2c5a03f0207e887a055301271454669d90",
       "symbols": [],
       "title": "Open Beta status"
     },

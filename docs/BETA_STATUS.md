@@ -165,11 +165,11 @@ be silently linked merely to manufacture reputation continuity.
 ### Forge canonicality
 
 - [x] Discover a beta campaign without GitHub. *(single replica: `beta_native_loop.rs`)*
-- [ ] Submit/replicate a finding without a GitHub account/API. *Submission works natively and is covered by `crates/mini-cli/tests/beta_native_loop.rs` on a single replica; verified replication between nodes is not yet proven.*
+- [x] Submit/replicate a finding without a GitHub account/API. *`crates/mini-cli/tests/beta_two_node_loop.rs`: two independent stores connected only by a real TCP `mini sync` replicate the campaign, finding, account, grant and approvals, and derive an identical BETA snapshot digest.*
 - [x] Disposition it and produce a native Forge task. *(single replica: `beta_native_loop.rs`)*
 - [ ] Claim the task and hand off exact-state review evidence natively. *Claiming is covered by `beta_native_loop.rs`; the exact-state review-evidence handoff is not yet part of that test.*
 - [x] Record an accepted contribution and Beta MINI grant natively. *(single replica: `beta_native_loop.rs`)*
-- [ ] Complete that entire loop during a GitHub outage.
+- [ ] Complete that entire loop during a GitHub outage. *The loop's code paths have no GitHub dependency and run in `beta_two_node_loop.rs` over loopback only; a recorded outage drill on separate machines is still to do.*
 - [ ] Make GitHub a mirror/adapter rather than the authority that decides which
   beta/work state is real.
 - [ ] Implement/prove the one-way `forge_canonical = true` transition and the
