@@ -88,7 +88,7 @@ way D-0069 decided Wasmtime.
 
 ## Dependency governance
 
-`wasmtime` and `wasmtime-wasi` are pinned together to `=48.0.6`.
+`wasmtime` and `wasmtime-wasi` are pinned together to `=48.0.7`.
 The workspace compiler is pinned to Rust 1.95.0, matching upstream's minimum
 supported compiler for that runtime. This upgrade addresses
 RUSTSEC-2026-0314, -0316, -0321, -0322, -0323, -0324 and -0327 reported
@@ -136,3 +136,8 @@ by another crate's own tests.
 to compile its guest fixtures at test time.
 
 License: CC0-1.0 (public domain).
+
+The October 22 patch moves both pins to48.0.7 for RUSTSEC-2026-0378
+(component host-stream panic) and RUSTSEC-2026-0379 (aarch64 br_table
+code generation). Runner execution results and environment digests report
+this exact runtime version; the adversarial suite checks the reported value.
