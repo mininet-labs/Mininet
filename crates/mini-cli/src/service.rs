@@ -296,48 +296,48 @@ fn run(
                             let active_peers = active_peers.clone();
                             let task = thread::Builder::new().name("mini-sync-peer".into()).spawn(
                                 move || {
-                                    if seed_only {
+                                    let mut admitted = None;
+                                    // Seed and whole-store sessions share one bounded,
+                                    // per-peer admission rule and cleanup path.
+                                    let admit = |peer: &did_mini::Did| -> Result<()> {
+                                        let mut active = active_peers
+                                            .lock()
+                                            .map_err(|_| usage("admission lock poisoned"))?;
+                                        if active.len() >= MAX_WORKERS
+                                            || active.contains(peer.as_str())
+                                        {
+                                            return Err(usage(
+                                                "authenticated peer capacity reached",
+                                            ));
+                                        }
+                                        active.insert(peer.as_str().to_string());
+                                        admitted = Some(peer.as_str().to_string());
+                                        phase.store(true, Ordering::Release);
+                                        Ok(())
+                                    };
+                                    let result = if seed_only {
                                         crate::seed::serve_stream(
                                             &home,
                                             stream,
                                             &allowed_peers,
-                                            || {
-                                                phase.store(true, Ordering::Release);
-                                            },
+                                            admit,
                                         )
-                                        .is_ok()
                                     } else {
-                                        let mut admitted = None;
-                                        let result = crate::sync::serve_stream(
+                                        crate::sync::serve_stream(
                                             &home,
                                             &store,
                                             stream,
                                             &allowed_peers,
-                                            |peer| {
-                                                let mut active =
-                                                    active_peers.lock().map_err(|_| {
-                                                        usage("admission lock poisoned")
-                                                    })?;
-                                                if active.len() >= MAX_WORKERS
-                                                    || active.contains(peer.as_str())
-                                                {
-                                                    return Err(usage(
-                                                        "authenticated peer capacity reached",
-                                                    ));
-                                                }
-                                                active.insert(peer.as_str().to_string());
-                                                admitted = Some(peer.as_str().to_string());
-                                                phase.store(true, Ordering::Release);
-                                                Ok(())
-                                            },
-                                        );
-                                        if let Some(peer) = admitted {
-                                            if let Ok(mut active) = active_peers.lock() {
-                                                active.remove(&peer);
-                                            }
+                                            admit,
+                                        )
+                                        .map(|_| ())
+                                    };
+                                    if let Some(peer) = admitted {
+                                        if let Ok(mut active) = active_peers.lock() {
+                                            active.remove(&peer);
                                         }
-                                        result.is_ok()
                                     }
+                                    result.is_ok()
                                 },
                             )?;
                             Ok(Worker {

@@ -266,13 +266,44 @@ impl Evidence {
         Ok(())
     }
 }
+/// Commit a newly created directory entry. Directory barriers exist only on
+/// Unix (`mini_durable::sync_parent` is unsupported on Windows); the file itself
+/// is flushed by the caller, so non-Unix platforms accept the weaker guarantee
+/// instead of failing an otherwise successful operation.
+pub(super) fn sync_new_entry(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    return mini_durable::sync_parent(path);
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        Ok(())
+    }
+}
+/// `mini_durable::atomic_replace` stages `<name>.<pid>-<seq>.tmp`; an interrupted
+/// write can leave one behind. It is never a committed record.
+fn is_evidence_temp(name: &str) -> bool {
+    let Some(stem) = name.strip_suffix(".tmp") else {
+        return false;
+    };
+    let Some((record, suffix)) = stem.rsplit_once('.') else {
+        return false;
+    };
+    record.ends_with(".json")
+        && suffix.split_once('-').is_some_and(|(pid, seq)| {
+            !pid.is_empty()
+                && !seq.is_empty()
+                && pid.bytes().chain(seq.bytes()).all(|b| b.is_ascii_digit())
+        })
+}
 fn records(home: &Path) -> Result<Vec<Evidence>> {
     let dir = home.join("seed-evidence");
     safe_dir(&dir)?;
     let mut records = Vec::new();
     for entry in fs::read_dir(&dir).map_err(err)? {
         let entry = entry.map_err(err)?;
-        if entry.file_name() == "journal.lock" {
+        if entry.file_name() == "journal.lock"
+            || is_evidence_temp(&entry.file_name().to_string_lossy())
+        {
             continue;
         }
         if records.len() >= MAX_RECORDS {
@@ -292,6 +323,19 @@ fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
     let dir = home.join("seed-evidence");
     safe_dir(&dir)?;
     let _lock = mini_durable::lock_exclusive(&dir.join("journal.lock")).map_err(err)?;
+    // Holding the journal lock means no writer is mid-replace: any recognised
+    // temporary is an interrupted write and is safe to reclaim.
+    for entry in fs::read_dir(&dir).map_err(err)? {
+        let entry = entry.map_err(err)?;
+        let is_temp = is_evidence_temp(&entry.file_name().to_string_lossy());
+        if is_temp && entry.file_type().map_err(err)?.is_file() {
+            match mini_durable::remove_file(&entry.path()) {
+                Ok(()) => (),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+                Err(e) => return Err(err(e)),
+            }
+        }
+    }
     let all = records(home)?;
     if all.iter().any(|old| {
         old.id == e.id
@@ -369,7 +413,7 @@ pub(crate) fn serve_stream(
     home: &Path,
     stream: TcpStream,
     allowed: &[Did],
-    on_authenticated: impl FnOnce(),
+    on_authenticated: impl FnOnce(&Did) -> Result<()>,
 ) -> Result<()> {
     let identity = crate::identity::load(home)?;
     let mut b = TcpBearer::from_stream(stream).map_err(err)?;
@@ -391,7 +435,7 @@ pub(crate) fn serve_stream(
     }
     // The peer is proven and allowlisted: it no longer counts as a pending
     // handshake, so long transfers are not cut off by the handshake deadline.
-    on_authenticated();
+    on_authenticated(&peer)?;
     crate::sync::send_session_proof(&mut b, &mut c, &identity, &transcript, b'r', &peer)?;
     match recv::<Request>(&mut b, &mut c)? {
         Request::Advertisement => mesh::advertise(home, &mut b, &mut c)?,
@@ -1068,4 +1112,27 @@ fn remote_inventory(home: &Path, address: &str, peer: &Did) -> Result<Vec<mini_s
         }
     }
     Err(err("inventory did not terminate"))
+}
+
+#[cfg(test)]
+mod evidence_temp_tests {
+    use super::is_evidence_temp;
+
+    #[test]
+    fn only_atomic_replace_temporaries_are_reclaimable() {
+        assert!(is_evidence_temp("abc.json.123-0.tmp"));
+        assert!(is_evidence_temp("abc.json.4294967295-17.tmp"));
+        for name in [
+            "abc.json",
+            "journal.lock",
+            "abc.json.tmp",
+            "abc.json.12-.tmp",
+            "abc.json.-3.tmp",
+            "abc.json.x-3.tmp",
+            "abc.txt.1-2.tmp",
+            "abc.json.1-2",
+        ] {
+            assert!(!is_evidence_temp(name), "{name}");
+        }
+    }
 }

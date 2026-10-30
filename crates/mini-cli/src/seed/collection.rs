@@ -454,7 +454,7 @@ fn create_document(path: &Path, bytes: &[u8]) -> Result<()> {
     file.write_all(bytes)
         .and_then(|_| file.sync_all())
         .map_err(err)?;
-    mini_durable::sync_parent(path).map_err(err)
+    super::sync_new_entry(path).map_err(err)
 }
 fn admit(home: &Path, path: &Path, preview: &Preview) -> Result<Vec<mini_seed::Lease>> {
     let source = crate::store::open_store(path)?;
@@ -573,7 +573,7 @@ fn export_media(home: &Path, path: &Path, mut args: Vec<String>) -> Result<Value
         drop(file);
         // Publish without overwriting a path created after the initial existence check.
         fs::hard_link(&temp, &destination).map_err(err)?;
-        mini_durable::sync_parent(&destination).map_err(err)?;
+        super::sync_new_entry(&destination).map_err(err)?;
         Ok(
             json!({"output":output,"root":root,"bytes":bytes,"digest_verified":true,"executed":false}),
         )

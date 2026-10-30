@@ -469,7 +469,7 @@ pub(super) fn dispatch(
                     f.write_all(&obj.to_bytes())
                         .and_then(|_| f.sync_all())
                         .map_err(err)?;
-                    mini_durable::sync_parent(Path::new(&output)).map_err(err)?;
+                    super::sync_new_entry(Path::new(&output)).map_err(err)?;
                     Ok(json!({"output":output,"provider":peer}))
                 }
                 "refresh" => {
