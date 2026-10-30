@@ -25,7 +25,7 @@
     },
     "claim_tag": {
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{64}$"
+      "pattern": "^(?!0{64}$)[0-9a-fA-F]{64}$"
     },
     "kind": {
       "enum": [
@@ -46,7 +46,8 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 16384,
-      "x-mininet-maxUtf8Bytes": 16384
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
     },
     "evidence": {
       "type": "array",
@@ -56,7 +57,8 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 1024,
-        "x-mininet-maxUtf8Bytes": 1024
+        "x-mininet-maxUtf8Bytes": 1024,
+        "pattern": "\\S"
       }
     }
   },

@@ -26,7 +26,7 @@
     },
     "submission_tag": {
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{64}$"
+      "pattern": "^(?!0{64}$)[0-9a-fA-F]{64}$"
     },
     "evidence_class": {
       "enum": [
@@ -52,37 +52,43 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 512,
-      "x-mininet-maxUtf8Bytes": 512
+      "x-mininet-maxUtf8Bytes": 512,
+      "pattern": "\\S"
     },
     "summary": {
       "type": "string",
       "minLength": 1,
       "maxLength": 512,
-      "x-mininet-maxUtf8Bytes": 512
+      "x-mininet-maxUtf8Bytes": 512,
+      "pattern": "\\S"
     },
     "environment": {
       "type": "string",
       "minLength": 1,
       "maxLength": 16384,
-      "x-mininet-maxUtf8Bytes": 16384
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
     },
     "steps": {
       "type": "string",
       "minLength": 1,
       "maxLength": 16384,
-      "x-mininet-maxUtf8Bytes": 16384
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
     },
     "expected": {
       "type": "string",
       "minLength": 1,
       "maxLength": 16384,
-      "x-mininet-maxUtf8Bytes": 16384
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
     },
     "observed": {
       "type": "string",
       "minLength": 1,
       "maxLength": 16384,
-      "x-mininet-maxUtf8Bytes": 16384
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
     },
     "evidence": {
       "type": "array",
@@ -92,14 +98,16 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 1024,
-        "x-mininet-maxUtf8Bytes": 1024
+        "x-mininet-maxUtf8Bytes": 1024,
+        "pattern": "\\S"
       }
     },
     "limitations": {
       "type": "string",
       "minLength": 1,
       "maxLength": 16384,
-      "x-mininet-maxUtf8Bytes": 16384
+      "x-mininet-maxUtf8Bytes": 16384,
+      "pattern": "\\S"
     },
     "privacy_redacted": {
       "const": true

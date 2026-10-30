@@ -62,6 +62,22 @@ class BetaInterchangeTests(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 validate_payload("campaign", {**campaign, "target_id": bad})
 
+    def test_rust_rejected_zero_tags_and_blank_text_are_rejected(self):
+        finding = {"campaign_id": OBJECT_ID, "submission_tag": "01" * 32, "evidence_class": "other",
+                   "severity": "low", "component": "c", "summary": "s", "environment": "e",
+                   "steps": "p", "expected": "x", "observed": "o", "evidence": ["ev"],
+                   "limitations": "l", "privacy_redacted": True}
+        validate_payload("finding", finding)
+        for bad in [{"submission_tag": "0" * 64}, {"component": "   "}, {"evidence": [" "]}]:
+            with self.assertRaises(ValidationError):
+                validate_payload("finding", {**finding, **bad})
+        contribution = {"source_id": OBJECT_ID, "campaign_id": None, "claim_tag": "01" * 32,
+                        "kind": "testing", "summary": "s", "evidence": ["ev"]}
+        validate_payload("contribution", contribution)
+        for bad in [{"claim_tag": "0" * 64}, {"summary": "\t "}]:
+            with self.assertRaises(ValidationError):
+                validate_payload("contribution", {**contribution, **bad})
+
 
 if __name__ == "__main__":
     unittest.main()

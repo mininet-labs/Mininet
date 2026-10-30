@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 91,
-    "files": 1180,
-    "headings": 4105,
+    "files": 1181,
+    "headings": 4137,
     "rust_symbols": 13401
   },
   "crates": {
@@ -1545,7 +1545,7 @@
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
     {
-      "bytes": 5243,
+      "bytes": 5652,
       "group": "root",
       "headings": [
         {
@@ -1555,54 +1555,54 @@
         },
         {
           "level": 2,
-          "line": 30,
+          "line": 37,
           "text": "Principles that apply to contribution itself"
         },
         {
           "level": 2,
-          "line": 56,
+          "line": 63,
           "text": "Practical checklist for a PR"
         },
         {
           "level": 2,
-          "line": 76,
+          "line": 83,
           "text": "Signing"
         },
         {
           "level": 2,
-          "line": 83,
+          "line": 90,
           "text": "Scope of a batch"
         }
       ],
       "keywords": [
         "human",
         "contributing",
+        "merge",
+        "authority",
         "what",
+        "reviewer",
         "founder",
         "change",
         "cargo",
         "principles",
         "contribution",
         "itself",
-        "spec-11",
         "temporary",
         "repository",
-        "merge",
-        "authority",
         "reasoning",
-        "every",
         "invariants",
         "touches",
         "something",
-        "reviewer",
+        "directives",
         "contributor",
-        "review",
+        "new",
         "evidence",
-        "frozen"
+        "frozen",
+        "floor"
       ],
-      "lines": 88,
+      "lines": 95,
       "path": "CONTRIBUTING.md",
-      "sha256": "3a2d3b6dfb6f4ed5bcc488fd6298d8457077345b9d7a40de21121d8a41f7286e",
+      "sha256": "391fc6738659546419be3ac6acf00a812759da63e178ddad1ce5d80f2ee03283",
       "symbols": [],
       "title": "Contributing"
     },
@@ -1852,7 +1852,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 31346,
+      "bytes": 32153,
       "group": "root",
       "headings": [
         {
@@ -1863,68 +1863,73 @@
         {
           "level": 2,
           "line": 25,
+          "text": "Start contributing"
+        },
+        {
+          "level": 2,
+          "line": 39,
           "text": "What no one can change"
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 65,
           "text": "What exists today \u2014 honestly"
         },
         {
           "level": 2,
-          "line": 351,
+          "line": 365,
           "text": "The road to release"
         },
         {
           "level": 2,
-          "line": 393,
+          "line": 407,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 405,
+          "line": 419,
           "text": "Beta testing and contributing"
         },
         {
           "level": 2,
-          "line": 429,
+          "line": 443,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 491,
+          "line": 505,
           "text": "License"
         }
       ],
       "keywords": [
         "never",
-        "real",
         "what",
         "money",
+        "contributing",
         "identity",
+        "real",
         "one",
         "network",
         "repository",
         "design",
         "signed",
-        "consensus",
+        "start",
         "exists",
         "today",
+        "release",
         "here",
         "canonical",
         "owned",
+        "its",
+        "current",
         "protocol",
         "governance",
         "verified",
-        "did",
-        "weight",
-        "root",
-        "switch",
-        "nothing"
+        "did"
       ],
-      "lines": 495,
+      "lines": 509,
       "path": "README.md",
-      "sha256": "784724f93c4e221841eecb5f68acc4d54f772fabc65ce641d70d92fc1cfe4d30",
+      "sha256": "74c3355048fbb633a82589ee5d3d38246c1c602878947a878436b9a1761cf342",
       "symbols": [],
       "title": "Mininet"
     },
@@ -108079,6 +108084,198 @@
       "title": "User-supplied audit source reports"
     },
     {
+      "bytes": 33203,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Team leaders and architects welcome pack"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "Build the network, not just the crates."
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "01  Your first hour"
+        },
+        {
+          "level": 3,
+          "line": 38,
+          "text": "The five rules leaders cannot bargain away"
+        },
+        {
+          "level": 3,
+          "line": 50,
+          "text": "How to read ownership"
+        },
+        {
+          "level": 2,
+          "line": 54,
+          "text": "02  Proposed engineering organization"
+        },
+        {
+          "level": 2,
+          "line": 71,
+          "text": "03  Team leader charters"
+        },
+        {
+          "level": 3,
+          "line": 73,
+          "text": "T01  Identity, Continuity & Personhood"
+        },
+        {
+          "level": 3,
+          "line": 85,
+          "text": "T02  Cryptography, Privacy & Protocol Assurance"
+        },
+        {
+          "level": 3,
+          "line": 97,
+          "text": "T03  Mesh Networking, Sync & Offline Transport"
+        },
+        {
+          "level": 3,
+          "line": 109,
+          "text": "T04  Consensus, Execution & Finality"
+        },
+        {
+          "level": 3,
+          "line": 121,
+          "text": "T05  Value, Economics & Custody"
+        },
+        {
+          "level": 3,
+          "line": 133,
+          "text": "T06  Objects, Storage & Media Reliability"
+        },
+        {
+          "level": 3,
+          "line": 145,
+          "text": "T07  Discovery, Search & Web/Data Services"
+        },
+        {
+          "level": 3,
+          "line": 157,
+          "text": "T08  Client, Mobile & Human Experience"
+        },
+        {
+          "level": 3,
+          "line": 169,
+          "text": "T09  Native Forge & Developer Workflow"
+        },
+        {
+          "level": 3,
+          "line": 181,
+          "text": "T10  Release, Platform Operations & Verification"
+        },
+        {
+          "level": 2,
+          "line": 193,
+          "text": "04  Cross-team contracts to make explicit"
+        },
+        {
+          "level": 3,
+          "line": 204,
+          "text": "Decision rights and escalation"
+        },
+        {
+          "level": 2,
+          "line": 218,
+          "text": "05  Release road: what remains"
+        },
+        {
+          "level": 2,
+          "line": 245,
+          "text": "06  Three release lanes: do not conflate them"
+        },
+        {
+          "level": 3,
+          "line": 253,
+          "text": "Milestone plan: dependency-led, not date-led"
+        },
+        {
+          "level": 2,
+          "line": 265,
+          "text": "07  Live work queue and PR integration"
+        },
+        {
+          "level": 2,
+          "line": 281,
+          "text": "08  Daily operating contract"
+        },
+        {
+          "level": 3,
+          "line": 283,
+          "text": "For each technical task, require a one-page ticket"
+        },
+        {
+          "level": 3,
+          "line": 295,
+          "text": "Definition of Done"
+        },
+        {
+          "level": 3,
+          "line": 299,
+          "text": "Suggested focused validation ladder"
+        },
+        {
+          "level": 2,
+          "line": 325,
+          "text": "09  Leader onboarding \u2014 first five working days"
+        },
+        {
+          "level": 3,
+          "line": 335,
+          "text": "Leader questions for the weekly cross-team council"
+        },
+        {
+          "level": 2,
+          "line": 347,
+          "text": "10  Crate ownership directory \u00b7 main branch"
+        },
+        {
+          "level": 2,
+          "line": 366,
+          "text": "Sources, authority and revalidation checklist"
+        }
+      ],
+      "keywords": [
+        "current",
+        "team",
+        "proposed",
+        "release",
+        "governance",
+        "status",
+        "github",
+        "gates",
+        "rules",
+        "ownership",
+        "welcome",
+        "leaders",
+        "engineering",
+        "identity",
+        "operating",
+        "main",
+        "authority",
+        "source",
+        "evidence",
+        "pack",
+        "your",
+        "first",
+        "five",
+        "read"
+      ],
+      "lines": 400,
+      "path": "docs/contributors/WELCOME.md",
+      "sha256": "28478ba716db0ade544134dec5b1463f7dcc329a865d2abc1dafd1f3b866ea6b",
+      "symbols": [],
+      "title": "Team leaders and architects welcome pack"
+    },
+    {
       "bytes": 8870,
       "group": "docs",
       "headings": [
@@ -124209,7 +124406,7 @@
       "title": "{"
     },
     {
-      "bytes": 1605,
+      "bytes": 1665,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -124219,6 +124416,7 @@
         "claim_tag",
         "format",
         "minlength",
+        "pattern",
         "forge-native",
         "beta",
         "accepted",
@@ -124235,12 +124433,11 @@
         "beta-contribution",
         "json",
         "https",
-        "json-schema",
-        "org"
+        "json-schema"
       ],
-      "lines": 65,
+      "lines": 67,
       "path": "forge-native/schemas/beta-contribution.schema.json",
-      "sha256": "8102b0a7772be1215325b0d94bef3028d3e7e13313bbe2b1fe2bba9f327a85d1",
+      "sha256": "8dd927b7ffe89cb7ffa35694db7218323046138654367eafabb2f199c0d5fdf4",
       "symbols": [],
       "title": "{"
     },
@@ -124281,13 +124478,14 @@
       "title": "{"
     },
     {
-      "bytes": 2591,
+      "bytes": 2795,
       "group": "root",
       "headings": [],
       "keywords": [
         "type",
         "string",
         "minlength",
+        "pattern",
         "maxlength",
         "x-mininet-maxutf8bytes",
         "schema",
@@ -124307,12 +124505,11 @@
         "expected",
         "observed",
         "evidence",
-        "limitations",
-        "privacy_redacted"
+        "limitations"
       ],
-      "lines": 110,
+      "lines": 118,
       "path": "forge-native/schemas/beta-finding.schema.json",
-      "sha256": "ca0961a28d69aec61c185efbbb7148cb0f687f7eb104348ddde269b8f9e826f7",
+      "sha256": "8b680f1db3c17809f794e5551d4672fb5f9e7eb4cc07a2209a323c2703f2553d",
       "symbols": [],
       "title": "{"
     },
@@ -126925,38 +127122,38 @@
       "title": "\"\"\""
     },
     {
-      "bytes": 3752,
+      "bytes": 4846,
       "group": "tools",
       "headings": [],
       "keywords": [
         "validate_payload",
         "self",
         "object_id",
+        "finding",
         "campaign",
         "validationerror",
+        "assertraises",
+        "bad",
         "did",
+        "def",
         "account",
         "beta_epoch",
-        "assertraises",
-        "def",
         "grant",
-        "finding",
+        "campaign_id",
+        "summary",
+        "contribution",
         "key",
+        "component",
+        "evidence",
         "title",
-        "bad",
         "import",
         "unittest",
         "canonical_did",
-        "account_id",
-        "campaign_id",
-        "target_id",
-        "instructions",
-        "ends_ms",
-        "members"
+        "account_id"
       ],
-      "lines": 68,
+      "lines": 84,
       "path": "tools/test_check_beta_payload.py",
-      "sha256": "b774cdc5989b21b5718664ae5d47ee12102fce8b30429d5bf6c4fbddecf064a2",
+      "sha256": "bf8ff7727cf0079f4d945325bc4cb3caf3be8439cdac1184a77591d83fdac148",
       "symbols": [],
       "title": "import unittest"
     },
