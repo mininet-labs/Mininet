@@ -21,7 +21,6 @@ mod player;
 mod resident;
 mod resident_patch;
 
-
 mod private_relationship;
 mod theme;
 mod timeline;
