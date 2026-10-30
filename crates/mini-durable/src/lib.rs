@@ -166,15 +166,6 @@ fn move_entry(from: &Path, to: &Path, replace: bool) -> io::Result<()> {
         };
         fn wide(path: &Path) -> io::Result<Vec<u16>> {
             let mut value: Vec<_> = path.as_os_str().encode_wide().collect();
-            // fs::canonicalize yields `\\?\X:\...` verbatim paths; use the
-            // equivalent plain drive path when it fits within MAX_PATH.
-            let verbatim: Vec<u16> = r"\\?\".encode_utf16().collect();
-            if value.starts_with(&verbatim)
-                && value.len() < 260
-                && value.get(5).is_some_and(|c| *c == u16::from(b':'))
-            {
-                value.drain(..4);
-            }
             if value.contains(&0) {
                 return Err(io::Error::new(io::ErrorKind::InvalidInput, "NUL in path"));
             }
