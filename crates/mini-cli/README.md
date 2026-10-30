@@ -31,12 +31,16 @@ mini kel trust <hex>                        trust another home's exported KELs
 
 mini repo init <name> [--maintainer <did>]... [--min-approvals N]
 mini repo track <name> <project-id>         local alias for a project someone else created
+mini repo snapshot-preview --workspace <dir>
+mini repo commit-preview <project> --branch <b> --message <m> --workspace <dir>
 mini repo commit <project> --branch <b> --message <m> <path>...
+mini repo commit <project> --branch <b> --message <m> --workspace <dir> [--confirm-plan <plan-id> | --confirm-snapshot <snapshot-id>]
 mini repo checkout <commit-id> <dest-dir>
 mini repo branch <project> <branch> [--set <commit-id>]   (raw pointer; NOT canonical -- see `repo status`)
 mini repo status <project>                  governed canonical state (resolve_project)
 
-mini pr propose <project> --branch <b> --title <t> --head <commit-id> [--base <id>]
+mini pr propose-preview <project> --branch <b> --title <t> --head <commit-id> [--base <id>]
+mini pr propose <project> --branch <b> --title <t> --head <commit-id> [--base <id>] [--confirm-plan <plan-id>]
 mini pr approve <pr-id> --head <commit-id> [--reject] [--findings <text>]
 mini pr merge <project> <pr-id> [--prev <id>]
 mini pr ai-assisted <pr-id> --owner <did>   declare AI-assistance + accountable human owner (informational, never quorum)
@@ -128,3 +132,95 @@ This selection gives no governance or personhood weight.
 `mini beta claim new` generates a private claim secret and public commitment only.
 It returns `account_registration_required: true`; it does not create a spendable
 account or reward destination. Preserve the private secret outside public reports.
+
+## Native migration and collaboration
+
+See [the migration runbook](../../docs/design/native-forge-migration.md) for
+`mini git import-snapshot` / `export`, `repo commit --workspace`, structured
+`pr list|show|diff|review|approve|merge`, and saved `remote` endpoints. These
+compose signed native collaboration without GitHub; source exchange never
+installs software or bypasses governance approval.
+
+The [Unix software launch profile](../../docs/design/native-forge-launch.md)
+adds executable-preserving, resumable history migration and
+`mini service run|status|stop` with explicit peer allowlists and pinned
+mutual authentication. Run `python3 tools/check_native_forge.py --release`
+for the repeatable coding acceptance gate.
+
+### Review an exact commit and proposal plan
+
+Select an existing CLI profile with `--home` / `--store`, or the defaults
+above. These examples assume that profile already knows the project's alias
+and trusts the required identities. Preview commands do not initialize an
+identity, allocate a sequence, or create signed objects; existing profile lock
+metadata may still be opened.
+
+```sh
+# Inspect the complete bounded source manifest; file contents are not printed.
+mini --json repo snapshot-preview --workspace ./work
+
+# Review source, signer, project, message and current governed parent together.
+mini --json repo commit-preview PROJECT --branch main --message "Describe the change" --workspace ./work
+
+# Copy plan_id from that review; keep the inputs identical.
+mini --json repo commit PROJECT --branch main --message "Describe the change" --workspace ./work --confirm-plan COMMIT_PLAN_ID
+
+# Use the returned commit_id as the proposal's exact head.
+mini --json pr propose-preview PROJECT --branch main --title "Describe the change" --head COMMIT_ID
+mini --json pr propose PROJECT --branch main --title "Describe the change" --head COMMIT_ID --confirm-plan PROPOSAL_PLAN_ID
+```
+
+`snapshot_id` binds the canonical workspace, complete included tree, file
+bytes, empty directories and portable executable flags. Known repository and
+`.resident*` metadata are excluded; other private files can still be included
+when the owner selects a whole workspace. Inspect the manifest before signing.
+
+The commit `plan_id` additionally binds canonical node/store paths, signer
+DIDs, resolved project, branch, message and current governed parent/state.
+The proposal has its own `plan_id`, binding its verified exact head, title,
+branch, signer, project and current governance base/state. A changed input or
+base requires a fresh preview and confirmation. These IDs do not predict future
+sequence numbers, timestamps or newly signed object IDs, and confirmation is
+not a global transaction against other writers racing after context capture.
+
+Existing positional-path commits, unconfirmed workspace commits and unconfirmed
+proposals remain available. `--confirm-snapshot` is the source-only confirmation
+option; it does not bind commit metadata and cannot be combined with
+`--confirm-plan`. Planned proposals require the current verified governance tip
+as their base; they do not silently rebase an earlier plan.
+
+Creating a commit or proposal does not synchronize it to another node, run the
+code, approve it or merge it. Exchange objects explicitly through configured
+`mini remote sync` / sync sessions, then use the existing exact-head review and
+governed merge process. See the migration runbook for peer trust and transport
+setup; AI findings and plan confirmations carry no approval weight.
+
+## Resident AI
+
+`mini resident` offers owner-configured local model assistance, bounded source
+context, local search/inspection, shipped diagnostics and explicitly confirmed
+patches. Hosting/fee commands plan from owner inputs without networking or
+payments. See [Resident AI](../../docs/design/resident-ai.md).
+
+
+### Campaign review evidence
+
+These commands record signed coordination evidence; they do not assign work,
+close findings automatically, authorize funding, or constitute Forge approval.
+All commands support global `--home`, `--store`, and `--json`.
+
+- `mini campaign create --title <text> --description <text> --expires-ms <unix-ms>`
+  creates a campaign with an expiry strictly later than its creation time.
+- `mini campaign show <campaign-id>` shows verified findings and attributed
+  responses. JSON uses `author_identity_root` consistently across object types.
+- `mini finding create --target <object-id> [--head <object-id>] --findings <text>`
+  records an observation about an existing local object and optional exact head.
+- `mini disposition create --finding <finding-id> --disposition <value> --notes <text>`
+  records a response. Values: `corrected`, `accepted-with-gate`, `rejected`,
+  `deferred`, `constitutional-disagreement`. Review outcomes such as
+  `needs-changes` are not finding responses. Notes must explain correction,
+  risk gate, rejection, deferral, or constitutional disagreement as applicable.
+
+Titles are limited to 256 UTF-8 bytes; descriptions, findings and response notes
+are limited to 4096 UTF-8 bytes. Campaign snapshots reject more than 1024
+selected findings or responses rather than silently truncating evidence.

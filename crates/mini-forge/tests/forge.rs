@@ -403,3 +403,53 @@ fn incomplete_artifact_blocks_adoption() {
         Err(ForgeError::ArtifactUnavailable)
     );
 }
+
+#[test]
+fn long_source_filenames_roundtrip_without_relaxing_branch_names() {
+    use mini_forge::{file_name_is_well_formed, MAX_FILENAME_BYTES};
+    let (root, device) = human(10);
+    let h = root.did();
+    let mut store = Store::new(MemoryBackend::new());
+    let blob = put_file(&mut store, &h, &device, b"source").unwrap();
+    let name = "a".repeat(MAX_FILENAME_BYTES);
+    assert!(file_name_is_well_formed(&name));
+    let tree = put_tree(
+        &mut store,
+        &h,
+        &device,
+        &[TreeEntry {
+            name: name.clone(),
+            is_dir: false,
+            target: blob.clone(),
+        }],
+    )
+    .unwrap();
+    let snapshot = commit(&mut store, &h, &device, "long filename", &tree, &[], 100, 1).unwrap();
+    assert_eq!(
+        checkout(&store, snapshot.id()).unwrap(),
+        vec![(name.clone(), b"source".to_vec())]
+    );
+    assert!(set_branch(&mut store, &h, &device, &name, snapshot.id(), 2).is_err());
+    for invalid in [
+        "a".repeat(MAX_FILENAME_BYTES + 1),
+        ".".into(),
+        "..".into(),
+        "a/b".into(),
+        "a\\b".into(),
+        "a b".into(),
+        "é".into(),
+    ] {
+        assert!(!file_name_is_well_formed(&invalid));
+        assert!(put_tree(
+            &mut store,
+            &h,
+            &device,
+            &[TreeEntry {
+                name: invalid,
+                is_dir: false,
+                target: blob.clone(),
+            }]
+        )
+        .is_err());
+    }
+}

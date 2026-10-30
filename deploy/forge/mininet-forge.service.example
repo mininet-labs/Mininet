@@ -1,0 +1,24 @@
+# User service example. Replace PEER_ROOT_DID with a verified, pre-trusted
+# root DID and copy to ~/.config/systemd/user/mininet-forge.service.
+# Create the identity/store and exchange KELs before starting the service.
+[Unit]
+Description=Mininet authenticated native Forge sync
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/mini --home %h/.local/state/mininet-forge --store %h/.local/state/mininet-forge/store service run --addr 127.0.0.1:7400 --allow-store-sharing --allow-peer PEER_ROOT_DID
+ExecStop=%h/.local/bin/mini --home %h/.local/state/mininet-forge service stop
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/state/mininet-forge %h/.local/state/.mininet-maintenance-mininet-forge.lock
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=default.target

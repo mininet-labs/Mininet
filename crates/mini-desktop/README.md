@@ -247,3 +247,16 @@ storage, Authenticode code signing (builds are unsigned today, so SmartScreen
 warns on first run and is right to), reproducible compiler output, store-level
 cross-process coordination, and an independent security review. See
 `docs/WINDOWS_CLIENT_SECURITY.md`.
+
+Resident AI's **Reviewed local code edits** can load exact source baselines,
+stage complete replacements and require an exact preview ID before writing up to
+16 files. Model answers enter only as unapplied literal drafts. Reads and writes
+run off the UI thread; normal window close is deferred during apply. See the
+[edit composer runbook](../../docs/design/resident-ai.md#desktop-reviewed-edit-composer)
+for stale-source checks, recovery artifacts and filesystem limitations.
+
+The edit composer can explicitly save staged edits to a private local checkpoint
+and resume them after restarting. Resume rechecks current source and requires a
+new preview/confirmation. Stored-draft inspection and exact-ID removal also work
+when source has become stale. Unstaged text is not saved; no autosave or automatic
+apply runs. See [saved drafts](../../docs/design/resident-ai.md#save-and-resume-staged-edits).

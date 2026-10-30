@@ -416,6 +416,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-resident",
+        Coverage::Gap {
+            reason: "owner-controlled AI context and patch workflows are covered by crate tests; diagnostics do not invoke a model or mutate source code",
+        },
+    ),
+    (
         "mini-app-service",
         Coverage::Gap {
             reason: "the per-user application-service process itself; identity/profile/post/feed flow, restart-idempotent publication, and single-instance refusal are covered by its own in-crate and cross-process tests, not by this in-process diagnostics suite",

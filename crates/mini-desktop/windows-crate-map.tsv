@@ -48,7 +48,7 @@ mini-build-runner-wasmtime	none	worker	Forge	W4	Spawn sandboxed worker on demand
 mini-installer	none	platform-excluded	Setup	W7	Legacy POSIX installer is intentionally not part of the Windows runtime
 mini-privacy-policy	none	core-service	Privacy	W1	One policy engine gates privacy-sensitive routes before network work starts
 mini-transport-policy	none	core-service	Connections and Privacy	W2	Enable only mechanisms that actually exist and expose cost/privacy trade-offs
-mini-transport-security	none	core-service	Connections	W2	Authenticated peer binding must be proven over real channels, not inferred from TCP reachability
+mini-transport-security	direct	core-service	Connections	W2	Authenticated peer binding must be proven over real channels, not inferred from TCP reachability
 mini-resource-pricing	none	node-service	Earnings	W2	Quotes/service pricing only; must not create governance weight or hidden paid ranking
 mini-relay	none	node-service	Connections	W2	Replaceable opt-in relay operators; disappearance must cost convenience only
 mini-bridge	none	node-service	Connections	W2	Optional anti-censorship entry path; requires real bridge operator tests
@@ -92,3 +92,4 @@ mini-storage-fraud	none	node-service	Storage and Earnings	W2	Needs multi-holder 
 mini-shielded-verify	none	node-service	Node and Wallet	W6	Verify against canonical ledger view; running-chain gate applies
 mini-mesh	none	node-service	Connections	W2	Multi-peer dedup flooding requires real linked-peer tests and bounded resource policy
 mini-safety	none	core-service	Safety	W1	Viewer-local block/mute state only; never removes content from the network or denies access; community lists are explicit one-time import, never auto-subscribe
+mini-resident	direct	core-service	Resident AI	W3	Owner-granted context and reviewed patches; local model configuration and explicit consequential-action consent required

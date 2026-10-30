@@ -74,7 +74,7 @@ pub use private_protocol::{
 };
 pub use protocol::{
     receive_retrieval_request, request_retrieval, serve_pull, serve_retrieval, sync_bidirectional,
-    IngestReport, RetrievalReport, SyncRole,
+    sync_bidirectional_paged, IngestReport, RetrievalReport, SyncRole,
 };
 
 use mini_bearer::BearerError;

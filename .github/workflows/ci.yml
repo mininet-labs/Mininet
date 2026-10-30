@@ -183,14 +183,14 @@ jobs:
           cargo clippy --keep-going --all-targets --all-features
           -p mini-windows-vault -p mini-windows-setup -p mini-setup
           -p mini-app-protocol -p mini-app-service
-          -p mini-selftest -p mini-desktop -- -D warnings
+          -p mini-selftest -p mini-desktop -p mini-resident -p mini-durable -- -D warnings
 
       - name: Test the Windows-specific crates
         run: >
           cargo test --all-features
           -p mini-windows-vault -p mini-windows-setup -p mini-setup
           -p mini-app-protocol -p mini-app-service
-          -p mini-selftest -p mini-desktop
+          -p mini-selftest -p mini-desktop -p mini-resident -p mini-durable
 
       # The diagnostics suite a user can press a button to run, run here too:
       # a self-test nobody checks will one day report a confident green on a
@@ -348,7 +348,7 @@ jobs:
           cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features \
             -p mini-windows-vault -p mini-windows-setup -p mini-setup \
             -p mini-app-protocol -p mini-app-service \
-            -p mini-selftest -p mini-desktop -- -D warnings
+            -p mini-selftest -p mini-desktop -p mini-resident -p mini-durable -- -D warnings
 
       # Same spawn path on Linux, where most contributors will see it first.
       - name: Run the diagnostics suite, value layer included

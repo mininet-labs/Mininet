@@ -609,6 +609,13 @@ given time.
   not a new one. 5 tests, including a raw-socket regression proving a
   request never crosses the wire unencrypted.
 
+- **prototype, opt-in scan hint** — `mini-value` exposes domain-separated
+  BLAKE3 stealth view tags and tagged recognition. DH computation remains
+  necessary; tag mismatches skip the subsequent address multiplication.
+  Existing wire formats and wallets are unchanged. Matching hints still
+  require full address verification; authenticated hint transport and
+  unfiltered recovery scanning remain integration work. See
+  `docs/design/roadmap-review-implementation.md` and `mini-value/tests/view_tags.rs`.
 - **prototype** — `mini-value`: stealth addresses, linkable ring
   signatures, Bulletproofs confidential amounts (D-0036/D-0040). Real,
   tested, founder-reviewed, **pending external audit** — see `docs/
@@ -1715,6 +1722,36 @@ given time.
   six-vs-eleven-vs-seventeen ambiguity across SPEC-00/v2/this repo.
 
 ## 10. Self-hosted forge spine (D-0066, tracking issue #102)
+
+**Resident AI owner assistance:** the desktop now has an explicitly configured
+local-model assistant and local inspection/search; CLI tools add diagnostics,
+source-granted questions, confirmed patch workflows, hosting plans and budget
+arithmetic. Model output remains labeled advisory text and cannot dispatch
+actions, acquire human approval weight or authorize funds. This is local
+assistance, not a paid peer-inference marketplace or a closed external gate.
+See [Resident AI](design/resident-ai.md) for setup, boundaries and evidence.
+
+
+**Native Forge Unix launch profile:** history migration now preserves merge
+parents and executable bits with verified bounded continuation; iterative Git
+mirrors support deep ancestry. The persistent service adds pinned, trusted-KEL
+mutual endpoint authentication, allowlists, bounded workers and graceful stop;
+paged/windowed exchange supports stores beyond a single ID frame. Local seed
+initialization/loading is hardened. The repeatable software gate is
+`python3 tools/check_native_forge.py --release`. See
+[the profile and remaining external boundaries](design/native-forge-launch.md).
+This is source-collaboration readiness, not a governance cutover or a claim
+that hardware, research, external audit or global launch gates are closed.
+
+
+**Native migration/workspace/review implementation:** local SHA-1/SHA-256 Git
+snapshot import with signed provenance, new Git export mirrors, bounded native
+source workspaces, structured exact-head proposal/review/diff commands and saved
+peer synchronization now compose the existing Forge primitives. This is
+engineering preparation, not a governance cutover or external gate closure.
+See [Native Forge migration and collaboration](design/native-forge-migration.md)
+for commands, compatibility boundaries and acceptance evidence.
+
 
 Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
 external-audit-driven development-sequencing initiative
@@ -3160,6 +3197,53 @@ convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
 still has its own separate `muted.txt`, and integrating both onto
 `mini-safety` is open follow-up.
 
+### Resident desktop reviewed local edits (draft)
+
+The Resident AI desktop now composes bounded local file replacements, displays
+original/replacement review and requires an exact preview-ID confirmation before
+apply. Model answers are literal unapplied drafts. Cooperating patch writers are
+serialized; staged originals support non-truncating best-effort rollback, and new
+files use no-overwrite publication. Recovery artifacts are excluded from context
+and Forge snapshots. This is an owner-reviewed local edit workflow, not autonomous
+coding, test execution, proposal submission, multi-file crash atomicity or a
+statement that the wider Mininet platform is production-ready.
+
+Resident reviewed edits now have explicit workspace-local staged-draft save,
+resume, metadata inspection and exact-ID removal in desktop and CLI. Resume
+revalidates current source, rebuilds original review text and restores no apply
+authorization. Private bounded source checkpoints are excluded from model context,
+Forge snapshots and Git staging rules in this repository. Unstaged editor text,
+autosave, durable execution receipts and automatic crash recovery are not added.
+
+Resident drafts now protect unsaved work on ordinary close/workspace changes,
+use compare-and-save in the desktop to reject competing checkpoint replacement,
+and expose stale replacement/current-source comparison for explicitly acknowledged
+manual repair. Recovery loads only an unstaged editor draft with the accepted
+current baseline; it never silently rebases, stages, applies or restores approval.
+
+### Native source snapshot review (draft)
+
+The native CLI now previews a complete unsigned workspace manifest and can require
+its exact snapshot ID before signing a source commit. Bytes, portable executable
+modes, paths/empty directories and canonical root are bound; confirmed signing
+uses the same in-memory snapshot and requires an existing identity. Source-only
+confirmation does not bind project/branch/message/parent metadata, submit a
+proposal, change governance or imply checks have run. See
+`docs/design/reviewed-native-workspace.md` for the supported boundary.
+
+Native reviewed workspace commits now also have a full signing-plan preview and
+exact confirmation path binding source plus selected profile/store, signer DIDs,
+project/branch/message and captured governed context. This is proposed-commit
+construction, not canonical adoption, one-use authorization, distributed state
+locking, source test execution or release approval.
+
+Native proposal handoff now previews and confirms a plan binding exact commit
+head, signer, project, title, branch and governed base/context. The reviewed path
+checks head provenance and bounded checkout shape before sequence allocation,
+rejects stale plans, and signs from the captured context. It creates a local
+proposal only; replication, approval, quorum and merge remain explicit. Focused
+CLI and unit checks cover end-to-end handoff, stale metadata/governance, untrusted
+head provenance and missing-store refusal. No hardware or production claim.
 ## Proposed integrated runtime delivery slice
 
 Draft PR #379 extends the existing application core with a bounded durable
