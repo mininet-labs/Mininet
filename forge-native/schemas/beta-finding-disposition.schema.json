@@ -11,19 +11,22 @@
   "properties": {
     "finding_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "format": "mininet-object-id"
     },
     "task_id": {
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "format": "mininet-object-id"
     },
     "resolved_in": {
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "format": "mininet-object-id"
     },
     "state": {
       "enum": [

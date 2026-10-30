@@ -47,6 +47,26 @@ def canonical_did(value):
     return len(raw) == 34 and raw[0] in (0x12, 0x1E) and raw[1] == 32
 
 
+@FORMATS.checks("mininet-object-id")
+def canonical_object_id(value):
+    if not isinstance(value, str):
+        return True  # the schema's type keyword owns type errors
+    # ObjectId::parse: base58btc multibase ('z') over a canonical strong
+    # multihash (one-byte BLAKE3/SHA-256 code, 32-byte digest).
+    if not value.startswith("z") or len(value) < 2:
+        return False
+    body = value[1:]
+    try:
+        number = 0
+        for char in body:
+            number = number * 58 + BASE58.index(char)
+        raw = b"\x00" * (len(body) - len(body.lstrip("1")))
+        raw += number.to_bytes((number.bit_length() + 7) // 8, "big")
+    except (ValueError, OverflowError):
+        return False
+    return len(raw) == 34 and raw[0] in (0x12, 0x1E) and raw[1] == 32
+
+
 def utf8_limit(_validator, maximum, value, _schema):
     if isinstance(value, str) and len(value.encode("utf-8")) > maximum:
         yield ValidationError(f"text exceeds {maximum} UTF-8 bytes")

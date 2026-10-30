@@ -10,11 +10,13 @@
   "properties": {
     "policy_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "format": "mininet-object-id"
     },
     "grant_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "format": "mininet-object-id"
     }
   },
   "additionalProperties": false

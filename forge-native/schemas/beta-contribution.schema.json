@@ -13,13 +13,15 @@
   "properties": {
     "source_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "format": "mininet-object-id"
     },
     "campaign_id": {
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "format": "mininet-object-id"
     },
     "claim_tag": {
       "type": "string",

@@ -21,7 +21,8 @@
   "properties": {
     "campaign_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "format": "mininet-object-id"
     },
     "submission_tag": {
       "type": "string",

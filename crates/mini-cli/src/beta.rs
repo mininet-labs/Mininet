@@ -225,7 +225,12 @@ fn fresh_claim_secret() -> Result<([u8; 32], ClaimTag)> {
     Ok((secret, tag))
 }
 
-pub fn campaign_list(_home: &Path, store_path: &Path, args: Vec<String>) -> Result<CommandResult> {
+pub fn campaign_list(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let (operators, oracle) = disposition_trust(home, &mut args)?;
     reject_remaining(args, "beta campaign list")?;
     let store = open_store(store_path)?;
     let ids = store
@@ -245,11 +250,21 @@ pub fn campaign_list(_home: &Path, store_path: &Path, args: Vec<String>) -> Resu
             .iter()
             .map(|campaign| {
                 format!(
-                    "{} [{}..{}] {}",
+                    "{} [{}..{}] {} ({})",
                     campaign.id.as_str(),
                     campaign.starts_ms,
                     campaign.ends_ms,
-                    campaign.title
+                    campaign.title,
+                    trust_note(
+                        &campaign.record_author,
+                        authorized_record(
+                            &store,
+                            &campaign.id,
+                            &campaign.record_author,
+                            &operators,
+                            oracle.as_ref()
+                        )
+                    )
                 )
             })
             .collect::<Vec<_>>()
@@ -257,22 +272,48 @@ pub fn campaign_list(_home: &Path, store_path: &Path, args: Vec<String>) -> Resu
     };
     Ok(CommandResult::new(human).field(
         "campaigns",
-        JsonValue::Array(campaigns.iter().map(campaign_json).collect()),
+        JsonValue::Array(
+            campaigns
+                .iter()
+                .map(|campaign| {
+                    with_trust(
+                        campaign_json(campaign),
+                        &campaign.record_author,
+                        authorized_record(
+                            &store,
+                            &campaign.id,
+                            &campaign.record_author,
+                            &operators,
+                            oracle.as_ref(),
+                        ),
+                    )
+                })
+                .collect(),
+        ),
     ))
 }
 
 pub fn campaign_show(
-    _home: &Path,
+    home: &Path,
     store_path: &Path,
     mut args: Vec<String>,
 ) -> Result<CommandResult> {
     let id = parse_id(&next(&mut args, "beta campaign show")?)?;
+    let (operators, oracle) = disposition_trust(home, &mut args)?;
     reject_remaining(args, "beta campaign show")?;
     let store = open_store(store_path)?;
     let campaign = read_campaign(&store, &id).map_err(beta_err)?;
+    let authorized = authorized_record(
+        &store,
+        &campaign.id,
+        &campaign.record_author,
+        &operators,
+        oracle.as_ref(),
+    );
     let human = format!(
-        "campaign {}\ntitle: {}\ntarget: {}\nepoch: {}\nwindow: {}..{}\nroutes: {}\ninstructions: {}",
+        "campaign {}\nrecord: {}\ntitle: {}\ntarget: {}\nepoch: {}\nwindow: {}..{}\nroutes: {}\ninstructions: {}",
         campaign.id.as_str(),
+        trust_note(&campaign.record_author, authorized),
         campaign.title,
         campaign.target_id.as_str(),
         hex(campaign.epoch.as_bytes()),
@@ -281,7 +322,14 @@ pub fn campaign_show(
         campaign.routes.join(", "),
         campaign.instructions
     );
-    Ok(CommandResult::new(human).field("campaign", campaign_json(&campaign)))
+    Ok(CommandResult::new(human).field(
+        "campaign",
+        with_trust(
+            campaign_json(&campaign),
+            &campaign.record_author,
+            authorized,
+        ),
+    ))
 }
 
 #[allow(clippy::too_many_lines)]
@@ -624,17 +672,26 @@ pub fn contribution_accept(
 }
 
 pub fn contribution_show(
-    _home: &Path,
+    home: &Path,
     store_path: &Path,
     mut args: Vec<String>,
 ) -> Result<CommandResult> {
     let id = parse_id(&next(&mut args, "beta contribution show")?)?;
+    let (operators, oracle) = disposition_trust(home, &mut args)?;
     reject_remaining(args, "beta contribution show")?;
     let store = open_store(store_path)?;
     let contribution = read_contribution_receipt(&store, &id).map_err(beta_err)?;
+    let authorized = authorized_record(
+        &store,
+        &contribution.id,
+        &contribution.record_author,
+        &operators,
+        oracle.as_ref(),
+    );
     let human = format!(
-        "contribution {}\nsource: {}\ncampaign: {}\nkind: {}\nsummary: {}\nclaim commitment: {}",
+        "contribution {}\nrecord: {}\nsource: {}\ncampaign: {}\nkind: {}\nsummary: {}\nclaim commitment: {}",
         contribution.id.as_str(),
+        trust_note(&contribution.record_author, authorized),
         contribution.source_id.as_str(),
         contribution
             .campaign_id
@@ -645,7 +702,14 @@ pub fn contribution_show(
         contribution.summary,
         hex(contribution.claim_tag.as_bytes())
     );
-    Ok(CommandResult::new(human).field("contribution", contribution_json(&contribution)))
+    Ok(CommandResult::new(human).field(
+        "contribution",
+        with_trust(
+            contribution_json(&contribution),
+            &contribution.record_author,
+            authorized,
+        ),
+    ))
 }
 
 /// Generate claim proof material only. A claim commitment is not a registered
@@ -686,12 +750,25 @@ fn authorized_disposition<B: Backend>(
     operators: &[Did],
     oracle: Option<&mini_forge::KelDirectory>,
 ) -> bool {
+    authorized_record(store, &item.id, &item.record_author, operators, oracle)
+}
+
+/// A synced record proves control of its signing DID, not authority to publish
+/// operational Beta records. Trust is explicit: the author must be a named
+/// `--authorized-operator` and its provenance must verify against known KELs.
+fn authorized_record<B: Backend>(
+    store: &Store<B>,
+    id: &ObjectId,
+    author: &Did,
+    operators: &[Did],
+    oracle: Option<&mini_forge::KelDirectory>,
+) -> bool {
     use mini_forge::IdentityOracle;
-    if !operators.contains(&item.record_author) {
+    if !operators.contains(author) {
         return false;
     }
     let Some(oracle) = oracle else { return false };
-    let Ok(object) = store.get(&item.id) else {
+    let Ok(object) = store.get(id) else {
         return false;
     };
     let (Some(root), Some(device)) = (
@@ -752,6 +829,32 @@ pub fn disposition_show(
             ),
         ]),
     ))
+}
+
+/// Attribute a record and state whether its author is a trusted operator.
+fn with_trust(json: JsonValue, author: &Did, authorized: bool) -> JsonValue {
+    match json {
+        JsonValue::Object(mut fields) => {
+            fields.push(("record_author".to_string(), JsonValue::str(author.as_str())));
+            fields.push((
+                "operator_authorized".to_string(),
+                JsonValue::Bool(authorized),
+            ));
+            JsonValue::Object(fields)
+        }
+        other => other,
+    }
+}
+
+fn trust_note(author: &Did, authorized: bool) -> String {
+    if authorized {
+        "operator authorized".to_string()
+    } else {
+        format!(
+            "UNVERIFIED claim by {}; not an authorized operator record",
+            author.as_str()
+        )
+    }
 }
 
 fn campaign_json(campaign: &mini_beta::BetaCampaign) -> JsonValue {
@@ -945,13 +1048,14 @@ pub fn disposition_list(
 
 /// List contribution receipts.  No balance/reward amount is part of this view.
 pub fn contribution_list(
-    _home: &Path,
+    home: &Path,
     store_path: &Path,
     mut args: Vec<String>,
 ) -> Result<CommandResult> {
     let campaign_filter = extract_flag(&mut args, "--campaign")
         .map(|value| parse_id(&value))
         .transpose()?;
+    let (operators, oracle) = disposition_trust(home, &mut args)?;
     reject_remaining(args, "beta contribution list")?;
     let store = open_store(store_path)?;
     let ids = store
@@ -978,10 +1082,20 @@ pub fn contribution_list(
             .iter()
             .map(|item| {
                 format!(
-                    "{} [{}] source {}",
+                    "{} [{}] source {} ({})",
                     item.id.as_str(),
                     item.kind.as_str(),
-                    item.source_id.as_str()
+                    item.source_id.as_str(),
+                    trust_note(
+                        &item.record_author,
+                        authorized_record(
+                            &store,
+                            &item.id,
+                            &item.record_author,
+                            &operators,
+                            oracle.as_ref()
+                        )
+                    )
                 )
             })
             .collect::<Vec<_>>()
@@ -989,6 +1103,23 @@ pub fn contribution_list(
     };
     Ok(CommandResult::new(human).field(
         "contributions",
-        JsonValue::Array(contributions.iter().map(contribution_json).collect()),
+        JsonValue::Array(
+            contributions
+                .iter()
+                .map(|item| {
+                    with_trust(
+                        contribution_json(item),
+                        &item.record_author,
+                        authorized_record(
+                            &store,
+                            &item.id,
+                            &item.record_author,
+                            &operators,
+                            oracle.as_ref(),
+                        ),
+                    )
+                })
+                .collect(),
+        ),
     ))
 }
