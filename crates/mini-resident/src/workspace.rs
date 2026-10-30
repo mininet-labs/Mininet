@@ -554,6 +554,13 @@ impl PatchStage {
             keep_recovery: false,
         };
         file.write_all(edit.replacement.as_bytes())?;
+        // Staging is private (0600), but a new source file must be published with
+        // ordinary readable permissions, not the staging mode.
+        #[cfg(unix)]
+        if original.is_none() {
+            use std::os::unix::fs::PermissionsExt;
+            file.set_permissions(fs::Permissions::from_mode(0o644))?;
+        }
         if let Some((bytes, permissions)) = original {
             file.set_permissions(permissions.clone())?;
             let backup = parent.join(format!("{name}.old"));
@@ -760,6 +767,27 @@ mod tests {
             .unwrap();
         workspace.apply_patch(&create, &create.id).unwrap();
         assert_eq!(fs::read(dir.path().join("created.rs")).unwrap(), b"created");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn new_source_files_are_published_with_ordinary_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let preview = workspace
+            .preview_patch(&[PatchEdit {
+                path: "fresh.rs".into(),
+                before_hash: None,
+                replacement: "fn main() {}".into(),
+            }])
+            .unwrap();
+        workspace.apply_patch(&preview, &preview.id).unwrap();
+        let mode = fs::metadata(dir.path().join("fresh.rs"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o644);
     }
 
     #[test]

@@ -61,6 +61,7 @@ pub(crate) struct Panel {
     recovery_index: Option<usize>,
     accept_recovery: bool,
     pending_editor: Option<EditorDraft>,
+    checkpoint_checked: Option<std::time::Instant>,
 }
 impl Panel {
     pub(crate) fn is_busy(&self) -> bool {
@@ -99,6 +100,7 @@ impl Panel {
         if self.is_writing() {
             return true;
         }
+        self.revalidate_checkpoint(true);
         if self.has_unsaved_work() {
             self.close_requested = true;
             return true;
@@ -221,7 +223,34 @@ impl Panel {
             Err(e) => self.status = e.to_string(),
         }
     }
+    /// The saved marker is a cache of what this window last wrote. Another
+    /// window may since have replaced or removed the stored checkpoint, so
+    /// re-read its ID (throttled; never while a worker may hold the patch
+    /// lock) and conservatively forget the marker unless it still matches.
+    fn revalidate_checkpoint(&mut self, force: bool) {
+        if self.saved_edits.is_none() || self.is_busy() {
+            return;
+        }
+        let now = std::time::Instant::now();
+        if !force
+            && self
+                .checkpoint_checked
+                .is_some_and(|at| now.duration_since(at) < std::time::Duration::from_secs(2))
+        {
+            return;
+        }
+        self.checkpoint_checked = Some(now);
+        let stored = Workspace::open(Path::new(&self.root)).and_then(|w| w.draft_info());
+        let matches = match (&stored, &self.saved_info) {
+            (Ok(stored), Some(known)) => stored.id == known.id,
+            _ => false,
+        };
+        if !matches {
+            self.saved_edits = None;
+        }
+    }
     pub(crate) fn poll(&mut self) {
+        self.revalidate_checkpoint(false);
         let result = match self.pending.as_ref().map(|p| p.receiver.try_recv()) {
             Some(Ok(result)) => Some(result),
             Some(Err(TryRecvError::Disconnected)) => Some(Err("Edit worker stopped without a receipt. Inspect the workspace before retrying; completed writes are not undone.".into())),
@@ -729,8 +758,36 @@ mod tests {
         panel.stage().unwrap();
         assert!(panel.has_unsaved_work() && panel.request_close());
         panel.close_requested = false;
-        panel.saved_edits = Some(panel.edits.iter().map(|e| e.edit.clone()).collect());
+        // A real stored checkpoint: the marker is only trusted while it matches.
+        let dir = std::env::temp_dir().join(format!(
+            "mini-resident-close-guard-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("src.rs"), "before").unwrap();
+        panel.root = dir.display().to_string();
+        let edits: Vec<_> = panel.edits.iter().map(|e| e.edit.clone()).collect();
+        let workspace = Workspace::open(&dir).unwrap();
+        let saved = workspace.save_draft(&edits).unwrap();
+        panel.saved_edits = Some(edits.clone());
+        panel.saved_info = Some(DraftInfo {
+            id: saved.preview.id.clone(),
+            paths: vec!["src.rs".into()],
+        });
         assert!(!panel.has_unsaved_work() && !panel.request_close());
+        // Another window replaces the stored checkpoint: this window's edits are
+        // no longer saved anywhere, so closing must warn.
+        let mut other = edits.clone();
+        other[0].replacement = "another window's draft".into();
+        workspace.save_draft(&other).unwrap();
+        assert!(panel.request_close());
+        panel.close_requested = false;
+        panel.saved_edits = Some(edits);
+        let _ = std::fs::remove_dir_all(&dir);
         panel.replacement_dirty = true;
         panel
             .loaded
