@@ -2939,6 +2939,7 @@ dependencies = [
  "mini-store",
  "mini-sync",
  "mini-ticket",
+ "mini-transport-security",
  "mini-windows-setup",
  "mini-windows-vault",
  "mp4",
@@ -2946,6 +2947,7 @@ dependencies = [
  "rodio",
  "serde_json",
  "symphonia",
+ "zeroize",
 ]
 
 [[package]]

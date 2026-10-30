@@ -147,3 +147,26 @@ bounded linked history/media collections atomically. `collection-fetch` resumes
 verified graph retrieval within explicit object/byte/attempt windows; `media-export`
 reconstructs digest-verified bytes to a new file. Downloaded graphs are not
 automatically reseeded. See the seed-network runbook for command examples.
+
+
+### Campaign review evidence
+
+These commands record signed coordination evidence; they do not assign work,
+close findings automatically, authorize funding, or constitute Forge approval.
+All commands support global `--home`, `--store`, and `--json`.
+
+- `mini campaign create --title <text> --description <text> --expires-ms <unix-ms>`
+  creates a campaign with an expiry strictly later than its creation time.
+- `mini campaign show <campaign-id>` shows verified findings and attributed
+  responses. JSON uses `author_identity_root` consistently across object types.
+- `mini finding create --target <object-id> [--head <object-id>] --findings <text>`
+  records an observation about an existing local object and optional exact head.
+- `mini disposition create --finding <finding-id> --disposition <value> --notes <text>`
+  records a response. Values: `corrected`, `accepted-with-gate`, `rejected`,
+  `deferred`, `constitutional-disagreement`. Review outcomes such as
+  `needs-changes` are not finding responses. Notes must explain correction,
+  risk gate, rejection, deferral, or constitutional disagreement as applicable.
+
+Titles are limited to 256 UTF-8 bytes; descriptions, findings and response notes
+are limited to 4096 UTF-8 bytes. Campaign snapshots reject more than 1024
+selected findings or responses rather than silently truncating evidence.

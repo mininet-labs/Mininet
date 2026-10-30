@@ -105,6 +105,9 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "resident" => resident::dispatch(home, store_path, args, json),
         "team" => dispatch_team(home, store_path, args, json),
         "task" => dispatch_task(home, store_path, args, json),
+        "campaign" => dispatch_campaign(home, store_path, args, json),
+        "finding" => dispatch_finding(home, store_path, args, json),
+        "disposition" => dispatch_disposition(home, store_path, args, json),
         "sync" => {
             reject_json(json, "sync")?;
             dispatch_sync(home, store_path, args)
@@ -122,6 +125,59 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "selftest" => dispatch_selftest(args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
+}
+
+fn dispatch_campaign(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "campaign")?;
+    let result = match noun.as_str() {
+        "create" => coordination::campaign_create(home, store_path, args)
+            .map(|r| r.render(json, "campaign.create")),
+        "show" => coordination::campaign_show(home, store_path, args)
+            .map(|r| r.render(json, "campaign.show")),
+        other => Err(CliError::Usage(format!(
+            "unknown `campaign` subcommand: {other:?}"
+        ))),
+    }?;
+    Ok(result)
+}
+
+fn dispatch_finding(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "finding")?;
+    let result = match noun.as_str() {
+        "create" => coordination::finding_create(home, store_path, args)
+            .map(|r| r.render(json, "finding.create")),
+        other => Err(CliError::Usage(format!(
+            "unknown `finding` subcommand: {other:?}"
+        ))),
+    }?;
+    Ok(result)
+}
+
+fn dispatch_disposition(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "disposition")?;
+    let result = match noun.as_str() {
+        "create" => coordination::disposition_create(home, store_path, args)
+            .map(|r| r.render(json, "disposition.create")),
+        other => Err(CliError::Usage(format!(
+            "unknown `disposition` subcommand: {other:?}"
+        ))),
+    }?;
+    Ok(result)
 }
 
 fn dispatch_team(
