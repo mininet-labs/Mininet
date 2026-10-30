@@ -1,20 +1,19 @@
 version: 1
-policy_id: mininet-bootstrap-governance-v1.1
+policy_id: mininet-bootstrap-governance-v2
 authority:
   higher_documents:
     - docs/FOUNDER_DIRECTIVES.md
     - docs/INVARIANTS.md
     - docs/DECISION_LOG.md
+    - docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md
   github_role: temporary_enforcement_adapter
   forge_target: signed_governance_policy_object
 
 bootstrap_operating_profile:
-  id: founder-guarded-github-exception-v1
+  id: pre-go-live-anonymous-bootstrap-v2
   status: active
-  authority_decision: D-0083
-  effective_at: 2026-07-12T21:40:00Z
-  expires_at: 2026-10-12T23:59:59Z
-  scope: github-main-integration-only
+  authority_decision: docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md
+  scope: pre-go-live-github-integration
   canonical_branch: main
   require_pull_request: true
   require_status_checks: true
@@ -25,24 +24,21 @@ bootstrap_operating_profile:
   founder_is_merge_operator: true
   minimum_required_human_approvals: 0
   ai_approval_weight: 0
+  participant_identity: anonymous
+  governance_process_paused: true
   preserves:
-    - mini_forge_protocol_min_approvals
-    - governed_release_attestation_floor
-    - cryptography_external_audit_gates
+    - substantive_external_cryptography_audit_evidence
+    - technical_security_checks
     - owner_adoption
-    - frozen_invariants
-    - forge_canonicalization_quorum
-  sunset_on_first:
-    - expiry_time
-    - two_independent_human_maintainers_appointed
-    - production_release_candidate
-    - forge_becomes_canonical
-  on_sunset: restore_d_0033_and_block_until_rules_match
+    - constitutional_prohibitions
+  sunset_when: go_live_and_forge_canonical
+  transition: irreversible
+  on_sunset: disable_founder_authority_and_use_forge_governance
 
 repository_approval_floor:
   source_decision: D-0033
   normal_minimum_independent_human_approvals: 2
-  lowered_only_by_active_exception: D-0083
+  paused_pre_go_live_by: docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md
 
 change_classes:
   documentation:
@@ -178,3 +174,4 @@ exceptions:
   file: governance/exceptions.yml
   require_owner: true
   require_expiry: true
+  transition_sunset_exception: GOV-EX-0001

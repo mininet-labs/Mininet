@@ -3,7 +3,7 @@ name = "mini-build-runner-wasmtime"
 version = "0.0.1"
 description = "The isolated build runner (self-hosted forge spine Batch 2b.2, D-0069) -- the ONLY crate in this tree permitted to link wasmtime/wasmtime-wasi. Executes one wasm-component pipeline step under a deny-by-default capability boundary and reports an ExecutionResult. mini-cli, mini-forge, mini-chain, identity, and ordinary node binaries never depend on this crate."
 edition.workspace = true
-rust-version.workspace = true
+rust-version = "1.95"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -53,8 +53,17 @@ mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 # it, which is the whole deny-by-default filesystem premise of D-0069.
 # Both advisories' stated solution range (>=46.0.3, <47.0.0) is satisfied
 # by this patch bump alone -- no WASI Preview 2 API surface change.
-wasmtime = { version = "=46.0.3", default-features = false, features = ["cranelift", "runtime", "std"] }
-wasmtime-wasi = { version = "=46.0.3", default-features = false }
+# Security remediation: 48.0.6 is the smallest supported line covering
+# RUSTSEC-2026-0314/-0316/-0321/-0322/-0323/-0324/-0327 and
+# the October 14 patch set: -0352 through -0359 and -0361 through -0364.
+# Includes the WASI symlink-rename sandbox escape; do not waive advisories.
+# Upstream requires Rust 1.95; both Wasmtime pins move together and the
+# adversarial runner suite must pass before integration.
+# October 22 security patch: RUSTSEC-2026-0378 and -0379 fix component
+# host-stream panics and aarch64 br_table code generation respectively.
+# Keep the isolated runtime and WASI packages on the same patched release.
+wasmtime = { version = "=48.0.8", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=48.0.8", default-features = false }
 # `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
 # implements `rand_core::TryRng<Error = Infallible>`, which blanket-
 # implements the `Rng` trait `WasiCtxBuilder::secure_random`/

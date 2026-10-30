@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ParliamentSeatTerm payload",
+  "type": "object",
+  "required": ["seat_id", "term_id", "steward_key", "starts_at", "ends_at", "primary_committee", "active", "consecutive_term_number"],
+  "properties": {
+    "seat_id": {"type": "integer", "minimum": 0},
+    "term_id": {"type": "string", "minLength": 1},
+    "steward_key": {"type": "string", "minLength": 1},
+    "starts_at": {"type": "integer", "minimum": 0},
+    "ends_at": {"type": "integer", "minimum": 1},
+    "primary_committee": {"type": "string", "minLength": 1},
+    "secondary_committees": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "active": {"type": "boolean"},
+    "consecutive_term_number": {"type": "integer", "minimum": 1, "maximum": 4}
+  },
+  "additionalProperties": false
+}

@@ -1,14 +1,14 @@
 {
   "$schema": "./bootstrap-operating-state.schema.json",
-  "schema_version": 1,
-  "profile_id": "founder-guarded-github-exception-v1",
-  "decision_ref": "D-0083",
+  "schema_version": 2,
+  "profile_id": "pre-go-live-anonymous-bootstrap-v2",
+  "decision_ref": "docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md",
   "status": "active",
   "effective_at": "2026-07-12T21:40:00Z",
-  "expires_at": "2026-10-12T23:59:59Z",
   "independent_non_founder_human_maintainers": 0,
   "production_release_candidate": false,
   "forge_canonical": false,
   "last_verified_at": "2026-07-12T21:40:00Z",
-  "superseded_by": null
+  "superseded_by": null,
+  "go_live": false
 }

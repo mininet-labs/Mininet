@@ -1,0 +1,13 @@
+// Import the separately Gradle-built APK as an unprivileged system app.
+// M09 does not introduce platform permissions, shared UIDs, or services.
+// The initial target-files build uses the selected development certificate;
+// release certificates are applied by the separate offline signing process.
+android_app_import {
+    name: "Mininet",
+    apk: "Mininet.apk",
+    certificate: "testkey",
+    privileged: false,
+    dex_preopt: {
+        enabled: false,
+    },
+}

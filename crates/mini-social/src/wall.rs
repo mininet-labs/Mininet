@@ -111,6 +111,37 @@ pub fn publish_wall<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let (wall, head) = build_wall(
+        owner,
+        device,
+        display_name,
+        bio,
+        avatar,
+        public_links,
+        pinned,
+        visibility,
+        timestamp_ms,
+        sequence,
+    )?;
+    store.insert(&wall)?;
+    store.apply_head(&head)?;
+    Ok(wall)
+}
+
+/// Build the exact public wall and its separate wall head without store writes.
+#[allow(clippy::too_many_arguments)]
+pub fn build_wall(
+    owner: &Did,
+    device: &Controller,
+    display_name: &str,
+    bio: &str,
+    avatar: Option<&ObjectId>,
+    public_links: &[&str],
+    pinned: &[ObjectId],
+    visibility: VisibilityPolicy,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<(Object, Object)> {
     if display_name.len() > MAX_WALL_NAME_BYTES || bio.len() > MAX_WALL_BIO_BYTES {
         return Err(SocialError::FieldTooLarge);
     }
@@ -140,16 +171,13 @@ pub fn publish_wall<B: Backend>(
         .sequence(sequence)
         .payload(Payload::Public(payload))
         .sign(owner, device)?;
-    store.insert(&wall)?;
-
     let head = ObjectBuilder::new(ObjectType::HEAD)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("target", wall.id().clone())
         .payload(Payload::Public(b"wall".to_vec()))
         .sign(owner, device)?;
-    store.apply_head(&head)?;
-    Ok(wall)
+    Ok((wall, head))
 }
 
 /// Resolve the latest wall published under `owner`, if any. Never resolves,
@@ -164,10 +192,24 @@ pub fn resolve_wall<B: Backend>(store: &Store<B>, owner: &Did) -> Result<Option<
     if obj.object_type != ObjectType::WALL || obj.author_human.as_str() != owner.as_str() {
         return Err(SocialError::BadWall);
     }
+    if matches!(&obj.payload, Payload::Encrypted(_)) {
+        return Ok(None);
+    }
+    decode_wall(&obj).map(Some)
+}
+
+/// Decode one canonical public wall, without resolving identity or head state.
+pub fn decode_wall(obj: &Object) -> Result<PublicWall> {
+    if obj.object_type != ObjectType::WALL || !obj.links.is_empty() {
+        return Err(SocialError::BadWall);
+    }
     let bytes = match &obj.payload {
         Payload::Public(b) => b,
-        Payload::Encrypted(_) => return Ok(None),
+        Payload::Encrypted(_) => return Err(SocialError::BadWall),
     };
+    if bytes.len() > 256 * 1024 {
+        return Err(SocialError::BadWall);
+    }
     let mut pos = 0usize;
     let display_name = get_str(bytes, &mut pos).ok_or(SocialError::BadWall)?;
     let bio = get_str(bytes, &mut pos).ok_or(SocialError::BadWall)?;
@@ -210,16 +252,16 @@ pub fn resolve_wall<B: Backend>(store: &Store<B>, owner: &Did) -> Result<Option<
         return Err(SocialError::BadWall);
     }
 
-    Ok(Some(PublicWall {
+    Ok(PublicWall {
         wall_id: obj.id().clone(),
-        owner: owner.clone(),
+        owner: obj.author_human.clone(),
         display_name,
         bio,
         avatar,
         public_links,
         pinned,
         visibility,
-    }))
+    })
 }
 
 /// Voluntarily, explicitly publish a signed linkage from `wall_owner` to
@@ -281,4 +323,106 @@ fn read_u32(b: &[u8], pos: &mut usize) -> Result<u32> {
     let v = u32::from_be_bytes([b[*pos], b[*pos + 1], b[*pos + 2], b[*pos + 3]]);
     *pos += 4;
     Ok(v)
+}
+
+#[cfg(test)]
+mod builder_tests {
+    use super::*;
+    #[test]
+    fn store_free_wall_keeps_legacy_modes_and_strict_decoder_shape() {
+        let owner = Controller::incept_single_from_seeds(&[91; 32], &[92; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&owner.did(), &[93; 32], &[94; 32])
+                .unwrap();
+        for visibility in [VisibilityPolicy::Public, VisibilityPolicy::Unlisted] {
+            let (wall, head) = build_wall(
+                &owner.did(),
+                &device,
+                "Wall",
+                "Bio",
+                None,
+                &["https://example.test"],
+                &[],
+                visibility,
+                7,
+                8,
+            )
+            .unwrap();
+            let mut payload = Vec::new();
+            put_str(&mut payload, "Wall");
+            put_str(&mut payload, "Bio");
+            put_str(&mut payload, "");
+            payload.push(visibility.to_byte());
+            payload.extend_from_slice(&1u32.to_be_bytes());
+            put_str(&mut payload, "https://example.test");
+            payload.extend_from_slice(&0u32.to_be_bytes());
+            let legacy = ObjectBuilder::new(ObjectType::WALL)
+                .timestamp_ms(7)
+                .sequence(8)
+                .payload(Payload::Public(payload.clone()))
+                .sign(&owner.did(), &device)
+                .unwrap();
+            let legacy_head = ObjectBuilder::new(ObjectType::HEAD)
+                .timestamp_ms(7)
+                .sequence(8)
+                .link("target", legacy.id().clone())
+                .payload(Payload::Public(b"wall".to_vec()))
+                .sign(&owner.did(), &device)
+                .unwrap();
+            assert_eq!(wall.to_bytes(), legacy.to_bytes());
+            assert_eq!(head.to_bytes(), legacy_head.to_bytes());
+            assert_eq!(decode_wall(&wall).unwrap().visibility, visibility);
+            let mut store = Store::new(mini_store::MemoryBackend::new());
+            assert_eq!(
+                publish_wall(
+                    &mut store,
+                    &owner.did(),
+                    &device,
+                    "Wall",
+                    "Bio",
+                    None,
+                    &["https://example.test"],
+                    &[],
+                    visibility,
+                    7,
+                    8
+                )
+                .unwrap()
+                .to_bytes(),
+                wall.to_bytes()
+            );
+            assert_eq!(
+                resolve_wall(&store, &owner.did()).unwrap().unwrap(),
+                decode_wall(&wall).unwrap()
+            );
+            payload.push(0);
+            let trailing = ObjectBuilder::new(ObjectType::WALL)
+                .payload(Payload::Public(payload))
+                .sign(&owner.did(), &device)
+                .unwrap();
+            assert!(decode_wall(&trailing).is_err());
+            let linked = ObjectBuilder::new(ObjectType::WALL)
+                .link("extra", wall.id().clone())
+                .payload(wall.payload.clone())
+                .sign(&owner.did(), &device)
+                .unwrap();
+            assert!(decode_wall(&linked).is_err());
+            let (full, _) = build_wall(
+                &owner.did(),
+                &device,
+                "Full",
+                "",
+                Some(wall.id()),
+                &[],
+                &[wall.id().clone()],
+                visibility,
+                7,
+                9,
+            )
+            .unwrap();
+            let decoded = decode_wall(&full).unwrap();
+            assert_eq!(decoded.avatar, Some(wall.id().clone()));
+            assert_eq!(decoded.pinned, vec![wall.id().clone()]);
+        }
+    }
 }

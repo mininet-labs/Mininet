@@ -80,8 +80,8 @@ pub use curve::random_scalar_bytes;
 pub use error::{Result, ValueError};
 pub use fee::{fee_in_micro_mini, PriceEntry, PriceHistory, PRICE_SCALE};
 pub use mlsag::{
-    balancing_blinding, reblind, sign_spend, verify_spend, MlsagSignature, SpendWitness,
-    MLSAG_DOMAIN,
+    balancing_blinding, reblind, sign_spend, spend_key_image, verify_spend, MlsagSignature,
+    SpendWitness, MLSAG_DOMAIN,
 };
 pub use mlsag_v3::{
     balancing_blinding_v3, reblind_v3, sign_spend_v3, verify_spend_v3, MlsagSignatureV3,
@@ -91,9 +91,10 @@ pub use ring::{NoRingSignature, RingSignature, RingSignatureScheme};
 pub use ring_impl::MininetRingSignature;
 pub use stealth::{NoStealthAddress, StealthAddressScheme, StealthOutput};
 pub use stealth_impl::{
-    derive_output_with_secret, derive_spend_scalar, one_time_key_is_well_formed,
-    recover_shared_secret, stealth_address_is_well_formed, view_public_from_secret,
-    MininetStealthAddress, StealthKeypair, StealthSharedSecret,
+    derive_output_with_secret, derive_spend_scalar, derive_tagged_output,
+    one_time_key_is_well_formed, recognizes_tagged_output, recover_shared_secret,
+    stealth_address_is_well_formed, view_public_from_secret, MininetStealthAddress, StealthKeypair,
+    StealthSharedSecret, ViewTag,
 };
 pub use stealth_v3::{
     derive_output_v3, derive_spend_scalar_v3, recover_and_verify_v3, STEALTH_OFFSET_V3_DOMAIN,

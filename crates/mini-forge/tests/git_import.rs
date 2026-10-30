@@ -313,3 +313,78 @@ fn a_commit_with_an_unrecognized_header_line_is_rejected_not_silently_dropped() 
     .unwrap_err();
     assert_eq!(err, mini_forge::ForgeError::BadObject);
 }
+
+#[test]
+fn executable_modes_survive_native_and_git_roundtrips() {
+    use mini_forge::{checkout_with_modes, put_executable_file};
+    let (author, device) = human(10);
+    let mut store = Store::new(MemoryBackend::new());
+    let bytes = b"#!/bin/sh\necho hello\n";
+    let executable = put_executable_file(&mut store, &author.did(), &device, bytes).unwrap();
+    let regular = put_file(&mut store, &author.did(), &device, bytes).unwrap();
+    assert_ne!(executable, regular);
+    let tree = put_tree(
+        &mut store,
+        &author.did(),
+        &device,
+        &[
+            TreeEntry {
+                name: "run.sh".into(),
+                is_dir: false,
+                target: executable,
+            },
+            TreeEntry {
+                name: "text.sh".into(),
+                is_dir: false,
+                target: regular,
+            },
+        ],
+    )
+    .unwrap();
+    let head = commit(
+        &mut store,
+        &author.did(),
+        &device,
+        "modes",
+        &tree,
+        &[],
+        100,
+        1,
+    )
+    .unwrap();
+    let expected = vec![
+        ("run.sh".into(), bytes.to_vec(), true),
+        ("text.sh".into(), bytes.to_vec(), false),
+    ];
+    assert_eq!(checkout_with_modes(&store, head.id()).unwrap(), expected);
+    assert_eq!(checkout(&store, head.id()).unwrap().len(), 2);
+    let (git_id, exported) = export_commit_chain(&store, head.id()).unwrap();
+    let tree_bytes = &exported
+        .iter()
+        .find(|o| o.kind == GitObjectKind::Tree)
+        .unwrap()
+        .bytes;
+    assert!(tree_bytes
+        .windows(b"100755 run.sh".len())
+        .any(|w| w == b"100755 run.sh"));
+    assert!(tree_bytes
+        .windows(b"100644 text.sh".len())
+        .any(|w| w == b"100644 text.sh"));
+    let objects = objects_map(exported);
+    let (importer, import_device) = human(50);
+    let mut imported_store = Store::new(MemoryBackend::new());
+    let imported = import_commit_chain(
+        &mut imported_store,
+        &importer.did(),
+        &import_device,
+        &git_id,
+        &objects,
+        200,
+    )
+    .unwrap();
+    let imported_head = &imported[&git_id].commit_id;
+    assert_eq!(
+        checkout_with_modes(&imported_store, imported_head).unwrap(),
+        expected
+    );
+}

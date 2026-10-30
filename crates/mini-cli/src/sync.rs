@@ -113,6 +113,12 @@ pub fn listen(home: &Path, store_path: &Path, addr: &str, times: u32) -> Result<
 /// `mini sync connect <host:port>` — dial exactly one peer and sync as
 /// [`SyncRole::Initiator`] (pulls first, then serves the peer's pull).
 pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
+    connect_report(home, store_path, addr).map(|report| format_report(addr, &report))
+}
+
+/// Structured counterpart used by saved-peer automation. Counts describe
+/// received objects only, never acceptance or canonicalization by the peer.
+pub fn connect_report(home: &Path, store_path: &Path, addr: &str) -> Result<IngestReport> {
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     seed_own_kel_carriers(&identity, &mut store)?;
@@ -121,7 +127,22 @@ pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
         .hydrate_from_store(&store)
         .map_err(|e| CliError::Sync(e.to_string()))?;
 
-    let mut bearer = TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?;
+    // Saved endpoints are numeric addresses: bound connection and stalled-peer
+    // I/O without introducing DNS or changing the legacy hostname path.
+    let mut bearer = if let Ok(address) = addr.parse::<std::net::SocketAddr>() {
+        let stream =
+            std::net::TcpStream::connect_timeout(&address, std::time::Duration::from_secs(10))
+                .map_err(|e| CliError::Sync(e.to_string()))?;
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(30)))
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(30)))
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+        TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?
+    } else {
+        TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?
+    };
     let (init, hello) = Initiator::start().map_err(|e| CliError::Sync(e.to_string()))?;
     bearer
         .send(&hello)
@@ -140,7 +161,7 @@ pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
     )
     .map_err(|e| CliError::Sync(e.to_string()))?;
 
-    Ok(format_report(addr, &report))
+    Ok(report)
 }
 
 /// A one-shot native release server result. The server exits after one
@@ -229,4 +250,229 @@ pub fn serve_release(store_path: &Path, addr: &str) -> Result<ServeReleaseReport
         selected: ids.len(),
         peer: peer.to_string(),
     })
+}
+
+/// One accepted service session. Each worker reloads its own owner identity,
+/// KEL cache and filesystem store; the backend atomically persists immutable
+/// objects/index rows and serializes its ordered-index updates across handles.
+/// Caller must configure timeouts and retain a shutdown handle for deadlines.
+pub(crate) fn serve_stream(
+    home: &Path,
+    store_path: &Path,
+    stream: std::net::TcpStream,
+    allowed_peers: &[did_mini::Did],
+    admit: impl FnOnce(&did_mini::Did) -> Result<()>,
+) -> Result<IngestReport> {
+    let identity = crate::identity::load(home)?;
+    let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
+    let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    let (mut channel, response) =
+        Responder::respond(&hello).map_err(|e| CliError::Sync(e.to_string()))?;
+    bearer
+        .send(&response)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let transcript = session_transcript(&hello, &response);
+    let peer = receive_session_proof(
+        &mut bearer,
+        &mut channel,
+        home,
+        &identity,
+        &transcript,
+        b'i',
+        None,
+    )?;
+    if !allowed_peers.contains(&peer) {
+        return Err(CliError::Sync(
+            "peer is not authorized for this service".into(),
+        ));
+    }
+    admit(&peer)?;
+    let mut store = open_store(store_path)?;
+    seed_own_kel_carriers(&identity, &mut store)?;
+    let mut cache = build_kel_cache(home, &identity)?;
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    send_session_proof(
+        &mut bearer,
+        &mut channel,
+        &identity,
+        &transcript,
+        b'r',
+        &peer,
+    )?;
+    drop(store);
+    let mut store = mini_store::Store::new(
+        crate::service::quota::QuotaBackend::open(store_path, peer.as_str())
+            .map_err(|e| CliError::Store(e.to_string()))?,
+    );
+    mini_sync::sync_bidirectional_paged(
+        &mut bearer,
+        &mut channel,
+        &mut store,
+        &mut cache,
+        SyncRole::Responder,
+    )
+    .map_err(|e| CliError::Sync(e.to_string()))
+}
+
+const SESSION_AAD: &[u8] = b"MINI/FORGE-SESSION2";
+const SESSION_TYPE: &str = "mini/forge-session-v2";
+const MAX_SESSION_PROOF: usize = 16 * 1024;
+
+pub(crate) fn session_transcript(hello: &[u8], response: &[u8]) -> [u8; 32] {
+    let mut data = b"mini/forge-session/transcript/v2\0".to_vec();
+    data.extend_from_slice(&(hello.len() as u32).to_be_bytes());
+    data.extend_from_slice(hello);
+    data.extend_from_slice(&(response.len() as u32).to_be_bytes());
+    data.extend_from_slice(response);
+    mini_crypto::HashAlgorithm::Blake3.digest(&data)
+}
+fn proof_payload(transcript: &[u8; 32], role: u8, audience: &did_mini::Did) -> Vec<u8> {
+    let mut payload = b"mini/forge-session/proof/v2\0".to_vec();
+    payload.push(role);
+    payload.extend_from_slice(transcript);
+    payload.extend_from_slice(audience.as_str().as_bytes());
+    payload
+}
+pub(crate) fn send_session_proof(
+    bearer: &mut TcpBearer,
+    channel: &mut mini_bearer::Channel,
+    identity: &crate::identity::Identity,
+    transcript: &[u8; 32],
+    role: u8,
+    audience: &did_mini::Did,
+) -> Result<()> {
+    let proof =
+        mini_objects::ObjectBuilder::new(mini_objects::ObjectType::Custom(SESSION_TYPE.into()))
+            .payload(mini_objects::Payload::Public(proof_payload(
+                transcript, role, audience,
+            )))
+            .sign(&identity.human_did(), &identity.device)
+            .map_err(|e| CliError::Object(e.to_string()))?;
+    let frame = channel
+        .seal(&proof.to_bytes(), SESSION_AAD)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    bearer
+        .send(&frame)
+        .map_err(|e| CliError::Sync(e.to_string()))
+}
+pub(crate) fn receive_session_proof(
+    bearer: &mut TcpBearer,
+    channel: &mut mini_bearer::Channel,
+    home: &Path,
+    identity: &crate::identity::Identity,
+    transcript: &[u8; 32],
+    role: u8,
+    expected_peer: Option<&did_mini::Did>,
+) -> Result<did_mini::Did> {
+    use mini_forge::IdentityOracle;
+    let frame = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    if frame.len() > MAX_SESSION_PROOF {
+        return Err(CliError::Sync("session proof exceeds limit".into()));
+    }
+    let bytes = channel
+        .open(&frame, SESSION_AAD)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let proof =
+        mini_objects::Object::from_bytes(&bytes).map_err(|e| CliError::Object(e.to_string()))?;
+    if proof.object_type != mini_objects::ObjectType::Custom(SESSION_TYPE.into())
+        || !proof.links.is_empty()
+        || proof.payload
+            != mini_objects::Payload::Public(proof_payload(transcript, role, &identity.human_did()))
+        || expected_peer.is_some_and(|peer| *peer != proof.author_human)
+    {
+        return Err(CliError::Sync(
+            "session peer/transcript proof mismatch".into(),
+        ));
+    }
+    let oracle = crate::store::build_oracle(home, identity)?;
+    let root = oracle
+        .kel(&proof.author_human)
+        .ok_or_else(|| CliError::Sync("session peer root KEL is not trusted".into()))?;
+    let device = oracle
+        .kel(&proof.author_device)
+        .ok_or_else(|| CliError::Sync("session peer device KEL is not trusted".into()))?;
+    mini_objects::verify_provenance(&proof, root, device)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    Ok(proof.author_human)
+}
+
+/// Mutually authenticate an encrypted session against explicitly trusted KELs
+/// and the saved endpoint's pinned root DID, before offering any store objects.
+/// This mode fails closed; it never falls back to anonymous legacy sync.
+pub fn connect_authenticated_report(
+    home: &Path,
+    store_path: &Path,
+    addr: &str,
+    expected_peer: &did_mini::Did,
+) -> Result<IngestReport> {
+    let identity = crate::identity::load(home)?;
+    let address: std::net::SocketAddr = addr
+        .parse()
+        .map_err(|_| CliError::Usage("authenticated sync requires numeric IP:port".into()))?;
+    let stream = std::net::TcpStream::connect_timeout(&address, std::time::Duration::from_secs(10))
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(30)))
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_secs(30)))
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let shutdown = stream
+        .try_clone()
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let (_deadline_guard, deadline_cancel) = std::sync::mpsc::channel::<()>();
+    // Dropping the guard on any return cancels the watchdog immediately.
+    std::thread::Builder::new()
+        .name("mini-sync-deadline".into())
+        .spawn(move || {
+            if deadline_cancel.recv_timeout(std::time::Duration::from_secs(120))
+                == Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+            {
+                let _ = shutdown.shutdown(std::net::Shutdown::Both);
+            }
+        })
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
+    let (initiator, hello) = Initiator::start().map_err(|e| CliError::Sync(e.to_string()))?;
+    bearer
+        .send(&hello)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let response = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    let mut channel = initiator
+        .finish(&response)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let transcript = session_transcript(&hello, &response);
+    send_session_proof(
+        &mut bearer,
+        &mut channel,
+        &identity,
+        &transcript,
+        b'i',
+        expected_peer,
+    )?;
+    receive_session_proof(
+        &mut bearer,
+        &mut channel,
+        home,
+        &identity,
+        &transcript,
+        b'r',
+        Some(expected_peer),
+    )?;
+    let mut store = open_store(store_path)?;
+    seed_own_kel_carriers(&identity, &mut store)?;
+    let mut cache = build_kel_cache(home, &identity)?;
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    mini_sync::sync_bidirectional_paged(
+        &mut bearer,
+        &mut channel,
+        &mut store,
+        &mut cache,
+        SyncRole::Initiator,
+    )
+    .map_err(|e| CliError::Sync(e.to_string()))
 }

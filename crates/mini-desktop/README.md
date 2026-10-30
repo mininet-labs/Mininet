@@ -2,11 +2,86 @@
 
 Windows-first egui reference client shell for Mininet.
 
-Run it locally:
+W1 now ships a separate per-user `mininet-app-service` application core. The
+desktop starts it as a sibling process and talks over a versioned, length-bounded
+protocol. Root creation, identity lock/unlock, public-profile creation, plain-post
+publication, and Home/Explore feed snapshots use that boundary. The core keeps
+signing controllers out of the renderer for migrated flows, refuses a second
+live core-service instance, durably reserves object sequences, journals exact signed objects before
+store mutation, and records idempotency receipts so an uncertain renderer retry
+cannot publish a second object. The service does not start networking, crawling,
+relaying, wallet, Forge, consensus, or updates.
+
+W1 is still a migration: replies/reactions, rich profile edits, communities,
+media publication, private messaging and several connection-side mutations
+still use the older in-process `Workspace` path. The filesystem backend reads
+indexes live, so service reads observe those transitional writes, and the core
+rescans the author's maximum sequence before each new signed mutation. Those
+paths are explicitly the next commands to move behind the same core; this
+change does not yet claim a universal single-writer or zero-authority renderer.
+
+The connected desktop beta (D-0523) opens into an X-style black shell:
+navigation rail, central timeline, and a discovery column on wide windows.
+Timelines are loaded by a worker (50 cards), show real author names and
+author-claimed relative times, and offer *Following* and *Everyone* scopes,
+received-post search (Explore), a media filter with inline images, and
+"Who to follow" from received signed profiles. Communities open into
+Reddit-style threaded discussion (title + body threads, nested replies,
+upvotes, Top/New) built entirely from existing comment and reaction
+objects, so discussions replicate like everything else. **Library** holds
+files and movies of any size (one manifest up to 256 MiB, larger files as an
+ordered collection of manifests) with seeding progress and chunk-by-chunk
+export; **Earnings** shows the service tickets peers signed for what you
+served, priced at your rate as unsettled micro-MINI credit, redeemable only
+by your DID once the audited settlement layer admits the request.
+**Media** is a catalog: search by title, author or type, filter by kind,
+sort, and browse a grid of poster cards; author names open a **Channel**
+page; **Search my peers** asks saved peers (and, through hosts that allow
+it, their saved peers) and **Fetch** retrieves one post's
+verified closure. **Shorts** plays media posts one at a time and **Watch** shows one with its
+comments and what is up next; audio plays in-app through pure-Rust decoders
+and animated GIF/WebP loop; H.264 video without B-frames plays in-process
+(OpenH264 + AAC via symphonia), while B-frame H.264, H.265/VP9/AV1 and
+WebM/MKV show an explanation with export. Connections can ask the router
+to forward the hosting port (UPnP) and reports whether the result is a
+public address. Ticket rates are agreed per exchange (provider ask capped by
+the receiver's ceiling) and written into the ticket.
+
+Connections is where networking starts, and only there:
+
+- **Accept connections (host)** binds one port and serves many connections
+  until you stop it. Peers reach you only if that port is reachable
+  (port-forward, VPS, or the same LAN) — no relay or NAT traversal yet.
+- **Sessions** dial every saved peer every 30 s (backing off to 2 min after
+  failures) for 15 min, 1 h, or while the app is open, exchanging public
+  posts, profiles, follows and reactions.
+- **Connection cards** (`mininet-peer-v1;endpoint=…;did=…;name=…`) let a
+  friend save your endpoint and follow your DID in one paste. A card grants
+  nothing; names are trusted only once the signed profile arrives.
+- **Private conversations** are included in sessions/hosting only when you
+  enable it; otherwise a private request is refused before any route check.
+- **On launch** nothing connects unless you enabled "session on launch" or
+  "accept connections on launch" here. Both default off.
+
+Under the hood every desktop path is one link: anonymous CH1 handshake over
+TCP, one sealed intent frame (public `MINI/SYNC1` or one private route),
+then that bounded protocol. Verified by crate tests over real TCP and by two
+live instances on one Windows machine; two machines behind different NATs
+have not been demonstrated. See
+[`connected-mininet-client.md`](../../docs/proposals/connected-mininet-client.md)
+for the full product specification and what remains.
+
+Run it locally. The application core is intentionally a sibling executable,
+not a `mini-desktop` library dependency, so build it alongside the renderer:
 
 ```powershell
+cargo build -p mini-app-service
 cargo run -p mini-desktop
 ```
+
+Packaged Windows builds include `mininet-app-service.exe` automatically. A
+missing service fails closed for the migrated signing actions; the renderer
+does not silently reconstruct keys and sign instead.
 
 The default home is `%LOCALAPPDATA%\Mininet`. To run two independent local
 instances, launch each one with a different `MININET_HOME`, such as
@@ -82,11 +157,14 @@ Creator view. These are public claims selected by the profile owner, not
 platform-verified attributes.
 
 The human-root and delegated-device seed envelopes are separately protected
-with the Windows-user DPAPI boundary by `mini-windows-vault`. Day-to-day social
-objects use the scoped delegated device; sync distributes both self-certifying
-KELs and rejects objects without valid device provenance.
+with the Windows-user DPAPI boundary by `mini-windows-vault`. For migrated W1
+flows only the application core reconstructs the controllers; no seed or
+controller crosses the IPC protocol. Day-to-day social objects use the scoped
+delegated device; sync distributes both self-certifying KELs and rejects objects
+without valid device provenance.
 
-The UI has an explicit identity lock and starts every session locked. A locked
+The UI has an explicit identity lock and the application core starts every
+session locked. A locked
 client can inspect local data but cannot publish signed objects. Each publish
 form also requires an explicit signing confirmation, and privacy settings are
 stored through DPAPI.
@@ -124,9 +202,10 @@ real encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is
 foreground-user initiated, runs off the UI thread, and accepts no silent
 background network activity. People adds a separate opt-in three-second LAN
 scan and 60-second visible window; announcements are unverified hints, each
-socket has bounded I/O, and there is no retry loop or always-on listener.
+socket has bounded I/O. Hosting and sessions in Connections are the only
+repeating network activity and both are owner-started or owner-enabled.
 
-It does not start networking, open external URLs, collect telemetry, execute
+It does not start networking on launch, open external URLs, collect telemetry, execute
 updates, or embed a browser. Private signing material is not stored as
 plaintext.
 
@@ -136,7 +215,57 @@ safe end-user workflow, including forge administration, keystone encounters,
 reward accounting, and update adoption. It does not present placeholder
 buttons for those unfinished surfaces.
 
+Diagnostics runs the real protocol code on this device and shows what
+happened: identity signing and pre-rotation, content addressing, the social
+feed, chunked media, encrypted messaging, two stores converging over a real
+loopback socket, a governed two-approval merge, erasure-coding recovery, and
+storage proofs. Roughly a third of the checks establish a *refusal* --- one
+approval does not reach the two-approval floor, an approval bound to one
+commit does not carry to another, a second conversation's key reads none of
+this one's messages --- because those are what show the guarantees are
+load-bearing rather than merely that the happy path runs. Every check builds
+its own throwaway state under the OS temp directory and deletes it, so a
+diagnostics run cannot touch identities or posts. The same suite is
+`mini selftest`, and CI runs it on every change.
+
+Version & install reads the same state `mininet-setup.exe` writes: the
+installed version, its package digest, what a rollback would return to, and
+where program files and user data each live. It can re-hash every installed
+file against its manifest, and it can roll back to a version already on disk
+--- after verifying that version first. It cannot check for updates, download
+a release, or install one. There is no background task and no timer; updating
+means running the setup program with a package you obtained however you chose.
+
+Install the client with `mininet-setup.exe` (see `packaging/windows/`), which
+installs per-user with no administrator rights, verifies every file against a
+manifest carrying both BLAKE3 and SHA-256 digests, registers in Apps &
+features, and keeps identities when uninstalling unless explicitly told
+otherwise.
+
 Before distribution, the Windows client still needs hardware-backed key
-storage, Windows packaging, reproducible release verification, store-level
+storage, Authenticode code signing (builds are unsigned today, so SmartScreen
+warns on first run and is right to), reproducible compiler output, store-level
 cross-process coordination, and an independent security review. See
 `docs/WINDOWS_CLIENT_SECURITY.md`.
+
+The **Seed network** view provides explicit owner controls for a CLI
+node profile using the sibling `mini` executable (or an owner-selected installed
+path). It shows the selected node folder/store separately from the desktop vault.
+Owners can explicitly create a separate node identity, export public keys, and
+inspect/confirm peer pairing without a terminal. Existing identities are never
+replaced. It starts no seed networking on view entry. See
+[seed-network.md](../../docs/design/seed-network.md#desktop-owner-controls) for
+retention previews, bounded fetch, process lifetime and identity boundaries.
+
+Resident AI's **Reviewed local code edits** can load exact source baselines,
+stage complete replacements and require an exact preview ID before writing up to
+16 files. Model answers enter only as unapplied literal drafts. Reads and writes
+run off the UI thread; normal window close is deferred during apply. See the
+[edit composer runbook](../../docs/design/resident-ai.md#desktop-reviewed-edit-composer)
+for stale-source checks, recovery artifacts and filesystem limitations.
+
+The edit composer can explicitly save staged edits to a private local checkpoint
+and resume them after restarting. Resume rechecks current source and requires a
+new preview/confirmation. Stored-draft inspection and exact-ID removal also work
+when source has become stale. Unstaged text is not saved; no autosave or automatic
+apply runs. See [saved drafts](../../docs/design/resident-ai.md#save-and-resume-staged-edits).

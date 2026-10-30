@@ -22,6 +22,20 @@ explanation of what Mininet is, why it exists, how it works today, and
 what is still an open question, written for a reader who has never opened
 this repository (D-0323).
 
+## Start contributing
+
+Read the [**team leaders and architects welcome pack**](docs/contributors/WELCOME.md)
+for the first-hour reading order, ten proposed engineering domains, cross-team
+interfaces, launch gates and a first-week contribution plan. Then follow
+[CONTRIBUTING.md](CONTRIBUTING.md) and choose a bounded task tied to the
+[release roadmap](docs/ROADMAP_TO_RELEASE.md).
+
+The welcome pack is a proposed coordination model, not a grant of review or
+merge authority. Its dated PR/status snapshot must be checked against
+[current implementation status](docs/STATUS.md) and configured review rules.
+Open Beta, the native Forge transition and real-value Go-Live have separate
+acceptance gates; code tests alone do not close hardware or external-review gates.
+
 ## What no one can change
 
 These are not promises of good behavior — they are structural, enforced in
@@ -50,8 +64,8 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: 79 crates indexed by
-`tools/mininet_nav.py`, with no external
+This repository is the **self-contained Rust core**, defined by the [workspace manifest](Cargo.toml)
+and indexed by `tools/mininet_nav.py`, with no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -116,6 +130,35 @@ so, everywhere, on purpose.
   atomic symlink-based activation, automatic rollback on a failed health
   check, still no forced update (activation always requires an explicit,
   typed `OwnerApproval` naming the exact release id)
+- `mini-windows-setup` (D-0520): the Windows half of that layer, which
+  `mini-installer`'s symlink activation cannot serve — a canonical text
+  manifest carrying a length plus BLAKE3 *and* SHA-256 per file (so a user
+  can re-check every byte with `Get-FileHash`, running no Mininet binary),
+  an uncompressed container, strict Windows path safety, a per-user
+  versioned layout with an atomic pointer swap, and install/verify/
+  rollback/uninstall. Files are verified out of the package *and* re-read
+  and re-hashed from disk before activation; `InstallApproval` names one
+  exact manifest digest; activation runs `mini_forge::check_no_rollback`;
+  uninstall keeps identities unless a separate typed approval names the
+  exact path to destroy
+- `mini-setup` (D-0520): `mininet-setup.exe` — the double-click wizard and
+  its `--silent`/`--verify`/`--status`/`--dry-run`/`--rollback`/
+  `--uninstall` console modes, all with `--json`. Per-user, no
+  administrator, no service, and no networking dependency at all: it
+  installs the bytes it is handed and never fetches its own payload.
+  `packaging/windows/` builds the container, the readable manifest, the
+  self-contained installer, and SHA256SUMS
+- `mini-ticket` (D-0524): signed service tickets — a receiver's attestation
+  of bytes served over one encrypted session, naming the provider DID that
+  alone may redeem it; a host/creator ledger in micro-MINI and a typed
+  redemption request. Evidence, not money: unsettled until the audited
+  settlement layer admits it. Leaf crate, no value or governance edge.
+- `mini-selftest` (D-0520): 24 diagnostics that run the real stack —
+  identity, storage, social, media, messaging, sync over a real loopback
+  socket, governed review, erasure coding, storage proofs, install. Nine
+  establish a *refusal* (one approval does not reach the two-approval
+  floor; an approval bound to one commit does not carry to a substituted
+  one). Surfaced as `mini selftest` and the client's Diagnostics view
 - `mini-privacy-policy` (D-0094): typed cost-doctrine vocabulary
   (protection properties, mechanisms, the five un-removable residual
   floors) and a Tier 0-3 privacy request/achieved-result policy object —
@@ -414,7 +457,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0525`
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0542`
    (`D-0513`–`D-0516`: adopting external Gate #28 DTN/satellite and Gate #98
    Wi-Fi bearer design-report architectures on engineering merit (new
    `mini-dtn` crate scaffold, `mini-settlement::PaymentClaimV2`
@@ -426,7 +469,7 @@ to people who will never meet them:
    requirement, requiring real two-device corroboration for Gate #97
    "two-sided" ranging evidence, and giving `mini-mesh` genuine per-link
    locking so one slow peer's send can no longer stall every other link's
-   receive path; `D-0517`–`D-0524`: Gate #72 (privacy/value layer)
+   receive path; `D-0517`–`D-0522` and `D-0540`–`D-0541`: Gate #72 (privacy/value layer)
    remediation — real `frost_ristretto255` FROST signing, a vendored-
    Bulletproofs range-proof/Pedersen-commitment implementation over a
    corrected independent generator basis, the `PrivatePaymentV3` wire
@@ -436,7 +479,7 @@ to people who will never meet them:
    Codex remediation batch (`D-0519`); and Gate #96's external legal
    review adopted as engineering-conformance direction — no BTC/XMR/XRP-
    for-MINI issuance at genesis, no XRPL/Monero genesis liquidity promise
-   (`D-0525`, gate itself NOT closed pending qualified counsel signature)
+   (`D-0542`, gate itself NOT closed pending qualified counsel signature)
    — are the newest at the time of this edit; the Mininet Node Appliance
    deployment profile this line
    previously credited to `D-0439` is `D-0446` — `D-0439` is the
@@ -465,7 +508,11 @@ documents above; see
 for what's activated, staged, or founder-only),
 [`docs/LEGAL_DISCLAIMER.md`](docs/LEGAL_DISCLAIMER.md) (the project's
 constitutional legal position — voluntary participation, no universal
-representative, individual legal responsibility, no protocol ownership).
+representative, individual legal responsibility, no protocol ownership),
+[`docs/android-os/`](docs/android-os/) (unadopted P3 feasibility spike:
+preinstalling `app/android` as an unprivileged system app on a candidate
+hardened Android OS — see [`docs/mobile/`](docs/mobile/) for the accepted
+roadmap and deferred hardware validation).
 Find anything offline: `python tools/mininet_nav.py build` (see
 [`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
 

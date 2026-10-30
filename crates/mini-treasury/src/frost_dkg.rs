@@ -479,19 +479,17 @@ pub fn dkg_resolve(
             .find(|r| r.accused == complaint.accused && r.accuser == complaint.accuser);
 
         match rebuttal {
-            None => {
-                resolution.excluded.insert(complaint.accused);
-            }
-            Some(rebuttal) => {
+            Some(rebuttal)
                 if dkg_verify_received_share(
                     accused_package,
                     complaint.accuser,
                     rebuttal.revealed_share,
-                ) {
-                    resolution.false_complaints.push(*complaint);
-                } else {
-                    resolution.excluded.insert(complaint.accused);
-                }
+                ) =>
+            {
+                resolution.false_complaints.push(*complaint);
+            }
+            _ => {
+                resolution.excluded.insert(complaint.accused);
             }
         }
     }

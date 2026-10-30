@@ -23,10 +23,9 @@
 //! separate work. Only the canonical commit shape `git_export.rs` itself
 //! writes is accepted (`tree`/`parent*`/`author`/`committer`/blank
 //! line/message); any other header line (`gpgsig`, `encoding`, ...) is
-//! rejected outright, not silently dropped. Only regular files (git mode
-//! `100644`) and directories (`40000`) are supported — executable bits,
-//! symlinks, and submodules are rejected, the same lossiness
-//! `git_export.rs` already documents for the export direction.
+//! rejected outright, not silently dropped. Regular files (`100644`),
+//! executable files (`100755`), and directories (`40000`) are supported.
+//! Symlinks and submodules are rejected rather than dereferenced.
 
 use std::collections::BTreeMap;
 
@@ -37,8 +36,8 @@ use mini_store::{Backend, Store};
 
 use crate::git_export::hex_encode;
 use crate::{
-    commit, put_file, put_tree, take_str, valid_name, ForgeError, GitObject, GitObjectKind, Result,
-    TreeEntry, MAX_TREE_ENTRIES,
+    commit, file_name_is_well_formed, put_executable_file, put_file, put_tree, take_str,
+    ForgeError, GitObject, GitObjectKind, Result, TreeEntry, MAX_TREE_ENTRIES,
 };
 
 /// The custom object type carrying a [`GitImportProvenance`] record.
@@ -89,6 +88,7 @@ fn parse_framed<'a>(bytes: &'a [u8], expected_kind: &str) -> Result<&'a [u8]> {
 struct RawTreeEntry {
     name: String,
     is_dir: bool,
+    executable: bool,
     git_id: String,
 }
 
@@ -109,7 +109,7 @@ fn parse_tree_body(body: &[u8]) -> Result<Vec<RawTreeEntry>> {
             + space
             + 1;
         let name = std::str::from_utf8(&body[space + 1..nul]).map_err(|_| ForgeError::BadObject)?;
-        if !valid_name(name) {
+        if !file_name_is_well_formed(name) {
             return Err(ForgeError::BadName);
         }
         let id_start = nul + 1;
@@ -121,15 +121,14 @@ fn parse_tree_body(body: &[u8]) -> Result<Vec<RawTreeEntry>> {
         }
         let is_dir = match mode {
             "40000" => true,
-            "100644" => false,
-            // Executable bit, symlink, and submodule modes are rejected
-            // outright in this slice (see module doc) -- fail closed, not
-            // silently mislabeled as a plain file.
+            "100644" | "100755" => false,
+            // Symlinks and submodules are rejected rather than dereferenced.
             _ => return Err(ForgeError::BadObject),
         };
         out.push(RawTreeEntry {
             name: name.to_string(),
             is_dir,
+            executable: mode == "100755",
             git_id: hex_encode(&body[id_start..id_end]),
         });
         i = id_end;
@@ -249,13 +248,28 @@ pub fn import_git_blob<B: Backend>(
     git_id: &str,
     objects: &BTreeMap<String, GitObject>,
 ) -> Result<ObjectId> {
+    import_git_blob_with_mode(store, importer, device, git_id, objects, false)
+}
+
+fn import_git_blob_with_mode<B: Backend>(
+    store: &mut Store<B>,
+    importer: &Did,
+    device: &Controller,
+    git_id: &str,
+    objects: &BTreeMap<String, GitObject>,
+    executable: bool,
+) -> Result<ObjectId> {
     let object = objects.get(git_id).ok_or(ForgeError::BadObject)?;
     verify_object_id(object)?;
     if object.kind != GitObjectKind::Blob {
         return Err(ForgeError::BadObject);
     }
     let body = parse_framed(&object.bytes, "blob")?;
-    put_file(store, importer, device, body)
+    if executable {
+        put_executable_file(store, importer, device, body)
+    } else {
+        put_file(store, importer, device, body)
+    }
 }
 
 /// Import one git tree (recursively importing every blob/subtree it
@@ -283,7 +297,7 @@ pub fn import_git_tree<B: Backend>(
         let target = if e.is_dir {
             import_git_tree(store, importer, device, &e.git_id, objects)?
         } else {
-            import_git_blob(store, importer, device, &e.git_id, objects)?
+            import_git_blob_with_mode(store, importer, device, &e.git_id, objects, e.executable)?
         };
         tree_entries.push(TreeEntry {
             name: e.name,

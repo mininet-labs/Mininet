@@ -72,10 +72,11 @@ impl<B: Backend> Store<B> {
         Store { backend }
     }
 
-    /// Persist an object and its index rows. Integrity holds by construction
-    /// (an [`Object`]'s id is always derived from its bytes); signature and
-    /// provenance verification are the ingest pipeline's job (crate docs).
+    /// Persist an object and its index rows after checking its current bytes
+    /// against its content id. Signature and provenance verification remain
+    /// the ingest pipeline's job (crate docs).
     pub fn insert(&mut self, object: &Object) -> Result<()> {
+        object.verify_integrity(object.id())?;
         // A tier may be declared before content arrives. Re-check it at the
         // point the payload becomes known so predeclaration cannot bypass the
         // encrypted-content non-advertising invariant.

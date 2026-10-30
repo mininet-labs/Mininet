@@ -202,8 +202,8 @@ fn two_independent_homes_reach_a_governed_merge_via_a_shared_store_path() {
         "looks fine",
     ]);
 
-    // One approval alone must not be enough for a 2-of-3 policy.
-    run(&[
+    // Insufficient quorum fails before recording a misleading merge entry.
+    let denied = [
         "--home",
         carol.to_str().unwrap(),
         "--store",
@@ -212,7 +212,12 @@ fn two_independent_homes_reach_a_governed_merge_via_a_shared_store_path() {
         "merge",
         "demo",
         &pr_id,
-    ]);
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect::<Vec<_>>();
+    assert!(mini_cli::run(&denied).is_err());
+
     let status_one_approval = run(&[
         "--home",
         bob.to_str().unwrap(),

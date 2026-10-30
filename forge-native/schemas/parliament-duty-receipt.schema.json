@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ParliamentDutyReceipt payload",
+  "type": "object",
+  "required": ["term_id", "period_id", "seat_id", "committee_tasks_assigned", "committee_tasks_completed", "plenary_votes_eligible", "plenary_votes_participated", "emergency_calls_assigned", "emergency_calls_answered", "substantive_review_refs"],
+  "properties": {
+    "term_id": {"type": "string", "minLength": 1},
+    "period_id": {"type": "string", "minLength": 1},
+    "seat_id": {"type": "integer", "minimum": 0},
+    "committee_tasks_assigned": {"type": "integer", "minimum": 0},
+    "committee_tasks_completed": {"type": "integer", "minimum": 0},
+    "plenary_votes_eligible": {"type": "integer", "minimum": 0},
+    "plenary_votes_participated": {"type": "integer", "minimum": 0},
+    "emergency_calls_assigned": {"type": "integer", "minimum": 0},
+    "emergency_calls_answered": {"type": "integer", "minimum": 0},
+    "substantive_review_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "recusal_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}

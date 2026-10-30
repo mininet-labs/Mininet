@@ -1,134 +1,217 @@
-# Beta status
+# Open Beta status
 
-**Beta target:** the SPEC-03 keystone — two phones form an encrypted Mininet link
-with no internet, exchange verified identities, prove range-bound co-presence, and
-show local reward accrual. We do **not** publish until the beta is complete.
+**Status: OPEN for public testing and contribution; NOT Go-Live and NOT real-value ready.**
 
-This is a narrower, nearer-term target than "global launch" — see the root
-`README.md`'s [Path to a global launch](../README.md#path-to-a-global-launch-what-is-still-missing)
-section for the full-network picture and `docs/STATUS.md` for the
-comprehensive, living implementation-status account organized by domain
-(voice/value, personhood, identity, money/finality, updates/forks,
-privacy, storage, networking, AI/audit gates). The generated 62-crate map
-lives in [`_generated/REPO_MAP.md`](_generated/REPO_MAP.md), not duplicated
-here.
+Start here: [`BETA_OPEN.md`](BETA_OPEN.md). The Forge/GitHub cutover state is in
+[`FORGE_BETA_MIGRATION.md`](FORGE_BETA_MIGRATION.md).
 
-For Beta participation and reproducible evidence, use
-[`BETA_CONTRIBUTOR_GUIDE.md`](BETA_CONTRIBUTOR_GUIDE.md), the contributor
-intake form, and the Beta test report template linked from the root README.
+## Beta target
 
-## What stands between here and a demoable beta (honest list)
+The keystone target remains a real, honest device path: phones can form an
+encrypted Mininet link without depending on the public internet, exchange and
+verify the intended identity/presence evidence, relay over nearby peers where
+the topology requires it, exercise resettable Beta MINI product flows, and
+return reproducible evidence about failures and recovery.
 
-The identity/presence/reward/forge logic layers this beta needs are complete
-and pass `cargo test --all --all-features` on a real toolchain today (see
-[Build & test](#build--test) below — `Cargo.lock` is committed). What's
-still missing for a real two-phone beta, in order:
+Open Beta means **people may test and contribute now**. It does not mean every
+acceptance gate has passed. Production MINI, treasury custody, production
+personhood, and production cryptography remain separate later gates.
 
-1. **Bearer adapters** — BLE and local-Wi-Fi/hotspot behind the existing
-   `Bearer` trait (device-side work needing real phone hardware). D-0042
-   added a real `TcpBearer` (proven live in `mini-net`'s gossip demo), but
-   that's IP-network connectivity, not BLE — the keystone demo itself is
-   still in-process only and hasn't been ported to it yet. `mini-bearer::
-   ble` (D-0342) has the MTU-bounded chunking/reassembly protocol logic a
-   BLE-backed `Bearer` needs; `mini-bearer::android_ble` (D-0374) adds the
-   `BleRadio` trait and `AndroidBleBearer`, a full, tested `impl Bearer`
-   generic over any radio implementation; `mini-ffi::ble` (D-0375) adds
-   the UniFFI `callback interface BleRadio` and `BleBearerHandle` that
-   let Kotlin actually drive it across the FFI boundary. **D-0502** added
-   the first real Kotlin GATT implementations (a single-connection
-   `BlePeripheralRadio`); **D-0505** replaced that class with
-   `org.mininet.app.BlePeripheralServer` — a multi-central GATT server
-   that hands out one per-link `BleRadio` per connected central, rather
-   than a single fixed radio pair — alongside `BleCentralRadio` (GATT
-   client/scanner, unchanged in shape from D-0502) and `BleMeshService`
-   (orchestrates both roles into one shared `mini_mesh::MeshNode` mesh,
-   D-0503/D-0504). `BlePeripheralRadio` no longer exists in the tree; a
-   reference to it elsewhere in older text means the pre-D-0505 single-
-   connection design. Each of `BlePeripheralServer`/`BleCentralRadio`
-   implements the generated `BleRadio` callback interface directly against
-   real `BluetoothGattServer`/`BluetoothGattCallback`/`BluetoothGatt` APIs.
-   This item is still not closed: none of these classes is wired into
-   `MiniViewModel`'s pairing flow or `mini-keystone`'s demo yet, Android
-   CI's `assembleDebug` is the first real compile check any of them has
-   ever had (this environment has no JDK/Android SDK), and — the same
-   honest limit D-0374/D-0375 already named — only a real two-device test
-   can prove the protocol is actually correct, not just structurally
-   plausible against the documented GATT APIs.
-2. ~~**Active range measurement**~~ — **shipped (D-0368)**:
-   `mini_presence::active_range` performs a real challenge-response
-   round-trip exchange over the already-bound encrypted channel
-   (`send_range_challenge`/`respond_to_range_challenge`/
-   `recv_range_response`); `mini-keystone::run_demo` now feeds
-   `AttestationFields::rtt_samples_ms` with genuinely measured elapsed
-   times instead of a hand-written literal. Still application-layer timing,
-   not a formal distance-bounding protocol or hardware ranging — see that
-   module's own "Honest limits" section — but the specific gap this item
-   named (a claimed proximity number nobody else could check) is closed.
-3. ~~**Persistent replay store**~~ — **shipped (D-0366, wired D-0367)**:
-   `mini_presence::FileReplayGuard` is a file-backed `ReplayGuard` that
-   survives process restarts (`Cargo.toml` unchanged — `std::fs` only, no
-   new dependency). `mini-keystone::run_demo` now takes each side's
-   `ReplayGuard` from the caller instead of constructing a throwaway
-   `InMemoryReplayGuard` internally, so a real app can pass a
-   `FileReplayGuard` opened at a persistent path and actually get
-   cross-restart replay protection; the crate's own example does exactly
-   that. `mini-uniqueness`/`mini-storage`/`mini-settlement` each define
-   their own separate `ReplayGuard`-shaped trait and still only have an
-   in-memory implementation; giving those a durable backend too is
-   unstarted, separately-scoped work.
-4. ~~**Standalone CLI harness**~~ — **shipped (D-0369)**: `mini keystone run
-   --peer-home <path>` is a real `mini` subcommand driving identity →
-   channel → range-bound presence → reward end to end (previously only
-   reachable via `cargo run -p mini-keystone --example keystone`, not the
-   actual binary); `mini repo`/`pr`/`build`/`release`/`installer` already
-   covered forge PR → merge → release → verify as their own subcommands.
-   `tools/no_github_outage_demo.sh` (D-0081) now runs the whole named
-   chain — identity → channel → presence → reward → repo → commit → PR →
-   review → governed merge → release → attestation → verify → install →
-   health check → rollback → tamper-evident event log — as one script
-   driving nothing but the real compiled `mini` binary.
-5. **Android two-phone product path** — the signed LAN/QR social pairing
-   path is implemented through Rust/UniFFI/Compose (D-0373): expiring QR,
-   delegated-device verification, bounded TCP acceptance, durable replay
-   rejection, and a signed follow object on each phone. It is not marked
-   complete until Android CI assembles it and two physical devices prove
-   scan, connect, follow, restart, and replay rejection. This is social
-   pairing, not yet the encrypted keystone bearer/range/reward path.
-6. **External crypto review** before any value- or update-bearing use.
-7. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
-   roots, not humans*; identity-root counting is not proof of unique humans.
-   D-0038
-   redesigned personhood into an open-ended multi-signal system
-   (`mini-uniqueness::status`), but the underlying behavioral/location ZK
-   research problem (signal (b)) remains unsolved — see the root README.
-8. **KEL freshness / revocation anchoring** — verifiers check the KEL handed to
-   them, not that it is the latest globally known state; high-value actions need
-   witness receipts / chain anchoring later.
+## What is implemented now
 
-## Before trusting any of this
+### Transport and local networking
+
+PR #333 merged the BLE multi-hop transport slice:
+
+- `mini-bearer::EncryptedLink<B: Bearer>` composes the existing encrypted
+  channel with generic bearers;
+- `mini-mesh` provides bounded deduplicating multi-hop relay over dynamic links;
+- `mini-ffi::MeshHandle` exposes the mesh to Android;
+- Android has `BlePeripheralServer`, `BleCentralRadio`, and `BleMeshService` for
+  simultaneous advertise/serve and scan/connect roles;
+- the relay algorithm has in-process and real loopback-TCP multi-hop tests; and
+- Android CI / Android reproducibility were green on the PR #333 merge head.
+
+This is real code, not yet universal hardware evidence. Physical-device testing
+across Android versions/vendors, lifecycle/churn, background behavior, radio
+failures, multi-hop topology, and product integration remains Open Beta work.
+
+### Identity, presence, replay, and developer harness
+
+The repository already contains:
+
+- `did:mini` identity/delegation/recovery foundations;
+- active challenge/response presence timing over the encrypted channel;
+- durable replay storage for the keystone path;
+- `mini keystone run` as a real CLI harness; and
+- the broader no-GitHub developer/release demo path.
+
+Personhood remains unsolved: identity roots are not proof of unique humans.
+Hardware-backed ranging assurance must never be claimed above the actual signed
+and validated evidence.
+
+### Open Beta findings and contribution flow — PR #334
+
+PR #334 introduces one explicit final-phase path:
+
+```text
+campaign/build
+  -> structured finding
+  -> append-only disposition
+  -> Forge task / work claim
+  -> implementation, reproduction, or review evidence
+  -> accepted contribution receipt
+  -> optional Beta MINI participation grant
+```
+
+`crates/mini-beta` encodes the campaign/finding/disposition/contribution/grant
+objects directly on Mininet's signed, content-addressed object/store substrate.
+The existing `mini-forge` coordination layer already provides task briefs,
+expiring work claims, task suggestions, and exact-state technical-review
+handoffs.
+
+GitHub issue forms are now an adapter to those fields rather than the intended
+long-term canonical model.
+
+### Beta MINI — test value only
+
+`mini-beta` also contains a reference Beta MINI ledger for final-phase product
+and participation testing:
+
+- explicit non-zero beta epoch;
+- testing grants and contribution-backed participation grants;
+- integer micro-BETA-MINI accounting;
+- per-grant and epoch-supply caps;
+- duplicate-grant rejection;
+- transfers that mint nothing;
+- cross-epoch rejection; and
+- epoch rollover that starts at zero with **no carry-over or conversion**.
+
+The crate's runtime dependencies are deliberately limited to `did-mini`,
+`mini-objects`, and `mini-store`. Automated tests fail if production value,
+settlement, treasury, chain, consensus, Forge governance, personhood/economy, or
+airdrop dependencies are added.
+
+Beta MINI therefore does not activate production value and has no automatic
+conversion right into production MINI. It cannot buy governance/review/release/
+personhood authority through this crate because those dependencies and APIs do
+not exist here.
+
+## How to participate
+
+Use [`BETA_OPEN.md`](BETA_OPEN.md) for concrete one-phone, two-phone,
+three-plus-phone, offline, lifecycle, malformed/adversarial, accessibility,
+Rust, research, and reproducibility itineraries.
+
+For an ordinary report, use the **Beta test report** issue form. It asks for:
+
+- exact revision/release/object;
+- evidence class;
+- component/surface;
+- reporter-claimed severity and concrete impact;
+- environment needed to reproduce;
+- steps;
+- expected/observed result;
+- redacted evidence; and
+- explicit limitations.
+
+Do not post secrets, stable device identifiers, private location/content, or a
+Beta MINI account/claim handle in a public issue.
+
+For a scoped task, use the Contributor intake form or an existing issue. Useful
+work includes non-code testing, reproduction, hardware matrices,
+accessibility/usability, documentation, security/research, code/tests, review,
+reproducibility, and operational evidence.
+
+## Pre-Go-Live identity boundary
+
+During Pre-Go-Live, `docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md`
+requires canonical Mininet participation to remain **anonymous**. GitHub
+usernames/emails and payment/reward handles are transport metadata, not Mininet
+pseudonyms, reputation identities, reviewer credentials, or governance weight.
+
+PR #334 therefore uses fresh artifact-scoped submission/claim/account handles
+rather than a persistent contributor profile. Separate contributions must not
+be silently linked merely to manufacture reputation continuity.
+
+## What still stands between Open Beta and Go-Live
+
+### Physical/product acceptance
+
+- [ ] Wire the intended BLE/mesh/keystone surfaces into the user-facing product
+  path with understandable start/stop/retry/error/recovery states.
+- [ ] Prove direct two-phone local operation on physical Android devices.
+- [ ] Prove A-B-C (and preferably larger) relay with no required direct A-C edge.
+- [ ] Exercise vendor/API-version diversity, permission denial/revocation,
+  Bluetooth off/on, screen-off/background/process restart, churn, reconnect,
+  slow peers, duplicate paths, resource pressure, and malformed input.
+- [ ] Record privacy-safe diagnostics and exact residual limitations.
+
+### Beta MINI product/durability work
+
+- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX.
+- [ ] Persist/replicate beta grant/transfer events rather than relying only on
+  the reference in-memory accounting core.
+- [ ] Provide a private fresh claim path for accepted participation without
+  binding public GitHub identity to the beta account.
+- [ ] Prove epoch reset/retirement through the actual product surface.
+
+### Forge canonicality
+
+- [ ] Discover a beta campaign without GitHub.
+- [ ] Submit/replicate a finding without a GitHub account/API.
+- [ ] Disposition it and produce a native Forge task.
+- [ ] Claim the task and hand off exact-state review evidence natively.
+- [ ] Record an accepted contribution and Beta MINI grant natively.
+- [ ] Complete that entire loop during a GitHub outage.
+- [ ] Make GitHub a mirror/adapter rather than the authority that decides which
+  beta/work state is real.
+- [ ] Implement/prove the one-way `forge_canonical = true` transition and the
+  irreversible shutdown of bootstrap canonical integration at Go-Live.
+
+### Substantive production safety gates
+
+Open Beta does not waive:
+
+- external review of production-value cryptography/custody/settlement paths;
+- exact settlement/finality correctness;
+- release/update safety and voluntary owner adoption;
+- privacy/threat-model findings;
+- personhood's unresolved unique-human problem; or
+- KEL freshness/revocation anchoring needed by high-value decisions.
+
+## Build and test
+
+The repository CI contract remains:
 
 ```sh
-cargo fmt --all
-cargo clippy --all-targets --all-features --workspace -- -D warnings
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all --all-features
 ```
 
-All three are clean on this tree today. The composed crypto (Pack 1
-primitives + the `mini-bearer` channel, and every AI-authored prototype
-under D-0036/D-0037/D-0040/D-0041) additionally warrants a proper
-cryptographic review before the beta — or anything past it — ships:
-"compiles, tests pass, and round-trips" is not "audited."
+For the new Open Beta core specifically:
 
-## UI beta (the product layer)
+```sh
+cargo test -p mini-beta
+```
 
-The full UI plan — surfaces, technologies, epics, 12 sprints, per-team tasks —
-lives in `docs/UI_BETA_PLAN.md` (D-0019). Parallel tracks can start immediately;
-the sprint-3 public proof point is the two-phone keystone demo with UI over real
-BLE.
+The PR #334 branch now includes the `mini-beta` workspace package in the root
+`Cargo.lock`; the lock entry is generated by Cargo and the temporary repair
+workflow removed itself after producing that commit. This removes the stale-lock
+implementation defect, but only the normal exact-head `--locked` CI and
+reproducibility workflows are acceptance evidence. A generated lockfile is not
+self-authorizing proof that the branch builds.
 
-## Post-beta (not on the critical path)
+A passing suite proves implementation properties exercised by those tests. It
+does not replace physical-device evidence, an external audit, or Go-Live
+activation.
 
-Self-contained BLE bootstrap + Merkle chunk sync (`mini-bootstrap`), local release
-verifier (`mini-update`), the custom Rust BFT chain + release registry
-(`mini-chain`), ZK personhood (SPEC-02), and the self-hosted forge (SPEC-11). See
-`docs/ROADMAP.md` for the full ordered plan.
+## Overall readiness statement
+
+**Open Beta: YES.** People can begin producing useful evidence and contributing
+to the final phase now.
+
+**Production / Go-Live: NO.** Physical acceptance, durable/user-facing Beta MINI,
+Forge-independent operation, the one-way Forge-canonical handoff, and the
+remaining substantive safety gates still have to be proven.

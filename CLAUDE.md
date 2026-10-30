@@ -45,7 +45,7 @@ not authority precedence.
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0525 so far (main
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0542 so far (main
    sequence; check the log's own header for the exact current count and the
    reserved parallel-track bands — this number moves fast and any hardcoded
    count here, this one included, goes stale within days). **Never edit
@@ -57,7 +57,7 @@ not authority precedence.
    just `main`'s tail** — two independent branches claimed D-0520/D-0521 for
    unrelated decisions in September 2026 (PR #345's Windows installer vs.
    this branch's Gate #72/#96 work); the one not yet in an open PR was
-   renumbered to D-0523–D-0525 to resolve it. Numbers only collide before
+   renumbered to D-0540–D-0542 to resolve it. Numbers only collide before
    merge; append-only discipline means the fix must be a renumber on the
    still-flexible side, never a silent skip or an edit to a merged entry.
 4. `docs/FAILURE_BOOK.md` — paths tried and rejected. Check it before
@@ -176,12 +176,12 @@ what's activated vs. staged vs. founder-only),
   Bulletproofs range-proof/Pedersen-commitment implementation over the
   vendored `bulletproofs` crate, additive alongside the old hand-rolled
   one (D-0518, its generator-basis defect self-found and fixed in
-  D-0523); `mini_value::mlsag_v3`/`stealth_v3` and
+  D-0540); `mini_value::mlsag_v3`/`stealth_v3` and
   `mini_private_payment::claim_v3`/`memo_v3` are `PrivatePaymentV3`
-  groundwork — a three-digest wire format, still additive (D-0523);
+  groundwork — a three-digest wire format, still additive (D-0540);
   `mini_private_payment::decoy`'s `OSPEAD_AGE_WEIGHTS`/
   `select_ring_indices_v3` is the audit's calibrated log-GB2 decoy
-  distribution, wired into `claim_v3::build_v3` (D-0524). **None of
+  distribution, wired into `claim_v3::build_v3` (D-0541). **None of
   PrivatePaymentV3 is wired into any consensus-checked path yet** —
   canonical claim bytes, derived key images, and removing the old
   transparent `PaymentClaim`/duplicate bounty ring path are named,
@@ -317,11 +317,11 @@ state on GitHub rather than assuming this summary is current:
   `mini-selftest` diagnostics crate that keeps the value/governance wall
   intact by spawning a separate `mini-value-selftest` binary rather than
   linking both). D-0520/D-0521 in this PR's own numbering; **do not
-  confuse with this branch's now-renumbered D-0523/D-0524** (same
+  confuse with this branch's now-renumbered D-0540/D-0541** (same
   originally-claimed numbers, resolved per the collision note in
   "Canonical sources" above).
 
-**D-0525 (Gate #96, external legal review adopted as engineering
+**D-0542 (Gate #96, external legal review adopted as engineering
 direction):** no BTC/XMR/fiat/stablecoin-for-MINI issuance at genesis, no
 token sale of any kind, no XRPL/XMR genesis liquidity promise — narrows
 what genesis can do, never widens it. The gate itself is **not** closed
@@ -329,7 +329,7 @@ what genesis can do, never widens it. The gate itself is **not** closed
 `docs/gates/legal-review-brief.md`. Watch for founder chat proposals that
 re-introduce a donation-for-issuance shape (e.g. a proportional/auction-
 style airdrop funded by external-asset donations) — those hit the exact
-fact pattern D-0525 deferred and need to go back through the same legal
+fact pattern D-0542 deferred and need to go back through the same legal
 gate, not around it; chat direction authorizes engineering exploration, not
 a bypass of an already-adopted legal constraint.
 
@@ -379,11 +379,11 @@ entails.
 5. External crypto audit — #72, gates everything value-bearing (D-0047).
    Real remediation has landed (`frost_ristretto255` FROST signing,
    vendored-Bulletproofs range proofs, calibrated OSPEAD decoy
-   distribution, D-0517/D-0518/D-0523/D-0524) but none of it is wired into
+   distribution, D-0517/D-0518/D-0540/D-0541) but none of it is wired into
    any consensus-checked path yet, and the external audit itself is still
    open — do not read the remediation as the gate closing.
 6. Gate #96 (legal/regulatory) — external review received and its
-   genesis-narrowing conclusions adopted as engineering direction (D-0525),
+   genesis-narrowing conclusions adopted as engineering direction (D-0542),
    but the gate is not closed pending qualified counsel signature; #47's
    treasury-contribution mechanism stays deferred at genesis either way.
 

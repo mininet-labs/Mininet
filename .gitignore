@@ -13,3 +13,8 @@
 # Python bytecode cache (tools/*.py: mininet_nav.py, check_governance.py)
 __pycache__/
 *.pyc
+
+# Resident reviewed-edit lock, staging and manual-recovery files
+.resident-patch*
+# Explicitly saved Resident staged edits and their private publication files
+.resident-draft*

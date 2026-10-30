@@ -24213,7 +24213,7 @@ items (D-0517/D-0518's own follow-up lists) are untouched.
 
 **Supersedes / superseded by:** none.
 
-### D-0523 — Gate #72: fix `bp_range_v2`'s generator basis (self-found defect in D-0518); `mini_value::mlsag_v3`/`stealth_v3`; `mini_private_payment::claim_v3`/`memo_v3` — `PrivatePaymentV3` groundwork  ·  *Shipped, additive, not wired into consensus*
+### D-0540 — Gate #72: fix `bp_range_v2`'s generator basis (self-found defect in D-0518); `mini_value::mlsag_v3`/`stealth_v3`; `mini_private_payment::claim_v3`/`memo_v3` — `PrivatePaymentV3` groundwork  ·  *Shipped, additive, not wired into consensus*
 
 **Date:** 2026-09-12 · **Refs:** the full Gate #72 external cryptography
 audit report the founder supplied verbatim this session (`docs/audits/
@@ -24360,10 +24360,10 @@ engineering, not a documentation gap.
 no consensus-facing behavior existed to have been wrong about) D-0518's
 `bp_range_v2` generator choice.
 
-### D-0524 — Gate #72: F72-10 calibrated decoy distribution — `mini_private_payment::decoy::OSPEAD_AGE_WEIGHTS`/`select_ring_indices_v3`, wired into `claim_v3::build_v3`  ·  *Shipped, one interpretive judgment call disclosed*
+### D-0541 — Gate #72: F72-10 calibrated decoy distribution — `mini_private_payment::decoy::OSPEAD_AGE_WEIGHTS`/`select_ring_indices_v3`, wired into `claim_v3::build_v3`  ·  *Shipped, one interpretive judgment call disclosed*
 
 **Date:** 2026-09-12 · **Refs:** the same Gate #72 external audit report as
-D-0517–D-0523 (`docs/audits/source-reports-2026-09-12/
+D-0517–D-0540 (`docs/audits/source-reports-2026-09-12/
 Mininet_External_Audit_01_Gate_72_Cryptography_FINAL.txt`), finding F72-10,
 Section 5.4; `crates/mini-private-payment/src/decoy.rs`;
 `crates/mini-private-payment/src/claim_v3.rs`.
@@ -24427,7 +24427,7 @@ table under an unrelated future change):
   within-bucket construction, same canonical-sort-by-key-bytes and
   bounded-attempts-then-uniform-fallback behavior.
 - `claim_v3::build_v3` now calls `select_ring_indices_v3` instead of V1's
-  `select_ring_indices` — this is the first (and, per D-0523's Required
+  `select_ring_indices` — this is the first (and, per D-0540's Required
   follow-up, previously last-remaining-untouched) piece of F72-10 actually
   wired into the `PrivatePaymentV3` path.
 
@@ -24435,7 +24435,7 @@ table under an unrelated future change):
 invariant. `mini-private-payment::decoy`'s existing `select_ring`/
 `select_ring_indices`/`AGE_WEIGHTS` (the V1/V2 path) are untouched and
 re-verified unaffected; only `claim_v3::build_v3`, itself still unreachable
-from any consensus-checked path per D-0523, changes behavior.
+from any consensus-checked path per D-0540, changes behavior.
 
 **Implementation status:** shipped. `mini_private_payment::decoy` gained 7
 new tests (frozen-table check on `OSPEAD_AGE_WEIGHTS`, real-output-always-
@@ -24451,14 +24451,14 @@ failures every entry since D-0071 already records. `mini-private-payment`
 **Failure point:** closes F72-10 for `PrivatePaymentV3`'s own decoy
 selection. Does not touch V1/V2's `AGE_WEIGHTS` (that table remains the
 documented "legible starting shape, not a fitted distribution" it always
-was — no live traffic exists to justify migrating it, and D-0523 already
+was — no live traffic exists to justify migrating it, and D-0540 already
 established the V1/V2 and V3 paths as deliberately separate). The
 unit-of-`x` interpretation above is an inference, not a certainty; if a
 follow-up from the same audit team clarifies units, this table is a
 version bump (V4) and a new decision entry, never a silent tuning commit.
 
 **Required follow-up:** the remaining Gate #72 items are unchanged from
-D-0523's list minus this one: canonical claim bytes in consensus + derived
+D-0540's list minus this one: canonical claim bytes in consensus + derived
 key images and removing the transparent `PaymentClaim`/duplicate bounty
 ring path (Section 11, F72-05/06/08/09, deliberately not attempted here
 given consensus-breaking blast radius), and a real fee-policy registry to
@@ -24466,7 +24466,7 @@ replace `quote_fee_micro`'s placeholder (F72-13).
 
 **Supersedes / superseded by:** none.
 
-### D-0525 — Gate #96: adopt the external legal review's genesis-launch constraints as engineering direction; defer the BTC/XMR/XRP-for-MINI contribution mechanism and XRPL/XMR genesis liquidity framing (D-0073 amended, gate NOT closed — pending qualified counsel signature)  ·  *Adopted as engineering direction; legal gate remains open*
+### D-0542 — Gate #96: adopt the external legal review's genesis-launch constraints as engineering direction; defer the BTC/XMR/XRP-for-MINI contribution mechanism and XRPL/XMR genesis liquidity framing (D-0073 amended, gate NOT closed — pending qualified counsel signature)  ·  *Adopted as engineering direction; legal gate remains open*
 
 **Date:** 2026-09-12 · **Refs:** roadmap #96 (closed `not_planned` 2026-07-10,
 before this review existed — founder should revisit that closure), #47
@@ -24604,3 +24604,1651 @@ the bridge/treasury layer are not superseded — only the claim, never
 explicit but implied by D-0073's original "structurally separate... per
 D-0073" whitepaper framing, that this mechanism is live or available at
 genesis). Does not supersede D-0008 (XRPL as settlement bridge design).
+### D-0520 — Windows client packaging and install: `mini-windows-setup` engine, `mininet-setup.exe` wizard, `mini windows`/`mini selftest`, and the client's Diagnostics and Version & install views  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** `crates/mini-windows-setup/`;
+`crates/mini-setup/`; `crates/mini-selftest/`; `crates/mini-cli/src/
+windows.rs`; `crates/mini-cli/src/selftest.rs`; `crates/mini-desktop/src/
+main.rs`; `packaging/windows/`; `docs/guides/windows-install-guide.md`;
+`docs/WINDOWS_CLIENT_SECURITY.md`; D-0071 (`mini-installer`, Unix-only);
+D-0070 (release verification); D-0078 (`--json` envelope).
+
+**Decision:** build the Windows half of the installation layer, and give the
+client a way for its user to confirm that the protocol code works on their
+own machine.
+
+1. **`mini-windows-setup`** — the engine. A canonical `MNWINPKG1` text
+   manifest (one fact per line, a length plus BLAKE3 *and* SHA-256 per file),
+   an uncompressed `MNPKGC1` container (manifest followed by file bytes in
+   manifest order, so it has no structure of its own to disagree with the
+   manifest about), strict Windows path safety, a per-user versioned layout
+   with an atomic pointer swap, and install/verify/activate/rollback/
+   uninstall. Files are verified out of the container *and* re-read from disk
+   and re-hashed after writing, before activation. A failed install tears down
+   its own staging directory.
+2. **`mini-setup`** — `mininet-setup.exe`: a five-page wizard plus `--silent`,
+   `--verify`, `--status`, `--dry-run`, `--rollback` and `--uninstall`, each
+   with `--json`. The payload comes from `--payload`, an environment variable,
+   bytes embedded at build time, or a sidecar container; setup never fetches
+   anything.
+3. **`mini-selftest`** — 24 checks that run the real stack (identity, storage,
+   social, media, messaging, sync over a real loopback socket, forge
+   governance, erasure coding, storage proofs, install). Nine establish a
+   *refusal*.
+4. **CLI**: `mini windows pack|inspect|plan|verify|status` and
+   `mini selftest [list|<area>]`, both on the D-0078 envelope.
+5. **Client**: Diagnostics and Version & install views; the readiness matrix
+   updated rather than left stale.
+6. **`packaging/windows/`**: a POSIX and a PowerShell build script producing a
+   container, a readable manifest, a self-contained setup executable and
+   SHA256SUMS; plus two CI jobs (Windows-native, and the pipeline on Linux via
+   `--host`).
+
+**Reason:** `mini-installer` (D-0071) activates by replacing a POSIX symlink
+and is documented Unix-only, so nothing could install the Windows client. The
+only "install" was `cargo run -p mini-desktop`, which is a developer workflow,
+not something a person can be asked to do. Separately, the client's own
+readiness matrix listed several subsystems as protocol foundations with no
+desktop workflow, and a user had no way to confirm that any of the shipped
+code works on their machine — a protocol whose guarantees can only be checked
+by reading its test suite is one most of its users cannot check at all.
+
+Four choices worth recording because the obvious alternative was rejected:
+
+- **No WiX/MSI.** An MSI would be a second implementation of installing, one
+  without the manifest re-verification, the digest-bound approval, or the
+  downgrade refusal. Managed deployment runs `mininet-setup.exe --silent` per
+  user instead — the same tested path an individual gets.
+- **Shell integration generates one PowerShell script rather than driving COM
+  through `windows-sys`.** Hand-written COM would be hundreds of lines of
+  `unsafe` that no non-Windows machine can type-check, in the one binary a
+  user runs before they have any reason to trust us.
+  `WScript.Shell.CreateShortcut` and `New-ItemProperty` are the boring,
+  universally present way to do exactly this, and both new crates stay
+  `forbid(unsafe_code)`. The generator is a pure, tested function and every
+  interpolated value is a single-quoted literal.
+- **`mini windows` gets the read and build verbs; installing stays with
+  `mininet-setup.exe`.** The Apps & features uninstall command has to name an
+  executable that will still exist later, which `mini` on a developer's
+  machine is not.
+- **`mini windows pack` requires `--built-at-ms`.** A tool that stamped the
+  clock would make every rebuild differ and silently destroy the
+  independent-builder digest comparison.
+
+**Constitutional impact:** no frozen invariant is touched or weakened.
+`docs/INVARIANTS.md` U1 (no forced update, no kill path) is *reinforced*:
+nothing in either new crate polls, fetches, or self-invokes; activation
+requires a caller-constructed `InstallApproval` naming one exact manifest
+digest (the `CLAUDE.md` typed-domain rule), and the client's Version & install
+view can re-verify and roll back but cannot install, download, or update.
+Downgrade protection reuses `mini_forge::check_no_rollback` rather than
+reimplementing it, so D-0070's semantics stay in one place.
+
+P1 / Directive 16 (the voice/value wall): `mini-windows-setup`,
+`mini-selftest` and `mini-desktop` all carry a governance edge (`mini-forge`)
+and therefore must never gain an edge to `mini-value`, `mini-bounty` or
+`mini-treasury` in either direction. No such edge is added, and each
+`Cargo.toml` says so where a reviewer will see it on the next diff. This is
+why `mini-selftest` has no shielded-payment or bounty check: adding one would
+be a wall violation, not a missing feature.
+
+Directive 14 (simplicity is security): the container format is
+manifest-then-bytes with no compression, chosen over a zip specifically to
+keep an archive parser out of the first binary a user runs.
+
+Honesty (the overclaiming-is-a-bug rule): every surface states that these
+builds are not code-signed, that SmartScreen will warn and is right to, that
+compiler output is not yet bit-reproducible, that a per-user directory is not
+tamper-proof, and that a matching digest proves what the file *is*, not who
+wrote the manifest.
+
+**Implementation status:** shipped. 76 new tests in the two packaging crates
+(engine against real temporary directories; the shipped binary driven across
+the process boundary, including executing the client it installed), 12 CLI
+packaging tests, 6 suite tests over the 24 diagnostics checks. Workspace
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace --
+-D warnings`, and `cargo test --workspace --all-features` (2749 tests) are
+clean. Two CI jobs added: `windows-client` (windows-latest — the DPAPI vault,
+the real `.lnk` and `HKCU` paths, a real release build, then install, verify
+and uninstall) and `windows-packaging-pipeline` (ubuntu — `--host` build,
+reproducibility, the SHA-256 column checked against `sha256sum`, the full
+install/upgrade/rollback/uninstall lifecycle, and two tampered-package
+refusals).
+
+**Failure point:** the manifest's trailing digest and the two per-file digests
+establish integrity, not authorship. Anyone who can rewrite a manifest can
+recompute it, so a user who verifies digests against a manifest they were
+handed by an attacker learns nothing. Until Authenticode signing and routine
+`mini release attest` use are both in place, the honest claim is "this is the
+package the manifest describes", never "this package is genuine". A second,
+narrower risk: `WindowsShell` depends on `powershell.exe` being present and
+runnable; if it is not, shortcut and registry steps fail loudly and the file
+install remains valid, which is the intended degradation but leaves the user
+without a Start Menu entry.
+
+**Required follow-up:** Authenticode signing with a governed signing process
+(gates a public release; no issue yet). Bit-reproducible compiler output for
+the binaries inside the container (SPEC-11,
+`.github/workflows/reproducibility.yml`). Wiring `mini-update`'s
+`AdoptionState` and provenance gates to the Windows install path, so an
+adopted release can be staged by the same engine (the pieces exist; nothing
+connects them yet). Installer localization. A per-machine install story, if
+one is ever wanted, needs its own threat model rather than an extension of
+this one.
+
+**Supersedes / superseded by:** none. Complements D-0071 (`mini-installer`,
+which remains the Unix path) and D-0070 (release verification, which remains
+the source of authenticity this layer deliberately does not duplicate).
+
+### D-0521 — Correcting D-0520 on two points: the voice/value wall is a code property, not a user-facing one, and the MSI should exist  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** supersedes two specific claims in D-0520;
+`crates/mini-value-selftest/`; `crates/mini-selftest/src/coverage.rs`;
+`crates/mini-selftest/src/value.rs`; `packaging/windows/Mininet.wxs`;
+`docs/INVARIANTS.md` P1; `docs/FOUNDER_DIRECTIVES.md` Directive 16;
+D-0069 (the `mini-build-runner-wasmtime` process boundary this reuses).
+
+**Decision:** reverse two of D-0520's choices, and fix the reasoning that
+produced them.
+
+1. **The value layer is exercisable from the diagnostics.** D-0520 omitted
+   every value-crate check and justified it as a voice/value wall
+   requirement. That was wrong. The canonical invariant is P1, *"No balance
+   maps to governance or validator vote weight"* — a rule about vote weight.
+   The "no dependency edge between value crates and governance crates"
+   phrasing D-0520 cited comes from `CLAUDE.md`, which states in its own
+   first paragraph that it grants no Mininet Authority and cannot override
+   the canonical invariants. A review heuristic was applied as if it were
+   the constitution, and the cost was user-facing capability.
+
+   `mini-value-selftest` now checks the value layer: a hidden amount commits
+   and its range proof verifies, a tampered proof does not, a proof does not
+   verify against another commitment, balanced outputs verify, and inflating
+   an output by one micro-unit fails the balance check — plus the custody
+   threshold rule, including that one custodian approving twice still counts
+   once and an outsider's approval counts for nothing.
+
+   It is a separate **binary** that `mini-selftest` spawns and reads a line
+   protocol from, never links. `mini-selftest` keeps its `mini-forge` edge,
+   the value binary keeps its `mini-value` edge, and no dependency path
+   connects them — the same process boundary D-0069 established for keeping
+   Wasmtime out of every other crate's graph. A CI step now proves this with
+   `cargo tree` rather than leaving it to review habit.
+
+   The general principle, stated so it is not re-derived wrongly a third
+   time: **the wall belongs in the dependency graph, not in the user
+   interface.** Refusing a person the ability to test the money code does
+   nothing to stop a balance influencing a vote, which is the thing P1
+   actually forbids.
+
+2. **The MSI exists.** D-0520 argued an MSI would be a second install
+   implementation without the engine's checks. True of an MSI that installs
+   via components; not true of the one now in
+   `packaging/windows/Mininet.wxs`, which lays down `mininet-setup.exe` and a
+   package and calls the setup program. The manifest re-verification, the
+   digest-bound approval, and the downgrade refusal all still apply, and
+   managed deployment (Intune, Group Policy, Configuration Manager) gets the
+   MSI it can actually consume. "It would duplicate logic" was a reason to
+   design the wrapper carefully, not a reason to ship nothing.
+
+   Two details the design turns on: the payload lives in a *sibling* of the
+   install root, because the uninstall action removes that root recursively
+   and would otherwise delete the files Windows Installer is removing; and
+   the install action suppresses setup's own Apps & features registration so
+   the MSI's is the only entry. Removal keeps identities and there is no
+   property to change that.
+
+3. **Coverage is now auditable.** D-0520's suite covered 13 of 82 crates and
+   nothing said so; a green result read as a whole-system check. Every
+   workspace crate is now classified — exercised, transitive, covered by the
+   spawned binary, or not covered with a stated reason — and a test parses
+   the workspace `Cargo.toml` and fails if a member is unclassified. Coverage
+   is 31 of 83 crates runnable, 50 checks, 22 of them refusals; the 49
+   uncovered crates each say why, and most reasons are the project's own
+   honest limits (presence needs two co-present devices and a ranging radio;
+   proof-of-replication's slowness is its security property).
+
+**Constitutional impact:** P1 and Directive 16 are untouched and better
+enforced: the wall is now checked mechanically in CI instead of by reading
+`Cargo.toml` diffs by hand. No frozen invariant is weakened. The
+identity-destruction path stays behind a typed approval naming an exact path
+and a typed confirmation word, and is deliberately unreachable from the MSI.
+`docs/INVARIANTS.md` U1 is unaffected: nothing added here polls, fetches, or
+self-invokes.
+
+**Implementation status:** shipped. Workspace `cargo fmt --all`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and `cargo
+test --workspace --all-features` (2760 tests) are clean. CI gains: the
+value-layer spawn path on both Linux and Windows, a `cargo tree` wall check,
+an MSI build, and an `msiexec` install/remove cycle asserting the client
+lands, only one Apps & features entry exists, and identities survive removal.
+
+**Failure point:** the coverage table is only as honest as the reasons
+written in it. The exhaustiveness test can force a crate to be classified; it
+cannot stop someone classifying a crate as a gap with a plausible-sounding
+reason when a real check was feasible. That is a review responsibility, and
+the reasons are deliberately written to be arguable rather than generic. The
+second risk is narrower: `cargo tree`'s wall check covers the front-end
+crates named in the CI step, so a new front end added without being listed
+there is unchecked.
+
+**Required follow-up:** raise coverage further — the value binary should grow
+a settlement fixture so `mini-engagement`, `mini-contribution` and
+`mini-private-payment` become reachable, and `mini-provenance`'s independent
+builder agreement deserves a check even though one process must play every
+builder. The `cargo tree` wall check should enumerate front ends from the
+workspace rather than a hardcoded list, closing the gap named above.
+Authenticode signing and bit-reproducible compiler output remain D-0520's
+follow-ups, unchanged.
+
+**Supersedes / superseded by:** supersedes D-0520's "no value-layer checks,
+per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
+else in D-0520 — the package format, the install engine, the setup program,
+the CI jobs — stands as written.
+
+### D-0522 — Registering the `RUSTSEC-2026-0283` (`clear_on_drop`) `deny.toml` ignore as a governed, owned, time-bounded exception  ·  *Shipped*
+
+**Date:** 2026-09-14 · **Refs:** Codex review finding on PR #340
+(`deny.toml:72`, P2 x2); touches
+`deny.toml,governance/exceptions.yml,docs/DECISION_LOG.md`.
+
+**Decision:** A newly published advisory (`RUSTSEC-2026-0283`) flags
+`clear_on_drop` 0.2.5, reachable only as an internal dependency of the
+vendored `bulletproofs` 5.0.0 crate (`mini-value`'s D-0036/D-0040 range
+proofs; also reached via `mini-bounty`, `mini-private-payment`,
+`mini-shielded-verify`). No safe upgrade exists per the advisory's own
+"Solution" field, and `clear_on_drop` is internal to `bulletproofs`'
+own zeroing, not a call site this tree makes directly. An ignore entry
+for it was added to `deny.toml` earlier this session (confirmed to
+reproduce identically on `main` and every branch resolving `mini-value`,
+not introduced by any one PR's diff) following the two existing
+"unmaintained, no safe upgrade" ignore entries already in that file
+(`RUSTSEC-2026-0192`, `RUSTSEC-2023-0089`) — but, per this finding,
+without the `governance/exceptions.yml` record `governance/policy.yml`
+itself requires for exactly this file (`deny.toml` is listed there as a
+`protocol-critical` glob owned by `security-stewards`, and the
+`exceptions:` block names `governance/exceptions.yml` with
+`require_owner: true` / `require_expiry: true`). This entry closes that
+gap: `governance/exceptions.yml` now carries a `DEP-EX-0001`-shaped
+record (`scope: RUSTSEC-2026-0283`, `owner: security-stewards`,
+`decision: D-0522`, a 90-day `expires` date) alongside `deny.toml`'s
+existing inline reasoning, which is left as-is.
+
+**Constitutional impact:** none. This registers an existing, already-
+reasoned dependency-advisory suppression into this project's own
+governed-exception process; it does not touch a frozen invariant, grant
+new authority, or change what the suppression itself permits.
+
+**Implementation status:** shipped on this PR's branch. `deny.toml`'s
+reasoning comment is unchanged; `governance/exceptions.yml` gains one
+entry. The same `deny.toml` ignore is already live on `main` and on
+every other branch that independently hit this advisory (see the Refs
+above) — none of those branches yet carry the matching
+`governance/exceptions.yml` record this entry adds here. `tools/
+check_governance.py`'s exceptions check (structure + expiry parsing,
+not per-advisory-ID cross-referencing) passes with this entry present.
+
+**Failure point:** `check_governance.py` does not currently cross-check
+that every `deny.toml` ignore has a matching `governance/exceptions.yml`
+entry by advisory ID — it only validates the file's own structure and
+that no listed exception has expired. A future `deny.toml` ignore could
+therefore still be added without a matching governance record and no
+CI job would catch it; tightening that check is real follow-up, not
+attempted here.
+
+**Required follow-up:** port this same `governance/exceptions.yml` entry
+to `main` and to the other branches carrying the identical `deny.toml`
+ignore, so the registered exception travels with every copy rather than
+living only on this one PR's branch. Revisit at the 90-day `expires`
+date: either `bulletproofs` has released a version off `clear_on_drop`
+(remove the ignore and this exception) or it has not (a human renews the
+exception with a fresh expiry, per `governance/exceptions.yml`'s own
+process — this entry does not pre-authorize a silent extension).
+Tightening `check_governance.py` to cross-reference `deny.toml` ignores
+against `exceptions.yml` by advisory ID, named above, is also open.
+
+**Supersedes / superseded by:** none.
+
+### D-0523 — Connected desktop beta: X-style shell, owner-started hosting and multi-peer sessions, intent-tagged desktop link, opt-in private-conversation delivery  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,network_session,connectivity,theme,timeline}.rs`;
+`mini_sync::sync_private_route_responder_any`; `docs/proposals/connected-mininet-client.md`;
+D-0520/D-0521 (Windows client and packaging this builds on); `docs/INVARIANTS.md` U1, P5/P6;
+`docs/FOUNDER_DIRECTIVES.md` Directives 2, 3, 9, 14, 18.
+
+**Decision:** make the Windows reference client usable for a real two-machine
+beta without changing any protocol, object format or trust rule.
+
+1. **Hosting is a window the owner opens.** "Accept connections" binds one
+   port and serves many connections until the owner presses Stop or closes
+   the application (bounded to four concurrent, per-I/O timeouts, one worker
+   per connection). Previously the listener accepted exactly one connection
+   and exited, which made an internet exchange a two-person choreography.
+
+2. **Sessions cycle through saved peers.** A session dials every saved peer
+   (up to 32) every 30 s after success, backing off to 2 min after failures,
+   for 15 min, 1 h, or while the app is open. Peers are saved as plain
+   dial hints (`connections.txt`), optionally with the human DID from a
+   pasteable *connection card* (`mininet-peer-v1;endpoint=…;did=…;name=…`).
+   A card grants nothing; the DID is followed, never trusted, until its
+   signed profile arrives through ingest.
+
+3. **One socket, one intent.** After the anonymous CH1 handshake the dialer
+   sends one sealed intent frame — public `MINI/SYNC1`, or one private
+   route — so a host serves both without a second port. The private path
+   uses a new responder-side `mini-sync` API that matches the initiator's
+   named route against the routes the host holds; the wire exchange is
+   byte-identical to the single-route form and reveals nothing for routes
+   the initiator did not name. Every desktop path (one-shot, nearby
+   visibility, sessions, hosting) now speaks this one link.
+
+4. **Private delivery is opt-in and stays off by default.** "Include my
+   private conversations" adds the owner's routes to sessions and hosting;
+   otherwise a private intent is refused before any route is compared.
+
+5. **Networking on launch is a persisted, default-off owner choice** (session
+   on launch, hosting on launch). Nothing else opens a socket because the
+   application started. This is the *only* change to the "no network
+   activity on launch" posture and it is the owner's explicit setting.
+
+6. **The shell reads like a social client.** Black X-inspired layout, rail /
+   timeline / discovery column, real author names and author-claimed
+   relative times, worker-loaded 50-card timeline with Following/Everyone
+   scopes, inline received images, Explore search over received posts,
+   Media filter, "Who to follow" from received profiles, honest connection
+   state (Offline / Hosting / Connecting / Connected / Peers unreachable)
+   with the actual per-peer results. Store refreshes after an exchange no
+   longer drop an unlocked identity.
+
+7. **A device-local mute list** (`muted.txt`) hides an author's posts,
+   directory entry and suggestions on this device only. It publishes
+   nothing, deletes nothing and does not stop replication; it is the local
+   half of blocking, the delivery half needs the connection service.
+
+8. **Reddit-style community discussion from existing objects.** A thread
+   is a signed comment whose parent is the community object, a reply is a
+   comment on a comment, an upvote is the existing like reaction. No new
+   object type, link relation or wire format; threads replicate through the
+   same exchanges as posts and are readable by any comment-aware client.
+   Rendering is bounded (100 threads, 200 replies per node, depth 6) and
+   honours the mute list.
+
+**Constitutional impact:** none to any frozen row. U1 holds: nothing here
+fetches, activates or installs a release. P5/P6 hold: the bearer stays
+anonymous, endpoints are not identities, private routes are compared only
+inside the encrypted channel and only when the initiator names them. No
+value crate edge is added (`mini-desktop` still depends on no
+`mini-value`/`mini-bounty`/`mini-treasury`). Directive 18: removing a saved
+peer or stopping hosting loses convenience only; identity and local state
+are untouched.
+
+**Implementation status:** shipped and verified. `cargo fmt --all`; `cargo
+clippy -p mini-desktop -p mini-sync --all-targets --all-features -- -D
+warnings`; `cargo test -p mini-desktop -p mini-sync` (27 + 5 new tests)
+clean, including a real-TCP test in which one host serves six connections
+from a session worker (public + shared private route synced, an unshared
+route declined, second exchange idempotent). Two desktop instances were
+run on one Windows 11 machine with separate data roots: A hosted on launch,
+B started a session on launch, B posted, A received the post in Explore and
+was offered Bob in "Who to follow"; B followed Alice from the discovery
+column. Windows Firewall raised its normal inbound prompt for the host.
+
+**Failure point:** this is loopback/LAN-grade evidence. Two clients behind
+different NATs still need a port forward or a reachable host; no relay,
+rendezvous, NAT traversal or endpoint advertisement is deployed. A session's
+"Connected" means the last exchange with at least one saved peer completed,
+not that any particular object reached any particular person. A `BoundedBearer` wrapper caps every desktop exchange at 180 s and
+256 MiB end to end (added after the initial landing). The Everyone timeline walks
+every received post on each refresh; it is capped at 50 cards but not
+indexed. Media playback is not integrated; images show once complete.
+
+**Required follow-up:** step 2 of the proposal — a connection service with a
+durable outbox, signed expiring endpoint advertisements, and at least one
+replaceable relay/rendezvous path — before any claim of an internet beta
+across NATs. Indexed timeline pages and cancellation of stale timeline
+workers. Firewall guidance in the installer (the client itself now states
+the prompt).
+
+**Supersedes / superseded by:** none. Extends D-0520/D-0521.
+
+### D-0524 — Service tickets (`mini-ticket`), the desktop Earnings ledger, and the seedable Library (files and movies of any size)  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-ticket/`; `crates/mini-desktop/src/{peer_link,library}.rs`;
+D-0523 (the connected desktop this extends); D-0417 (`mini-contribution`, the
+full escrow/settlement coordinator this deliberately does not activate);
+D-0302 (`mini-resource-pricing`, whose micro-MINI/MB convention tickets
+reuse); D-0037/D-0047 (no real value before external audit);
+`docs/INVARIANTS.md` P1; `docs/FOUNDER_DIRECTIVES.md` Directives 5, 16, 18.
+
+**Decision:** pay the people who hold and serve data with *evidence first*,
+money later, and make files of any size seedable now.
+
+1. **A service ticket is the receiver's signed attestation of one
+   exchange.** After every desktop exchange each side signs an ordinary
+   content-addressed object (`mininet/service-ticket/v1`) naming the other
+   side's DID as provider, the service kind, bytes and objects received,
+   the CH1 channel binding, a fresh nonce, and the media manifests that
+   became complete during the exchange. Tickets replicate, deduplicate and
+   verify exactly like posts; a peer ticket is stored only after ingest
+   provenance, provider match, announced-consumer match and channel
+   binding all pass.
+
+2. **The ledger credits hosts and creators.** `mini_ticket::Ledger`
+   prices tickets naming the owner in micro-MINI at the owner's rate
+   (Tier-0 quote convention from `mini-resource-pricing`), splits attributed
+   media bytes between host and the manifest's author by an owner-chosen
+   creator share, and deduplicates by consumer+nonce. The desktop shows it
+   in **Earnings** with the rate settings.
+
+3. **Redeemable only by the named `did:mini`.** A redemption request
+   (`mininet/ticket-redemption/v1`) can be built only by, and verifies only
+   for, the DID every referenced ticket names; the totals must equal what
+   the tickets add up to at the stated rate. Anyone holding the tickets can
+   check it. Nothing is paid: the request is the claim the audited
+   settlement layer will admit or refuse under its own rules. This is the
+   honest boundary D-0037/D-0047 draw, and `mini-contribution`'s escrow
+   path stays unactivated in the client.
+
+4. **Library: any file, any size, seeded and resumable.** Files up to
+   256 MiB are one `mini-media` manifest; larger files (to 64 GiB) become an
+   ordered `mininet/media-collection/v1` of manifests. Every part is a
+   normal manifest, so chunks replicate and resume as today and a peer
+   holding some parts seeds those parts. Export reassembles chunk by chunk
+   to disk. The desktop hosts everything complete when hosting is on.
+
+**Constitutional impact:** none to any frozen row. P1/Directive 16 hold by
+construction: `mini-ticket` is a leaf with no value or governance
+dependency; a ticket carries no vote and cannot become one. Directive 5:
+a signed ticket is evidence, never final ownership. Directive 18: rates and
+tickets are local; removing a peer removes nothing owed elsewhere. No
+external audit gate is softened: credit is labelled unsettled in-app and in
+docs.
+
+**Implementation status:** shipped and verified. `mini-ticket` unit tests
+(encoding, ledger host/creator split, dedup, provider-only redemption);
+the desktop's real-TCP host test now asserts tickets on both sides and
+that only the named provider can redeem; the library round-trips a
+one-part and a two-part collection including partial-receipt reporting.
+Live on one Windows 11 machine: B added a 5 MB file, A pulled it through
+a session, both sides exchanged tickets, and B's Earnings showed host
+credit plus the creator share for the completed manifest.
+
+**Failure point:** a receiver can decline to issue a ticket or lie about
+bytes downward; a provider can announce someone else's DID and lose the
+credit. Neither creates money. Ticket objects replicate to everyone in a
+public sync, which grows stores linearly with exchanges; pruning old
+tickets is not built. Creator attribution covers manifests that *complete*
+during an exchange, not partial progress. The rate is per device; there is
+no agreed price and no market. No settlement, no payout, no Sybil defence.
+
+**Required follow-up:** admit redemption requests into the audited
+settlement path when D-0047 clears; ticket pruning/aggregation; agreed
+rates via provider declarations (`mini-provider`); chunk-level attribution;
+streaming playback from partial collections.
+
+**Supersedes / superseded by:** none. Extends D-0523.
+
+### D-0525 — In-app Shorts and Watch: pure-Rust audio playback and animated GIF/WebP, video stays export-to-watch  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/player.rs`; D-0524
+(the Library this plays from); `deny.toml` (MPL-2.0 already allowed);
+`crates/mini-desktop/README.md` ("no embedded browser, no external
+execution").
+
+**Decision:** give the client a shorts feed, a watch page and a persistent
+now-playing bar, playing what can be played honestly without breaking the
+shell's boundaries.
+
+1. **Audio plays in-app** through `rodio` 0.22 with `symphonia` (pure Rust:
+   MP3, FLAC, Ogg Vorbis, WAV, AAC/ALAC in MP4) and `cpal` (WASAPI on
+   Windows). The output device is opened on the first Play, never on launch.
+   Seek, pause, volume and a bottom now-playing bar work across every view.
+   Payloads are decoded in memory up to 96 MB.
+
+2. **Animated GIF/WebP play in-app** through the `image` crate the client
+   already uses for photos, bounded to 600 frames and 720 px, looping.
+
+3. **Video (H.264/VP9/AV1) does not play in-app, and the UI says so.** No
+   pure-Rust decoder exists; embedding a browser or launching another
+   program would breach the shell's stated properties. A video post shows a
+   poster card with a one-click path to export it from the Library. This is
+   a stated limit, not a hidden one.
+
+4. **Shorts** shows media posts one at a time (arrow keys / J/K), with
+   like, comment and follow; **Watch** shows one post large with its
+   threaded comments and an "Up next" list; both read the Everyone timeline.
+
+**Constitutional impact:** none. New dependency `rodio` (MIT/Apache-2.0)
+pulls `symphonia` (MPL-2.0, already on the allow-list) and `cpal`; none
+touch value or governance crates, and the front-end wall check is
+unaffected. No network activity is added by playback.
+
+**Implementation status:** shipped; tests cover content-type routing, a
+real WAV decode through symphonia without a device, and GIF frame decoding.
+Live on Windows 11: a WAV posted from the Library played with a moving seek
+bar and the now-playing bar; a 24-frame GIF looped in Shorts and Watch.
+
+**Failure point:** a hostile GIF can still cost 600 textures of 720 px
+(bounded, but not free); audio is decoded whole in memory; there is no
+gapless playlist and no video. Autoplay of audio is deliberately off — the
+owner presses Play.
+
+**Required follow-up:** video through a decoder that fits the shell's
+rules (candidates: a pure-Rust AV1 decoder when one matures, or an
+OS-media-foundation adapter behind an explicit owner switch, both to be
+decided, not assumed); streaming decode for large audio; playlists.
+
+**Supersedes / superseded by:** none. Extends D-0524.
+
+### D-0526 — Fixing D-0523–D-0525's stated limits: UPnP router mapping, agreed ticket rates, in-process H.264 video  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{video,player,connectivity,peer_link}.rs`;
+`crates/mini-ticket`; D-0523 (no NAT help), D-0524 (device-local rates),
+D-0525 (no video); `deny.toml` (BSD-2 already allowed).
+
+**Decision:** close the limits that were closable in the client, and say
+plainly which still stand.
+
+1. **Reachability: owner-triggered UPnP.** "Open port on router" asks the
+   LAN gateway to forward the hosting port for a two-hour lease and reports
+   the WAN address into the connection card. A router that answers with
+   0.0.0.0, a private range, or carrier-grade NAT space is shown as
+   "mapped, no public address" with the reason. Renewal on launch is a
+   separate default-off choice tied to hosting on launch. Nothing is sent
+   beyond the LAN. This is not a relay and does not help behind CGNAT.
+
+2. **Agreed rates.** The post-handshake hello carries each side's ask;
+   the ticket records the agreed rate (provider ask capped by the
+   receiver's new "most I pay per MB" setting); a peer ticket priced above
+   the agreement is refused; every ledger and redemption total is computed
+   from ticket rates, so both sides agree on the credit.
+
+3. **Video plays in-process.** H.264 in MP4/M4V/MOV decodes through Cisco
+   OpenH264 (BSD-2, built from source, C/C++ compiled in-tree — the first
+   non-Rust code in the client, isolated behind the `openh264` crate's safe
+   API) with the `mp4` demuxer; AAC audio is decoded by symphonia driven
+   directly (rodio's convenience wrapper picks the video track in MP4s)
+   and its clock paces the frames. Verified: a 720p H.264/AAC clip plays
+   in sync. **OpenH264 does not decode B-frames**; the client detects them
+   from the `ctts` table before decoding and says so with the re-encode
+   hint (`ffmpeg -bf 0`). H.265/VP9/AV1 and WebM/MKV still do not decode.
+   The decoder is built optimized even in dev profiles (about 140 fps at
+   720p; 12 fps at -O0).
+
+**Constitutional impact:** none. New dependencies (`igd`, `openh264`,
+`mp4`, direct `symphonia`) touch no value or governance crate. UPnP is the
+only new network behaviour and it is owner-triggered or tied to an
+explicit launch policy.
+
+**Implementation status:** shipped; unit tests for NAT-range detection,
+AVCC→Annex B, garbage MP4 handling, and (when a local sample exists) full
+decode of a 300-frame clip and its AAC track. Live: router mapping against
+a real (double-NATed) gateway; video with audio in Shorts.
+
+**Failure point:** UPnP is often disabled and never helps behind CGNAT;
+the mapping expires and relies on the owner or the launch policy to renew.
+B-frames are common in phone recordings and x264 defaults, so a fair share
+of real files will show the explanation rather than play until a decoder
+with B-frame support is chosen. Video is decoded whole in memory (cap
+512 MB) and cannot seek; audio seek moves the clock but frames only
+advance forward.
+
+**Required follow-up:** a B-frame-capable decoder path (pure-Rust AV1/
+H.264 as they mature, or an OS-codec adapter behind an owner switch —
+still a decision, not an assumption); streaming decode from chunks;
+seekable video; relay/rendezvous for CGNAT.
+
+**Addendum (same day):** the Media view is now a catalog: every media post
+on the device indexed off the render thread (title = caption first line or
+file name, description, author, kind, size, likes, comments, completeness;
+bounded to 2 000 posts), searched by words over title/description/author/
+DID/type, filtered by kind, sorted by newest/most liked/most discussed, and
+shown as a grid of cards with posters decoded by a thumbnail worker (first
+H.264 keyframe — which works even for B-frame files — or a scaled image).
+Cards open Watch; author names open a **Channel** page (profile, follow,
+message, their media and posts). Search is over what this device holds;
+it is not network search.
+
+**Supersedes / superseded by:** none. Extends D-0523–D-0525.
+
+### D-0527 — Search my peers: network search and targeted, verified fetch over the desktop link  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{netsearch,peer_link,catalog}.rs`;
+`mini_sync::{request_retrieval, serve_retrieval}` (D-0080's bounded
+retrieval, first used by a client); D-0526 (the catalog this searches).
+
+**Decision:** two more intents on the one desktop link.
+
+1. **Search.** The dialer sends a query (≤200 chars) in the intent frame;
+   the peer answers from its own media catalog with ≤50 small records
+   (post and media ids, title, description, author name and DID, kind,
+   size, time). Results are that peer's claims until fetched.
+2. **Fetch.** The dialer names posts; the peer serves the exact closure —
+   the author's KEL carriers, current profile and its HEAD, the post, the
+   manifest or collection with part manifests, then chunks — through
+   `mini-sync`'s existing retrieval (≤4000 objects, <512 MiB), which
+   verifies every object on ingest. Chunks past the budget arrive through
+   later fetches or sessions. Tickets are exchanged for what moved.
+3. **UI.** "Search my peers" in Media fans the query out to every saved
+   peer on worker threads, lists hits under "On your peers" with a
+   **Fetch** button, flips them to "on this device" when they arrive, and
+   keeps local results below. Owner-triggered only.
+
+This is search over the peers the owner chose and one hop deep, not an
+index of the network; a peer can lie about what it holds, and a fetch
+proves it by verification or fails. Network-wide indexing remains the
+index-peer work the product specification lists.
+
+**Constitutional impact:** none. No new dependency; the retrieval protocol
+and its budgets are unchanged; nothing runs without the owner pressing a
+button.
+
+**Implementation status:** shipped; unit tests for result encoding and
+closure construction; a real-TCP test in which a never-synced peer
+searches by a title word, fetches, and ends with the verified post,
+identity, profile, manifest and chunks (export matches the original).
+Live: a third fresh identity searched a hosting peer, fetched a 3.8 MB
+video and could watch it.
+
+**Failure point:** one hop, saved peers only; a large collection needs
+several fetches or a session to complete; results are unsigned claims.
+
+**Required follow-up:** multi-hop forwarding with budgets; signed result
+records; index peers. (Two-hop forwarding and proxied fetch: D-0528.)
+
+**Supersedes / superseded by:** none. Extends D-0526.
+
+### D-0528 — Search forwarding with proxied fetch; no ticket for an idle exchange  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,netsearch,connectivity}.rs`;
+D-0527 (the search this extends); D-0524 (the tickets this thins out).
+
+**Decision:** two of D-0527's stated limits closed before the line merges.
+
+1. **Search reaches a host's neighbourhood.** The search intent carries a
+   hop budget (0 or 1; anything larger is clamped). A host answering with
+   budget 1 also forwards the query to at most eight of its own saved peers
+   on worker threads with a 25 s deadline each, merges what they hold
+   (deduplicated, still ≤50 records), and marks each such hit with the
+   endpoint that holds it (`via`). Hits two hops out are dropped rather
+   than promised. The host remembers post → origin (bounded, 4096).
+2. **Fetch through the host.** A fetch now begins with a one-byte status
+   frame after the hello: *serving*, *fetching from origin*, or *unknown*.
+   When a requester asks a host for a post it does not hold but knows the
+   origin of, the host starts one bounded proxy fetch from that origin (its
+   own verified retrieval, its own ticket to the origin), answers *fetching*,
+   and serves the closure on a later attempt; the requester retries a bounded
+   number of times (8 × 15 s in the UI). The host then seeds the object and
+   holds the host ticket for it — the hub earns for carrying.
+3. **Owner switch.** "While hosting, answer searches with what my saved
+   peers hold too" (`forward_searches`, default on, persisted) gates both
+   forwarding and proxy fetching.
+4. **Idle exchanges mint no ticket.** A session polls every 30 s; each poll
+   used to issue a ticket object that replicated to everyone (~120 objects
+   per hour per side while idle). An exchange that received no objects,
+   completed no media and moved under 64 KiB now sends an empty ticket frame
+   instead; the peer accepts it as "nothing to attest". Ticket volume is
+   proportional to content moved, not to session length.
+
+**Constitutional impact:** none. No new dependency. Forwarding is bounded
+in fan-out (8), depth (1), time (25 s per peer) and size; nothing runs
+without a requester the owner's host already accepted, and the owner can
+switch it off.
+
+**Implementation status:** shipped; the real-TCP test now runs a third
+identity that only knows the hub, finds a clip held by the hub's peer,
+fetches it through the hub (status *fetching* → served), and holds the
+verified manifest and chunks; the session test asserts every ticket that
+exists attests to objects actually received.
+
+**Failure point:** two hops maximum; a proxy fetch of a large collection
+completes across attempts; origin memory is per process and lost on
+restart; results remain unsigned claims until fetched.
+
+**Required follow-up:** ticket pruning needs a delete path in
+`mini-store` (its store is append-only), which is a separate decision;
+signed result records; index peers.
+
+**Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — Reusable offline credit allowances and private account settlement · *Proposed*
+
+**Date:** 2026-09-19 · **Refs:** `docs/design/human-share-offline-credit.md`;
+Directives 4/5/6/11/16; invariants M1/M2/M3, P1, A1; D-0074.
+
+**Proposal:** implement experimental sender-enforced, reusable online credit
+allowances with an encrypted durable coupon outbox. Canonical accounting bounds
+aggregate coupons and debt across devices and repays accepted receivables from
+actual future Human Share releases. This is a credit limit, not insurance or new
+issuance. Add a local private cash-account projection and require every input of
+a private claim to be canonically finalized before reporting finality. Separate
+settlement cadence arithmetic from issuance/vesting and consensus activation.
+
+**Reason:** allow limited offline exchange when a person lacks liquid MINI,
+without pretending an offline signature is final money. Reconnection is required
+for newly authorized capacity; an exhausted authorization never refills itself.
+
+**Constitutional impact:** strengthens M2/M3 checks, preserves M1 and the
+voice/value wall. No production collective policy, single-key authority,
+personhood eligibility change, mint, vesting amendment or timing change is
+accepted by this proposal. D-0074 remains unchanged.
+
+**Implementation status:** experimental library primitives and tests; no wallet,
+canonical private-credit service or real-value activation. See design/status.
+
+**Failure points:** whole-device rollback/cloning, default and submission-deadline
+risk; private credit proofs, canonical persistence and atomic private repayment
+are not implemented. Raw credit records are linkable and must not be public.
+
+**Evidence:** targeted Rust tests, sender recovery/CAS regression, complete-input
+finality tests and independent AI adversarial review; no external audit or human
+approval claimed. Exact commands/results are in the PR.
+
+**Required follow-up:** collective policy and unique-human admission; confidential
+credit state/proofs; durable canonical integration; wallet/device recovery;
+performance measurement; independent reviews and owner-opt-in release.
+
+**Supersedes / superseded by:** none. Proposal only; no rule superseded.
+
+### D-0536 — Relationship pseudonym primitives with verified FOLLOW admission · *Proposed*
+
+**Date:** 2026-10-15 · **Refs:** issue #19; `crates/mini-social/src/private_graph.rs`.
+
+**Decision:** compose the existing pairwise pseudonym inception primitive.
+`set_private_follow` accepts a caller-persisted pseudonym root KEL and its
+active delegated POST device. Delegation, signature, author binding and
+capability verification complete before any store insertion. The caller must
+persist the evolving pseudonym KEL and device state. Re-incepting the same
+deterministic root and adding a fresh random device on every call would fork
+that root's KEL and is not a valid lifecycle.
+
+**Privacy boundary:** FOLLOW edges remain public between their pseudonym DIDs.
+Linkage assertions contain plaintext real-root and pseudonym identifiers.
+Anyone holding leaked bytes can read that linkage and verify it by supplying
+the named counterpart DID. The signed counterpart field binds context; it
+provides neither confidentiality nor authentication of the verifier.
+No transport, including an ordinary pairing TCP exchange, is presumed
+confidential by this API. Authenticated confidential target exchange and
+delivery must be provided separately.
+
+**Validation:** regression source covers a persisted delegated KEL accepted
+by `mini_objects::verify_provenance`, and root-as-device, foreign,
+undelegated, SIGN-only and revoked signers rejected without FOLLOW writes.
+These changes have not been executed locally; exact-head CI is required.
+No new cryptography, verified two-store sync, external audit or launch claim.
+
+**Required follow-up:** durable pseudonym/device ownership and recovery;
+authenticated target pairing and confidential linkage delivery; complete
+verified ingestion with KEL carriers across two stores; independent review.
+These blockers keep issue #19 open.
+
+### D-0538 — Fail closed in the incomplete desktop private-follow path · *Proposed*
+
+**Date:** 2026-10-15 · **Refs:** D-0536; `Workspace::follow_privately`.
+
+**Decision:** the ordinary connection-card private-follow UI stays disabled.
+An ordinary root DID card does not authenticate a pairwise target.
+`Workspace::follow_privately` returns an explicit error without deriving
+a pseudonym, incrementing its sequence or publishing an object until durable
+pseudonym/device state and authenticated target pairing are implemented.
+A regression source checks the error, unchanged sequence and empty FOLLOW
+indexes. No local test execution is claimed.
+
+**Supersedes:** the unvalidated private-follow publishing and leak-resistance
+claims in earlier revisions of this unmerged PR. No production activation.
+
+### D-0530 — Device hierarchy policy layer: named `DeviceTier`s over `did-mini`'s existing capability-scoped delegation (issue #14, Founder Directive 13)  ·  *Shipped*
+
+**Date:** 2026-09-21 · **Refs:** `crates/did-mini/src/delegation.rs`
+(`DeviceTier`, `Capabilities::for_tier`); `crates/did-mini/src/controller.rs`
+(`Controller::delegate_device_tier`, `revoke_devices_except`,
+`revoke_all_devices`); `crates/did-mini/tests/delegation.rs`;
+`docs/design/device-hierarchy.md`; issue #14.
+
+**Decision:** add a policy layer on top of `did-mini`'s already-shipped
+capability-scoped delegation primitive (`Capabilities`, `Seal::Delegate`/
+`Seal::Revoke`), not a new primitive. A `#[non_exhaustive] DeviceTier` enum
+names four risk profiles an identity root delegates to — `ColdRoot`
+(rarely-used, highest-authority key: the only tier granted
+`MANAGE_DEVICES`, bound to every capability defined today, enumerated
+rather than taken as `Capabilities::ALL` so a later-added bit never enters
+it silently), `HardwareToken` (dedicated
+signing hardware: `Capabilities::SIGN` only, no delegation authority),
+`DailyDevice` (phone-class, constant use: `Capabilities::primary()` —
+everyday signing/pay/post/attest/vote, never key-management or storage
+authority), and `Emerging` (any device shape not yet given its own named
+tier — implants, wearables, or anything not yet invented — bound to the
+network's existing conservative `Capabilities::secondary()` default until
+promoted by a future decision). `Capabilities::for_tier(DeviceTier)` is the
+sole typed-domain constructor from tier to capability set (no
+caller-supplied-bits escape hatch); `Controller::delegate_device_tier`
+composes it with the existing `delegate_device`. Revocation ergonomics
+build on the existing `Seal::Revoke` + `Kel::delegated_devices()` machinery:
+`revoke_devices_except(&[Did])` (keep named devices, cut the rest, in one
+seal event, no-op if nothing needs cutting) and `revoke_all_devices()` (cut
+every currently-delegated device). No new event kind, no new wire format,
+no new cryptography — composition of `did-mini`'s existing KERI/
+capability-scoping primitives per `CLAUDE.md`'s prohibition on inventing
+cryptography.
+
+**Reason:** issue #14 asked for the *policy* half of device hierarchy
+(how many tiers, what capability sets per tier, revocation ergonomics) on
+top of the *mechanism* half (`BaseDeviceRole`/`Capabilities`) that already
+existed. Four fixed, reviewed tiers — rather than an open numeric or
+string tier a caller could assign arbitrary bits to at the call site —
+keep capability growth reviewed the same way the typed-domain rule already
+requires everywhere else in this codebase (`sign(bytes)`/`finalize(state)`
+is rejected in review; a free-form "device with capabilities X" tier
+constructor would be the same mistake one layer up). `Emerging`'s
+deliberately conservative, deliberately temporary bound is Founder
+Directive 13 ("think in centuries, not releases") in code form: today's
+device shapes (phone, hardware dongle) are not assumed permanent, and a
+genuinely new shape is neither silently matched into an existing tier nor
+handed a bespoke capability set on the spot — it starts bounded and is
+promoted only by a future canonical decision.
+
+**Constitutional impact:** Directive 13 (device-shape permanence is never
+assumed — the `#[non_exhaustive]` enum and `Emerging`'s conservative
+default exist for this reason); the typed-domain rule in `CLAUDE.md`
+(tier-to-capability mapping is a fixed constructor, never a generic
+capabilities-by-value delegation path); P1 (capability scoping continues
+to only narrow a device's authority, never inflate the root's standing —
+`Capabilities::ALL` remains the ceiling every tier is checked against, and
+`every_tier_is_bounded_by_capabilities_all` is a real test of that). No
+crate boundary changed; no voice/value dependency edge is touched (this is
+entirely inside `did-mini`).
+
+**Implementation status:** shipped. `DeviceTier` (4 variants) and
+`Capabilities::for_tier` in `crates/did-mini/src/delegation.rs`;
+`Controller::delegate_device_tier`, `revoke_devices_except`,
+`revoke_all_devices` in `crates/did-mini/src/controller.rs`; both
+re-exported from `did-mini`'s crate root. 11 new tests in
+`crates/did-mini/tests/delegation.rs` covering each tier's capability
+bound, the `ALL`-boundedness invariant, tier-driven delegation matching
+`Capabilities::for_tier`, and all three revocation-ergonomics behaviors
+(keep-named-cut-rest, no-op when nothing needs cutting, full wipe),
+plus revocation of more devices than one seal event holds (split across
+events) and a check that `ColdRoot` is exactly its enumerated set.
+`docs/design/device-hierarchy.md` records the per-tier rationale and what
+this explicitly does not do (it does not change how a root's own
+multi-key/threshold signing keys are modeled, and it does not add
+enforcement that only a `MANAGE_DEVICES`-holding session may call
+`delegate_device`/`revoke_device` — those remain root-`Controller`-signed
+operations; an application-layer check consulting the capability bit is a
+separate, unbuilt piece, same as every other capability bit today).
+
+**Failure point:** `MANAGE_DEVICES` (and every other capability bit) is
+still not enforced by any application-layer authorization check in this
+repo — it is metadata a caller can consult, not a runtime gate; a device
+tier that should no longer hold its capability set (e.g. a `HardwareToken`
+whose issuer wants to demote it) needs `revoke_device` + re-delegate at a
+lower tier, there is no in-place tier downgrade primitive; `Emerging`'s
+bound is a policy default, not a technical ceiling — nothing stops an
+application from calling the untiered `delegate_device` with a wider
+capability set for a device it privately considers "emerging," so the tier
+system's guarantee is only as strong as callers choosing
+`delegate_device_tier` over the untiered escape hatch.
+
+**Required follow-up:** an application-layer authorization check that
+actually consults `MANAGE_DEVICES`/`VOTE`/etc. before letting a session
+act with a device's granted capabilities (tracked generally under the
+capability-scoping work, not opened as a new issue by this entry); a
+future decision promoting a specific `Emerging` device shape (e.g. a
+wearable) to its own named tier once the network has real experience with
+it, per this design's stated promotion path.
+
+**Supersedes / superseded by:** none. Extends the delegation primitive
+shipped alongside SPEC-01 §6 (`Capabilities`, `Seal::Delegate`/
+`Seal::Revoke`, predating this log's D-numbering of `did-mini` work).
+
+
+---
+
+### D-0532 — Issue #75 (DOS & spam resistance review): `mini-net` PEX address-book flood fix, plus `mini-social::PostRateLimiter` — identity-root-keyed, bounded content-layer spam resistance with no identity-scarcity assumption  ·  *Shipped*
+**Date:** 2026-09-21 · **Refs:** [#75](../../issues/75); `crates/mini-net/src/pex.rs`
+(`absorb_response`, `AddressBook`); `crates/mini-social/src/spam.rs`
+(`PostRateLimiter`); `crates/mini-net/src/gossip.rs` (`GossipRouter`, the
+existing bounded-cache precedent this follows); `crates/mini-social/src/pairing.rs`
+(`PairingNonceLedger`, the existing bounded-cache precedent this follows).
+
+**Decision:** a systematic pass over `mini-net`, `mini-bearer`, `mini-social`,
+and `mini-store` for uncapped attacker-influenced buffers/caches found one
+real uncapped path and fixed it, found everything else already bounded, and
+closed the still-open content-layer spam question with a mechanism that
+does not depend on identity scarcity.
+
+1. **Fixed: `mini-net::pex::AddressBook` unbounded growth.**
+   `absorb_response` called `book.insert(record.id, record.addr)`
+   unconditionally for every record in a `PexMessage::Response`, regardless
+   of whether `RoutingTable::insert` accepted that id. `RoutingTable` itself
+   is bounded (`BUCKET_SIZE` × 256 buckets), but a hostile peer sending many
+   separate PEX responses — each individually capped at `MAX_PEX_RECORDS`,
+   but with a fresh forged `PeerId` in every batch, since nothing
+   authenticates who a `PeerId` belongs to — could grow `AddressBook`
+   without limit even as `RoutingTable` refused most of those same ids.
+   Fixed by gating `AddressBook::insert` on `RoutingTable::contains`
+   (accepted-or-already-known) after the insert attempt, tying the address
+   book's size to the routing table's own bound instead of to how many
+   responses an attacker is willing to send. New test
+   `absorb_response_never_grows_the_address_book_past_the_routing_table_bound`
+   floods 200 responses of 64 forged ids each (12,800 total) and asserts
+   `book.len()` never exceeds the routing table's bound.
+2. **Confirmed already bounded, no change needed:** `mini-net::GossipRouter`'s
+   seen-set (capacity-bounded LRU, pre-existing), `mini-net::RoutingTable`
+   (per-bucket cap, pre-existing), `mini-bearer::FrameReader`/`encode_frame`
+   (`MAX_FRAME_BYTES`/`MAX_STREAM_BUFFER_BYTES`, pre-existing, rejects before
+   allocating), `mini-bearer::ble` chunk reassembly (`MAX_FRAME_BYTES`,
+   pre-existing), `mini-social`'s existing per-object size bounds
+   (`MAX_POST_BYTES`, `MAX_WALL_*`, `MAX_PAIRING_*`) and
+   `PairingNonceLedger`'s own bounded-with-sweep design. `mini-store`'s
+   growth is ordinary content-addressed storage, not an attacker-controlled
+   buffer ahead of validation, and is out of this review's scope.
+3. **New: `mini_social::PostRateLimiter`**, content-layer spam resistance
+   for issue #75's second half. Rate-limiting keyed to identity-root
+   activity was chosen over local-reputation-graph filtering or
+   per-post proof-of-work as the mechanism actually implementable now
+   without inventing anything: every `Did` (identity root) already seen
+   locally gets the same flat budget — at most N posts per trailing
+   window-`Did` regardless of reputation or how many identities an
+   attacker controls — so it never assumes identity scarcity (constitution
+   principle 7, open participation) and never claims to distinguish a real
+   human from a Sybil (`docs/INVARIANTS.md`'s frozen top limitation: identity
+   root ≠ verified human). It explicitly does not stop a well-resourced
+   Sybil flood (N identity roots buy N× the aggregate budget); it stops one
+   identity hammering a feed, the cheaper and more common case. Tracked
+   authors are themselves bounded (`MAX_TRACKED_AUTHORS`, LRU-evicted, a
+   rejected attempt never refreshes an author's LRU position so a spamming
+   author cannot keep itself artificially "warm") — the same
+   cap-before-it-becomes-a-resource-exhaustion-vector shape `GossipRouter`
+   and `PairingNonceLedger` already use, reused here one layer up because
+   the growth-path shape (many distinct attacker-chosen keys) is identical.
+   Five new tests cover: budget enforcement, window aging, the flat-budget-
+   regardless-of-identity-count property, the tracked-author cap holding
+   under a 2,000-identity flood, and LRU eviction correctness under a
+   spamming author. `PostRateLimiter` is a local, per-viewer admission
+   check (construct with `PostRateLimiter::standard()` or `::new`, call
+   `admit(&author, now_ms)` before storing/ranking a post) — not a
+   consensus rule; it is not yet wired into `publish_post`/`publish_media_post`
+   or feed assembly by this decision (see Required follow-up).
+
+**Constitutional impact:** none weakened; strengthens Directive 16-adjacent
+resource-exhaustion posture and stays inside constitution principle 7 (open
+participation) by construction — `PostRateLimiter` imposes no cost or
+gate on *acquiring* an identity root, only a flat post-frequency cap on one
+already held. Never claims "one human, one vote" or any Sybil-resistance
+property; identity root ≠ verified human remains exactly as frozen in
+`docs/INVARIANTS.md`.
+
+**Implementation status:** shipped in `mini-net`/`mini-social`, unit-tested,
+not yet wired into any caller (`mini-desktop`, feed assembly, or the
+`publish_post`/`publish_media_post` call sites) and not yet backed by a
+production load test or real-network measurement.
+
+**Failure point:** `PostRateLimiter` is local/per-device state — restarting
+the process resets it, and it makes no attempt to survive a device switch,
+so a rate-limited author can reset its own budget by any local action that
+recreates the limiter; it also does nothing against an aggregate multi-
+identity flood, by design (see Decision, point 3). The `AddressBook` fix
+bounds *this* growth path but does not defend against other flooding
+vectors this review did not find because they don't yet exist in the
+current transport-thin slice (e.g. no live TCP fuzzing was run against
+`mini-net`/`mini-bearer` together as a real running node).
+
+**Required follow-up:** wire `PostRateLimiter` into an actual publish/feed
+call site (`mini-social::post`/`mini-desktop`) so it does something beyond
+being unit-tested; a durable (not just in-process) per-author budget if
+cross-restart persistence turns out to matter in practice; the still-open
+local-reputation-graph and per-post proof-of-work mechanisms this decision
+named but did not implement remain available as *additional*, not
+alternative, layers if a real deployment shows the flat rate limit alone
+is insufficient; aggregate Sybil-flood resistance remains out of scope
+here and stays tracked under roadmap #18.
+
+**Supersedes / superseded by:** none.
+
+
+### D-0533 — `mini-safety`: typed, device-local block/mute primitives (issue #76, Phase 10.6)  ·  *Shipped*
+
+**Date:** 2026-09-21 · **Refs:** `crates/mini-safety/src/lib.rs`; issue #76
+(Phase 10.6, abuse-handling design); D-0523 (`mini-desktop`'s ad hoc
+`muted.txt`, the local half of blocking this generalizes); `mini-social`'s
+`FeedFilter`/`feed` doc comment (already noted personal blocklists live in
+"the safety layer, E9"); constitution principles 7 and 10;
+`docs/FOUNDER_DIRECTIVES.md` Directive 16 (voice/value wall — `mini-safety`
+adds no edge to any value crate); Directive 14 (simplicity).
+
+**Decision:** give abuse handling (harassment, illegal content
+distribution, coordinated manipulation) a real, tested, typed crate that
+lives entirely on the viewer's own device, so every client (desktop, CLI,
+future mobile) shares one block/mute primitive instead of reinventing it
+per surface, as `mini-desktop`'s `muted.txt` had started to.
+
+1. **`SafetyProfile` is one viewer's own local state.** It holds a block
+   list of identity roots (`did_mini::Did`) and a set of content-mute
+   rules (`MuteRule::Keyword`/`MuteRule::ExactObject`). A fresh profile
+   blocks and mutes nothing; every entry exists because this device called
+   a mutation method.
+2. **Every mutation is a named request type**, per the typed-domain rule:
+   `BlockIdentityRequest`, `UnblockIdentityRequest`, `AddMuteRuleRequest`,
+   `RemoveMuteRuleRequest` — no generic "apply this opaque rule" entry
+   point. `visibility_for`/`filter` are the only read paths and both take
+   caller-supplied `(author, object_id, text)` rather than reading
+   `mini-objects`/`mini-social` types directly, so `mini-safety` has no
+   dependency edge onto either and stays reusable across every content
+   shape a caller wants to filter (post body, wall bio, comment).
+3. **Constitution principle 7 is structural, not a promise.** Nothing in
+   the crate touches `mini-store`, `mini-net` replication, or any object's
+   existence; a block/mute is a local render decision only — it can never
+   stop a peer from publishing, replicating, or being served by anyone
+   else's node, and there is no aggregate, quorum, or cross-viewer
+   comparison of profiles anywhere in the crate (each `SafetyProfile`
+   belongs to exactly one viewer).
+4. **Constitution principle 10's "community filters" are opt-in import,
+   never push.** `SafetyProfile::import` is the only path by which another
+   viewer's shared block/mute list (an ordinary object, decoded by the
+   caller — publishing that object is `mini-objects`/`mini-social`'s job,
+   not this crate's) can affect a profile, and it always requires this
+   viewer's device to call it. An imported entry becomes an ordinary local
+   entry afterward — same removal path, same `MuteRuleId` allocation — so
+   the source of a shared list can never override, un-import, or track
+   what was imported.
+5. **Plain-text persistence**, generalizing D-0523's `muted.txt`
+   convention: `to_lines`/`from_lines` round-trip a profile through a
+   tab-delimited local text format; a malformed line is a hard parse
+   error rather than a silent skip, so a corrupted file is never mistaken
+   for "nothing is blocked."
+
+**Constitutional impact:** advances principle 10 (user/community filters,
+never central moderation) and principle 7 (no forced exclusion from basic
+network use) into real, tested code. No frozen invariant in
+`docs/INVARIANTS.md` is touched. No dependency edge to
+`mini-value`/`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain`
+voting exists or is needed (Directive 16); `mini-safety` depends on
+`did-mini` only.
+
+**Implementation status:** shipped. `crates/mini-safety` (new workspace
+member): `SafetyProfile`, `Visibility`, `MuteRule`, `MuteRuleId`, the four
+typed request structs, `SafetyError`, 12 unit tests covering fresh-profile
+default-visible, block/unblock and idempotent re-block, keyword and
+exact-object muting (including case-insensitivity and removal), block
+precedence over mute, order-preserving `filter`, line round-tripping,
+malformed-input rejection, blank-line tolerance, opt-in additive `import`
+with duplicate-suppression, and `MuteRuleId` non-reuse after removal.
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace
+-- -D warnings`, and `cargo test --workspace --all-features` all clean;
+`tools/mininet_nav.py build` regenerated. No client (desktop, CLI) is
+wired to this crate yet — that is deliberate follow-up, not claimed here.
+
+**Failure point:** matching is substring/exact only — no regex, no
+per-language normalization beyond ASCII case-folding, so a determined
+poster can trivially evade a keyword mute with spacing or homoglyphs; this
+is an acknowledged, honest limitation of a first primitive, not a claim of
+robust filtering. `import`'s "no way to track what was imported" is a
+property of this crate only — a *caller* that also logs who it fetched a
+shared list from could still leak that locally; this crate itself stores
+nothing about provenance. No persistence integration exists yet: callers
+must wire `to_lines`/`from_lines` to their own file/store path themselves.
+
+**Required follow-up:** wire `mini-desktop`'s `muted.txt` and any future
+CLI/mobile surface onto `SafetyProfile` instead of each keeping its own
+ad hoc list; consider a `mini-objects`-typed "shared filter list" object
+shape so `import` has a canonical wire format rather than every caller
+inventing its own; richer local matching (regex, language-aware
+normalization) as a later, still purely local, opt-in addition.
+
+**Supersedes / superseded by:** none. Generalizes the local half of
+D-0523's `muted.txt`.
+
+### D-0534 — `mini-objects`: distinct, unlaundered AI-generated/AI-mediated object type  ·  *Shipped*
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/ai_object.rs`,
+`crates/did-mini/src/delegation.rs` (`Capabilities::AI_DISCLOSE`); roadmap
+#63; Directive 12; constitution principle 8.
+
+**Decision:** AI-generated or AI-mediated content (agent posts, AI-assisted
+moderation decisions, model outputs) gets its own type, `AiObject`, that is
+structurally incapable of passing as human-authored content or human
+governance participation:
+
+1. `AiObject` is a distinct struct, not an `ObjectType` variant of `Object`
+   and not convertible into one (no `From<AiObject> for Object`). It has
+   its own wire tag (`AI_ENVELOPE_TAG = 0xA1` vs. `Object`'s `1`), so
+   attempting to decode one as the other fails immediately rather than
+   silently.
+2. Authoring an `AiObject` requires a new typed capability bit,
+   `Capabilities::AI_DISCLOSE`, off by default on every existing device
+   role. A device with only ordinary human-authoring capabilities cannot
+   sign one; a device holding only `AI_DISCLOSE` cannot sign an ordinary
+   human `Object` (checked both directions in tests).
+3. `AiObjectBuilder` requires non-empty `AiProvenance` (producing
+   system/model id, timestamp) before it will sign anything — there is no
+   path to an `AiObject` without disclosed provenance.
+4. `verify_ai_provenance` is a separate function from `Object`'s
+   `verify_provenance`, not an optional flag on the same one; a
+   `compile_fail` doctest proves the human-content verification path
+   rejects `&AiObject` at compile time, not just at runtime.
+
+**Constitutional impact:** Directive 12 / principle 8 (AI content must be
+clearly labeled and cannot be laundered into human-authored or
+human-governance status). No voice/value-wall edge: `mini-objects` and
+`did-mini` are outside that wall. No new cryptography — reuses existing
+`did-mini` signing/capability primitives.
+
+**Implementation status:** shipped. `AiOrigin` (GeneratedContent |
+MediatedDecision) with a `disclosure_label()` for honest rendering;
+8 new tests in `crates/mini-objects/tests/ai_object.rs` covering round-trip,
+cross-envelope decode rejection both directions, capability-gated authoring
+both directions, and empty-provenance rejection. `cargo clippy
+--all-targets --all-features --workspace -- -D warnings` and `cargo test
+--workspace --all-features` both pass clean on this change.
+
+**Failure point:** labeling is honest only as far as the authoring device
+actually holds/uses `AI_DISCLOSE` correctly — nothing here detects an
+AI-authored object signed by a device that also has ordinary human
+authoring capability and chooses to lie about which path it used; that is
+a device-trust question this decision does not attempt to solve.
+
+**Required follow-up:** no consumer (mini-social walls, mini-forge review
+UI) yet renders `AiObject`'s disclosure label distinctly in a real client;
+that wiring is separate follow-up work, not claimed here.
+
+**Supersedes / superseded by:** none.
+
+### D-0537 — Wire `AiObject` disclosure rendering into a real client consumer
+
+**Date:** 2026-09-24 · **Refs:** `crates/mini-objects/src/ai_object.rs`
+(`AiObject::render_disclosure`), `crates/mini-desktop/src/timeline.rs`
+(`Card::ai_disclosure`, `ai_card`); roadmap #63; Directive 12; constitution
+principle 8.
+
+**Decision:** D-0534 shipped `AiObject`/`AiOrigin::disclosure_label()` as a
+correct-by-construction type, but its own "Required follow-up" noted no
+consumer anywhere rendered that label, leaving it functionally inert. This
+closes that gap honestly, without inventing a feed/store integration that
+does not exist yet:
+
+1. `AiObject::render_disclosure(&self) -> String` (mini-objects) composes
+   the existing `AiOrigin::disclosure_label()` with the object's
+   `provenance.system_id` into one client-ready string, so every real
+   consumer gets identical, honest wording instead of reaching into
+   `origin`/`provenance` itself.
+2. `mini-desktop::timeline::Card` gains `ai_disclosure: Option<String>`.
+   The two existing card-construction paths (`build`, `from_service`) —
+   which only ever decode human-authored `mini_objects::Object`s — always
+   set it to `None`; there is no code path by which an ordinary human post
+   can acquire a disclosure string.
+3. A new `mini_desktop::timeline::ai_card(&AiObject, author, did) -> Card`
+   is the one function that builds a card *for* an `AiObject`, always
+   setting `ai_disclosure: Some(ai.render_disclosure())`, `own: false`,
+   and a payload-derived (never fabricated-human-looking) body. This is
+   the real, callable integration point a renderer uses to show AI content
+   distinctly in the same list as human cards.
+
+This is deliberately the lighter of the two deliverables the follow-up
+named: `mini-store`'s `Store`/`by_type` index and `mini-social`'s
+`feed`/`resolve_post` path are hard-typed to `mini_objects::Object` byte
+decoding (`Object::from_bytes`) with no `AiObject` persistence or indexing
+of any kind. Adding real feed/store integration for a second envelope type
+is a separate, larger `mini-store`/`mini-social` decision, not something to
+retrofit unilaterally under a disclosure-wiring task; forcing it in now
+would risk exactly the kind of scope creep this project's rituals warn
+against. `ai_card` is written so that whenever that store/feed integration
+lands, it is the natural place to call from.
+
+**Constitutional impact:** Directive 12 / constitution principle 8 (AI
+participation must be labeled and never laundered into human-authored
+appearance) — a disclosure string now actually reaches a client-facing type
+(`Card`) through a real function, closing D-0534's stated gap. No
+voice/value-wall edge: `mini-objects` and `mini-desktop` are both outside
+that wall. No new cryptography.
+
+**Implementation status:** shipped. `render_disclosure` plus a
+mini-objects test
+(`render_disclosure_is_non_empty_and_names_the_producing_system`);
+`Card::ai_disclosure` plus `ai_card` plus a mini-desktop test
+(`ai_card_carries_a_disclosure_that_ordinary_cards_never_get`) proving an
+`ai_card`-built card always carries a non-empty disclosure while every
+`build()`-produced human card's `ai_disclosure` stays `None`. Correction
+(same PR, before merge): the original text here claimed `cargo clippy
+--all-targets --all-features --workspace -- -D warnings` passed clean;
+it did not — `mini-desktop` is a binary-only crate, so `ai_card` (a real
+function this decision's own "Failure point" already says has no
+production caller yet) tripped `-D dead-code` on the workspace `check`,
+`windows-client`, and `windows-packaging-pipeline` CI jobs. Fixed with a
+documented `#[allow(dead_code)]` on `ai_card` citing this same decision,
+rather than fabricating a caller or an `AiObject` feed/store integration
+this decision explicitly declined to add. `cargo fmt --all`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` now pass clean.
+
+**Failure point:** `ai_card` is not yet called from any running UI loop —
+there is still no code path that fetches an `AiObject` from storage or the
+network and hands it to `ai_card` automatically; a caller has to construct
+or receive the `AiObject` itself. Honesty over polish: this decision closes
+the "no renderer even exists" gap, not the "AI content flows through the
+feed automatically" gap, which remains real follow-up work.
+
+**Required follow-up:** design and decide real `AiObject` persistence/
+indexing (a second envelope type in `mini-store`, or a parallel index) and
+a `mini-social`-level function that scans it the way `feed`/`resolve_post`
+scan `Object`s, so `ai_card` can be invoked from an actual timeline
+assembly path instead of only from direct/test callers.
+
+**Supersedes / superseded by:** none. Extends D-0534.
+
+### D-0535 — Object model consistency review (#59): CRDT op link-shape strictness fixed
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/{object,private_object,envelope_v2}.rs`;
+`crates/mini-social/src/{post,wall}.rs`, `crates/mini-social/src/lib.rs`;
+`crates/mini-crdt/src/lib.rs`, `crates/mini-crdt/tests/crdt.rs`;
+`crates/mini-messaging/src/lib.rs`; issue #59.
+
+**Decision:** reviewed `mini-objects`' shared envelope conventions
+(content-addressing, typed-domain signing, versioning, capability-gated
+provenance) against how `mini-social` (posts, walls), `mini-crdt` (forum
+ops), and `mini-messaging` (private messages) each build and decode
+objects on top of it, since all three read/write the same envelope and a
+divergent convention between them would make the model harder to extend
+safely.
+
+Findings:
+
+1. **Public vs. private envelope split (v1 `Object` vs. `PrivateObject`/
+   `ObjectEnvelopeV2`) is consistent and intentional, not an
+   inconsistency.** `mini-social`/`mini-crdt` build cleartext v1 `Object`s;
+   `mini-messaging` builds `PrivateObject`s sealed into v2
+   `ObjectEnvelopeV2`s. Both sides derive content ids with the identical
+   `Multihash`(BLAKE3)-over-canonical-bytes recipe, both defer
+   signature/provenance verification to ingest rather than to
+   publish/store (`Store::insert`/`insert_private` verify neither), and
+   the v1/v2 version-byte disambiguation is airtight (`object.rs`'s `1`,
+   `envelope_v2.rs`'s `ENVELOPE_VERSION = 2`, each format's parser rejects
+   the other's first byte, tested in both modules). No fix needed here.
+2. **Link-shape validation strictness diverged, and this one was a real
+   interop gap.** `mini-social::decode_post` and
+   `mini-messaging::decode_message` both exhaustively validate an
+   object's full link set — any link beyond the exact shape their type
+   defines (an unrecognized relation, a duplicate) is rejected, not
+   ignored. `mini-crdt::parse_op` did not follow this: it picked the first
+   `"doc"` link and the first target-relation link via `Vec::iter().find()`
+   and never looked at the rest, so a `CRDT_OP` carrying a second,
+   contradicting `"doc"` link, a duplicate target link, or any
+   unrecognized extra link still parsed successfully under whichever link
+   happened to come first — bytes a stricter reader elsewhere in the
+   workspace would reject as malformed. Fixed: `parse_op` now requires
+   exactly two links (`"doc"` plus the op kind's target relation, in
+   either order) and rejects anything else, matching the exhaustive-link
+   convention `mini-social`/`mini-messaging` already use. Two regression
+   tests cover it (`an_op_with_a_duplicate_contradicting_doc_link_is_rejected`,
+   `an_op_with_an_extra_unrecognized_link_is_rejected`).
+3. **`ObjectType::Custom` naming has no enforced convention across the
+   workspace** (`"mini/community-membership"` in `mini-social` vs.
+   `"mininet/private-message/v1"` in `mini-messaging`, and the wider
+   codebase mixes `"mini/x"`, `"mininet/x/v1"`, and bare names like
+   `"test"`). Collisions are avoided today only because the strings
+   happen to differ (and, on the separate unmerged #64 branch,
+   `WellKnown`/`Custom` tags no longer collide either — see below); this
+   is a naming-hygiene gap, not a decodable-bytes ambiguity, and adopting
+   one convention retroactively would be a breaking wire-format change to
+   already-published object types, so it is recorded as an open item
+   rather than forced through here.
+
+**Constitutional impact:** none (Directive 14, simplicity/no new
+dependency; no voice/value edge touched; no Tier-F invariant weakened).
+The fix makes decode strictness *more* uniform, not less.
+
+**Implementation status:** shipped on `feature/object-model-consistency-review`.
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace
+-- -D warnings`, `cargo test --workspace --all-features`, and
+`python3 tools/mininet_nav.py build` all pass. Note for whoever reviews
+this alongside issues #63/#64 (both completed on separate unmerged
+branches touching `crates/mini-objects/src/object.rs` and
+`did-mini/delegation.rs`): this review was done against `main` *before*
+those two land, so it does not reflect their changes; #64 in particular
+already closes a related `WellKnown`/`Custom` tag-collision finding,
+now recorded as D-0531 on that branch after an earlier D-0529 collision
+across five parallel branches was resolved by renumbering. This entry
+was originally also D-0529 and has been renumbered to D-0535 for the
+same reason.
+
+**Failure point:** the `Custom`-type naming-convention gap (finding 3)
+remains open; nothing here changes it.
+
+**Required follow-up:** if a `Custom`-type naming convention is adopted
+project-wide, it applies to new types only (no retroactive rename of
+already-published type strings).
+
+**Supersedes / superseded by:** none.
+
+
+### D-0539 — `mini-ffi::messaging`: a `RootCore`-native `mini-messaging` adapter, plus a device-revoke UI  ·  *Shipped*
+
+**Renumbering note:** originally opened claiming D-0529; that number was
+independently taken by D-0529 "Reusable offline credit allowances and
+private account settlement" (PR #352) while this PR was still open.
+Renumbered to the next free main-sequence number (checked against
+`docs/DECISION_LOG.md`'s own header and every other open PR's diff at the
+time: D-0530–D-0538 were already claimed by PRs #360/#361/#358/#356/#357/
+#362/#363) per this log's own collision-resolution convention — the
+still-unmerged side renumbers, never the merged one. No content below was
+otherwise changed by the renumbering itself; the two fixes noted in
+"Implementation status" were made in the same pass, before merge.
+
+**Date:** 2026-09-21 · **Refs:** `crates/mini-ffi/src/messaging.rs`;
+`crates/mini-ffi/src/mini_ffi.udl`; `app/android/app/src/main/java/org/mininet/app/MainActivity.kt`;
+D-0335 (`RootCore` root/device delegation this reuses), D-0338 (the
+persisted-state pipeline this extends), D-0340 (`pairing.rs`, the sibling
+adapter this module's shape mirrors).
+
+**Decision:** add one new capability to `mini-ffi`, following its own
+documented convention of one deliberately reviewed adapter at a time
+(`lib.rs`'s crate doc: "sync... enter[s] through later, separately
+reviewed adapters"), rather than a broad multi-crate FFI expansion.
+
+1. **`RootCore.send_message`/`scan_conversation`.** A thin bridge over
+   `mini-messaging::send`/`scan`, signing with `RootCore`'s own
+   `state.devices.first()` (matching `pairing.rs`'s existing convention)
+   and persisting sealed `ObjectEnvelopeV2` bytes — never plaintext — as a
+   new `MessagingState` field folded into `RootCore::persist_state`'s
+   existing ciphertext (persisted-state format bumped `PERSIST_VERSION`
+   2 → 3, with 1/2/3 all still readable). `ConversationSecretHandle`
+   (32-byte route + 32-byte key) is accepted, never generated, matching
+   `mini-messaging`'s own "does not invent key distribution" stance —
+   establishing one safely is still entirely the caller's problem.
+2. **`signature_verified` is scoped honestly.** It is computed only when a
+   message claims `author_human` equal to this process's own root *and*
+   `author_device` matches one of `state.devices`' own current KELs *and*
+   that device is currently listed in the root's own KEL as an actively
+   delegated device (`Kel::delegated_devices()` — the authoritative source,
+   not mere local possession of a `Controller`). The third condition
+   closes a pre-merge review finding: `state.devices` can hold a device
+   delegated by a *different* root than `state.root` (the cross-device
+   enrollment path, D-0335's issue #199, never required the enrolling
+   process to be root-less), so without it a process holding both its own
+   root and a foreign device could send/see a message that falsely claims
+   `author_human` for that foreign device. `send_message` applies the same
+   check when choosing which device signs, instead of blindly taking
+   `devices.first()`. Never computed against a different person's KEL at
+   all (this module has no way to fetch one), and the doc comment says so
+   directly rather than leaving that limit implicit.
+3. **Device-revoke admin UI.** `RootCore.delegatedDevices()`/
+   `revokeDelegatedDevice()` (D-0335, already fully wired end-to-end in
+   Rust) had no Kotlin UI calling them. `MainActivity.kt`'s `HomeScreen`
+   now lists every delegated device with a confirm-before-revoke control;
+   the current device's own entry cannot be revoked from itself (a
+   self-lockout, not a security boundary the call can enforce), and the
+   revoke-does-not-remote-wipe honest limit is stated in the screen copy,
+   not just a code comment.
+4. **Round-2 Codex review fixes (unmerged, still this same decision).**
+   Four further findings landed on the same not-yet-merged branch, after
+   the round covered by this entry's "Renumbering note" above:
+   - `MainActivity.kt`'s `rollBackToLastPersistedState()` (added in that
+     prior round to undo a half-applied revoke when `persistRootState()`
+     fails) itself had no failure path: if the restore-after-persist-
+     failure also failed, the error was silently swallowed and `rootCore`
+     was left mutated with no signal to the caller. It now returns whether
+     the rollback itself succeeded (logged distinctly from the original
+     persist failure via `Log.e`), and `revokeDevice` uses that to show a
+     message naming both failures rather than only the first. `rootCore`
+     is deliberately left as its already-mutated, never-persisted self
+     when rollback also fails — see the code comment on
+     `rollBackToLastPersistedState` for why that's more honest here than
+     a third, never-exercised fallback state.
+   - `revokeDevice` rebuilt `Home` through `homeState(message)`, whose
+     null/false defaults for `offer`/`pairingBusy` are correct for a
+     pairing attempt's *own* completion but wrong for an unrelated action
+     like a revoke: they discarded any pairing attempt genuinely still in
+     flight on its own coroutine, letting a second offer start against
+     now-stale UI state. `homeState` gained explicit `offer`/`pairingBusy`
+     parameters (still defaulting to null/false for every existing
+     caller), and `revokeDevice` now passes the pre-revoke `Home` state's
+     own values through instead of taking the defaults.
+   - `ConversationSecretHandle`'s `key: Vec<u8>` was dropped unscrubbed,
+     unlike the `AeadKey` derived from it (`mini-crypto::aead::AeadKey`
+     already zeroizes on `Drop`). It now does too, via the same
+     hand-rolled `Drop` + `zeroize::Zeroize` pattern already established
+     in `mini-crypto`/`mini-value` (`AeadKey`, `mlsag.rs`,
+     `stealth_impl.rs`); `to_secret`'s own temporary `[u8; 32]` copy
+     (`[u8; N]` is `Copy`, so it outlives the `from_local_vault` call it's
+     passed to) is scrubbed the same way before returning.
+   - `send_message` permanently returned `LimitExceeded` once
+     `MAX_ENVELOPES` (4096, and persisted, so the cap survives a restart)
+     was reached, with no recovery path. Rather than an automatic
+     oldest-first eviction — which would silently destroy message history
+     a caller never asked to lose, contradicting this module's "never
+     loses ciphertext behind the caller's back" posture — the fix is a new
+     explicit, typed `RootCore.prune_conversation(secret, keep)`, scoped to
+     one conversation (identified by the same secret capability
+     `send_message`/`scan_conversation` already require) via each
+     envelope's own unencrypted `route()`, never a raw index or a global
+     truncate. Envelopes belonging to any other conversation are left
+     untouched. 2 new tests cover cross-conversation isolation and
+     recovering send capacity after actually hitting the cap.
+
+**Rejected alternatives, and why:** a full "admin panel" with live
+online/last-seen presence (`mini-presence` investigated first) was
+rejected — that crate implements one-time cryptographic proximity
+attestation, not online status; no heartbeat/last-seen concept exists
+anywhere in this workspace, and inventing one would be new protocol
+design work needing its own decision, not a side effect of an FFI
+adapter. A remote lock/wipe command was rejected for the same reason:
+`did-mini` has only delegate/revoke KEL seals, no command-seal variant,
+and no push mechanism exists to notify a device of anything.
+
+**Constitutional impact:** none. No dependency crosses the voice/value
+wall (`mini-messaging` depends only on `did-mini`/`mini-crypto`/
+`mini-objects`/`mini-store`). No cryptography invented — composes
+`mini-messaging`'s existing sealed-envelope primitive unchanged.
+
+**Implementation status:** shipped and tested on the Rust side: 11 new
+`crates/mini-ffi/src/messaging.rs` unit tests (send/scan round-trip with
+verified signature, wrong-key rejection, invalid-secret-length rejection,
+no-root rejection, persist/restore round-trip, malformed-receipt
+rejection, plus three added in review remediation covering the
+root-delegation binding fix above, plus two added in the round-2 fixes
+above covering `prune_conversation`), all 74 `mini-ffi` tests green,
+`cargo clippy -p mini-ffi --all-targets --all-features -- -D warnings` and
+`cargo clippy --all-targets --all-features --workspace -- -D warnings`
+clean, `cargo test --workspace --all-features` clean across the whole
+repository (2,878 tests passed, 0 failed, confirming the round-2 fixes
+introduce no regression anywhere else — `mini-ffi` has no in-workspace
+reverse dependents, so this was a breadth check, not an expected source
+of interaction), and the UDL (including the round-2 `prune_conversation`/
+`PruneOutcome` addition) was round-tripped through real `uniffi-bindgen`
+Kotlin generation to confirm `sendMessage`/`scanConversation`/
+`ConversationSecretHandle` land correctly in generated Kotlin.
+`ConversationSecretHandle` is a UniFFI `interface` (opaque object handle),
+not a `dictionary`: a second pre-merge review finding noted that a
+`dictionary` generates a Kotlin `data class`, whose compiler-generated
+`toString()`/`equals()` would print the raw conversation key (and the Rust
+struct's own derived `Debug` had the same problem) — an `interface` has no
+such printable representation, and nothing outside this module ever reads
+`route`/`key` back out of one. The Kotlin `HomeScreen`/`MiniViewModel`
+changes, including both round-2 Kotlin fixes above, are unverified in this
+environment (no JDK/Android SDK/Gradle/emulator here, same standing limit
+as every other Android UI change in this log) — Gradle sync and a real
+device/emulator run remain outstanding.
+
+**Failure point:** conversation-key establishment is still entirely
+caller-managed (no pairwise session protocol exists yet — same limit
+`mini-messaging` itself already states); `scan_conversation` is a full
+re-scan every call with no cursor, so cost grows with `MAX_ENVELOPES`
+(4096) history; revocation still has no push path to the revoked device.
+A fourth pre-merge review finding (P2, advisory, not fixed in this PR):
+the revocation screen enumerates `RootCore.delegatedDevices()`, which
+only lists locally held `Controller`s — a device this root delegated
+*elsewhere* via the cross-device enrollment path (D-0335's issue #199)
+is invisible and unrevocable from this screen, since Android does not
+yet call that path at all. Not fixed here because the fix is standing
+up that whole cross-device UI flow (how the app would even obtain the
+root's own KEL bytes to enumerate from, absent a locally-held device),
+not a substitution inside `revokeDevice` — see required follow-up.
+
+**Required follow-up:** a real pairwise key-establishment protocol before
+this is usable for anyone other than a user's own multiple devices
+sharing a secret through an already-trusted channel; Gradle/emulator
+verification of the new Kotlin; issue tracking for the rejected
+presence/remote-command work if the founder wants it pursued as its own
+decision; wiring Android to the existing
+`begin_device_enrollment`/`approve_device_enrollment`/
+`finish_device_enrollment`/`revoke_delegated_device` cross-device flow so
+the revocation screen can enumerate and revoke a device this root
+delegated from a different process, not only ones this process itself
+created (the P2 advisory finding above) — `revoke_delegated_device`
+itself already doesn't require holding the device's secrets, so the gap
+is enumeration/UI, not the underlying Rust capability.
+
+**Supersedes / superseded by:** none. Extends D-0335/D-0338/D-0340.
+
+
+### D-0102 — `mini-sync` adversarial partition-pattern stress tests, closing roadmap #26  ·  *Accepted*
+**Date:** 2026-09-21 · **Refs:** [roadmap #26](../../issues/26), D-0062
+(carved this scope out explicitly: "that robustness testing is `mini-sync`'s
+own separate scope, roadmap #26"), `crates/mini-sync/src/protocol.rs`,
+`crates/mini-sync/tests/sync_partition_stress.rs`, `crates/mini-sync/tests/
+sync_over_tcp.rs`.
+
+**Decision:** add real-TCP adversarial integration tests for `mini-sync`'s
+existing bucketed reconciliation protocol covering four partition patterns
+the existing suite (single mid-transfer kill, simple 2-peer convergence)
+did not exercise: repeated intermittent drops with a fresh connection each
+time, long offline accumulation (1000+ objects across many local writes)
+before a single reconnect, asymmetric 3-peer reachability where two peers
+never connect directly and rely entirely on a third as relay, and
+out-of-order/interleaved reconnection (peers meeting in a scrambled order
+with local writes between every encounter). This is adversarial *testing*
+of the existing model per the issue's own framing, not a redesign; no
+protocol code changed.
+
+**Reason:** D-0062 explicitly deferred this exact scope to #26 rather than
+claiming the live-TCP demo covered it. Directive 1 (the network must
+actually work under real conditions, not just in the happy path) requires
+verifying the store-and-forward claim ("A3", the crate's own README) holds
+under the partition shapes a real deployment produces, not just a single
+clean drop.
+
+**Constitutional impact:** none — no frozen invariant touched, no protocol
+or wire-format change, no new dependency edge (reuses `mini-bearer::
+TcpBearer`/`Channel` and `mini_sync::sync_bidirectional` exactly as
+`sync_over_tcp.rs` already does).
+
+**Implementation status:** shipped. `crates/mini-sync/tests/
+sync_partition_stress.rs`, 4 new tests, all real TCP:
+`repeated_intermittent_drops_eventually_converge_without_loss_or_duplication`,
+`long_offline_accumulation_converges_in_a_single_reconnect`,
+`asymmetric_reachability_relays_content_transitively_through_a_common_peer`,
+`out_of_order_reconnection_with_interleaved_writes_still_fully_converges`.
+All four passed on first correct assertion; the store-and-forward
+reconciliation model itself needed **no code fix** -- the writing of the
+first test surfaced not a protocol bug but an incorrect test assumption,
+documented here so it isn't rediscovered as a false alarm: `sync_bidirectional`
+under `SyncRole::Initiator` runs its own `pull()` to full completion
+*before* calling `serve_pull()` for the peer's leg (see `protocol.rs`'s
+`sync_bidirectional`). If the connection then dies during that *second*
+leg, `sync_bidirectional` returns `Err` even though the first leg's
+`pull()` already committed its ingest. This is correct and intended --
+each `pull()` round is independently atomic-by-idempotence exactly as the
+crate's doc comment already states -- but the *wrapping* call's `Err`
+does not imply "this whole encounter was a no-op," only that "something in
+this encounter, possibly the far side's leg, did not finish." A caller
+that assumes an `Err` from `sync_bidirectional` means zero store mutation
+would be wrong; a caller that assumes idempotent, monotonic, id-verified
+convergence across repeated attempts (what every test here actually
+checks) is correct. The original implementation reported clean
+`cargo fmt --all` and full-workspace Clippy. Scoped tests for `mini-sync`
+and its dependent crates passed; the full test attempt also encountered
+an unrelated `mini-cli` Wasmtime-runner failure in a sandbox missing a
+`wasm32-*` target, so it did not establish a green full-workspace test run.
+Those historical results do not verify a later merge candidate; exact-head
+hosted CI must supply that evidence. Navigation was generated on the original
+branch; it has not been regenerated for the subsequent mainline changes.
+
+**Failure point:** these tests still run everything on one machine over
+real loopback TCP, not real BLE/Wi-Fi radios (roadmap #22, unchanged) and
+not truly concurrent multi-peer sessions (each encounter in these tests is
+still one pairwise pull-then-serve exchange, sequenced by the test, not N
+peers syncing simultaneously). The `bucket_of` scheme (256 buckets keyed
+off one id byte) was stress-tested only up to ~1000 objects per store here;
+its behavior at much larger real-world store sizes (bucket collision rate,
+`BucketDigests` message size) remains unmeasured and is a distinct future
+concern, not something this entry claims to have closed.
+
+**Required follow-up:** none required to close #26's stated scope (partition
+pattern robustness of the existing model); a future decision should measure
+bucket-collision behavior at realistic object-count scale if/when that
+becomes a priority, and roadmap #22 (real radio bearers) remains the
+separate hardware-dependent blocker for testing these same patterns over
+an actual lossy link rather than TCP loopback.
+
+**Supersedes / superseded by:** none — first dedicated partition-pattern
+stress coverage for `mini-sync`.
+### D-0531 — `mini-objects` object-model extensibility review: confirm forward-compat, close a `WellKnown`/`Custom` tag collision (issue #64)  ·  *Accepted*
+
+**Date:** 2026-09-21 · **Refs:** `docs/design/
+mini-objects-extensibility-review.md` (new); `crates/mini-objects/src/
+object.rs`; D-0021 (original unified envelope, `ObjectType` "extensible
+type"); D-0300/`MN-103` (`ObjectEnvelope` v2, unrelated lane, no conflict).
+
+**Decision:** issue #64 asked whether entirely new object types can be
+added decades from now without a breaking migration and without any single
+party's schema proposal getting special authority over the format. Review
+finding: **yes, already true by design** (D-0021), but two things were
+missing rather than broken. (1) The forward-compat property — an
+unrecognized `ObjectType::WellKnown(u16)` tag or `Custom(String)` name
+round-trips losslessly through `Object::to_bytes`/`from_bytes` with no
+special handling — was real but untested as a forward-compat guarantee;
+four new tests in `crates/mini-objects/src/object.rs`
+(`object_of_a_future_unknown_well_known_type_round_trips_losslessly`,
+`object_of_a_future_unknown_custom_type_round_trips_losslessly`,
+`an_unrecognized_well_known_type_falls_back_to_the_narrowest_capability`,
+`signing_the_reserved_custom_marker_as_a_well_known_tag_is_rejected`) now
+prove it. (2) A real latent bug: the wire format reserves `u16::MAX` as the
+`Custom`-discriminator tag, but nothing stopped signing
+`ObjectType::WellKnown(u16::MAX)`, which would encode to bytes a decoder
+reads back as `Custom` with a zero-length name — itself already rejected,
+so the failure mode was "un-decodable at the wrong layer, however long
+after signing" rather than a clear error at construction time. Fixed by
+naming the reserved value `CUSTOM_TYPE_MARKER` (one source of truth for
+encode/decode) and having `ObjectBuilder::sign` reject
+`WellKnown(CUSTOM_TYPE_MARKER)` up front. No wire format change: `Object`'s
+version byte, `ObjectType`'s two variants, and every existing encoding are
+unchanged; every pre-existing test still passes unmodified. Confirmed
+separately, no code change needed: adding a new `WellKnown` associated
+constant is an ordinary `mini-forge`-governed source change (2-approval
+protocol floor, `KelDirectory` oracle) like any other, and `Custom(String)`
+needs no gate at all — neither path grants any single party (maintainer,
+code owner, external registry) special authority over which type
+identifiers exist.
+
+**Constitutional impact:** none. No dependency edge changed (voice/value
+wall untouched — `mini-objects` has no path to `mini-value`/`mini-bounty`/
+`mini-treasury` or to `mini-forge`/`mini-chain` voting either way). No
+Tier-F invariant touched. `ObjectBuilder::sign` already takes the typed
+`ObjectType` domain value, not a generic `sign(bytes)`, so the new guard is
+an added validation inside an already-typed-domain function, not a new
+authority surface.
+
+**Implementation status:** shipped. `cargo fmt --all`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` clean; `mini-objects`' 59 unit tests + 9
+integration tests (`tests/objects.rs`) + 1 doc-test all pass, including the
+4 new tests above.
+
+**Failure point:** the `WellKnown`/`Custom` collision was only ever
+reachable by deliberately constructing `WellKnown(u16::MAX)`, since every
+named associated constant is far below it (`WALL_LINKAGE` = 14) — this was
+closed before any real allocation pressure existed, not after an incident.
+`Payload`'s two wire variants (`Public`/`Encrypted`) and
+`ObjectEnvelopeV2`'s `RetentionClass` tag remain closed matches on the
+wire; that is intentional (both are envelope/mechanism-level, not object
+*type*, and a new mechanism should force a version bump so old nodes don't
+silently misclassify data) but is recorded here so it is not later mistaken
+for the same gap this review closed.
+
+**Required follow-up:** none blocking. If `WellKnown` allocation ever
+approaches the top of the `u16` range (currently 14 of ~65,534 slots used),
+revisit whether `CUSTOM_TYPE_MARKER`'s single reserved value is still
+sufficient headroom — not expected to matter on any realistic timeline.
+
+**Supersedes / superseded by:** none. Extends D-0021; no prior decision on
+extensibility testing existed to supersede.

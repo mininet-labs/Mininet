@@ -6,14 +6,20 @@
 
 [workspace]
 resolver = "2"
+exclude = ["vendor/askama_derive"]
 members = [
     "crates/mini-durable",
+    "crates/mini-resident",
+    "crates/mini-seed",
     "crates/mini-crypto",
     "crates/did-mini",
     "crates/mini-witness-service",
     "crates/mini-bearer",
     "crates/mini-presence",
     "crates/mini-reward",
+    "crates/mini-beta",
+    "crates/mini-beta-grants",
+    "crates/mini-beta-exec",
     "crates/mini-keystone",
     "crates/mini-ffi",
     "crates/mini-objects",
@@ -22,6 +28,7 @@ members = [
     "crates/mini-sync",
     "crates/mini-messaging",
     "crates/mini-social",
+    "crates/mini-safety",
     "crates/mini-media",
     "crates/mini-forge",
     "crates/mini-bootstrap",
@@ -61,8 +68,14 @@ members = [
     "crates/mini-intake-social",
     "crates/mini-crawler",
     "crates/mini-crawler-fetch",
+    "crates/mini-app-protocol",
+    "crates/mini-app-service",
     "crates/mini-desktop",
     "crates/mini-windows-vault",
+    "crates/mini-windows-setup",
+    "crates/mini-setup",
+    "crates/mini-selftest",
+    "crates/mini-value-selftest",
     "crates/mini-extract-protocol",
     "crates/mini-extract-host",
     "crates/mini-provider",
@@ -80,6 +93,7 @@ members = [
     "crates/mini-economy",
     "crates/mini-econ-sim",
     "crates/mini-contribution",
+    "crates/mini-ticket",
     "crates/mini-query",
     "crates/mini-search-federation",
     "crates/mini-search-federation-net",
@@ -126,3 +140,15 @@ opt-level = 3
 
 [profile.dev.package.mini-value]
 opt-level = 3
+
+# The bundled OpenH264 C/C++ decoder is unusable at -O0 (about 12 fps at
+# 720p); optimize it even in dev builds so a debug client can play video.
+[profile.dev.package.openh264-sys2]
+opt-level = 3
+[profile.dev.package.openh264]
+opt-level = 3
+
+# UniFFI 0.32 pins Askama 0.16. This source patch replaces the abandoned
+# basic-toml parser without changing the mobile binding generator API.
+[patch.crates-io]
+askama_derive = { path = "vendor/askama_derive" }

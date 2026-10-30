@@ -242,6 +242,66 @@ pub fn derive_output_with_secret(
     ))
 }
 
+/// Optional scanning hint for a stealth output. This is public, not an
+/// authenticator: a matching byte must always be followed by address verification.
+/// Keep it outside `StealthOutput` so existing wire formats remain unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ViewTag(pub u8);
+
+impl StealthSharedSecret {
+    /// Domain-separated BLAKE3 hint shared by sender and recipient.
+    pub fn view_tag(&self) -> ViewTag {
+        let mut hash = blake3::Hasher::new_derive_key("MINI_VALUE_STEALTH_VIEW_TAG_V1");
+        hash.update(self.as_key_material());
+        ViewTag(hash.finalize().as_bytes()[0])
+    }
+}
+
+/// Derive an output and its optional public scan hint using the same fresh
+/// ephemeral key. This does not change the legacy output or its address.
+pub fn derive_tagged_output(
+    recipient_spend_public: &[u8],
+    recipient_view_public: &[u8],
+) -> Option<(StealthOutput, ViewTag)> {
+    let (output, shared) =
+        derive_output_with_secret(recipient_spend_public, recipient_view_public)?;
+    Some((output, shared.view_tag()))
+}
+
+/// Recognize an optionally tagged output with view-key privileges only.
+///
+/// The DH multiplication `b*R` is still necessary. A mismatching tag skips
+/// the subsequent scalar derivation and basepoint multiplication. Honest
+/// unrelated outputs match with probability 1/256; malicious senders can
+/// force matches, so this is an optimization, never a DoS or security bound.
+/// `None` retains legacy scanning. A corrupted hint can hide an otherwise
+/// valid payment from this scan; callers must authenticate its wire binding
+/// or offer unfiltered recovery scanning. No wire integration is implied.
+pub fn recognizes_tagged_output(
+    own_view_secret: &[u8],
+    own_spend_public: &[u8],
+    output: &StealthOutput,
+    tag: Option<ViewTag>,
+) -> bool {
+    let Some(b) = crate::canonical::canonical_nonzero_scalar(own_view_secret) else {
+        return false;
+    };
+    let b = zeroize::Zeroizing::new(b);
+    let Some(a) = decompress_point(own_spend_public) else {
+        return false;
+    };
+    let Some(r_pub) = decompress_point(&output.tx_public_key) else {
+        return false;
+    };
+    let shared = StealthSharedSecret((*b * r_pub).compress().to_bytes());
+    if tag.is_some_and(|candidate| candidate != shared.view_tag()) {
+        return false;
+    }
+    let s = zeroize::Zeroizing::new(hash_to_scalar(&[shared.as_key_material()]));
+    let expected = *s * crate::curve::basepoint() + a;
+    expected.compress().to_bytes().as_slice() == output.one_time_address.as_slice()
+}
+
 /// Recover the same shared secret on the recipient's side, from their view
 /// secret and the sender's published `tx_public_key`.
 ///

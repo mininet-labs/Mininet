@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ParliamentMotion payload",
+  "type": "object",
+  "required": ["motion_id", "class", "exact_state_digest", "committee", "opened_at"],
+  "properties": {
+    "motion_id": {"type": "string", "minLength": 1},
+    "class": {"enum": ["ordinary", "major", "emergency-fix", "constitutional", "public-transition", "guardian-stay-override"]},
+    "exact_state_digest": {"type": "string", "minLength": 16},
+    "committee": {"type": "string", "minLength": 1},
+    "opened_at": {"type": "integer", "minimum": 0},
+    "closes_at": {"type": "integer", "minimum": 0},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "majority_report_ref": {"type": "string"},
+    "minority_report_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}

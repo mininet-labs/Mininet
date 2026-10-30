@@ -1,0 +1,24 @@
+[package]
+name = "mini-ticket"
+version = "0.0.1"
+description = "Signed service tickets: a receiver's attestation of bytes served over one encrypted session, naming the provider DID that alone may redeem it. Accounting only; no payment execution."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# LEAF: no mini-value / mini-bounty / mini-treasury, no mini-forge / mini-chain,
+# ever. A ticket is evidence of service; it is not money and carries no voice.
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
+mini-media = { path = "../mini-media" }
+# Only the price convention (micro-MINI per MB) and its Tier-0 quote.
+mini-resource-pricing = { path = "../mini-resource-pricing" }
+mini-privacy-policy = { path = "../mini-privacy-policy" }
+
+[dev-dependencies]
+mini-crypto = { path = "../mini-crypto" }

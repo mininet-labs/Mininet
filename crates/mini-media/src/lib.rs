@@ -22,6 +22,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod collection;
+pub use collection::{
+    read_collection, MediaCollection, COLLECTION_PART_BYTES, COLLECTION_TYPE, COLLECTION_VERSION,
+    MAX_COLLECTION_CONTENT_TYPE_BYTES, MAX_COLLECTION_NAME_BYTES, MAX_COLLECTION_PARTS,
+};
+
 mod superblock;
 pub use superblock::{
     assemble_superblock, assemble_superblock_to_writer, missing_superblock_chunks,

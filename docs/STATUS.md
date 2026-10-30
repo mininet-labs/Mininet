@@ -16,6 +16,16 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## Proposed offline credit and account primitives (D-0529)
+
+**Prototype, not activated:** reusable signed credit allowances, sender-side
+cumulative enforcement with encrypted durable outbox, bounded Human Share debt
+and repayment accounting, private cash-account projection and complete-input
+finality checks. Settlement/issuance cadence is arithmetic only. Collective
+issuance, private canonical credit proofs/storage, atomic repayment transfers and
+wallet UI remain unimplemented. No guaranteed IOU payout or real-value readiness.
+Scope and staged gates: [design](design/human-share-offline-credit.md).
+
 ## PR #332 audit correction (2026-09-09)
 
 The original F-01–F-24 audit remains **PARTIAL**, and real value / real people remain **NO-GO**. Historical statements that all findings are closed are superseded as implementation status by the [current claim-to-executor evidence matrix](audits/PR332_REMEDIATION_STATUS.md). Passing structural checks does not establish semantic audit closure or external approval.
@@ -599,6 +609,13 @@ given time.
   not a new one. 5 tests, including a raw-socket regression proving a
   request never crosses the wire unencrypted.
 
+- **prototype, opt-in scan hint** — `mini-value` exposes domain-separated
+  BLAKE3 stealth view tags and tagged recognition. DH computation remains
+  necessary; tag mismatches skip the subsequent address multiplication.
+  Existing wire formats and wallets are unchanged. Matching hints still
+  require full address verification; authenticated hint transport and
+  unfiltered recovery scanning remain integration work. See
+  `docs/design/roadmap-review-implementation.md` and `mini-value/tests/view_tags.rs`.
 - **prototype** — `mini-value`: stealth addresses, linkable ring
   signatures, Bulletproofs confidential amounts (D-0036/D-0040). Real,
   tested, founder-reviewed, **pending external audit** — see `docs/
@@ -954,7 +971,7 @@ given time.
   decoy distribution), which remain entirely unimplemented.
 - **policy kernel implemented; integration and external review open
   (proposed D-0413); contribution/bridge-issuance mechanism deferred at
-  genesis (D-0525, Gate #96 legal review, pending counsel signature)** —
+  genesis (D-0542, Gate #96 legal review, pending counsel signature)** —
   the treasury economic model (D-0073,
   `docs/design/treasury-economic-model.md`: XRPL/XMR bridge split,
   contribution epochs, oracle/vesting/issuance-ceiling mechanism) and the
@@ -1707,6 +1724,36 @@ given time.
   six-vs-eleven-vs-seventeen ambiguity across SPEC-00/v2/this repo.
 
 ## 10. Self-hosted forge spine (D-0066, tracking issue #102)
+
+**Resident AI owner assistance:** the desktop now has an explicitly configured
+local-model assistant and local inspection/search; CLI tools add diagnostics,
+source-granted questions, confirmed patch workflows, hosting plans and budget
+arithmetic. Model output remains labeled advisory text and cannot dispatch
+actions, acquire human approval weight or authorize funds. This is local
+assistance, not a paid peer-inference marketplace or a closed external gate.
+See [Resident AI](design/resident-ai.md) for setup, boundaries and evidence.
+
+
+**Native Forge Unix launch profile:** history migration now preserves merge
+parents and executable bits with verified bounded continuation; iterative Git
+mirrors support deep ancestry. The persistent service adds pinned, trusted-KEL
+mutual endpoint authentication, allowlists, bounded workers and graceful stop;
+paged/windowed exchange supports stores beyond a single ID frame. Local seed
+initialization/loading is hardened. The repeatable software gate is
+`python3 tools/check_native_forge.py --release`. See
+[the profile and remaining external boundaries](design/native-forge-launch.md).
+This is source-collaboration readiness, not a governance cutover or a claim
+that hardware, research, external audit or global launch gates are closed.
+
+
+**Native migration/workspace/review implementation:** local SHA-1/SHA-256 Git
+snapshot import with signed provenance, new Git export mirrors, bounded native
+source workspaces, structured exact-head proposal/review/diff commands and saved
+peer synchronization now compose the existing Forge primitives. This is
+engineering preparation, not a governance cutover or external gate closure.
+See [Native Forge migration and collaboration](design/native-forge-migration.md)
+for commands, compatibility boundaries and acceptance evidence.
+
 
 Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
 external-audit-driven development-sequencing initiative
@@ -2607,16 +2654,46 @@ the top development priority.
   when the exact verified DID still has a nearby endpoint. A Windows-only real
   TCP test proves two independent roots complete profile verification and
   signed-follow delivery through one visible window.
+  Diagnostics (D-0520) runs the real protocol code on the user's own machine
+  and shows the result: 24 checks over `mini-selftest` covering identity,
+  storage, social objects, chunked media, encrypted messaging, two stores
+  converging over a real loopback socket, a governed two-approval merge,
+  erasure-coding recovery and storage proofs. Nine of them establish a
+  *refusal* (one approval does not reach the two-approval floor, an approval
+  bound to one commit does not carry to a substituted one, a second
+  conversation's key reads none of the first one's messages). The same suite
+  is `mini selftest`, and CI runs it.
+  Version & install (D-0520) reads the same `mini-windows-setup` state
+  `mininet-setup.exe` writes: installed version and package digest, rollback
+  target, and where program files and user data each live. It can re-hash
+  every installed file against its manifest and roll back to a version already
+  on disk after verifying that version first. It cannot check for updates,
+  fetch a release, or install one (INVARIANTS U1).
   It remains a reference client rather than a production release: no secure
   Inbox prekey/ratchet protocol, asynchronous mailbox delivery,
   calls, automatic Internet relay/NAT traversal, Internet-wide name directory,
-  search, forge workflow, hardware-backed key custody, packaging, or
-  independent security review.
+  search, forge administration workflow, hardware-backed key custody,
+  code signing, or independent security review.
+- **partial** — Windows packaging and install (D-0520, `mini-windows-setup` +
+  `mini-setup` + `packaging/windows/`). `mininet-setup.exe` is a real
+  double-click installer: per-user, no administrator, no service, no network
+  code in its dependency tree, every file verified out of the package and
+  re-read and re-hashed from disk before activation, an approval naming one
+  exact manifest digest, `mini_forge::check_no_rollback` on activation, an
+  atomic pointer swap into versioned directories, Start Menu and Apps &
+  features integration, and uninstall that keeps identities unless explicitly
+  told otherwise. `mini windows pack` builds reproducible containers plus a
+  readable manifest carrying BLAKE3 and SHA-256 per file, so a user can
+  re-check every byte with `Get-FileHash` without running a Mininet binary.
+  Not done: Authenticode code signing (so SmartScreen warns on first run, and
+  is right to), bit-reproducible compiler output for the binaries inside the
+  container (SPEC-11), a per-machine install, installer localization,
+  and wiring `mini-update`'s adoption/provenance gates to this install path.
 - **not started** — mobile and browser clients.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
 backend composition, maturity matrix, and implementation order.
-No desktop or web application exists anywhere in this repository.
+A Windows-first desktop reference client exists; a browser client is not implemented.
 `docs/UI_BETA_PLAN.md` is a plan, not code, for those. An Android client
 foundation exists: a `mini-ffi` UniFFI command/event boundary plus a thin
 Jetpack Compose onboarding shell, stopping at `RootCreationReady` with no
@@ -2678,6 +2755,25 @@ labor stated in hub issue #196.
 Beta explicitly means "builds, installs, golden path works, full Rust
 suite green" — not that the custody layer has cleared external review
 (D-0047 gate).
+
+`mini-ffi` gained a second capability adapter beyond pairing (D-0539):
+`RootCore.send_message`/`scan_conversation` bridge `mini-messaging`'s
+sealed-envelope send/scan into the same persisted-state pipeline
+(`PERSIST_VERSION` 2 → 3), with `signature_verified` deliberately scoped
+to only ever validate against this process's own root and a device that
+root's *own current KEL* actively delegates — never another person's,
+which this module has no way to fetch, and never merely a device this
+process happens to hold locally (a pre-merge review finding: those two
+things can diverge via the cross-device enrollment path). `MainActivity.kt`'s
+`HomeScreen` also gained a device list with confirm-before-revoke, the
+first UI caller of `RootCore.revokeDelegatedDevice` since it shipped under
+D-0335. `ConversationSecretHandle` crosses the FFI boundary as an opaque
+UniFFI `interface`, not a `dictionary`, so neither generated Kotlin nor
+Rust `Debug` output can print the raw conversation key. Same standing
+limit as the rest of this section: the Rust side is tested (9 new tests,
+72/72 green, clippy clean, UDL round-tripped through real `uniffi-bindgen`
+Kotlin generation), the Kotlin UI change is not Gradle/emulator-verified
+in this environment.
 
 ## 12. Edge / provider layer (Founder Directive 18, D-0352)
 
@@ -3028,3 +3124,188 @@ trusted first peer, majority-by-download rule, admin/unmasking key, or
 value-to-routing/ranking/voice path. An authenticated endpoint proves control of
 one key-bound endpoint on one channel, not personhood, operator independence,
 result truth, or governance standing.
+
+## Connected desktop beta — 2026-09-15 (D-0523)
+
+The Windows client now opens into an X-style black shell (rail, timeline,
+discovery column) with real author names/times, a worker-loaded 50-card
+timeline with Following and Everyone scopes, received-post search, a media
+filter with inline images, and "Who to follow" from received profiles.
+Connectivity: an owner-started hosting window that accepts many connections,
+multi-peer sessions with backoff (15 min / 1 h / while open), pasteable
+connection cards, opt-in private-conversation delivery through the same
+link, and default-off "on launch" policies. One sealed intent frame after
+the CH1 handshake selects public sync or one private route on one socket
+(`mini_sync::sync_private_route_responder_any` serves the host side).
+
+Verified: crate tests including a real-TCP host/session exchange, and two
+live instances on one Windows machine exchanging a post and a follow.
+Not verified: two machines behind different NATs. Still missing: relay,
+rendezvous, NAT traversal, endpoint advertisements, durable outbox,
+whole-exchange deadlines, indexed timelines, video playback, maps, dating
+and business workflows. See `docs/proposals/connected-mininet-client.md`.
+
+## Service tickets and the seedable Library — 2026-09-15 (D-0524)
+
+`mini-ticket` adds signed, replicable service tickets issued by the receiver
+of every desktop exchange, a ledger that credits hosts and creators in
+micro-MINI (unsettled), and a redemption request only the named DID can
+build or verify. The desktop's Library publishes files of any size (up to
+64 GiB as an ordered collection of manifests), shows seeding progress, and
+exports chunk by chunk; Earnings shows the ledger and rate. Verified over
+real TCP and live with two instances. Not built: settlement or payout,
+ticket pruning, agreed rates, streaming playback.
+
+## Shorts, Watch and in-app playback — 2026-09-15 (D-0525)
+
+Audio (MP3/FLAC/Ogg/WAV/AAC-in-MP4) plays in-app through pure-Rust
+decoders with seek, pause, volume and a now-playing bar; animated GIF/WebP
+loop in Shorts and Watch. Video does not decode in-app (no pure-Rust
+decoder; no browser or external launch) and the UI says so, offering export.
+
+## Limits closed — 2026-09-15 (D-0526)
+
+Owner-triggered UPnP router mapping with honest public-address detection;
+agreed per-exchange ticket rates written into tickets; in-process H.264
+(no B-frames) + AAC video playback via OpenH264 and symphonia. Still not
+built: relay/rendezvous for CGNAT, B-frame video, H.265/VP9/AV1, seekable
+video, settlement. Media is a YouTube-style catalog (search, filters, sort,
+poster grid) with per-author Channel pages; search covers this device only.
+
+## Search my peers — 2026-09-15 (D-0527, D-0528)
+
+Network search (saved peers, forwarded one further hop by hosts that allow
+it) and targeted verified fetch through `mini-sync` retrieval, from the
+Media view; a host that does not hold a hit pulls it from the origin and
+then serves and seeds it. Idle exchanges no longer mint ticket objects.
+`docs/BETA_TESTING.md` is the tester guide for this line.
+
+## Abuse handling: `mini-safety` — 2026-09-21 (D-0533, issue #76)
+
+New crate: device-local, typed block/mute primitives per constitution
+principles 7 and 10. `SafetyProfile` holds a block list of identity roots
+and content-mute rules (keyword substring or exact object id), mutated
+only through named request types (`BlockIdentityRequest`,
+`UnblockIdentityRequest`, `AddMuteRuleRequest`, `RemoveMuteRuleRequest`)
+and read only through `visibility_for`/`filter`, which take caller-supplied
+`(author, object_id, text)` so the crate has no dependency on
+`mini-objects`/`mini-social`. Nothing here touches `mini-store` or network
+replication — a block/mute changes only what this one device renders.
+`SafetyProfile::import` is the sole, always-explicit path for adopting a
+shared "community" list as one's own local rules (constitution principle
+10); nothing auto-subscribes or auto-applies. Plain-text `to_lines`/
+`from_lines` persistence generalizes `mini-desktop`'s D-0523 `muted.txt`
+convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
+still has its own separate `muted.txt`, and integrating both onto
+`mini-safety` is open follow-up.
+
+### Owner-controlled seed runtime (draft branch)
+
+The `mini-seed` pool and `mini seed` CLI connect owner-selected public signed
+objects to retention days, bounded quotas, authenticated seed-only serving,
+explicit-peer following and reseeding, and real mutually signed delivery
+receipts. Optional paid delivery accepts external wallet-signed settlement claims
+and exports their unchanged wire bytes as **pending**, never a finalized balance.
+No global discovery, automatic payout/finality reconciliation, fair-exchange
+escrow, web search/ranking pipeline integration, private-data seeding or remote deletion
+is claimed. This developer profile is documented in `docs/design/seed-network.md`.
+
+The draft seed runtime now also includes explicit owner-local seed contacts,
+signed expiring provider snapshots, rollback-resistant bounded catalogues,
+original-signature relay/import/export, multi-provider fallback and live mesh
+following. `mini seed search` verifies returned signed public UTF-8 source
+objects and produces excerpts locally, with literal matching and stable ID order;
+it does not feed payments/replica counts into ranking. Current KELs are rechecked
+before cached hints are used. Neither advertisements nor contact activation create
+a canonical provider registry, personhood proof or automatic trust. Global DHT,
+NAT traversal, web-ranking integration and finalized payouts remain unfinished.
+
+The seed runtime now supports bounded reviewed collections: typed native commit
+history and shared trees/blobs, strict media manifests/superblocks/chunks, or an
+explicit general public link closure. Exact previews bind the full owner/home/store
+selection and days; atomic pool admission publishes one manifest after all quota
+and source checks. Collection retrieval resumes from verified ordinary-store
+objects with shared attempt/body-byte windows, and media export streams verified
+whole-digest bytes without overwriting an existing destination. Reconstructed
+media and expanded source-tree work have independent bounds. Graph retrieval never
+automatically shares downloaded material or alters governance/canonical state.
+
+The draft desktop Seed network view now exposes the existing CLI node's pool,
+contacts/catalogues, verified search/retrieval, reviewed collection retention,
+bounded resumable fetch/export, authenticated hosting and explicit mesh following.
+It uses typed subprocess actions against an owner-selected existing CLI profile,
+separate from the desktop vault; view entry starts no jobs. This is a coding
+checkpoint, with desktop/hardware launch validation still pending. See the
+owner-control section in `docs/design/seed-network.md`.
+
+
+Desktop seed onboarding now supports explicitly creating a separate CLI identity,
+public-key export, verified KEL inspection, and exact-bundle-confirmed local trust.
+Both bundled logs/delegation verify before trust writes; existing trusted histories
+must extend without rollback/fork. Pairing does not activate an endpoint. Structured
+identity/KEL JSON preserves existing human CLI output. Desktop vault unification,
+OS-keychain protection for CLI seeds and CLI key rotation remain unfinished.
+### Resident desktop reviewed local edits (draft)
+
+The Resident AI desktop now composes bounded local file replacements, displays
+original/replacement review and requires an exact preview-ID confirmation before
+apply. Model answers are literal unapplied drafts. Cooperating patch writers are
+serialized; staged originals support non-truncating best-effort rollback, and new
+files use no-overwrite publication. Recovery artifacts are excluded from context
+and Forge snapshots. This is an owner-reviewed local edit workflow, not autonomous
+coding, test execution, proposal submission, multi-file crash atomicity or a
+statement that the wider Mininet platform is production-ready.
+
+Resident reviewed edits now have explicit workspace-local staged-draft save,
+resume, metadata inspection and exact-ID removal in desktop and CLI. Resume
+revalidates current source, rebuilds original review text and restores no apply
+authorization. Private bounded source checkpoints are excluded from model context,
+Forge snapshots and Git staging rules in this repository. Unstaged editor text,
+autosave, durable execution receipts and automatic crash recovery are not added.
+
+Resident drafts now protect unsaved work on ordinary close/workspace changes,
+use compare-and-save in the desktop to reject competing checkpoint replacement,
+and expose stale replacement/current-source comparison for explicitly acknowledged
+manual repair. Recovery loads only an unstaged editor draft with the accepted
+current baseline; it never silently rebases, stages, applies or restores approval.
+
+### Native source snapshot review (draft)
+
+The native CLI now previews a complete unsigned workspace manifest and can require
+its exact snapshot ID before signing a source commit. Bytes, portable executable
+modes, paths/empty directories and canonical root are bound; confirmed signing
+uses the same in-memory snapshot and requires an existing identity. Source-only
+confirmation does not bind project/branch/message/parent metadata, submit a
+proposal, change governance or imply checks have run. See
+`docs/design/reviewed-native-workspace.md` for the supported boundary.
+
+Native reviewed workspace commits now also have a full signing-plan preview and
+exact confirmation path binding source plus selected profile/store, signer DIDs,
+project/branch/message and captured governed context. This is proposed-commit
+construction, not canonical adoption, one-use authorization, distributed state
+locking, source test execution or release approval.
+
+Native proposal handoff now previews and confirms a plan binding exact commit
+head, signer, project, title, branch and governed base/context. The reviewed path
+checks head provenance and bounded checkout shape before sequence allocation,
+rejects stale plans, and signs from the captured context. It creates a local
+proposal only; replication, approval, quorum and merge remain explicit. Focused
+CLI and unit checks cover end-to-end handoff, stale metadata/governance, untrusted
+head provenance and missing-store refusal. No hardware or production claim.
+## Proposed integrated runtime delivery slice
+
+Draft PR #379 extends the existing application core with a bounded durable
+public-post outbox, persistent peer authorization, authenticated exact-object
+delivery, verified-storage acknowledgments, retry/cancellation state and idle
+service scheduling. Networking stays default off and requires an unlocked
+identity; queued bytes survive locked restarts. This is a reachable numeric-TCP
+profile, not NAT traversal, a private messenger, calling, or whole-product beta
+certification. See `docs/design/durable-public-delivery.md` and the journey-level
+acceptance register in `docs/planning/integrated-beta-delivery.md`.
+
+Desktop follow/unfollow mutations now have a proposed application-service path: a
+bounded typed command, canonical legacy-compatible builder, exact-byte journal,
+restart-safe receipts and feed events. All desktop follow call sites use this
+path rather than renderer unlocking/sequencing. New signatures require explicit
+core unlock; duplicate receipts remain readable while locked. Other social/media
+mutators still need migration; this is not a whole-product readiness claim.
