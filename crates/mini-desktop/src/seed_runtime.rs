@@ -125,7 +125,7 @@ fn text(value: &str) -> Result<String, String> {
 fn bundle_hex(value: &str) -> Result<String, String> {
     if value.is_empty()
         || value.len() > 8192
-        || value.len() % 2 != 0
+        || !value.len().is_multiple_of(2)
         || !value.bytes().all(|b| b.is_ascii_hexdigit())
     {
         return Err(
