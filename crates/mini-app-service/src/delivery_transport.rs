@@ -455,12 +455,15 @@ mod tests {
     use mini_objects::ObjectBuilder;
     use std::net::TcpListener;
     use std::thread;
-    fn identity(seed: u8) -> (Controller, Controller) {
-        let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
-        let device = Controller::incept_device_single_from_seeds(
+    /// Fresh random keys per test: no key material is hard-coded.
+    fn identity(_label: u8) -> (Controller, Controller) {
+        let mut root = Controller::incept_single().unwrap();
+        let device = Controller::incept_device(
             &root.did(),
-            &[seed + 2; 32],
-            &[seed + 3; 32],
+            vec![mini_crypto::SigningKey::generate().unwrap()],
+            1,
+            vec![mini_crypto::SigningKey::generate().unwrap()],
+            1,
         )
         .unwrap();
         root.delegate_device(&device.did(), Capabilities::primary())
