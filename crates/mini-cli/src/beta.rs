@@ -206,7 +206,6 @@ fn ephemeral_artifact_signer<B: Backend>(store: &mut Store<B>) -> Result<(Contro
 
 /// Parse exactly 32 bytes of lowercase or uppercase hex (an epoch, account or
 /// nonce) with a precise error naming what was being parsed.
-#[allow(dead_code)] // used by the wallet and grant commands
 pub(crate) fn parse_hex32(value: &str, what: &str) -> Result<[u8; 32]> {
     let value = value.trim();
     if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
