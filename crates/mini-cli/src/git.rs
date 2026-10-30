@@ -129,6 +129,76 @@ fn run_git(directory: &Path, args: &[&str], input: Option<&[u8]>, limit: usize) 
     Ok(output)
 }
 
+/// Stream parent-before-child history without retaining the complete rev-list.
+/// Stop/reap Git as soon as the requested uncheckpointed frontier is known.
+fn batch_frontier(
+    directory: &Path,
+    home: &Path,
+    format: &str,
+    tip: &str,
+    oid_len: usize,
+    batch: usize,
+) -> Result<Option<String>> {
+    let mut child = command(directory)
+        .args(["rev-list", "--topo-order", "--reverse", tip, "--"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(io)?;
+    let result = (|| {
+        let mut output = std::io::BufReader::new(
+            child
+                .stdout
+                .take()
+                .ok_or_else(|| fail("missing Git stdout"))?,
+        );
+        let mut selected = None;
+        let mut count = 0;
+        loop {
+            let mut line = Vec::with_capacity(oid_len + 1);
+            // Fixed-width OIDs: never allocate from an untrusted line length.
+            for _ in 0..=oid_len {
+                let mut byte = [0u8; 1];
+                if output.read(&mut byte).map_err(io)? == 0 {
+                    break;
+                }
+                line.push(byte[0]);
+                if byte[0] == b'\n' {
+                    break;
+                }
+            }
+            if line.is_empty() {
+                break;
+            }
+            if line.pop() != Some(b'\n') {
+                return Err(fail("invalid source history enumeration"));
+            }
+            let id = text(&line)?;
+            if !valid_oid(id, oid_len) {
+                return Err(fail("invalid source history enumeration"));
+            }
+            if !checkpoint_path(home, format, id).try_exists().map_err(io)? {
+                selected = Some(id.to_string());
+                count += 1;
+                if count == batch {
+                    return Ok((selected, true));
+                }
+            }
+        }
+        Ok((selected, false))
+    })();
+    if matches!(&result, Ok((_, true))) || result.is_err() {
+        let _ = child.kill();
+    }
+    let status = child.wait().map_err(io)?;
+    match result {
+        Ok((selected, early)) if early || status.success() => Ok(selected),
+        Ok(_) => Err(fail("Git history enumeration failed")),
+        Err(error) => Err(error),
+    }
+}
+
 struct Source {
     directory: PathBuf,
     oid_len: usize,
@@ -620,15 +690,24 @@ fn history_checkpoint(
     source: &str,
     parsed: &HistoryCommit,
     identity: Option<&crate::identity::Identity>,
+    recovered: &BTreeMap<String, ObjectId>,
 ) -> Result<Option<(ObjectId, ObjectId)>> {
     let path = checkpoint_path(home, format, source);
-    let file = match std::fs::File::open(path) {
-        Ok(file) => file,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+    let mut raw_id = String::new();
+    let missing_index = match std::fs::File::open(&path) {
+        Ok(file) => {
+            file.take(257).read_to_string(&mut raw_id).map_err(io)?;
+            false
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let Some(id) = recovered.get(source) else {
+                return Ok(None);
+            };
+            raw_id = id.as_str().to_string();
+            true
+        }
         Err(error) => return Err(io(error)),
     };
-    let mut raw_id = String::new();
-    file.take(257).read_to_string(&mut raw_id).map_err(io)?;
     if raw_id.len() > 256 {
         return Err(fail("oversized Git history checkpoint index"));
     }
@@ -712,6 +791,14 @@ fn history_checkpoint(
         }
     }
     preflight_export(&store, &roots[0].target)?;
+    if missing_index {
+        mini_durable::create_dir_all(
+            path.parent()
+                .ok_or_else(|| fail("checkpoint has no parent"))?,
+        )
+        .map_err(io)?;
+        mini_durable::atomic_replace(&path, provenance_id.as_str().as_bytes()).map_err(io)?;
+    }
     Ok(Some((native_id, provenance_id)))
 }
 fn import_history(
@@ -775,35 +862,7 @@ fn import_history(
         if batch == 0 || batch > MAX_HISTORY_COMMITS {
             return Err(fail("--batch-commits must be between 1 and 1024"));
         }
-        let ids = run_git(
-            &directory,
-            &[
-                "rev-list",
-                "--topo-order",
-                "--reverse",
-                &requested_tip,
-                "--",
-            ],
-            None,
-            MAX_OBJECTS * (oid_len + 1),
-        )?;
-        let mut selected = None;
-        let mut count = 0usize;
-        for id in text(&ids)?.lines() {
-            if !valid_oid(id, oid_len) {
-                return Err(fail("invalid source history enumeration"));
-            }
-            if !checkpoint_path(home, &format, id)
-                .try_exists()
-                .map_err(io)?
-            {
-                selected = Some(id.to_string());
-                count += 1;
-                if count == batch {
-                    break;
-                }
-            }
-        }
+        let selected = batch_frontier(&directory, home, &format, &requested_tip, oid_len, batch)?;
         if let Some(selected) = selected {
             tip = selected;
         }
@@ -813,6 +872,45 @@ fn import_history(
         Err(CliError::NotInitialized) => None,
         Err(error) => return Err(error),
     };
+    // A durable signed mapping can outlive a crash before its advisory index.
+    // Index candidates once, then apply the complete existing checkpoint checks
+    // before restoring an index or reusing a native commit.
+    let mut recovered = BTreeMap::new();
+    if let Some(identity) = &identity {
+        let store = crate::store::open_store(store_path)?;
+        for id in store
+            .by_type(&ObjectType::Custom(HISTORY_PROVENANCE_TYPE.into()))
+            .map_err(|e| CliError::Store(e.to_string()))?
+        {
+            let record = store.get(&id).map_err(|e| CliError::Store(e.to_string()))?;
+            if mini_objects::verify_provenance(
+                &record,
+                &identity.human.kel(),
+                &identity.device.kel(),
+            )
+            .is_err()
+            {
+                continue;
+            }
+            let Payload::Public(bytes) = &record.payload else {
+                continue;
+            };
+            let mut lines = bytes.splitn(4, |b| *b == b'\n');
+            if lines.next() != Some(b"MINI_GIT_HISTORY_V1".as_slice())
+                || lines.next() != Some(format.as_bytes())
+            {
+                continue;
+            }
+            let Some(source) = lines.next().and_then(|v| std::str::from_utf8(v).ok()) else {
+                continue;
+            };
+            if valid_oid(source, oid_len) && recovered.insert(source.to_string(), id).is_some() {
+                return Err(fail(
+                    "ambiguous signed Git history mappings; refusing to invent a canonical mapping",
+                ));
+            }
+        }
+    }
     let mut graph = HistoryGraph {
         source: Source {
             directory,
@@ -833,8 +931,15 @@ fn import_history(
         }
         let raw = graph.read("commit", &id)?;
         let mut parsed = parse_history_commit(raw, oid_len)?;
-        parsed.resumed =
-            history_checkpoint(home, store_path, &format, &id, &parsed, identity.as_ref())?;
+        parsed.resumed = history_checkpoint(
+            home,
+            store_path,
+            &format,
+            &id,
+            &parsed,
+            identity.as_ref(),
+            &recovered,
+        )?;
         if parsed.resumed.is_none() {
             new_count += 1;
             if new_count > max_commits {

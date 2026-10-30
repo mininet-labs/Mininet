@@ -902,6 +902,15 @@ pub fn inspect_proposal<B: Backend>(
     oracle: &dyn IdentityOracle,
     id: &ObjectId,
 ) -> Result<ProposalView> {
+    inspect_proposal_with_state(store, oracle, id, None)
+}
+
+fn inspect_proposal_with_state<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    id: &ObjectId,
+    resolved: Option<(&ObjectId, &ProjectState)>,
+) -> Result<ProposalView> {
     let pr = store.get(id)?;
     if pr.object_type != ObjectType::Custom(PR_TYPE.to_string()) || !author_verified(oracle, &pr) {
         return Err(ForgeError::BadObject);
@@ -925,7 +934,15 @@ pub fn inspect_proposal<B: Backend>(
     if !author_verified(oracle, &commit) || !crate::commit_is_well_formed(store, &commit) {
         return Err(ForgeError::BadObject);
     }
-    let state = resolve_project(store, oracle, &project)?;
+    let owned_state;
+    let state = match resolved {
+        Some((expected, state)) if expected == &project => state,
+        Some(_) => return Err(ForgeError::BadObject),
+        None => {
+            owned_state = resolve_project(store, oracle, &project)?;
+            &owned_state
+        }
+    };
     let approvals = quorum(
         store,
         oracle,
@@ -943,7 +960,7 @@ pub fn inspect_proposal<B: Backend>(
         head,
         stale: base != state.tip,
         base,
-        current_tip: state.tip,
+        current_tip: state.tip.clone(),
         current_branch_head: state
             .branches
             .iter()
@@ -962,11 +979,14 @@ pub fn list_proposals<B: Backend>(
     oracle: &dyn IdentityOracle,
     project: &ObjectId,
 ) -> Result<Vec<ProposalView>> {
-    resolve_project(store, oracle, project)?;
+    let state = resolve_project(store, oracle, project)?;
     let mut proposals = Vec::new();
     for id in store.linking_to(project)? {
-        if let Ok(view) = inspect_proposal(store, oracle, &id) {
+        if let Ok(view) = inspect_proposal_with_state(store, oracle, &id, Some((project, &state))) {
             if &view.project == project {
+                if proposals.len() >= 1024 {
+                    return Err(ForgeError::FieldTooLarge);
+                }
                 proposals.push(view);
             }
         }

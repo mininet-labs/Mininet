@@ -410,21 +410,26 @@ pub fn diff_pr(home: &Path, store_path: &Path, pr_ref: &str) -> Result<CommandRe
     let id = ObjectId::parse(pr_ref).map_err(|e| CliError::Object(e.to_string()))?;
     let view = mini_forge::inspect_proposal(&store, &oracle, &id)
         .map_err(|e| CliError::Forge(e.to_string()))?;
-    let new: BTreeMap<_, _> = mini_forge::checkout(&store, &view.head)
+    let new: BTreeMap<_, _> = mini_forge::checkout_with_modes(&store, &view.head)
         .map_err(|e| CliError::Forge(e.to_string()))?
         .into_iter()
+        .map(|(path, bytes, executable)| (path, (bytes, executable)))
         .collect();
     let old: BTreeMap<_, _> = match &view.current_branch_head {
-        Some(head) => mini_forge::checkout(&store, head)
+        Some(head) => mini_forge::checkout_with_modes(&store, head)
             .map_err(|e| CliError::Forge(e.to_string()))?
             .into_iter()
+            .map(|(path, bytes, executable)| (path, (bytes, executable)))
             .collect(),
         None => BTreeMap::new(),
     };
     let paths: std::collections::BTreeSet<_> = old.keys().chain(new.keys()).collect();
     let mut files = Vec::new();
     let mut human = format!(
-        "current governed branch -> {} (stale base: {})\n",
+        "current governed branch: {}\nproposed head: {} (stale base: {})\n",
+        view.current_branch_head
+            .as_ref()
+            .map_or("(absent)", |id| id.as_str()),
         view.head.as_str(),
         view.stale
     );
@@ -442,7 +447,11 @@ pub fn diff_pr(home: &Path, store_path: &Path, pr_ref: &str) -> Result<CommandRe
         } else {
             "modified"
         };
-        human.push_str(&format!("{status} {path}\n"));
+        human.push_str(&format!(
+            "{status} {path} (executable: {:?} -> {:?})\n",
+            before.map(|(_, mode)| mode),
+            after.map(|(_, mode)| mode)
+        ));
         let mut content = |bytes: Option<&Vec<u8>>| {
             bytes.and_then(|b| {
                 if b.len() > 256 * 1024 || b.len() > text_budget || b.contains(&0) {
@@ -453,18 +462,26 @@ pub fn diff_pr(home: &Path, store_path: &Path, pr_ref: &str) -> Result<CommandRe
                 Some(text.to_string())
             })
         };
-        let before_text = content(before);
-        let after_text = content(after);
+        let before_text = content(before.map(|(bytes, _)| bytes));
+        let after_text = content(after.map(|(bytes, _)| bytes));
         files.push(JsonValue::Object(vec![
             ("path".into(), JsonValue::str(path)),
             ("status".into(), JsonValue::str(status)),
             (
+                "old_executable".into(),
+                before.map_or(JsonValue::Null, |(_, mode)| JsonValue::Bool(*mode)),
+            ),
+            (
+                "new_executable".into(),
+                after.map_or(JsonValue::Null, |(_, mode)| JsonValue::Bool(*mode)),
+            ),
+            (
                 "old_bytes".into(),
-                JsonValue::num(before.map_or(0, |b| b.len()) as u64),
+                JsonValue::num(before.map_or(0, |b| b.0.len()) as u64),
             ),
             (
                 "new_bytes".into(),
-                JsonValue::num(after.map_or(0, |b| b.len()) as u64),
+                JsonValue::num(after.map_or(0, |b| b.0.len()) as u64),
             ),
             (
                 "old_content_omitted".into(),

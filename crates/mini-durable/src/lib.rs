@@ -41,7 +41,9 @@ pub fn sync_parent(path: &Path) -> io::Result<()> {
     sync_directory(parent(path))
 }
 
-/// Create missing ancestors and commit each new directory entry before use.
+/// Create missing ancestors. On Unix each new directory entry is committed with
+/// a parent fsync. On Windows no directory barrier exists (see below): new
+/// empty directories are created without a durability guarantee.
 pub fn create_dir_all(path: &Path) -> io::Result<()> {
     match fs::metadata(path) {
         Ok(meta) if meta.is_dir() => return Ok(()),
@@ -57,15 +59,19 @@ pub fn create_dir_all(path: &Path) -> io::Result<()> {
     create_dir_all(parent(path))?;
     #[cfg(windows)]
     {
-        // Publish a new empty directory with the same native write-through
-        // move used for files, instead of attempting unsupported directory fsync.
-        let temp = temporary_path(path)?;
-        fs::create_dir(&temp)?;
-        let result = move_committed(&temp, path);
-        if result.is_err() {
-            let _ = fs::remove_dir(&temp);
+        // MOVEFILE_WRITE_THROUGH is a file-move flag: moving a directory with
+        // it fails with ERROR_INVALID_FUNCTION (os error 1), and directory
+        // FlushFileBuffers is unsupported. So a new directory entry gets NO
+        // write-through barrier here. This is deliberate and weaker than Unix:
+        // a crash may lose a freshly created, still-empty directory, which every
+        // caller recreates on open. File contents and names inside it are still
+        // committed by the write-through file moves above, so no authoritative
+        // record depends on the directory barrier.
+        match fs::create_dir(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => Ok(()),
+            Err(e) => Err(e),
         }
-        result
     }
     #[cfg(not(windows))]
     match fs::create_dir(path) {
@@ -137,9 +143,19 @@ fn temporary_path(path: &Path) -> io::Result<std::path::PathBuf> {
 /// Publish an already flushed local file or new directory. Windows uses the
 /// native WRITE_THROUGH contract; never fall back to a non-atomic copy.
 fn move_committed(from: &Path, to: &Path) -> io::Result<()> {
+    move_entry(from, to, true)
+}
+
+fn move_entry(from: &Path, to: &Path, replace: bool) -> io::Result<()> {
     #[cfg(not(windows))]
     {
-        fs::rename(from, to)?;
+        if replace {
+            fs::rename(from, to)?;
+        } else {
+            fs::hard_link(from, to)?;
+            sync_parent(to)?;
+            fs::remove_file(from)?;
+        }
         sync_parent(to)
     }
     #[cfg(windows)]
@@ -164,7 +180,12 @@ fn move_committed(from: &Path, to: &Path) -> io::Result<()> {
             MoveFileExW(
                 from.as_ptr(),
                 to.as_ptr(),
-                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+                MOVEFILE_WRITE_THROUGH
+                    | if replace {
+                        MOVEFILE_REPLACE_EXISTING
+                    } else {
+                        0
+                    },
             )
         } == 0
         {
@@ -186,6 +207,42 @@ pub fn publish_staged_file(from: &Path, to: &Path) -> io::Result<()> {
         ));
     }
     move_committed(from, to)
+}
+
+/// Publish a flushed staged file only when the destination does not exist.
+/// No replace/remove fallback is used. As with replacement, a barrier failure
+/// may occur after publication and callers must account for that possibility.
+pub fn publish_staged_file_new(from: &Path, to: &Path) -> io::Result<()> {
+    if parent(from) != parent(to) || !fs::symlink_metadata(from)?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "staged publication requires a regular file in the destination directory",
+        ));
+    }
+    move_entry(from, to, false)
+}
+
+/// Persist a private, non-authoritative staged filename after its contents were
+/// flushed. Windows commits the name through write-through moves. A failure may
+/// leave the stage at an internal temporary name, so use only before publishing
+/// authoritative state, while original data is still intact.
+pub fn persist_staged_file(path: &Path) -> io::Result<()> {
+    if !fs::symlink_metadata(path)?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "stage is not a regular file",
+        ));
+    }
+    #[cfg(not(windows))]
+    {
+        sync_parent(path)
+    }
+    #[cfg(windows)]
+    {
+        let temp = temporary_path(path)?;
+        move_entry(path, &temp, false)?;
+        move_entry(&temp, path, false)
+    }
 }
 
 /// Durably remove the authoritative name. On Windows, write-through rename
@@ -256,6 +313,25 @@ mod tests {
         publish_staged_file(&staged, &dest).unwrap();
         assert_eq!(fs::read(&dest).unwrap(), b"new");
         assert!(!staged.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn staged_creation_never_clobbers_an_existing_destination() {
+        let root = temp("new");
+        create_dir_all(&root).unwrap();
+        let stage = root.join("stage");
+        let dest = root.join("dest");
+        atomic_replace(&stage, b"new").unwrap();
+        persist_staged_file(&stage).unwrap();
+        atomic_replace(&dest, b"owner edit").unwrap();
+        assert!(publish_staged_file_new(&stage, &dest).is_err());
+        assert_eq!(fs::read(&dest).unwrap(), b"owner edit");
+        assert_eq!(fs::read(&stage).unwrap(), b"new");
+        remove_file(&dest).unwrap();
+        publish_staged_file_new(&stage, &dest).unwrap();
+        assert_eq!(fs::read(&dest).unwrap(), b"new");
+        assert!(!stage.exists());
         fs::remove_dir_all(root).unwrap();
     }
 
