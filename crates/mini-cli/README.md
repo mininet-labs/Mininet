@@ -240,3 +240,17 @@ All commands support global `--home`, `--store`, and `--json`.
 Titles are limited to 256 UTF-8 bytes; descriptions, findings and response notes
 are limited to 4096 UTF-8 bytes. Campaign snapshots reject more than 1024
 selected findings or responses rather than silently truncating evidence.
+
+### Beta MINI wallet (test value only)
+
+All amounts are integer micro-BETA in an explicit, resettable epoch. Balances
+are provisional derived state, carry no production-MINI conversion right, and
+have no governance, review, release or personhood weight.
+
+- `mini beta campaign create <target-id> --epoch <64hex> --title <t> --instructions <t> --route <r>... --starts-ms <t> --ends-ms <t> --testing-grant <micro>`
+- `mini beta account new|list --epoch <64hex>` registers or lists fresh opaque accounts.
+- `mini beta grant-policy create`, `grant create`, `grant-approve`, `grant-status`
+  implement threshold-approved grants (no single issuer).
+- `mini beta wallet balance --epoch <64hex> --campaign <id>... [--account <64hex>]`
+  derives balances; the `--campaign` flags are the explicit issuance trust anchor.
+- `mini beta transfer send --epoch <64hex> --campaign <id>... --from <acct> --to <acct> --amount <micro> --memo <t>`

@@ -2,8 +2,8 @@
   "counts": {
     "crates": 93,
     "files": 1245,
-    "headings": 4219,
-    "rust_symbols": 14796
+    "headings": 4220,
+    "rust_symbols": 14797
   },
   "crates": {
     "askama_derive": {
@@ -19748,7 +19748,7 @@
       "title": "Only for the Capability/ResourceLimits request types and the"
     },
     {
-      "bytes": 14357,
+      "bytes": 15285,
       "group": "crate:mini-cli",
       "headings": [
         {
@@ -19815,6 +19815,11 @@
           "level": 3,
           "line": 222,
           "text": "Campaign review evidence"
+        },
+        {
+          "level": 3,
+          "line": 244,
+          "text": "Beta MINI wallet (test value only)"
         }
       ],
       "keywords": [
@@ -19843,14 +19848,14 @@
         "workspace",
         "title"
       ],
-      "lines": 243,
+      "lines": 257,
       "path": "crates/mini-cli/README.md",
-      "sha256": "10f4a17c605645392ddf8d84fb8d5300075da7763aea1b1da95a397c92638e7f",
+      "sha256": "d853f87af29e73801a709e425067ec12b2b1ff0cb5ca25081b89a76bf6514b98",
       "symbols": [],
       "title": "mini-cli"
     },
     {
-      "bytes": 41744,
+      "bytes": 43948,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -19879,9 +19884,9 @@
         "some",
         "else"
       ],
-      "lines": 1145,
+      "lines": 1200,
       "path": "crates/mini-cli/src/beta.rs",
-      "sha256": "a84911f61530e65a94df73c8bb4cb33cf9f5cebd0191f2bfa3cbaa34e0482d77",
+      "sha256": "67d41b86a7f5c1a81bfd9730491f64703d718e7d0386603caa485b54d17fadbc",
       "symbols": [
         {
           "kind": "const",
@@ -19930,107 +19935,112 @@
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 319,
+          "name": "campaign_create"
+        },
+        {
+          "kind": "fn",
+          "line": 370,
           "name": "campaign_show"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 410,
           "name": "finding_submit"
         },
         {
           "kind": "fn",
-          "line": 431,
+          "line": 486,
           "name": "finding_list"
         },
         {
           "kind": "fn",
-          "line": 481,
+          "line": 536,
           "name": "finding_show"
         },
         {
           "kind": "fn",
-          "line": 508,
+          "line": 563,
           "name": "finding_disposition"
         },
         {
           "kind": "fn",
-          "line": 553,
+          "line": 608,
           "name": "finding_to_task"
         },
         {
           "kind": "fn",
-          "line": 607,
+          "line": 662,
           "name": "task_claim"
         },
         {
           "kind": "fn",
-          "line": 645,
+          "line": 700,
           "name": "contribution_accept"
         },
         {
           "kind": "fn",
-          "line": 693,
+          "line": 748,
           "name": "contribution_show"
         },
         {
           "kind": "fn",
-          "line": 736,
+          "line": 791,
           "name": "claim_new"
         },
         {
           "kind": "fn",
-          "line": 749,
+          "line": 804,
           "name": "disposition_trust"
         },
         {
           "kind": "fn",
-          "line": 766,
+          "line": 821,
           "name": "authorized_disposition"
         },
         {
           "kind": "fn",
-          "line": 778,
+          "line": 833,
           "name": "authorized_record"
         },
         {
           "kind": "fn",
-          "line": 802,
+          "line": 857,
           "name": "disposition_show"
         },
         {
           "kind": "fn",
-          "line": 854,
+          "line": 909,
           "name": "with_trust"
         },
         {
           "kind": "fn",
-          "line": 868,
+          "line": 923,
           "name": "trust_note"
         },
         {
           "kind": "fn",
-          "line": 879,
+          "line": 934,
           "name": "campaign_json"
         },
         {
           "kind": "fn",
-          "line": 908,
+          "line": 963,
           "name": "finding_json"
         },
         {
           "kind": "fn",
-          "line": 951,
+          "line": 1006,
           "name": "contribution_json"
         },
         {
           "kind": "fn",
-          "line": 979,
+          "line": 1034,
           "name": "disposition_list"
         },
         {
           "kind": "fn",
-          "line": 1069,
+          "line": 1124,
           "name": "contribution_list"
         }
       ],
@@ -20418,7 +20428,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 53546,
+      "bytes": 53688,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -20447,9 +20457,9 @@
         "proposal_id",
         "workspace"
       ],
-      "lines": 1314,
+      "lines": 1318,
       "path": "crates/mini-cli/src/cli.rs",
-      "sha256": "d9c86f6e0d225081c098b5bb24a42a0f7416b7b140509221455f08d024565f6f",
+      "sha256": "cc07d2d74f62f2b2e9ecd8cb022970cb323f07134fb705abb5d8be688a937695",
       "symbols": [
         {
           "kind": "fn",
@@ -20503,137 +20513,137 @@
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 256,
           "name": "dispatch_campaign"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 275,
           "name": "dispatch_finding"
         },
         {
           "kind": "fn",
-          "line": 288,
+          "line": 292,
           "name": "dispatch_disposition"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 309,
           "name": "dispatch_team"
         },
         {
           "kind": "fn",
-          "line": 328,
+          "line": 332,
           "name": "dispatch_task"
         },
         {
           "kind": "fn",
-          "line": 358,
+          "line": 362,
           "name": "dispatch_identity"
         },
         {
           "kind": "fn",
-          "line": 373,
+          "line": 377,
           "name": "dispatch_intake"
         },
         {
           "kind": "fn",
-          "line": 399,
+          "line": 403,
           "name": "dispatch_kel"
         },
         {
           "kind": "fn",
-          "line": 432,
+          "line": 436,
           "name": "dispatch_repo"
         },
         {
           "kind": "fn",
-          "line": 601,
+          "line": 605,
           "name": "dispatch_pr"
         },
         {
           "kind": "fn",
-          "line": 739,
+          "line": 743,
           "name": "dispatch_sync"
         },
         {
           "kind": "fn",
-          "line": 764,
+          "line": 768,
           "name": "dispatch_keystone"
         },
         {
           "kind": "fn",
-          "line": 779,
+          "line": 783,
           "name": "now_ms_wall_clock"
         },
         {
           "kind": "fn",
-          "line": 786,
+          "line": 790,
           "name": "extract_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 795,
+          "line": 799,
           "name": "extract_u32_flag"
         },
         {
           "kind": "fn",
-          "line": 804,
+          "line": 808,
           "name": "required_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 808,
+          "line": 812,
           "name": "required_path_flag"
         },
         {
           "kind": "fn",
-          "line": 814,
+          "line": 818,
           "name": "dispatch_build"
         },
         {
           "kind": "fn",
-          "line": 902,
+          "line": 906,
           "name": "dispatch_release"
         },
         {
           "kind": "fn",
-          "line": 1026,
+          "line": 1030,
           "name": "dispatch_provenance"
         },
         {
           "kind": "fn",
-          "line": 1079,
+          "line": 1083,
           "name": "dispatch_selftest"
         },
         {
           "kind": "fn",
-          "line": 1115,
+          "line": 1119,
           "name": "dispatch_windows"
         },
         {
           "kind": "fn",
-          "line": 1127,
+          "line": 1131,
           "name": "reject_leftover"
         },
         {
           "kind": "fn",
-          "line": 1137,
+          "line": 1141,
           "name": "dispatch_windows_noun"
         },
         {
           "kind": "fn",
-          "line": 1212,
+          "line": 1216,
           "name": "windows_install_options"
         },
         {
           "kind": "fn",
-          "line": 1231,
+          "line": 1235,
           "name": "dispatch_installer"
         },
         {
           "kind": "fn",
-          "line": 1308,
+          "line": 1312,
           "name": "next"
         }
       ],
@@ -24981,38 +24991,38 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 11627,
+      "bytes": 13222,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
-        "unwrap",
         "string",
         "json",
         "str",
-        "author",
-        "to_string",
-        "run",
+        "unwrap",
+        "args",
+        "home",
+        "std",
         "key",
         "store",
-        "signer",
-        "std",
-        "args",
+        "run",
+        "beta",
+        "to_string",
         "needle",
-        "did",
-        "tempdir",
+        "operator",
+        "epoch_hex",
+        "field",
         "world",
-        "campaign",
-        "home",
+        "path",
+        "account",
         "new",
         "wallet",
         "controller",
-        "format",
-        "owned",
-        "iter"
+        "tag",
+        "format"
       ],
-      "lines": 445,
+      "lines": 493,
       "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
-      "sha256": "6503cb96b097799142c01222f500e359438363cda8a4bf38f03c02ce0af0cb2d",
+      "sha256": "c35b8296c5b9dcf13d8c0b7b5a6c78001dcb02bd69f204a994552c474f72b4da",
       "symbols": [
         {
           "kind": "const",
@@ -25056,37 +25066,37 @@
         },
         {
           "kind": "fn",
-          "line": 79,
+          "line": 80,
           "name": "world"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 229,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 250,
           "name": "accepted_grant_funds_a_balance_that_is_always_labelled_beta_and_provisional"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 289,
           "name": "transfer_moves_value_with_change_and_conserves_the_supply"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 364,
           "name": "unsafe_transfers_are_refused_before_anything_is_signed"
         },
         {
           "kind": "fn",
-          "line": 363,
+          "line": 411,
           "name": "issuance_needs_an_explicit_campaign_anchor_and_a_valid_epoch"
         },
         {
           "kind": "fn",
-          "line": 409,
+          "line": 457,
           "name": "accounts_are_fresh_per_registration_and_listed_per_owner"
         }
       ],
@@ -110051,7 +110061,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 8911,
+      "bytes": 9358,
       "group": "docs",
       "headings": [
         {
@@ -110116,22 +110126,22 @@
         },
         {
           "level": 3,
-          "line": 159,
+          "line": 165,
           "text": "Forge canonicality"
         },
         {
           "level": 3,
-          "line": 172,
+          "line": 178,
           "text": "Substantive production safety gates"
         },
         {
           "level": 2,
-          "line": 183,
+          "line": 189,
           "text": "Build and test"
         },
         {
           "level": 2,
-          "line": 210,
+          "line": 216,
           "text": "Overall readiness statement"
         }
       ],
@@ -110161,9 +110171,9 @@
         "target",
         "what"
       ],
-      "lines": 218,
+      "lines": 224,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "b8b93481c4d2cf52aa81aafb1b31bdccf1f4d4e7cf2a54abd14dc1534436f80d",
+      "sha256": "b8bf3a6b0d4890e91620d523a0e9329fbe8c78de0efdc9852daaa6ea3433f4df",
       "symbols": [],
       "title": "Open Beta status"
     },

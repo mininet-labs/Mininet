@@ -149,9 +149,15 @@ be silently linked merely to manufacture reputation continuity.
 
 ### Beta MINI product/durability work
 
-- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX.
-- [ ] Persist/replicate beta grant/transfer events rather than relying only on
-  the reference in-memory accounting core.
+- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX. *CLI done:*
+  `mini beta account|wallet|transfer|grant-policy|grant|grant-approve|grant-status`
+  (every amount is labelled BETA, provisional, not production MINI). The
+  desktop wallet panel is still to do.
+- [x] Persist/replicate beta grant/transfer events rather than relying only on
+  the reference in-memory accounting core. Balances are derived from the
+  durable signed-object set (`mini-beta-exec`), so any replica that holds the
+  objects derives the same provisional snapshot; there is no balance database.
+  A two-node replication test is still outstanding.
 - [ ] Provide a private fresh claim path for accepted participation without
   binding public GitHub identity to the beta account.
 - [ ] Prove epoch reset/retirement through the actual product surface.

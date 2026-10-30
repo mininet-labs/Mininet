@@ -15,10 +15,10 @@ use std::path::Path;
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_beta::{
-    create_contribution_receipt, create_finding, create_finding_disposition, read_campaign,
-    read_contribution_receipt, read_finding, read_finding_disposition, ClaimTag, ContributionKind,
-    EvidenceClass, FindingSeverity, FindingState, SubmissionTag, BETA_CAMPAIGN_TYPE,
-    BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
+    create_campaign, create_contribution_receipt, create_finding, create_finding_disposition,
+    read_campaign, read_contribution_receipt, read_finding, read_finding_disposition, BetaEpochId,
+    ClaimTag, ContributionKind, EvidenceClass, FindingSeverity, FindingState, SubmissionTag,
+    BETA_CAMPAIGN_TYPE, BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
 };
 use mini_crypto::{random_32, SigningKey};
 use mini_forge::{create_task_brief, create_work_claim};
@@ -310,6 +310,61 @@ pub fn campaign_list(
                 .collect(),
         ),
     ))
+}
+
+/// `beta campaign create <target-id> --epoch <64hex> --title <t> --instructions <t>
+/// --route <r>... --starts-ms <t> --ends-ms <t> --testing-grant <micro>`:
+/// publish a signed Beta campaign on Mininet itself (no GitHub). Whether its
+/// author is an authorized operator is decided by readers, never by creation.
+pub fn campaign_create(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let context = "beta campaign create";
+    let target = parse_id(&next(&mut args, context)?)?;
+    let epoch = BetaEpochId::new(parse_hex32(
+        &required_flag(&mut args, "--epoch", context)?,
+        "--epoch",
+    )?)
+    .map_err(beta_err)?;
+    let title = required_flag(&mut args, "--title", context)?;
+    let instructions = required_flag(&mut args, "--instructions", context)?;
+    let routes = required_items(&mut args, "--route", context)?;
+    let number = |args: &mut Vec<String>, flag: &str| -> Result<u64> {
+        required_flag(args, flag, context)?
+            .parse()
+            .map_err(|_| CliError::Usage(format!("{context}: {flag} must be an integer")))
+    };
+    let starts_ms = number(&mut args, "--starts-ms")?;
+    let ends_ms = number(&mut args, "--ends-ms")?;
+    let testing_grant = number(&mut args, "--testing-grant")?;
+    reject_remaining(args, context)?;
+    let identity = crate::identity::load_or_init(home)?;
+    let mut store = open_store(store_path)?;
+    let object = create_campaign(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        &target,
+        epoch,
+        &title,
+        &instructions,
+        &routes,
+        starts_ms,
+        ends_ms,
+        testing_grant,
+        sequence::now_ms(),
+        sequence::next(home, store_path)?,
+    )
+    .map_err(beta_err)?;
+    Ok(CommandResult::new(format!(
+        "campaign created: {}\nepoch {}; window {starts_ms}..{ends_ms}; default testing grant {testing_grant} micro-BETA (test value only)",
+        object.id().as_str(),
+        &hex(epoch.as_bytes())[..16]
+    ))
+    .field("campaign_id", JsonValue::str(object.id().as_str()))
+    .field("epoch", JsonValue::str(hex(epoch.as_bytes()))))
 }
 
 pub fn campaign_show(

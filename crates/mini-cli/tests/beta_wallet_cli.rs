@@ -74,105 +74,153 @@ struct World {
     bob_account: String,
 }
 
-/// Alice and Bob each register a fresh account through the CLI; a campaign with
-/// a 2-of-3 policy then funds Alice with an accepted 100-unit testing grant.
+/// Everything runs through the CLI as separate identities: an operator
+/// publishes the campaign, a 2-of-3 policy and a testing grant for Alice; two
+/// policy members approve; Alice and Bob each hold a fresh BETA account.
 fn world() -> World {
-    let alice_home = tempdir("alice").to_str().unwrap().to_string();
-    let bob_home = tempdir("bob").to_str().unwrap().to_string();
-    let store = tempdir("store").to_str().unwrap().to_string();
-    run(&["--home", &alice_home, "identity", "init"]);
-    run(&["--home", &bob_home, "identity", "init"]);
-
-    let register = |home: &str| {
-        let out = run(&[
-            "--json", "--home", home, "--store", &store, "beta", "account", "new", "--epoch",
-            EPOCH_HEX,
-        ]);
-        field(&out, "account")
+    let mk = |tag: &str| tempdir(tag).to_str().unwrap().to_string();
+    let (operator, alice_home, bob_home) = (mk("operator"), mk("alice"), mk("bob"));
+    let members = [mk("m1"), mk("m2"), mk("m3")];
+    let store = mk("store");
+    for home in [&operator, &alice_home, &bob_home]
+        .into_iter()
+        .chain(members.iter())
+    {
+        run(&["--home", home, "identity", "init"]);
+    }
+    let did = |home: &str| {
+        mini_cli::identity::load(std::path::Path::new(home))
+            .unwrap()
+            .human_did()
+            .as_str()
+            .to_string()
     };
-    let alice_account = register(&alice_home);
-    let bob_account = register(&bob_home);
+    let json = |home: &str, args: &[&str]| {
+        let mut full = vec!["--json", "--home", home, "--store", store.as_str()];
+        full.extend_from_slice(args);
+        run(&full)
+    };
+    let alice_account = field(
+        &json(
+            &alice_home,
+            &["beta", "account", "new", "--epoch", EPOCH_HEX],
+        ),
+        "account",
+    );
+    let bob_account = field(
+        &json(&bob_home, &["beta", "account", "new", "--epoch", EPOCH_HEX]),
+        "account",
+    );
 
-    let author = signer(10);
-    let authorizers = [signer(20), signer(30), signer(40)];
-    let epoch = BetaEpochId::new([7; 32]).unwrap();
+    // Any exact object can be the build under test; use a signed marker.
+    // Any exact object can be the build under test. A separate library signer
+    // keeps the operator's sequence counter exclusively CLI-owned.
+    let builder = did_mini::Controller::incept_single_from_seeds(&[99; 32], &[100; 32]).unwrap();
     let mut s = mini_cli::store::open_store(std::path::Path::new(&store)).unwrap();
     let target = ObjectBuilder::new(ObjectType::Custom("mininet.beta-wallet/test-target".into()))
         .timestamp_ms(1)
         .sequence(1)
         .payload(Payload::Public(b"wallet-cli-fixture".to_vec()))
-        .sign(&author.did(), &author)
+        .sign(&builder.did(), &builder)
         .unwrap();
     s.insert(&target).unwrap();
-    let campaign = create_campaign(
-        &mut s,
-        &author.did(),
-        &author,
-        target.id(),
-        epoch,
-        "wallet beta",
-        "exercise the wallet",
-        &["wallet".to_string()],
-        100,
-        10_000,
-        1_000,
-        100,
-        2,
-    )
-    .unwrap();
-    let members: Vec<_> = authorizers.iter().map(Controller::did).collect();
-    let policy = create_grant_policy(
-        &mut s,
-        &author.did(),
-        &author,
-        campaign.id(),
-        &members,
-        2,
-        2,
-        100,
-        &[25, 50, 100],
-        200,
-        9_000,
-        150,
-        3,
-    )
-    .unwrap();
-    let mut account_bytes = [0u8; 32];
-    for (i, byte) in account_bytes.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&alice_account[i * 2..i * 2 + 2], 16).unwrap();
-    }
-    let grant = create_grant_authorization(
-        &mut s,
-        &author.did(),
-        &author,
-        campaign.id(),
-        None,
-        epoch,
-        BetaAccountId::new(account_bytes).unwrap(),
-        GrantClass::Testing,
-        100,
-        "testing balance",
-        500,
-        4,
-    )
-    .unwrap();
-    for (index, member) in authorizers.iter().take(2).enumerate() {
-        create_grant_approval(
-            &mut s,
-            &member.did(),
+    drop(s);
+
+    let campaign = field(
+        &json(
+            &operator,
+            &[
+                "beta",
+                "campaign",
+                "create",
+                target.id().as_str(),
+                "--epoch",
+                EPOCH_HEX,
+                "--title",
+                "wallet beta",
+                "--instructions",
+                "exercise the wallet",
+                "--route",
+                "wallet",
+                "--starts-ms",
+                "100",
+                "--ends-ms",
+                "10000",
+                "--testing-grant",
+                "1000",
+            ],
+        ),
+        "campaign_id",
+    );
+    let member_dids: Vec<String> = members.iter().map(|m| did(m)).collect();
+    let policy = field(
+        &json(
+            &operator,
+            &[
+                "beta",
+                "grant-policy",
+                "create",
+                &campaign,
+                "--member",
+                &member_dids[0],
+                "--member",
+                &member_dids[1],
+                "--member",
+                &member_dids[2],
+                "--testing-threshold",
+                "2",
+                "--participation-threshold",
+                "2",
+                "--testing-amount",
+                "100",
+                "--reward-band",
+                "100",
+                "--valid-from-ms",
+                "200",
+                "--valid-until-ms",
+                "9000",
+                "--at-ms",
+                "150",
+            ],
+        ),
+        "policy_id",
+    );
+    let grant = field(
+        &json(
+            &operator,
+            &[
+                "beta",
+                "grant",
+                "create",
+                &campaign,
+                "--epoch",
+                EPOCH_HEX,
+                "--account",
+                &alice_account,
+                "--class",
+                "testing",
+                "--amount",
+                "100",
+                "--memo",
+                "testing balance",
+                "--at-ms",
+                "500",
+            ],
+        ),
+        "grant_id",
+    );
+    for (index, member) in members.iter().take(2).enumerate() {
+        let at = (600 + index).to_string();
+        json(
             member,
-            policy.id(),
-            grant.id(),
-            600 + index as u64,
-            1,
-        )
-        .unwrap();
+            &["beta", "grant-approve", &policy, &grant, "--at-ms", &at],
+        );
     }
     World {
         alice_home,
         bob_home,
         store,
-        campaign: campaign.id().as_str().to_string(),
+        campaign,
         alice_account,
         bob_account,
     }

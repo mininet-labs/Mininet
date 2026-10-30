@@ -188,6 +188,10 @@ fn dispatch_beta(
             "beta.campaign-list",
             beta::campaign_list(home, store_path, args),
         ),
+        ("campaign", "create") => (
+            "beta.campaign-create",
+            beta::campaign_create(home, store_path, args),
+        ),
         ("campaign", "show") => (
             "beta.campaign-show",
             beta::campaign_show(home, store_path, args),
