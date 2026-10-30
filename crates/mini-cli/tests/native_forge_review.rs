@@ -194,4 +194,59 @@ fn native_exact_head_review_and_two_maintainer_merge() {
     let stale = run(&homes[1], &store_path, &["--json", "pr", "show", pr]);
     assert!(stale.contains("\"stale\":true"));
     assert!(command(&homes[1], &store_path, &["pr", "merge", project, pr]).is_err());
+    let mut store = Store::new(FsBackend::open(&store_path).unwrap());
+    let executable = mini_forge::put_executable_file(
+        &mut store,
+        &author.human_did(),
+        &author.device,
+        b"fn main() {}\n",
+    )
+    .unwrap();
+    let executable_tree = put_tree(
+        &mut store,
+        &author.human_did(),
+        &author.device,
+        &[TreeEntry {
+            name: "main.rs".into(),
+            is_dir: false,
+            target: executable,
+        }],
+    )
+    .unwrap();
+    let executable_head = commit(
+        &mut store,
+        &author.human_did(),
+        &author.device,
+        "mode only",
+        &executable_tree,
+        &[],
+        0,
+        0,
+    )
+    .unwrap();
+    drop(store);
+    let proposal = run(
+        &homes[0],
+        &store_path,
+        &[
+            "--json",
+            "pr",
+            "propose",
+            project,
+            "--branch",
+            "main",
+            "--title",
+            "mode change",
+            "--head",
+            executable_head.id().as_str(),
+        ],
+    );
+    let mode_pr = string_field(&proposal, "pr_id");
+    let diff = run(&homes[1], &store_path, &["--json", "pr", "diff", mode_pr]);
+    assert!(diff.contains("\"status\":\"modified\""));
+    assert!(diff.contains("\"old_executable\":false"));
+    assert!(diff.contains("\"new_executable\":true"));
+    let human = run(&homes[1], &store_path, &["pr", "diff", mode_pr]);
+    assert!(human.contains(&format!("current governed branch: {head}")));
+    assert!(human.contains(&format!("proposed head: {}", executable_head.id().as_str())));
 }

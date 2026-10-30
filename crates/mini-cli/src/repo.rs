@@ -683,14 +683,15 @@ impl Default for SnapshotBudget {
         Self {
             files: mini_forge::MAX_CHECKOUT_FILES,
             bytes: mini_forge::MAX_CHECKOUT_BYTES,
-            nodes: mini_forge::MAX_CHECKOUT_FILES,
+            nodes: mini_forge::MAX_CHECKOUT_FILES
+                + mini_forge::MAX_CHECKOUT_FILES * mini_forge::MAX_TREE_DEPTH,
         }
     }
 }
 
 fn excluded(name: &str) -> bool {
-    matches!(name, ".git" | ".mininet" | ".mini")
-        || name.to_ascii_lowercase().starts_with(".resident")
+    let lower = name.to_ascii_lowercase();
+    matches!(lower.as_str(), ".git" | ".mininet" | ".mini") || lower.starts_with(".resident")
 }
 
 fn read_snapshot(
@@ -1049,6 +1050,44 @@ mod workspace_tests {
             matches!(&entries[0], Snapshot::File(name, bytes, _) if name == "a.rs" && bytes == b"a")
         );
         assert!(matches!(&entries[1], Snapshot::File(name, _, _) if name == "z.rs"));
+    }
+
+    #[test]
+    fn snapshot_excludes_case_variants_of_secret_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut paths = Vec::new();
+        for name in [".GiT", ".MININET", ".Mini"] {
+            let path = dir.path().join(name);
+            fs::create_dir(&path).unwrap();
+            fs::write(path.join("identity.seed"), b"must not be published").unwrap();
+            paths.push(path);
+        }
+        assert!(read_snapshot(&paths, 0, &mut SnapshotBudget::default())
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn snapshot_accepts_checkout_sized_files_with_directory_overhead() {
+        let root = tempfile::tempdir().unwrap();
+        let mut paths = Vec::new();
+        for directory in 0..128 {
+            let path = root.path().join(format!("dir-{directory}"));
+            fs::create_dir(&path).unwrap();
+            for file in 0..32 {
+                fs::write(path.join(format!("file-{file}")), b"x").unwrap();
+            }
+            paths.push(path);
+        }
+        let mut budget = SnapshotBudget {
+            files: 128 * 32,
+            ..SnapshotBudget::default()
+        };
+        assert!(read_snapshot(&paths, 0, &mut budget).is_ok());
+        assert_eq!(budget.files, 0);
+        let extra = root.path().join("extra");
+        fs::write(&extra, b"x").unwrap();
+        assert!(read_snapshot(&[extra], 0, &mut budget).is_err());
     }
 
     #[test]

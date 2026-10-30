@@ -609,6 +609,13 @@ given time.
   not a new one. 5 tests, including a raw-socket regression proving a
   request never crosses the wire unencrypted.
 
+- **prototype, opt-in scan hint** — `mini-value` exposes domain-separated
+  BLAKE3 stealth view tags and tagged recognition. DH computation remains
+  necessary; tag mismatches skip the subsequent address multiplication.
+  Existing wire formats and wallets are unchanged. Matching hints still
+  require full address verification; authenticated hint transport and
+  unfiltered recovery scanning remain integration work. See
+  `docs/design/roadmap-review-implementation.md` and `mini-value/tests/view_tags.rs`.
 - **prototype** — `mini-value`: stealth addresses, linkable ring
   signatures, Bulletproofs confidential amounts (D-0036/D-0040). Real,
   tested, founder-reviewed, **pending external audit** — see `docs/
@@ -3237,3 +3244,13 @@ rejects stale plans, and signs from the captured context. It creates a local
 proposal only; replication, approval, quorum and merge remain explicit. Focused
 CLI and unit checks cover end-to-end handoff, stale metadata/governance, untrusted
 head provenance and missing-store refusal. No hardware or production claim.
+## Proposed integrated runtime delivery slice
+
+Draft PR #379 extends the existing application core with a bounded durable
+public-post outbox, persistent peer authorization, authenticated exact-object
+delivery, verified-storage acknowledgments, retry/cancellation state and idle
+service scheduling. Networking stays default off and requires an unlocked
+identity; queued bytes survive locked restarts. This is a reachable numeric-TCP
+profile, not NAT traversal, a private messenger, calling, or whole-product beta
+certification. See `docs/design/durable-public-delivery.md` and the journey-level
+acceptance register in `docs/planning/integrated-beta-delivery.md`.
