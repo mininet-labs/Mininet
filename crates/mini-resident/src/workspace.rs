@@ -578,7 +578,17 @@ impl PatchStage {
         if self.original.is_some() {
             mini_durable::publish_staged_file(&self.replacement, &self.destination)
         } else {
-            mini_durable::publish_staged_file_new(&self.replacement, &self.destination)
+            let result =
+                mini_durable::publish_staged_file_new(&self.replacement, &self.destination);
+            // An AlreadyExists failure with the stage still in place is a definite
+            // pre-publication collision: the destination is another editor's file
+            // and must never be rolled back (deleted) by this stage.
+            if result.as_ref().is_err_and(|error| {
+                error.kind() == std::io::ErrorKind::AlreadyExists && self.replacement.exists()
+            }) {
+                self.published = false;
+            }
+            result
         }
     }
     fn rollback(&mut self) -> std::io::Result<()> {
@@ -750,6 +760,43 @@ mod tests {
             .unwrap();
         workspace.apply_patch(&create, &create.id).unwrap();
         assert_eq!(fs::read(dir.path().join("created.rs")).unwrap(), b"created");
+    }
+
+    #[test]
+    fn identical_late_new_file_is_not_deleted_by_rollback() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("existing.rs"), "original").unwrap();
+        let workspace = Workspace::open(dir.path()).unwrap();
+        let preview = workspace
+            .preview_patch(&[
+                PatchEdit {
+                    path: "existing.rs".into(),
+                    before_hash: Some(content_hash(b"original")),
+                    replacement: "replacement".into(),
+                },
+                PatchEdit {
+                    path: "new.rs".into(),
+                    before_hash: None,
+                    replacement: "planned new file".into(),
+                },
+            ])
+            .unwrap();
+        let result = workspace.apply_patch_inner(&preview, &preview.id, |index| {
+            // Another editor independently creates byte-identical content.
+            if index == 1 {
+                fs::write(dir.path().join("new.rs"), "planned new file").unwrap();
+            }
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read(dir.path().join("new.rs")).unwrap(),
+            b"planned new file",
+            "an independently created identical file must survive rollback"
+        );
+        assert_eq!(
+            fs::read(dir.path().join("existing.rs")).unwrap(),
+            b"original"
+        );
     }
 
     #[test]

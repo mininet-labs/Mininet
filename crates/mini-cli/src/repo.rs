@@ -329,7 +329,12 @@ fn workspace_snapshot(workspace: &Path) -> Result<(PathBuf, Vec<Snapshot>)> {
     }
     let mut paths = Vec::new();
     for entry in fs::read_dir(&canonical).map_err(|e| CliError::Io(e.to_string()))? {
-        paths.push(entry.map_err(|e| CliError::Io(e.to_string()))?.path());
+        let entry = entry.map_err(|e| CliError::Io(e.to_string()))?;
+        // Excluded metadata and Resident artifacts never count toward the limit.
+        if entry.file_name().to_str().is_some_and(excluded) {
+            continue;
+        }
+        paths.push(entry.path());
         if paths.len() > mini_forge::MAX_TREE_ENTRIES + 3 {
             return Err(CliError::Usage(
                 "workspace exceeds forge entry limit".into(),
@@ -736,7 +741,11 @@ fn read_snapshot(
         if metadata.is_dir() {
             let mut children = Vec::new();
             for entry in fs::read_dir(&path).map_err(|e| CliError::Io(e.to_string()))? {
-                children.push(entry.map_err(|e| CliError::Io(e.to_string()))?.path());
+                let entry = entry.map_err(|e| CliError::Io(e.to_string()))?;
+                if entry.file_name().to_str().is_some_and(excluded) {
+                    continue;
+                }
+                children.push(entry.path());
                 if children.len() > mini_forge::MAX_TREE_ENTRIES + 3 {
                     return Err(CliError::Usage(
                         "directory exceeds forge entry limit".into(),

@@ -3,7 +3,7 @@
     "crates": 89,
     "files": 1174,
     "headings": 4040,
-    "rust_symbols": 13575
+    "rust_symbols": 13576
   },
   "crates": {
     "askama_derive": {
@@ -19291,7 +19291,7 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 26540,
+      "bytes": 26896,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -19320,9 +19320,9 @@
         "maintainers",
         "min_approvals"
       ],
-      "lines": 724,
+      "lines": 733,
       "path": "crates/mini-cli/src/repo.rs",
-      "sha256": "baec2c970578a584cd74c71f6babe6c7d5b355ce166f42eabf179068b3990554",
+      "sha256": "8c2be73bd0a44f7d57f4e6154e9cc8b45adb46b1bf882b27168e0f7e07b27390",
       "symbols": [
         {
           "kind": "fn",
@@ -19351,104 +19351,104 @@
         },
         {
           "kind": "enum",
-          "line": 177,
+          "line": 182,
           "name": "Snapshot"
         },
         {
           "kind": "struct",
-          "line": 182,
+          "line": 187,
           "name": "SnapshotBudget"
         },
         {
           "kind": "impl",
-          "line": 187,
+          "line": 192,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 188,
+          "line": 193,
           "name": "default"
         },
         {
           "kind": "fn",
-          "line": 198,
+          "line": 203,
           "name": "excluded"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 208,
           "name": "read_snapshot"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 303,
           "name": "reject_symlink_components"
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 324,
           "name": "store_snapshot"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 364,
           "name": "checkout_commit"
         },
         {
           "kind": "fn",
-          "line": 455,
+          "line": 464,
           "name": "branch"
         },
         {
           "kind": "fn",
-          "line": 505,
+          "line": 514,
           "name": "status"
         },
         {
           "kind": "mod",
-          "line": 528,
+          "line": 537,
           "name": "workspace_tests"
         },
         {
           "kind": "fn",
-          "line": 532,
+          "line": 541,
           "name": "snapshot_is_sorted_and_omits_repository_metadata"
         },
         {
           "kind": "fn",
-          "line": 562,
+          "line": 571,
           "name": "snapshot_excludes_case_variants_of_secret_metadata"
         },
         {
           "kind": "fn",
-          "line": 577,
+          "line": 586,
           "name": "snapshot_accepts_checkout_sized_files_with_directory_overhead"
         },
         {
           "kind": "fn",
-          "line": 600,
+          "line": 609,
           "name": "snapshot_refuses_duplicate_names_and_exhausted_budget"
         },
         {
           "kind": "fn",
-          "line": 626,
+          "line": 635,
           "name": "snapshot_refuses_symlink_files_and_ancestor_directories"
         },
         {
           "kind": "fn",
-          "line": 641,
+          "line": 650,
           "name": "native_workspace_preserves_executable_modes"
         },
         {
           "kind": "fn",
-          "line": 696,
+          "line": 705,
           "name": "failed_checkout_preserves_existing_destination"
         }
       ],
       "title": "use std::fs;"
     },
     {
-      "bytes": 16051,
+      "bytes": 16251,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -19459,27 +19459,27 @@
         "resident",
         "string",
         "map_err",
-        "workspace",
         "result",
-        "vec",
         "flag",
-        "required",
+        "workspace",
+        "vec",
         "config",
+        "required",
+        "file",
+        "return",
         "take",
         "model",
         "std",
-        "file",
         "position",
-        "return",
         "err",
         "data",
         "no_more",
-        "new",
+        "unix",
         "configured"
       ],
-      "lines": 357,
+      "lines": 362,
       "path": "crates/mini-cli/src/resident.rs",
-      "sha256": "b209cc3d7e7218b0ebb439a4a849db696e0794fdd1972cbbdd5fc27066907452",
+      "sha256": "a6b343f46c96e71960f647330253435629b42478bd1e6fbb82f29aed431d08c3",
       "symbols": [
         {
           "kind": "const",
@@ -19528,12 +19528,12 @@
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 76,
           "name": "number"
         },
         {
           "kind": "fn",
-          "line": 77,
+          "line": 82,
           "name": "dispatch"
         }
       ],
@@ -35247,7 +35247,7 @@
       "title": "use eframe::egui;"
     },
     {
-      "bytes": 38690,
+      "bytes": 39181,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -35276,9 +35276,9 @@
         "confirmation",
         "draftinfo"
       ],
-      "lines": 813,
+      "lines": 824,
       "path": "crates/mini-desktop/src/resident_patch.rs",
-      "sha256": "f5960e2c77e5092cfa2396b1c05b1f116feaf530def7d72c615755f2176d572d",
+      "sha256": "93f28d2dd63ab76806a7ebb17f194281f4fa78dddf26a1589cb97e4c13ea4ec0",
       "symbols": [
         {
           "kind": "struct",
@@ -35352,82 +35352,82 @@
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 326,
           "name": "resume"
         },
         {
           "kind": "fn",
-          "line": 342,
+          "line": 353,
           "name": "edit_staged"
         },
         {
           "kind": "fn",
-          "line": 363,
+          "line": 374,
           "name": "recover_file"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 397,
           "name": "can_resume"
         },
         {
           "kind": "fn",
-          "line": 389,
+          "line": 400,
           "name": "load"
         },
         {
           "kind": "fn",
-          "line": 417,
+          "line": 428,
           "name": "stage"
         },
         {
           "kind": "mod",
-          "line": 573,
+          "line": 584,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 575,
+          "line": 586,
           "name": "loaded_panel"
         },
         {
           "kind": "fn",
-          "line": 592,
+          "line": 603,
           "name": "model_answer_is_only_a_draft_and_clears_previous_authorization"
         },
         {
           "kind": "fn",
-          "line": 613,
+          "line": 624,
           "name": "workspace_changes_and_wrong_file_baselines_cannot_carry_authority"
         },
         {
           "kind": "fn",
-          "line": 626,
+          "line": 637,
           "name": "loading_baseline_preserves_an_explicit_model_draft_without_staging_it"
         },
         {
           "kind": "fn",
-          "line": 662,
+          "line": 673,
           "name": "resumed_edits_never_restore_apply_authorization_or_replace_without_acknowledgement"
         },
         {
           "kind": "fn",
-          "line": 696,
+          "line": 707,
           "name": "editing_a_resumed_file_keeps_the_original_hash_and_requires_restaging"
         },
         {
           "kind": "fn",
-          "line": 716,
+          "line": 727,
           "name": "close_guard_distinguishes_saved_staging_from_unsaved_editor_text"
         },
         {
           "kind": "fn",
-          "line": 756,
+          "line": 767,
           "name": "stale_repair_requires_acceptance_and_only_loads_an_unstaged_current_baseline"
         },
         {
           "kind": "fn",
-          "line": 798,
+          "line": 809,
           "name": "selecting_model_text_cannot_silently_replace_unstaged_editor_work"
         }
       ],
@@ -69962,7 +69962,7 @@
       "title": "use std::io::{Read, Write};"
     },
     {
-      "bytes": 34003,
+      "bytes": 35920,
       "group": "crate:mini-resident",
       "headings": [],
       "keywords": [
@@ -69991,9 +69991,9 @@
         "starts_with",
         "return"
       ],
-      "lines": 884,
+      "lines": 931,
       "path": "crates/mini-resident/src/workspace.rs",
-      "sha256": "92444a7dd50a0e51d8e8f7d6a54c7822b4edc40db31f29a93221b8f84c3d11c6",
+      "sha256": "ec852a4e41a0c58bed10d64f225959e6da75898f75750692743818ffa969bd6f",
       "symbols": [
         {
           "kind": "const",
@@ -70162,62 +70162,67 @@
         },
         {
           "kind": "fn",
-          "line": 584,
+          "line": 594,
           "name": "rollback"
         },
         {
           "kind": "impl",
-          "line": 610,
+          "line": 620,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 611,
+          "line": 621,
           "name": "drop"
         },
         {
           "kind": "mod",
-          "line": 622,
+          "line": 632,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 625,
+          "line": 635,
           "name": "owner_context_and_patch_are_bounded_and_hash_checked"
         },
         {
           "kind": "fn",
-          "line": 653,
+          "line": 663,
           "name": "grants_reject_protected_ancestors_case_insensitively"
         },
         {
           "kind": "fn",
-          "line": 671,
+          "line": 681,
           "name": "hosting_summary_streams_binary_without_model_context"
         },
         {
           "kind": "fn",
-          "line": 686,
+          "line": 696,
           "name": "symlinks_never_grant_outside_context_or_patch"
         },
         {
           "kind": "fn",
-          "line": 704,
+          "line": 714,
           "name": "late_new_file_collision_never_overwrites_and_rolls_back_prior_edits"
         },
         {
           "kind": "fn",
-          "line": 756,
+          "line": 766,
+          "name": "identical_late_new_file_is_not_deleted_by_rollback"
+        },
+        {
+          "kind": "fn",
+          "line": 803,
           "name": "patch_lock_serializes_writers_and_recovery_artifacts_are_never_context"
         },
         {
           "kind": "fn",
-          "line": 793,
+          "line": 840,
           "name": "executable_permissions_survive_publication_and_atomic_rollback"
         },
         {
           "kind": "fn",
-          "line": 841,
+          "line": 888,
           "name": "failed_rollback_retains_original_without_clobbering_later_owner_edit"
         }
       ],
