@@ -20,6 +20,11 @@ and unaudited.
 
 - **`mini-value`:**
   - Can stealth addresses be linked across transactions by an observer who isn't the intended recipient?
+  - Review the optional `ViewTag` derive-key domain and scanner in `stealth_impl.rs`:
+    matching tags must still require full address verification. Evaluate the
+    public-byte privacy tradeoff, timing, and future authenticated wire binding;
+    no wallet integration or scan-speed benchmark is claimed. See
+    `mini-value/tests/view_tags.rs` and `docs/design/roadmap-review-implementation.md`.
   - Can the ring signature's key image be forged, predicted, or made to collide across unrelated signings?
   - Can a ring member be deanonymized through signature malleability, timing, or repeated-usage patterns?
   - Does the Bulletproofs range proof implementation (`bp_range.rs`, `bp_ipa.rs`, `bp_generators.rs`) actually bind the committed value, or can a malformed proof pass verification for an out-of-range amount?

@@ -84,7 +84,8 @@ pub use ring::{NoRingSignature, RingSignature, RingSignatureScheme};
 pub use ring_impl::MininetRingSignature;
 pub use stealth::{NoStealthAddress, StealthAddressScheme, StealthOutput};
 pub use stealth_impl::{
-    derive_output_with_secret, derive_spend_scalar, one_time_key_is_well_formed,
-    recover_shared_secret, stealth_address_is_well_formed, view_public_from_secret,
-    MininetStealthAddress, StealthKeypair, StealthSharedSecret,
+    derive_output_with_secret, derive_spend_scalar, derive_tagged_output,
+    one_time_key_is_well_formed, recognizes_tagged_output, recover_shared_secret,
+    stealth_address_is_well_formed, view_public_from_secret, MininetStealthAddress, StealthKeypair,
+    StealthSharedSecret, ViewTag,
 };
