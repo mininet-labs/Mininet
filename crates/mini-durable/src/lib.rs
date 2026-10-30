@@ -41,7 +41,9 @@ pub fn sync_parent(path: &Path) -> io::Result<()> {
     sync_directory(parent(path))
 }
 
-/// Create missing ancestors and commit each new directory entry before use.
+/// Create missing ancestors. On Unix each new directory entry is committed with
+/// a parent fsync. On Windows no directory barrier exists (see below): new
+/// empty directories are created without a durability guarantee.
 pub fn create_dir_all(path: &Path) -> io::Result<()> {
     match fs::metadata(path) {
         Ok(meta) if meta.is_dir() => return Ok(()),
@@ -57,15 +59,19 @@ pub fn create_dir_all(path: &Path) -> io::Result<()> {
     create_dir_all(parent(path))?;
     #[cfg(windows)]
     {
-        // Publish a new empty directory with the same native write-through
-        // move used for files, instead of attempting unsupported directory fsync.
-        let temp = temporary_path(path)?;
-        fs::create_dir(&temp)?;
-        let result = move_committed(&temp, path);
-        if result.is_err() {
-            let _ = fs::remove_dir(&temp);
+        // MOVEFILE_WRITE_THROUGH is a file-move flag: moving a directory with
+        // it fails with ERROR_INVALID_FUNCTION (os error 1), and directory
+        // FlushFileBuffers is unsupported. So a new directory entry gets NO
+        // write-through barrier here. This is deliberate and weaker than Unix:
+        // a crash may lose a freshly created, still-empty directory, which every
+        // caller recreates on open. File contents and names inside it are still
+        // committed by the write-through file moves above, so no authoritative
+        // record depends on the directory barrier.
+        match fs::create_dir(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => Ok(()),
+            Err(e) => Err(e),
         }
-        result
     }
     #[cfg(not(windows))]
     match fs::create_dir(path) {
