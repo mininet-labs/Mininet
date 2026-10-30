@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1245,
+    "files": 1246,
     "headings": 4220,
-    "rust_symbols": 14798
+    "rust_symbols": 14806
   },
   "crates": {
     "askama_derive": {
@@ -24994,6 +24994,83 @@
         }
       ],
       "title": "use std::net::TcpListener;"
+    },
+    {
+      "bytes": 9420,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "cli",
+        "str",
+        "json",
+        "run",
+        "campaign",
+        "operator",
+        "beta",
+        "store",
+        "home",
+        "tester",
+        "finding",
+        "std",
+        "unwrap",
+        "key",
+        "needle",
+        "string",
+        "to_string",
+        "full",
+        "epoch",
+        "field",
+        "loop",
+        "tag",
+        "start",
+        "init"
+      ],
+      "lines": 336,
+      "path": "crates/mini-cli/tests/beta_native_loop.rs",
+      "sha256": "9445c87f6d936464d75a260bf9cd7d4f75ea1d5cf3c37e88bd73088df529613f",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 10,
+          "name": "EPOCH"
+        },
+        {
+          "kind": "fn",
+          "line": 12,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "field"
+        },
+        {
+          "kind": "fn",
+          "line": 34,
+          "name": "number"
+        },
+        {
+          "kind": "struct",
+          "line": 48,
+          "name": "Cli"
+        },
+        {
+          "kind": "impl",
+          "line": 52,
+          "name": "Cli"
+        },
+        {
+          "kind": "fn",
+          "line": 53,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 66,
+          "name": "a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github"
+        }
+      ],
+      "title": "use std::path::PathBuf;"
     },
     {
       "bytes": 12888,
@@ -110066,7 +110143,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 9358,
+      "bytes": 9767,
       "group": "docs",
       "headings": [
         {
@@ -110178,7 +110255,7 @@
       ],
       "lines": 224,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "b8bf3a6b0d4890e91620d523a0e9329fbe8c78de0efdc9852daaa6ea3433f4df",
+      "sha256": "29482f1d7a08a262767c6ea3995aa1ca48f4f3cf9201975fa933d8e23c74a577",
       "symbols": [],
       "title": "Open Beta status"
     },
