@@ -1414,7 +1414,12 @@ pub fn create_finding<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
-    let _ = store.get(target_id)?;
+    // `campaign_snapshot` is the only public finding reader and resolves
+    // findings through their campaign, so a finding about anything else would
+    // be persisted but unreadable. Require a structurally valid campaign.
+    if parse_campaign(&store.get(target_id)?).is_none() {
+        return Err(ForgeError::BadObject);
+    }
     if let Some(head) = reviewed_head {
         let _ = store.get(head)?;
     }
