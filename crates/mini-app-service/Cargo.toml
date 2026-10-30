@@ -24,3 +24,5 @@ mini-windows-vault = { path = "../mini-windows-vault" }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-transport-security = { path = "../mini-transport-security" }
+mini-media = { path = "../mini-media" }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }

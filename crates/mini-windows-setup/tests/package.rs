@@ -5,6 +5,7 @@ use mini_windows_setup::container::{self, Container};
 use mini_windows_setup::manifest::{ManifestHeader, PackageManifest, PackageShortcut};
 use mini_windows_setup::PackageFile;
 
+const SERVICE: &[u8] = b"MZ application core fixture";
 const DESKTOP: &[u8] = b"MZ-not-really-an-exe-desktop";
 const CLI: &[u8] = b"MZ-not-really-an-exe-cli";
 const README: &[u8] = b"read me\n";
@@ -21,6 +22,7 @@ fn manifest() -> PackageManifest {
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", DESKTOP).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mini.exe", CLI).unwrap(),
             PackageFile::describe("docs/README.txt", README).unwrap(),
         ],
@@ -36,6 +38,7 @@ fn container_bytes(manifest: &PackageManifest) -> Vec<u8> {
     container::write(manifest, |path| {
         Ok(match path {
             "mininet-desktop.exe" => DESKTOP.to_vec(),
+            "mininet-app-service.exe" => SERVICE.to_vec(),
             "mini.exe" => CLI.to_vec(),
             "docs/README.txt" => README.to_vec(),
             other => panic!("unexpected file {other}"),
@@ -64,7 +67,12 @@ fn files_are_stored_sorted_regardless_of_the_order_they_were_described_in() {
         .collect();
     assert_eq!(
         paths,
-        vec!["docs/README.txt", "mini.exe", "mininet-desktop.exe"]
+        vec![
+            "docs/README.txt",
+            "mini.exe",
+            "mininet-app-service.exe",
+            "mininet-desktop.exe"
+        ]
     );
 }
 
@@ -84,6 +92,7 @@ fn changing_any_single_byte_of_a_file_changes_the_package_digest() {
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", &tampered).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mini.exe", CLI).unwrap(),
             PackageFile::describe("docs/README.txt", README).unwrap(),
         ],
@@ -320,7 +329,7 @@ fn a_shortcut_target_containing_spaces_round_trips() {
     // its own parser rejected.
     let manifest = PackageManifest::new(
         ManifestHeader {
-            package: "mininet-windows-client",
+            package: "generic-package",
             version: "0.1.0",
             target: "x86_64-pc-windows-msvc",
             product: "Mininet",
@@ -357,7 +366,10 @@ fn a_shortcut_name_with_a_path_separator_is_refused_at_construction() {
             launch: "mininet-desktop.exe",
             built_at_ms: 1,
         },
-        vec![PackageFile::describe("mininet-desktop.exe", DESKTOP).unwrap()],
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
+        ],
         vec![PackageShortcut {
             target: "mininet-desktop.exe".to_string(),
             name: "../Startup/x".to_string(),
@@ -408,7 +420,7 @@ fn a_package_larger_than_the_container_limit_is_refused_before_it_is_built() {
     };
     let manifest = PackageManifest::new(
         ManifestHeader {
-            package: "mininet-windows-client",
+            package: "generic-package",
             version: "0.1.0",
             target: "x86_64-pc-windows-msvc",
             product: "Mininet",

@@ -13,11 +13,15 @@ mod connectivity;
 mod conversation_state;
 mod discussion;
 mod library;
+mod media_share;
 mod mute_list;
 mod netsearch;
 mod network_session;
 mod peer_link;
 mod player;
+mod profile_editor;
+mod profile_photo;
+mod public_delivery;
 mod resident;
 mod seed_panel;
 mod seed_runtime;
@@ -28,28 +32,27 @@ mod private_relationship;
 mod theme;
 mod timeline;
 mod video;
+mod wall_editor;
 
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
 use eframe::egui;
 use mini_app_protocol::{
     AccountStatus, Command as AppCommand, FeedOrder as AppFeedOrder, FeedScope as AppFeedScope,
-    Reply as AppReply, ServiceEventKind,
+    PublicProfileDetails, Reply as AppReply, ServiceEventKind,
 };
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
-#[cfg(all(test, windows))]
-use mini_social::publish_profile;
 use mini_social::{
-    community_members, followers, following, known_profiles, publish_comment, publish_community,
-    publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
-    set_follow, set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer,
-    LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField,
-    ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    community_members, followers, following, known_profiles, publish_media_post, resolve_community,
+    resolve_profile, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
+    NearbyProfile, PublicProfileField, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
+    MAX_PROFILE_FIELD_VALUE_BYTES,
 };
+#[cfg(all(test, windows))]
+use mini_social::{publish_profile, publish_profile_details, set_follow, PublicProfileDraft};
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{kel_carrier, KelCache};
 use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
@@ -99,14 +102,100 @@ enum SyncContext {
     FriendRequest { display_name: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum CoreAction {
     CreateRoot,
     UnlockIdentity,
     LockIdentity,
     LockAfterProfile,
-    PublishProfile { display_name: String, bio: String },
-    PublishPost { text: String },
+    PublishProfile {
+        display_name: String,
+        bio: String,
+    },
+    PublishPost {
+        text: String,
+    },
+    PublishComment {
+        parent: String,
+        text: String,
+        draft: CommentDraft,
+    },
+    PublishMediaPost {
+        draft: media_share::Draft,
+        raw_caption: String,
+    },
+    PublishWall {
+        draft: mini_app_protocol::PublicWallDraft,
+    },
+    PublishProfileWithPhoto {
+        draft: PublicProfileDetails,
+        editor: profile_editor::Snapshot,
+        photo: Vec<u8>,
+    },
+    PublishProfileDetails {
+        draft: PublicProfileDetails,
+        editor: Option<profile_editor::Snapshot>,
+    },
+    PublishCommunity {
+        name: String,
+        charter: String,
+        raw_name: String,
+        raw_charter: String,
+    },
+    SetMembership {
+        community: String,
+        joined: bool,
+    },
+    SetLike {
+        target: String,
+        active: bool,
+    },
+    SetFollow {
+        target: String,
+        following: bool,
+        name: String,
+        nearby: Option<(String, Instant)>,
+    },
+}
+
+impl std::fmt::Debug for CoreAction {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Error diagnostics describe the action, never editor snapshots or bytes.
+        formatter.write_str(match self {
+            Self::CreateRoot => "CreateRoot",
+            Self::UnlockIdentity => "UnlockIdentity",
+            Self::LockIdentity => "LockIdentity",
+            Self::LockAfterProfile => "LockAfterProfile",
+            Self::PublishProfile { .. } => "PublishProfile",
+            Self::PublishPost { .. } => "PublishPost",
+            Self::PublishComment { .. } => "PublishComment",
+            Self::PublishMediaPost { .. } => "PublishMediaPost",
+            Self::PublishWall { .. } => "PublishWall",
+            Self::PublishProfileWithPhoto { .. } => "PublishProfileWithPhoto",
+            Self::PublishProfileDetails { .. } => "PublishProfileDetails",
+            Self::PublishCommunity { .. } => "PublishCommunity",
+            Self::SetMembership { .. } => "SetMembership",
+            Self::SetLike { .. } => "SetLike",
+            Self::SetFollow { .. } => "SetFollow",
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+enum CommentDraft {
+    Reply {
+        parent: String,
+        raw_text: String,
+    },
+    DiscussionReply {
+        parent: String,
+        raw_text: String,
+    },
+    Topic {
+        parent: String,
+        raw_title: String,
+        raw_body: String,
+    },
 }
 
 /// One row of the Messages conversation list.
@@ -174,6 +263,7 @@ struct MininetApp {
     resident: resident::Panel,
     seed_panel: seed_panel::Panel,
     app_service: Option<app_service::Client>,
+    public_delivery: public_delivery::PublicDeliveryPanel,
     app_status: Option<AccountStatus>,
     app_status_rx: Option<Receiver<Result<AppReply, String>>>,
     app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
@@ -181,7 +271,15 @@ struct MininetApp {
     app_events_due: Instant,
     app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
+    comment_operation: Option<(String, String, String)>,
+    community_operation: Option<(String, String, String)>,
+    membership_operation: Option<(String, bool, String)>,
+    like_operation: Option<(String, bool, String)>,
+    follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
+    profile_details_operation: Option<(profile_editor::Intent, String)>,
+    wall_operation: Option<(mini_app_protocol::PublicWallDraft, String)>,
+    media_share_operation: Option<(media_share::Draft, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
@@ -280,6 +378,8 @@ struct MininetApp {
     profile_name: String,
     profile_bio: String,
     profile_photo_path: String,
+    prepared_profile_photo: Option<profile_photo::Prepared>,
+    profile_photo_rx: Option<Receiver<Result<profile_photo::Prepared, String>>>,
     profile_avatar: Option<mini_objects::ObjectId>,
     profile_remove_photo: bool,
     profile_location: String,
@@ -449,6 +549,7 @@ impl Workspace {
         Ok(())
     }
 
+    #[cfg(all(test, windows))]
     #[allow(clippy::too_many_arguments)]
     fn publish_custom_profile(
         &mut self,
@@ -510,6 +611,7 @@ impl Workspace {
         Ok(avatar)
     }
 
+    #[cfg(all(test, windows))]
     #[allow(clippy::too_many_arguments)]
     fn publish_custom_profile_confirmed(
         &mut self,
@@ -562,6 +664,7 @@ impl Workspace {
             .is_some_and(|profile| profile.author_device == *human)
     }
 
+    #[cfg(all(test, windows))]
     fn upgrade_profile_for_sync(&mut self) -> Result<(), String> {
         let profile = self
             .current_profile()
@@ -594,18 +697,6 @@ impl Workspace {
                 .is_some_and(|people| people.iter().any(|person| person == target))
     }
 
-    fn set_follow_target_confirmed(&mut self, target: &str, active: bool) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.set_follow_target(target, active);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
     /// Assemble a complete manifest or collection into memory, bounded.
     fn media_bytes(&self, id: &mini_objects::ObjectId, max: u64) -> Result<Vec<u8>, String> {
         let object = self.store.get(id).map_err(|error| error.to_string())?;
@@ -632,91 +723,6 @@ impl Workspace {
             return Err("profile photo manifest is not a bounded image".to_string());
         }
         assemble(&self.store, &manifest).map_err(|error| error.to_string())
-    }
-
-    fn publish_public_wall(
-        &mut self,
-        name: &str,
-        bio: &str,
-        links: &[&str],
-        unlisted: bool,
-    ) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_wall(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            bio,
-            None,
-            links,
-            &[],
-            if unlisted {
-                VisibilityPolicy::Unlisted
-            } else {
-                VisibilityPolicy::Public
-            },
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(2);
-        Ok(())
-    }
-
-    fn publish_public_wall_confirmed(
-        &mut self,
-        name: &str,
-        bio: &str,
-        links: &[&str],
-        unlisted: bool,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.publish_public_wall(name, bio, links, unlisted);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    fn publish_community(&mut self, name: &str, charter: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_community(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            charter,
-            MembershipMode::Open,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn publish_community_confirmed(&mut self, name: &str, charter: &str) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.publish_community(name, charter);
-        if relock {
-            self.lock();
-        }
-        result
     }
 
     fn publish_media_post(
@@ -775,30 +781,6 @@ impl Workspace {
         result
     }
 
-    fn publish_comment(
-        &mut self,
-        parent: &mini_objects::ObjectId,
-        text: &str,
-    ) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_comment(
-            &mut self.store,
-            &human,
-            &identity.device,
-            parent,
-            text,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
     fn publish_file(
         &mut self,
         path: &std::path::Path,
@@ -827,41 +809,6 @@ impl Workspace {
             )?;
             self.sequence = self.sequence.saturating_add(published.objects);
             Ok(published)
-        })();
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    /// Post a caption linking an existing manifest or collection.
-    fn publish_media_post_for(
-        &mut self,
-        media: &mini_objects::ObjectId,
-        caption: &str,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = (|| {
-            let identity = self
-                .identity
-                .as_ref()
-                .ok_or_else(|| "identity is locked".to_string())?;
-            let human = self.human_did()?.clone();
-            publish_media_post(
-                &mut self.store,
-                &human,
-                &identity.device,
-                media.clone(),
-                caption,
-                now_ms(),
-                self.sequence,
-            )
-            .map_err(|error| error.to_string())?;
-            self.sequence = self.sequence.saturating_add(1);
-            Ok(())
         })();
         if relock {
             self.lock();
@@ -951,71 +898,6 @@ impl Workspace {
             .collect()
     }
 
-    fn publish_comment_confirmed(
-        &mut self,
-        parent: &mini_objects::ObjectId,
-        text: &str,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.publish_comment(parent, text);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    fn set_community_membership_confirmed(
-        &mut self,
-        community: &mini_objects::ObjectId,
-        joined: bool,
-    ) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.set_community_membership(community, joined);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    fn react_like(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
-        let relock = !self.is_unlocked();
-        if relock {
-            self.unlock()?;
-        }
-        let result = self.react_like_unlocked(target);
-        if relock {
-            self.lock();
-        }
-        result
-    }
-
-    fn react_like_unlocked(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        set_reaction(
-            &mut self.store,
-            &human,
-            &identity.device,
-            target,
-            ReactionKind::Like,
-            true,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
     fn export_bundle(&self, path: &str) -> Result<usize, String> {
         const MAGIC: &[u8] = b"MINIBND1";
         const MAX_OBJECTS: usize = 10_000;
@@ -1072,85 +954,6 @@ impl Workspace {
             return Err("bundle has trailing bytes".to_string());
         }
         Ok(count)
-    }
-
-    fn set_community_membership(
-        &mut self,
-        community: &mini_objects::ObjectId,
-        joined: bool,
-    ) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        set_membership(
-            &mut self.store,
-            &human,
-            &identity.device,
-            community,
-            joined,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn set_follow_target(&mut self, target: &str, follow: bool) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        let target = Did::parse(target.trim()).map_err(|error| error.to_string())?;
-        set_follow(
-            &mut self.store,
-            &human,
-            &identity.device,
-            &target,
-            follow,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    /// Explicit owner-selected authenticated pairing entry point. Ordinary
-    /// root-DID connection cards remain unable to invoke this operation.
-    #[allow(dead_code)]
-    fn pair_private<B: mini_bearer::Bearer>(
-        &mut self,
-        connection: &mut mini_transport_security::AuthenticatedConnection<B>,
-        expected_peer: &Did,
-        initiator: bool,
-    ) -> Result<Did, String> {
-        let identity = self.identity.as_ref().ok_or("identity is locked")?;
-        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
-        let mut relationships =
-            private_relationship::Relationships::open(vault, identity.root.did())?;
-        relationships.pair(
-            connection,
-            &identity.root,
-            &identity.device,
-            expected_peer,
-            initiator,
-            now_ms(),
-        )
-    }
-
-    /// Only a target committed by authenticated confidential pairing may be
-    /// followed; absent state never recreates or re-delegates a pseudonym.
-    fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
-        let identity = self.identity.as_ref().ok_or("identity is locked")?;
-        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
-        let mut relationships =
-            private_relationship::Relationships::open(vault, identity.root.did())?;
-        relationships.follow(&mut self.store, target_pseudonym, true, now_ms())?;
-        Ok(())
     }
 
     fn following_count(&self) -> usize {
@@ -1237,6 +1040,41 @@ impl Workspace {
             return Err(error);
         }
         Ok(self.conversations.len() - 1)
+    }
+
+    /// Explicit owner-selected authenticated pairing entry point. Ordinary
+    /// root-DID connection cards remain unable to invoke this operation.
+    #[allow(dead_code)]
+    fn pair_private<B: mini_bearer::Bearer>(
+        &mut self,
+        connection: &mut mini_transport_security::AuthenticatedConnection<B>,
+        expected_peer: &Did,
+        initiator: bool,
+    ) -> Result<Did, String> {
+        let identity = self.identity.as_ref().ok_or("identity is locked")?;
+        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
+        let mut relationships =
+            private_relationship::Relationships::open(vault, identity.root.did())?;
+        relationships.pair(
+            connection,
+            &identity.root,
+            &identity.device,
+            expected_peer,
+            initiator,
+            now_ms(),
+        )
+    }
+
+    /// Only a target committed by authenticated confidential pairing may be
+    /// followed; absent state never recreates or re-delegates a pseudonym.
+    #[allow(dead_code)] // reachable once an authenticated pairing UI exists
+    fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
+        let identity = self.identity.as_ref().ok_or("identity is locked")?;
+        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
+        let mut relationships =
+            private_relationship::Relationships::open(vault, identity.root.did())?;
+        relationships.follow(&mut self.store, target_pseudonym, true, now_ms())?;
+        Ok(())
     }
 
     fn send_private_message(&mut self, index: usize, body: &str) -> Result<(), String> {
@@ -1672,6 +1510,7 @@ impl Default for MininetApp {
             seed_panel: seed_panel::Panel::default(),
             workspace,
             app_service,
+            public_delivery: public_delivery::PublicDeliveryPanel::default(),
             app_status: None,
             app_status_rx,
             app_action: None,
@@ -1680,6 +1519,14 @@ impl Default for MininetApp {
             app_last_event_id: None,
             post_operation: None,
             profile_operation: None,
+            profile_details_operation: None,
+            wall_operation: None,
+            media_share_operation: None,
+            follow_operation: None,
+            community_operation: None,
+            membership_operation: None,
+            like_operation: None,
+            comment_operation: None,
             view,
             privacy: load_privacy_settings(),
             theme_applied: false,
@@ -1762,6 +1609,8 @@ impl Default for MininetApp {
                 .map(|profile| profile.bio.clone())
                 .unwrap_or_default(),
             profile_photo_path: String::new(),
+            prepared_profile_photo: None,
+            profile_photo_rx: None,
             profile_avatar: existing_profile
                 .as_ref()
                 .and_then(|profile| profile.avatar.clone()),
@@ -1839,6 +1688,92 @@ impl Default for MininetApp {
     }
 }
 
+fn comment_request_id(
+    pending: &mut Option<(String, String, String)>,
+    parent: &str,
+    text: &str,
+) -> String {
+    match pending {
+        Some((old_parent, old_text, id)) if old_parent == parent && old_text == text => id.clone(),
+        _ => {
+            let id = app_service::operation_id("comment");
+            *pending = Some((parent.into(), text.into(), id.clone()));
+            id
+        }
+    }
+}
+
+fn community_request_id(
+    pending: &mut Option<(String, String, String)>,
+    name: &str,
+    charter: &str,
+) -> String {
+    match pending {
+        Some((old_name, old_charter, id)) if old_name == name && old_charter == charter => {
+            id.clone()
+        }
+        _ => {
+            let id = app_service::operation_id("community");
+            *pending = Some((name.into(), charter.into(), id.clone()));
+            id
+        }
+    }
+}
+
+fn community_draft_matches(
+    original_name: &str,
+    original_charter: &str,
+    current_name: &str,
+    current_charter: &str,
+) -> bool {
+    original_name == current_name && original_charter == current_charter
+}
+
+fn comment_draft_matches(
+    parent: &str,
+    original: &[&str],
+    current_parent: Option<&str>,
+    current: &[&str],
+) -> bool {
+    current_parent == Some(parent) && original == current
+}
+
+fn follow_request_id(
+    pending: &mut Option<(String, bool, String)>,
+    target: &str,
+    following: bool,
+) -> String {
+    social_toggle_request_id(pending, "follow", target, following)
+}
+
+fn social_toggle_request_id(
+    pending: &mut Option<(String, bool, String)>,
+    kind: &str,
+    target: &str,
+    active: bool,
+) -> String {
+    match pending {
+        Some((old_target, old_state, id)) if old_target == target && *old_state == active => {
+            id.clone()
+        }
+        _ => {
+            let id = app_service::operation_id(kind);
+            *pending = Some((target.into(), active, id.clone()));
+            id
+        }
+    }
+}
+
+fn fresh_follow_endpoint(
+    nearby: Option<(String, Instant)>,
+    now: Instant,
+    network_idle: bool,
+) -> Option<String> {
+    nearby
+        .filter(|(_, expiry)| network_idle && now <= *expiry)
+        .map(|(endpoint, _)| endpoint)
+}
+
 impl eframe::App for MininetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.resident.poll_edits();
@@ -1862,6 +1797,7 @@ impl eframe::App for MininetApp {
             self.apply_launch_policy();
         }
         self.poll_app_service();
+        self.poll_profile_photo();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
         self.poll_netsearch();
@@ -1894,11 +1830,30 @@ impl eframe::App for MininetApp {
             || self.visibility_rx.is_some()
             || self.selftest_rx.is_some()
             || self.timeline_rx.is_some()
+            || self.profile_photo_rx.is_some()
             || self.app_status_rx.is_some()
             || self.app_action.is_some()
             || self.app_events_rx.is_some()
+            || (self.view == View::Connections && self.public_delivery.has_pending())
         {
             ctx.request_repaint_after(Duration::from_millis(100));
+        }
+        if self.app_service.is_none() || (self.app_status.is_none() && self.app_status_rx.is_none())
+        {
+            egui::TopBottomPanel::top("application-core-recovery").show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label("Application core is unavailable. Local drafts are preserved.");
+                    if ui
+                        .add_enabled(
+                            self.app_action.is_none(),
+                            egui::Button::new("Retry application core"),
+                        )
+                        .clicked()
+                    {
+                        self.retry_application_core();
+                    }
+                });
+            });
         }
         if self.view == View::Onboarding {
             self.onboarding(ctx);
@@ -2022,6 +1977,28 @@ impl MininetApp {
         }
     }
 
+    fn retry_application_core(&mut self) {
+        if self.app_action.is_some() || self.app_status_rx.is_some() {
+            return;
+        }
+        if self.app_service.is_none() {
+            match app_service::Client::spawn() {
+                Ok(client) => self.app_service = Some(client),
+                Err(error) => {
+                    self.notice = format!("Application core could not start: {error}");
+                    return;
+                }
+            }
+        }
+        // Existing clients supervise their own restart; do not kill a live
+        // child, replay a mutation, recreate an identity or unlock it here.
+        self.app_status = None;
+        self.signing_confirmation = false;
+        self.app_last_event_id = None;
+        self.request_core_status();
+        self.notice = "Checking application core status. Review and unlock before signing.".into();
+    }
+
     fn request_core_status(&mut self) {
         if self.app_status_rx.is_some() {
             return;
@@ -2079,10 +2056,13 @@ impl MininetApp {
                     self.app_status = Some(status);
                 }
                 Ok(_) => {
-                    self.notice =
-                        "Application core returned an unexpected status response.".to_string();
+                    self.app_status = None;
+                    self.signing_confirmation = false;
+                    self.notice = "Application core returned an unexpected status response. Retry the core when ready.".into();
                 }
                 Err(error) => {
+                    self.app_status = None;
+                    self.signing_confirmation = false;
                     self.notice = format!("Could not read application core status: {error}");
                 }
             }
@@ -2131,8 +2111,8 @@ impl MininetApp {
                         }
                         self.app_last_event_id = Some(event.event_id);
                         match event.kind {
-                            ServiceEventKind::DeliveryChanged(_) => {
-                                // Durable status is fetched explicitly; this event carries no source bytes.
+                            ServiceEventKind::DeliveryChanged(delivery) => {
+                                self.public_delivery.observe_delivery(delivery)
                             }
                             ServiceEventKind::RootCreated { .. } => self.request_core_status(),
                             ServiceEventKind::IdentityChanged { unlocked } => {
@@ -2142,8 +2122,11 @@ impl MininetApp {
                                     self.request_core_status();
                                 }
                             }
-                            ServiceEventKind::ObjectPublished { .. }
-                            | ServiceEventKind::FeedChanged => {
+                            ServiceEventKind::ObjectPublished { kind, object_id } => {
+                                self.public_delivery.observe_publication(kind, object_id);
+                                self.timeline_refresh = Instant::now();
+                            }
+                            ServiceEventKind::FeedChanged => {
                                 self.timeline_refresh = Instant::now();
                             }
                         }
@@ -2207,6 +2190,120 @@ impl MininetApp {
                 self.view = View::Creator;
                 self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
             }
+            (
+                CoreAction::PublishMediaPost { draft, raw_caption },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::MediaPost => {
+                if self
+                    .media_share_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| old == &draft)
+                {
+                    self.media_share_operation = None;
+                }
+                if media_share::acknowledges_editor(
+                    &draft,
+                    &raw_caption,
+                    self.library_share_target.as_ref().map(|id| id.as_str()),
+                    &self.library_caption,
+                ) {
+                    self.library_share_target = None;
+                    self.library_caption.clear();
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = "Media caption post saved through the application core. Its linked files still require media exchange; no file was uploaded by this action.".into();
+            }
+            (CoreAction::PublishWall { draft }, Ok(AppReply::Published(published)))
+                if published.kind == mini_app_protocol::ObjectKind::Wall =>
+            {
+                if self
+                    .wall_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| old == &draft)
+                {
+                    self.wall_operation = None;
+                }
+                // Keep editor values, including any newer visibility or link edits.
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = format!("Wall '{}' saved through the application core. Editor values preserved; no directory was contacted.", draft.display_name);
+            }
+            (
+                CoreAction::PublishProfileWithPhoto {
+                    draft,
+                    editor,
+                    photo,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Profile => {
+                let unchanged = editor == self.profile_editor_snapshot()
+                    && self.profile_photo_rx.is_none()
+                    && self
+                        .prepared_profile_photo
+                        .as_ref()
+                        .is_some_and(|prepared| prepared.matches(&editor.photo_path, &photo));
+                self.reload_workspace();
+                let avatar = self.workspace.as_ref().and_then(|workspace| {
+                    let id = mini_objects::ObjectId::parse(&published.object_id).ok()?;
+                    let profile = workspace.store.get(&id).ok()?;
+                    mini_social::decode_profile(&profile).ok()?.avatar
+                });
+                let Some(avatar) = avatar else {
+                    self.notice = "Profile receipt saved, but its new avatar could not be reloaded. The exact request is retained; retry it to recover.".into();
+                    return;
+                };
+                if self
+                    .profile_details_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| {
+                        old == &profile_editor::Intent::Photo {
+                            draft: draft.clone(),
+                            photo: photo.clone(),
+                        }
+                    })
+                {
+                    self.profile_details_operation = None;
+                }
+                self.profile_avatar = Some(avatar);
+                if unchanged {
+                    self.profile_photo_path.clear();
+                    self.profile_remove_photo = false;
+                    self.prepared_profile_photo = None;
+                }
+                self.profile_textures.clear();
+                self.signing_confirmation = false;
+                self.request_core_status();
+                self.notice = "Reviewed avatar and public profile saved through the application core. Newer editor changes have been preserved; exchange with peers to share the profile.".into();
+            }
+            (
+                CoreAction::PublishProfileDetails { draft, editor },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Profile => {
+                if self
+                    .profile_details_operation
+                    .as_ref()
+                    .is_some_and(|(old, _)| old == &profile_editor::Intent::Details(draft.clone()))
+                {
+                    self.profile_details_operation = None;
+                }
+                let unchanged = editor
+                    .as_ref()
+                    .is_some_and(|snapshot| snapshot == &self.profile_editor_snapshot());
+                self.profile_avatar = draft
+                    .avatar
+                    .as_deref()
+                    .and_then(|id| mini_objects::ObjectId::parse(id).ok());
+                if unchanged {
+                    self.profile_photo_path.clear();
+                    self.profile_remove_photo = false;
+                }
+                self.profile_textures.clear();
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.request_core_status();
+                self.notice = "Public profile saved through the application core. Exchange with peers to share it. Newer editor changes have been preserved.".into();
+            }
             (CoreAction::PublishPost { text }, Ok(AppReply::Published(_))) => {
                 if self.composer.trim() == text {
                     self.composer.clear();
@@ -2223,13 +2320,196 @@ impl MininetApp {
                         .to_string()
                 };
             }
-            (action, Ok(reply)) => {
-                self.notice = format!(
-                    "Application core returned an unexpected response for {action:?}: {reply:?}"
-                );
+            (
+                CoreAction::SetFollow {
+                    target,
+                    following,
+                    name,
+                    nearby,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Follow => {
+                if self
+                    .follow_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &target && *old_state == following
+                    })
+                {
+                    self.follow_operation = None;
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = if following {
+                    format!("Following {name}. The signed change is saved locally; exchange with peers to share it.")
+                } else {
+                    format!("Unfollowed {name}. Exchange with peers to share the signed change.")
+                };
+                // Preserve the original nearby-send gesture only while it is
+                // fresh and no unrelated operation has taken the network slot.
+                if following {
+                    let requested_nearby = nearby.is_some();
+                    if let Some(endpoint) = fresh_follow_endpoint(
+                        nearby,
+                        Instant::now(),
+                        self.sync_rx.is_none() && self.visibility_rx.is_none(),
+                    ) {
+                        self.peer_address = endpoint;
+                        self.start_peer_sync(
+                            false,
+                            Some(SyncContext::FriendRequest { display_name: name }),
+                        );
+                    } else if requested_nearby {
+                        self.notice.push_str(
+                            " The nearby send was not started; use Connections when ready.",
+                        );
+                    }
+                }
+            }
+            (
+                CoreAction::PublishCommunity {
+                    name,
+                    charter,
+                    raw_name,
+                    raw_charter,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Community => {
+                if self
+                    .community_operation
+                    .as_ref()
+                    .is_some_and(|(old_name, old_charter, _)| {
+                        old_name == &name && old_charter == &charter
+                    })
+                {
+                    self.community_operation = None;
+                }
+                if community_draft_matches(
+                    &raw_name,
+                    &raw_charter,
+                    &self.community_name,
+                    &self.community_charter,
+                ) {
+                    self.community_name.clear();
+                    self.community_charter.clear();
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice = "Open community saved through the application core. Exchange with peers to share it.".into();
+            }
+            (
+                CoreAction::SetMembership { community, joined },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Membership => {
+                if self
+                    .membership_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &community && *old_state == joined
+                    })
+                {
+                    self.membership_operation = None;
+                }
+                self.reload_workspace();
+                self.discussion_dirty = true;
+                self.notice = if joined {
+                    "Membership saved through the application core. Exchange with peers to share it."
+                } else {
+                    "Leave saved through the application core. Exchange with peers to share it."
+                }.into();
+            }
+            (CoreAction::SetLike { target, active }, Ok(AppReply::Published(published)))
+                if published.kind == mini_app_protocol::ObjectKind::Reaction =>
+            {
+                if self
+                    .like_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &target && *old_state == active
+                    })
+                {
+                    self.like_operation = None;
+                }
+                self.reload_workspace();
+                self.notice = if active {
+                    "Like saved through the application core. Exchange with peers to share it."
+                } else {
+                    "Like removed through the application core. Exchange with peers to share it."
+                }
+                .into();
+            }
+            (
+                CoreAction::PublishComment {
+                    parent,
+                    text,
+                    draft,
+                },
+                Ok(AppReply::Published(published)),
+            ) if published.kind == mini_app_protocol::ObjectKind::Comment => {
+                if self
+                    .comment_operation
+                    .as_ref()
+                    .is_some_and(|(old_parent, old_text, _)| {
+                        old_parent == &parent && old_text == &text
+                    })
+                {
+                    self.comment_operation = None;
+                }
+                match draft {
+                    CommentDraft::Reply { parent, raw_text } => {
+                        if comment_draft_matches(
+                            &parent,
+                            &[&raw_text],
+                            self.reply_target.as_ref().map(|id| id.as_str()),
+                            &[&self.reply_text],
+                        ) {
+                            self.reply_text.clear();
+                            self.reply_target = None;
+                        }
+                    }
+                    CommentDraft::DiscussionReply { parent, raw_text } => {
+                        if comment_draft_matches(
+                            &parent,
+                            &[&raw_text],
+                            self.discussion_reply_target.as_ref().map(|id| id.as_str()),
+                            &[&self.discussion_reply_text],
+                        ) {
+                            self.discussion_reply_text.clear();
+                            self.discussion_reply_target = None;
+                        }
+                    }
+                    CommentDraft::Topic {
+                        parent,
+                        raw_title,
+                        raw_body,
+                    } => {
+                        if comment_draft_matches(
+                            &parent,
+                            &[&raw_title, &raw_body],
+                            self.open_community.as_ref().map(|id| id.as_str()),
+                            &[&self.discussion_title, &self.discussion_body],
+                        ) {
+                            self.discussion_title.clear();
+                            self.discussion_body.clear();
+                        }
+                    }
+                }
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.notice =
+                    "Comment saved through the application core. Exchange with peers to share it."
+                        .into();
+            }
+            (action, Ok(_)) => {
+                self.app_status = None;
+                self.signing_confirmation = false;
+                self.notice =
+                    format!("Application core returned an unexpected response for {action:?}.");
                 self.request_core_status();
             }
             (action, Err(error)) => {
+                self.app_status = None;
+                self.signing_confirmation = false;
                 self.notice = format!("Application core {action:?} failed: {error}");
                 self.request_core_status();
             }
@@ -3160,17 +3440,93 @@ No tracking. No forced updates.",
             .collect()
     }
 
-    fn follow_did(&mut self, did: &str, name: &str) {
-        self.notice = match self.workspace.as_mut() {
-            Some(workspace) => match workspace.set_follow_target_confirmed(did, true) {
-                Ok(()) => {
-                    format!("Following {name}. The signed follow goes out on the next exchange.")
-                }
-                Err(error) => format!("Could not follow {name}: {error}"),
+    fn publish_comment_via_core(
+        &mut self,
+        parent: &mini_objects::ObjectId,
+        text: &str,
+        draft: CommentDraft,
+    ) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before commenting.".into();
+            return;
+        }
+        if text.trim().is_empty() {
+            self.notice = "Write a comment first.".into();
+            return;
+        }
+        let parent = parent.as_str().to_string();
+        let operation_id = comment_request_id(&mut self.comment_operation, &parent, text);
+        self.start_core_action(
+            CoreAction::PublishComment {
+                parent: parent.clone(),
+                text: text.into(),
+                draft,
             },
-            None => "Local workspace unavailable.".to_string(),
+            AppCommand::PublishComment {
+                operation_id,
+                parent_id: parent,
+                text: text.into(),
+            },
+        );
+    }
+
+    fn set_like_via_core(&mut self, target: &mini_objects::ObjectId, active: bool) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before reacting.".into();
+            return;
+        }
+        let target = target.as_str().to_string();
+        let operation_id =
+            social_toggle_request_id(&mut self.like_operation, "like", &target, active);
+        self.start_core_action(
+            CoreAction::SetLike {
+                target: target.clone(),
+                active,
+            },
+            AppCommand::SetLike {
+                operation_id,
+                target_id: target,
+                active,
+            },
+        );
+    }
+
+    fn follow_did(&mut self, did: &str, name: &str) {
+        self.set_follow_via_core(did, true, name, None);
+    }
+
+    fn set_follow_via_core(
+        &mut self,
+        did: &str,
+        following: bool,
+        name: &str,
+        nearby: Option<String>,
+    ) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before changing a follow.".into();
+            return;
+        }
+        let target = match Did::parse(did.trim()) {
+            Ok(target) => target.as_str().to_string(),
+            Err(error) => {
+                self.notice = format!("Invalid follow identity: {error}");
+                return;
+            }
         };
-        self.timeline_refresh = Instant::now();
+        let operation_id = follow_request_id(&mut self.follow_operation, &target, following);
+        self.start_core_action(
+            CoreAction::SetFollow {
+                target: target.clone(),
+                following,
+                name: name.into(),
+                nearby: nearby.map(|address| (address, Instant::now() + Duration::from_secs(10))),
+            },
+            AppCommand::SetFollow {
+                operation_id,
+                target_did: target,
+                following,
+            },
+        );
     }
 
     // ----- timeline -------------------------------------------------------
@@ -4065,15 +4421,7 @@ No tracking. No forced updates.",
                         } else if follows {
                             theme::pill_badge(ui, "FOLLOWING", theme::ONLINE_GREEN);
                             if ui.add(theme::secondary_button("Unfollow")).clicked() {
-                                self.notice = match self.workspace.as_mut() {
-                                    Some(workspace) => match workspace
-                                        .set_follow_target_confirmed(&did_text, false)
-                                    {
-                                        Ok(()) => format!("Unfollowed {name}."),
-                                        Err(error) => format!("Could not unfollow: {error}"),
-                                    },
-                                    None => "Local workspace unavailable.".into(),
-                                };
+                                self.set_follow_via_core(&did_text, false, &name, None);
                             }
                         } else if ui.add(theme::primary_button("Follow")).clicked() {
                             self.follow_did(&did_text, &name);
@@ -4333,48 +4681,14 @@ No tracking. No forced updates.",
     fn add_friend(&mut self, profile: &mini_social::Profile) {
         if self.sync_rx.is_some() || self.visibility_rx.is_some() {
             self.notice = format!(
-                "Finish the active peer operation before adding {}. No request was signed yet.",
+                "Finish the active peer operation before adding {}. No follow was signed yet.",
                 profile.display_name
             );
             return;
         }
-        let result = self
-            .workspace
-            .as_mut()
-            .ok_or_else(|| "Local workspace unavailable.".to_string())
-            .and_then(|workspace| {
-                workspace.set_follow_target_confirmed(profile.human.as_str(), true)
-            });
-        if let Err(error) = result {
-            self.notice = format!("Could not add friend: {error}");
-            return;
-        }
-
-        self.timeline_refresh = Instant::now();
-        let Some(endpoint) = nearby_endpoint_for(&self.nearby_profiles, &profile.human) else {
-            self.notice = if self.network_session.is_some() || self.host.is_some() {
-                format!(
-                    "Following {}. The signed follow goes out on the next exchange.",
-                    profile.display_name
-                )
-            } else {
-                format!(
-                    "Following {}. Start a session in Connections to deliver the signed follow.",
-                    profile.display_name
-                )
-            };
-            return;
-        };
-        self.peer_address = endpoint.to_string();
-        let context = SyncContext::FriendRequest {
-            display_name: profile.display_name.clone(),
-        };
-        if !self.start_peer_sync(false, Some(context)) {
-            self.notice = format!(
-                "Friend request for {} is signed locally. Finish the active peer operation, then sync to deliver it.",
-                profile.display_name
-            );
-        }
+        let nearby = nearby_endpoint_for(&self.nearby_profiles, &profile.human)
+            .map(|address| address.to_string());
+        self.set_follow_via_core(profile.human.as_str(), true, &profile.display_name, nearby);
     }
 
     fn post_card(&mut self, ui: &mut egui::Ui, card: &timeline::Card) {
@@ -4473,18 +4787,7 @@ No tracking. No forced updates.",
                             &card.support_count.to_string(),
                             theme::LIKE_PINK,
                         ) {
-                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                                match workspace.react_like(&card.id) {
-                                    Ok(()) => {
-                                        "Like signed and saved. It shares on the next exchange."
-                                            .to_string()
-                                    }
-                                    Err(error) => format!("Could not react: {error}"),
-                                }
-                            } else {
-                                "Local workspace unavailable.".to_string()
-                            };
-                            self.timeline_refresh = Instant::now();
+                            self.set_like_via_core(&card.id, true);
                         }
                         ui.add_space(10.0);
                         if card.media.is_some()
@@ -4813,25 +5116,12 @@ No tracking. No forced updates.",
                 );
                 ui.horizontal(|ui| {
                     if ui.add(theme::primary_button("Reply")).clicked() {
-                        self.notice = if self.reply_text.trim().is_empty() {
-                            "Write a reply first.".to_string()
-                        } else if !self.signing_confirmation {
-                            "Confirm signing before publishing.".to_string()
-                        } else if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace.publish_comment_confirmed(&target, self.reply_text.trim()) {
-                                Ok(()) => {
-                                    self.reply_text.clear();
-                                    self.reply_target = None;
-                                    self.signing_confirmation = false;
-                                    self.timeline_refresh = Instant::now();
-                                    "Reply signed and saved by the transitional desktop path. It shares on the next exchange."
-                                        .to_string()
-                                }
-                                Err(error) => format!("Could not publish reply: {error}"),
-                            }
-                        } else {
-                            "Local workspace unavailable.".to_string()
-                        };
+                        let text = self.reply_text.trim().to_string();
+                        if !self.signing_confirmation { self.notice = "Confirm signing before publishing.".into(); }
+                        else {
+                            let draft = CommentDraft::Reply { parent: target.as_str().into(), raw_text: self.reply_text.clone() };
+                            self.publish_comment_via_core(&target, &text, draft);
+                        }
                     }
                     if ui.add(theme::secondary_button("Cancel")).clicked() {
                         self.reply_target = None;
@@ -4848,6 +5138,15 @@ No tracking. No forced updates.",
     }
 
     fn connections(&mut self, ui: &mut egui::Ui) {
+        theme::card_frame().show(ui, |ui| {
+            egui::CollapsingHeader::new("Reliable public delivery")
+                .default_open(false)
+                .show(ui, |ui| {
+                    self.public_delivery.show(ui, self.app_service.as_ref())
+                });
+        });
+        ui.add_space(12.0);
+
         let now = Instant::now();
         let own_did = self
             .workspace
@@ -5107,61 +5406,25 @@ No tracking. No forced updates.",
                     .desired_rows(2)
                     .desired_width(f32::INFINITY),
             );
-            let mut clicked_private = false;
-            let mut clicked = ui.add(theme::primary_button("Add peer and follow")).clicked();
-            if ui
-                .add_enabled(
-                    false,
-                    theme::secondary_button("Add peer and follow privately"),
-                )
-                .on_hover_text(
-                    "Private following requires an authenticated pairwise identity. Ordinary connection cards cannot establish one.",
-                )
-                .clicked()
-            {
-                clicked = true;
-                clicked_private = true;
-            }
-            if clicked {
-                self.notice = match connectivity::ConnectionCard::decode(&self.card_input) {
-                    Ok(card) => {
-                        match self.connections.upsert_peer(&card.name, &card.endpoint, Some(&card.did)) {
-                            Ok(_) => {
-                                self.save_connections();
-                                self.card_input.clear();
-                                let follow: Option<Result<(), String>> = if clicked_private {
-                                    Some(
-                                        Did::parse(&card.did)
-                                            .map_err(|error| error.to_string())
-                                            .and_then(|target| {
-                                                self.workspace
-                                                    .as_mut()
-                                                    .ok_or_else(|| "no workspace".to_string())?
-                                                    .follow_privately(&target)
-                                            }),
-                                    )
-                                } else {
-                                    self.workspace.as_mut().map(|workspace| {
-                                        workspace.set_follow_target_confirmed(&card.did, true)
-                                    })
-                                };
-                                match follow {
-                                    Some(Ok(())) => format!(
-                                        "Saved {} and signed a follow. Start a session to exchange with them.",
-                                        card.name
-                                    ),
-                                    Some(Err(error)) => format!(
-                                        "Saved {}, but the follow was not signed: {error}",
-                                        card.name
-                                    ),
-                                    None => format!("Saved {}.", card.name),
-                                }
-                            }
-                            Err(error) => error,
+            ui.add_enabled(
+                false,
+                theme::secondary_button("Add peer and follow privately"),
+            )
+            .on_hover_text(
+                "Private following requires an authenticated pairwise identity. Ordinary connection cards cannot establish one.",
+            );
+            if ui.add(theme::primary_button("Add peer and follow")).clicked() {
+                match connectivity::ConnectionCard::decode(&self.card_input) {
+                    Ok(card) => match self.connections.upsert_peer(&card.name, &card.endpoint, Some(&card.did)) {
+                        Ok(_) => {
+                            self.save_connections();
+                            self.card_input.clear();
+                            self.set_follow_via_core(&card.did, true, &card.name, None);
                         }
-                    }
-                    Err(error) => error,
-                };
+                        Err(error) => self.notice = error,
+                    },
+                    Err(error) => self.notice = error,
+                }
             }
             ui.add_space(6.0);
             ui.label(egui::RichText::new("Or add an endpoint by hand").strong());
@@ -5334,7 +5597,7 @@ No tracking. No forced updates.",
                                         theme::WARN_AMBER,
                                         "Identity creation and signing are disabled rather than falling back to renderer-owned keys.",
                                     );
-                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then restart the client.");
+                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then use Retry application core above.");
                                 });
                             } else if let Some(status) = self.app_status.clone() {
                                 if !status.root_created {
@@ -5809,13 +6072,7 @@ No tracking. No forced updates.",
                 );
                 ui.label("This account was created by an earlier desktop beta that signed directly with the human root. Peers correctly reject those objects. Re-sign the same public profile with a scoped delegated device; your DID and published details stay unchanged.");
                 if ui.button("Upgrade public profile for peer sync").clicked() {
-                    self.notice = match self.workspace.as_mut() {
-                        Some(workspace) => match workspace.upgrade_profile_for_sync() {
-                            Ok(()) => "Public profile upgraded with a delegated-device signature. Nearby verified sync is ready.".to_string(),
-                            Err(error) => format!("Could not upgrade public profile: {error}"),
-                        },
-                        None => "Local workspace unavailable.".to_string(),
-                    };
+                    self.upgrade_profile_via_core();
                 }
             });
             ui.add_space(12.0);
@@ -5954,30 +6211,12 @@ No tracking. No forced updates.",
                     } else if friend {
                         ui.label(egui::RichText::new("Friends").strong());
                         if ui.button("Remove friend").clicked() {
-                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                                match workspace
-                                    .set_follow_target_confirmed(profile.human.as_str(), false)
-                                {
-                                    Ok(()) => "Friend/follow edge removed locally; sync to share the change.".to_string(),
-                                    Err(error) => format!("Could not remove friend: {error}"),
-                                }
-                            } else {
-                                "Local workspace unavailable.".to_string()
-                            };
+                            self.set_follow_via_core(profile.human.as_str(), false, &profile.display_name, None);
                         }
                     } else if follows {
                         ui.label("Friend request/follow sent");
                         if ui.button("Cancel").clicked() {
-                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                                match workspace
-                                    .set_follow_target_confirmed(profile.human.as_str(), false)
-                                {
-                                    Ok(()) => "Friend request/follow removed locally.".to_string(),
-                                    Err(error) => format!("Could not remove follow: {error}"),
-                                }
-                            } else {
-                                "Local workspace unavailable.".to_string()
-                            };
+                            self.set_follow_via_core(profile.human.as_str(), false, &profile.display_name, None);
                         }
                     } else if ui.add(theme::primary_button("Follow")).clicked() {
                         self.add_friend(&profile);
@@ -6298,24 +6537,18 @@ No tracking. No forced updates.",
                                 );
                                 ui.horizontal(|ui| {
                                     if ui.add(theme::primary_button("Post")).clicked() {
-                                        self.notice = if !self.signing_confirmation {
-                                            "Confirm signing before posting.".into()
+                                        if !self.signing_confirmation {
+                                            self.notice = "Confirm signing before posting.".into();
+                                        } else if self.app_action.is_some() {
+                                            self.notice = "Finish the pending signed action before sharing media.".into();
                                         } else {
-                                            match self.workspace.as_mut() {
-                                                Some(workspace) => match workspace
-                                                    .publish_media_post_for(&item.id, self.library_caption.trim())
-                                                {
-                                                    Ok(()) => {
-                                                        self.signing_confirmation = false;
-                                                        self.library_share_target = None;
-                                                        self.timeline_refresh = Instant::now();
-                                                        "Posted. It shares on the next exchange.".into()
-                                                    }
-                                                    Err(error) => format!("Could not post: {error}"),
-                                                },
-                                                None => "Local workspace unavailable.".into(),
-                                            }
-                                        };
+                                            let draft = media_share::Draft { media_id: item.id.as_str().into(), caption: self.library_caption.trim().into() };
+                                            let operation_id = media_share::request_id(&mut self.media_share_operation, &draft);
+                                            self.start_core_action(
+                                                CoreAction::PublishMediaPost { draft: draft.clone(), raw_caption: self.library_caption.clone() },
+                                                AppCommand::PublishMediaPost { operation_id, media_id: draft.media_id, caption: draft.caption },
+                                            );
+                                        }
                                     }
                                     if ui.add(theme::secondary_button("Cancel")).clicked() {
                                         self.library_share_target = None;
@@ -7119,14 +7352,7 @@ No tracking. No forced updates.",
         }
         ui.horizontal(|ui| {
             if theme::icon_action(ui, "♥", &card.support_count.to_string(), theme::LIKE_PINK) {
-                self.notice = match self.workspace.as_mut() {
-                    Some(workspace) => match workspace.react_like(&card.id) {
-                        Ok(()) => "Like signed and saved.".into(),
-                        Err(error) => format!("Could not react: {error}"),
-                    },
-                    None => "Local workspace unavailable.".into(),
-                };
-                self.timeline_refresh = Instant::now();
+                self.set_like_via_core(&card.id, true);
             }
             if theme::icon_action(ui, "💬", &card.comment_count.to_string(), theme::ACCENT) {
                 self.watch_target = Some(card.id.clone());
@@ -7198,23 +7424,15 @@ No tracking. No forced updates.",
                 ui.horizontal(|ui| {
                     if ui.add(theme::primary_button("Comment")).clicked() {
                         let text = self.reply_text.trim().to_string();
-                        self.notice = if text.is_empty() {
-                            "Write a comment first.".into()
-                        } else if !self.signing_confirmation {
-                            "Confirm signing before commenting.".into()
+                        if !self.signing_confirmation {
+                            self.notice = "Confirm signing before commenting.".into();
                         } else {
-                            match self.publish_comment_confirmed(&card.id, &text) {
-                                Ok(()) => {
-                                    self.reply_text.clear();
-                                    self.reply_target = None;
-                                    self.signing_confirmation = false;
-                                    self.timeline_refresh = Instant::now();
-                                    "Comment signed and saved. It shares on the next exchange."
-                                        .into()
-                                }
-                                Err(error) => format!("Could not comment: {error}"),
-                            }
-                        };
+                            let draft = CommentDraft::Reply {
+                                parent: card.id.as_str().into(),
+                                raw_text: self.reply_text.clone(),
+                            };
+                            self.publish_comment_via_core(&card.id, &text, draft);
+                        }
                     }
                     if ui.add(theme::secondary_button("Cancel")).clicked() {
                         self.reply_target = None;
@@ -7304,6 +7522,7 @@ No tracking. No forced updates.",
             });
         }
         for (id, name, charter, member_count, joined) in cards {
+            let can_join = self.membership_can_join(&id);
             theme::card_frame().show(ui, |ui| {
                 ui.horizontal_top(|ui| {
                     theme::avatar(ui, &name, id.as_str(), 44.0);
@@ -7322,11 +7541,16 @@ No tracking. No forced updates.",
                                         self.discussion_dirty = true;
                                     }
                                     if ui
-                                        .add(theme::secondary_button(if joined {
-                                            "Leave"
-                                        } else {
-                                            "Join"
-                                        }))
+                                        .add_enabled(
+                                            joined || can_join,
+                                            theme::secondary_button(if joined {
+                                                "Leave"
+                                            } else if can_join {
+                                                "Join"
+                                            } else {
+                                                "Approval required"
+                                            }),
+                                        )
                                         .clicked()
                                     {
                                         self.set_membership(&id, !joined);
@@ -7359,28 +7583,40 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed community object",
             );
-            if ui.add(theme::primary_button("Create")).clicked() {
-                self.notice = if self.community_name.trim().is_empty() {
-                    "A community name is required.".to_string()
+            theme::muted(
+                ui,
+                "Creates an open community. Approval-based admission is not available yet.",
+            );
+            if ui
+                .add_enabled(
+                    self.app_action.is_none(),
+                    theme::primary_button("Create open community"),
+                )
+                .clicked()
+            {
+                if self.community_name.trim().is_empty() {
+                    self.notice = "A community name is required.".into();
                 } else if !self.signing_confirmation {
-                    "Confirm signing before publishing.".to_string()
-                } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_community_confirmed(
-                        self.community_name.trim(),
-                        self.community_charter.trim(),
-                    ) {
-                        Ok(()) => {
-                            self.community_name.clear();
-                            self.community_charter.clear();
-                            self.signing_confirmation = false;
-                            "Community created. It shares with your peers on the next exchange."
-                                .to_string()
-                        }
-                        Err(error) => format!("Could not create community: {error}"),
-                    }
+                    self.notice = "Confirm signing before publishing.".into();
                 } else {
-                    "Local workspace unavailable.".to_string()
-                };
+                    let name = self.community_name.trim().to_string();
+                    let charter = self.community_charter.trim().to_string();
+                    let operation_id =
+                        community_request_id(&mut self.community_operation, &name, &charter);
+                    self.start_core_action(
+                        CoreAction::PublishCommunity {
+                            name: name.clone(),
+                            charter: charter.clone(),
+                            raw_name: self.community_name.clone(),
+                            raw_charter: self.community_charter.clone(),
+                        },
+                        AppCommand::PublishCommunity {
+                            operation_id,
+                            name,
+                            charter,
+                        },
+                    );
+                }
             }
         });
         ui.add_space(8.0);
@@ -7461,17 +7697,42 @@ No tracking. No forced updates.",
         }
     }
 
-    fn set_membership(&mut self, id: &mini_objects::ObjectId, join: bool) {
-        self.notice = match self.workspace.as_mut() {
-            Some(workspace) => match workspace.set_community_membership_confirmed(id, join) {
-                Ok(()) if join => {
-                    "Joined. The signed membership shares on the next exchange.".into()
-                }
-                Ok(()) => "Left the community.".into(),
-                Err(error) => format!("Could not change membership: {error}"),
+    fn membership_can_join(&self, id: &mini_objects::ObjectId) -> bool {
+        self.workspace
+            .as_ref()
+            .and_then(|workspace| resolve_community(&workspace.store, id).ok())
+            .is_some_and(|community| community.membership == MembershipMode::Open)
+    }
+
+    fn set_membership(&mut self, id: &mini_objects::ObjectId, joined: bool) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before changing membership.".into();
+            return;
+        }
+        if joined && !self.membership_can_join(id) {
+            self.notice =
+                "Joining this community requires an admission workflow that is not available yet."
+                    .into();
+            return;
+        }
+        let community = id.as_str().to_string();
+        let operation_id = social_toggle_request_id(
+            &mut self.membership_operation,
+            "membership",
+            &community,
+            joined,
+        );
+        self.start_core_action(
+            CoreAction::SetMembership {
+                community: community.clone(),
+                joined,
             },
-            None => "Local workspace unavailable.".into(),
-        };
+            AppCommand::SetMembership {
+                operation_id,
+                community_id: community,
+                joined,
+            },
+        );
     }
 
     fn reload_discussion(&mut self, community: &mini_objects::ObjectId) {
@@ -7515,6 +7776,7 @@ No tracking. No forced updates.",
         if self.discussion_dirty {
             self.reload_discussion(community);
         }
+        let can_join = self.membership_can_join(community);
         ui.horizontal(|ui| {
             if ui
                 .add(theme::secondary_button("◀  All communities"))
@@ -7528,7 +7790,17 @@ No tracking. No forced updates.",
             ui.label(egui::RichText::new(&name).strong().size(18.0));
             if joined {
                 theme::pill_badge(ui, "JOINED", theme::ONLINE_GREEN);
-            } else if ui.add(theme::secondary_button("Join")).clicked() {
+            } else if ui
+                .add_enabled(
+                    can_join,
+                    theme::secondary_button(if can_join {
+                        "Join"
+                    } else {
+                        "Approval required"
+                    }),
+                )
+                .clicked()
+            {
                 self.set_membership(community, true);
             }
         });
@@ -7558,30 +7830,25 @@ No tracking. No forced updates.",
                 "I confirm this creates a signed discussion object",
             );
             if ui.add(theme::primary_button("Post discussion")).clicked() {
-                let title = self.discussion_title.trim().to_string();
-                let body = self.discussion_body.trim().to_string();
-                self.notice = if title.is_empty() {
-                    "Give the discussion a title.".into()
+                let title = self.discussion_title.trim();
+                let body = self.discussion_body.trim();
+                if title.is_empty() {
+                    self.notice = "Give the discussion a title.".into();
                 } else if !self.signing_confirmation {
-                    "Confirm signing before posting.".into()
+                    self.notice = "Confirm signing before posting.".into();
                 } else {
                     let text = if body.is_empty() {
-                        title
+                        title.into()
                     } else {
                         format!("{title}\n\n{body}")
                     };
-                    match self.publish_comment_confirmed(community, &text) {
-                        Ok(()) => {
-                            self.discussion_title.clear();
-                            self.discussion_body.clear();
-                            self.signing_confirmation = false;
-                            self.discussion_dirty = true;
-                            "Discussion posted. It shares with your peers on the next exchange."
-                                .into()
-                        }
-                        Err(error) => format!("Could not post: {error}"),
-                    }
-                };
+                    let draft = CommentDraft::Topic {
+                        parent: community.as_str().into(),
+                        raw_title: self.discussion_title.clone(),
+                        raw_body: self.discussion_body.clone(),
+                    };
+                    self.publish_comment_via_core(community, &text, draft);
+                }
             }
         });
         ui.add_space(8.0);
@@ -7636,16 +7903,7 @@ No tracking. No forced updates.",
             ui.vertical(|ui| {
                 ui.set_width(40.0);
                 if theme::icon_action(ui, "⬆", "", theme::ACCENT) {
-                    self.notice = match self.workspace.as_mut() {
-                        Some(workspace) => match workspace.react_like(&node.id) {
-                            Ok(()) => {
-                                self.discussion_dirty = true;
-                                "Upvote signed. It shares on the next exchange.".into()
-                            }
-                            Err(error) => format!("Could not upvote: {error}"),
-                        },
-                        None => "Local workspace unavailable.".into(),
-                    };
+                    self.set_like_via_core(&node.id, true);
                 }
                 ui.label(
                     egui::RichText::new(node.upvotes.to_string())
@@ -7725,22 +7983,15 @@ No tracking. No forced updates.",
                     ui.horizontal(|ui| {
                         if ui.add(theme::primary_button("Reply")).clicked() {
                             let text = self.discussion_reply_text.trim().to_string();
-                            self.notice = if text.is_empty() {
-                                "Write a reply first.".into()
-                            } else if !self.signing_confirmation {
-                                "Confirm signing before replying.".into()
+                            if !self.signing_confirmation {
+                                self.notice = "Confirm signing before replying.".into();
                             } else {
-                                match self.publish_comment_confirmed(&node.id, &text) {
-                                    Ok(()) => {
-                                        self.discussion_reply_target = None;
-                                        self.discussion_reply_text.clear();
-                                        self.signing_confirmation = false;
-                                        self.discussion_dirty = true;
-                                        "Reply posted. It shares on the next exchange.".into()
-                                    }
-                                    Err(error) => format!("Could not reply: {error}"),
-                                }
-                            };
+                                let draft = CommentDraft::DiscussionReply {
+                                    parent: node.id.as_str().into(),
+                                    raw_text: self.discussion_reply_text.clone(),
+                                };
+                                self.publish_comment_via_core(&node.id, &text, draft);
+                            }
                         }
                         if ui.add(theme::secondary_button("Cancel")).clicked() {
                             self.discussion_reply_target = None;
@@ -7783,15 +8034,161 @@ No tracking. No forced updates.",
         });
     }
 
-    fn publish_comment_confirmed(
+    fn poll_profile_photo(&mut self) {
+        let result =
+            self.profile_photo_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => Some(Err(
+                        "Photo preparation stopped. Prepare the photo again.".into(),
+                    )),
+                });
+        if let Some(result) = result {
+            self.profile_photo_rx = None;
+            match result {
+                Ok(photo) if photo.source_path == self.profile_photo_path.trim() => {
+                    self.prepared_profile_photo = Some(photo);
+                    self.signing_confirmation = false;
+                    self.notice = "Photo prepared locally. Review the preview and public fields, then confirm signing.".into();
+                }
+                Ok(_) => self.notice =
+                    "Photo selection changed while preparing it. Prepare the current photo again."
+                        .into(),
+                Err(error) => self.notice = error,
+            }
+        }
+    }
+
+    fn prepare_profile_photo(&mut self) {
+        if self.profile_photo_rx.is_some() {
+            return;
+        }
+        let path = self.profile_photo_path.trim().to_string();
+        if path.is_empty() {
+            self.notice = "Select a local image first.".into();
+            return;
+        }
+        self.prepared_profile_photo = None;
+        self.signing_confirmation = false;
+        let (sender, receiver) = mpsc::sync_channel(1);
+        self.profile_photo_rx = Some(receiver);
+        std::thread::spawn(move || {
+            let _ = sender.send(profile_photo::prepare(&path));
+        });
+    }
+
+    fn publish_profile_editor(&mut self) {
+        let editor = self.profile_editor_snapshot();
+        if editor.photo_path.trim().is_empty() {
+            match editor.details(None) {
+                Ok(draft) => self.publish_profile_details_via_core(draft, Some(editor)),
+                Err(error) => self.notice = error,
+            }
+            return;
+        }
+        let Some(photo) = self
+            .prepared_profile_photo
+            .as_ref()
+            .filter(|photo| photo.source_path == editor.photo_path.trim())
+            .map(|photo| photo.bytes.clone())
+        else {
+            self.notice = "Prepare and review the selected photo before signing.".into();
+            return;
+        };
+        let mut draft = match editor.details(Some("pending-reviewed-avatar")) {
+            Ok(draft) => draft,
+            Err(error) => {
+                self.notice = error;
+                return;
+            }
+        };
+        // The core derives the new content-addressed avatar from the exact
+        // reviewed bytes; the renderer cannot supply a competing avatar ID.
+        draft.avatar = None;
+        let operation_id = profile_editor::request_id(
+            &mut self.profile_details_operation,
+            profile_editor::Intent::Photo {
+                draft: draft.clone(),
+                photo: photo.clone(),
+            },
+        );
+        self.start_core_action(
+            CoreAction::PublishProfileWithPhoto {
+                draft: draft.clone(),
+                editor,
+                photo: photo.clone(),
+            },
+            AppCommand::PublishProfileWithPhoto {
+                operation_id,
+                draft,
+                photo,
+            },
+        );
+    }
+
+    fn profile_editor_snapshot(&self) -> profile_editor::Snapshot {
+        profile_editor::Snapshot {
+            name: self.profile_name.clone(),
+            bio: self.profile_bio.clone(),
+            photo_path: self.profile_photo_path.clone(),
+            avatar: self.profile_avatar.as_ref().map(|id| id.as_str().into()),
+            remove_photo: self.profile_remove_photo,
+            location: self.profile_location.clone(),
+            share_location: self.profile_share_location,
+            age: self.profile_age.clone(),
+            share_age: self.profile_share_age,
+            fields: self.profile_custom_fields.clone(),
+        }
+    }
+
+    fn publish_profile_details_via_core(
         &mut self,
-        parent: &mini_objects::ObjectId,
-        text: &str,
-    ) -> Result<(), String> {
-        self.workspace
-            .as_mut()
-            .ok_or_else(|| "Local workspace unavailable.".to_string())
-            .and_then(|workspace| workspace.publish_comment_confirmed(parent, text))
+        draft: PublicProfileDetails,
+        editor: Option<profile_editor::Snapshot>,
+    ) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before publishing a profile.".into();
+            return;
+        }
+        let operation_id = profile_editor::request_id(
+            &mut self.profile_details_operation,
+            profile_editor::Intent::Details(draft.clone()),
+        );
+        self.start_core_action(
+            CoreAction::PublishProfileDetails {
+                draft: draft.clone(),
+                editor,
+            },
+            AppCommand::PublishProfileDetails {
+                operation_id,
+                draft,
+            },
+        );
+    }
+
+    fn upgrade_profile_via_core(&mut self) {
+        let Some(profile) = self.workspace.as_ref().and_then(Workspace::current_profile) else {
+            self.notice = "Publish a public profile first.".into();
+            return;
+        };
+        let draft = PublicProfileDetails {
+            display_name: profile.display_name,
+            bio: profile.bio,
+            avatar: profile.avatar.map(|id| id.as_str().into()),
+            location: profile.location,
+            age: profile.age,
+            fields: profile
+                .fields
+                .into_iter()
+                .map(|field| mini_app_protocol::ProfileField {
+                    label: field.label,
+                    value: field.value,
+                })
+                .collect(),
+        };
+        self.publish_profile_details_via_core(draft, None);
     }
 
     fn creator(&mut self, ui: &mut egui::Ui) {
@@ -7819,7 +8216,15 @@ No tracking. No forced updates.",
                 ui.label("Drop an image onto this window or paste its local path:");
                 ui.text_edit_singleline(&mut self.profile_photo_path);
             });
-            ui.label("PNG, JPEG, WebP, or GIF; maximum 8 MiB. The image is stored as signed Mininet media, not uploaded to a third party.");
+            ui.label("PNG, JPEG, WebP, or GIF source up to 8 MiB / 4096×4096. Prepare a JPEG avatar up to 256×256; transparency uses white and file metadata is removed. The original is unchanged.");
+            if ui.add_enabled(self.profile_photo_rx.is_none(), egui::Button::new("Prepare photo preview")).clicked() {
+                self.prepare_profile_photo();
+            }
+            if self.profile_photo_rx.is_some() { ui.spinner(); ui.label("Preparing a bounded local preview…"); }
+            if let Some(photo) = self.prepared_profile_photo.as_mut().filter(|photo| photo.source_path == self.profile_photo_path.trim()) {
+                photo.show(ui);
+                ui.label("Only this reviewed preview will be published. Prepare again to use later changes to the file.");
+            }
             if self.profile_avatar.is_some() {
                 ui.checkbox(
                     &mut self.profile_remove_photo,
@@ -7858,77 +8263,20 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I reviewed these details and want to publish them in my signed public profile",
             );
-            if ui.button("Save signed public profile").clicked() {
-                let fields = parse_profile_fields(&self.profile_custom_fields);
-                let age = if self.profile_share_age {
-                    self.profile_age
-                        .trim()
-                        .parse::<u8>()
-                        .map(Some)
-                        .map_err(|_| "age must be a whole number from 1 to 255".to_string())
-                        .and_then(|age| {
-                            if age == Some(0) {
-                                Err("age must be a whole number from 1 to 255".to_string())
-                            } else {
-                                Ok(age)
-                            }
-                        })
+            if ui.add_enabled(self.app_action.is_none() && self.profile_photo_rx.is_none(), egui::Button::new("Save signed public profile")).clicked() {
+                if !self.signing_confirmation {
+                    self.notice = "Review the profile and confirm signing before publishing.".into();
                 } else {
-                    Ok(None)
-                };
-                let location = self.profile_location.trim();
-                let validation = fields.and_then(|fields| {
-                    if self.profile_name.trim().is_empty() {
-                        Err("A display name is required.".to_string())
-                    } else if self.profile_share_location && location.is_empty() {
-                        Err("Enter a location or turn off location sharing.".to_string())
-                    } else if location.len() > MAX_LOCATION_BYTES {
-                        Err(format!("location exceeds {MAX_LOCATION_BYTES} bytes"))
-                    } else if !self.signing_confirmation {
-                        Err("Review the profile and confirm signing before publishing.".to_string())
-                    } else {
-                        age.map(|age| (fields, age))
-                    }
-                });
-                self.notice = match validation {
-                    Err(error) => error,
-                    Ok((fields, age)) => {
-                        let retained_avatar = if self.profile_remove_photo {
-                            None
-                        } else {
-                            self.profile_avatar.as_ref()
-                        };
-                        if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace.publish_custom_profile_confirmed(
-                                self.profile_name.trim(),
-                                self.profile_bio.trim(),
-                                self.profile_photo_path.trim(),
-                                retained_avatar,
-                                self.profile_share_location.then_some(location),
-                                age,
-                                &fields,
-                            ) {
-                                Ok(avatar) => {
-                                    self.profile_avatar = avatar;
-                                    self.profile_photo_path.clear();
-                                    self.profile_remove_photo = false;
-                                    self.profile_textures.clear();
-                                    self.signing_confirmation = false;
-                                    "Public profile saved locally. Use People to become visible nearby or sync it to another peer.".to_string()
-                                }
-                                Err(error) => format!("Could not publish profile: {error}"),
-                            }
-                        } else {
-                            "Local workspace unavailable.".to_string()
-                        }
-                    }
-                };
+                    self.publish_profile_editor();
+                }
             }
         });
         ui.add_space(12.0);
         theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Public wall").strong());
-            ui.label("A voluntary public-facing surface separate from your profile. It does not reveal another root unless you explicitly publish a linkage object.");
+            ui.label("Publish a wall under your current account identity. This does not create a separate pseudonym or link another identity.");
+            if let Some(did) = self.app_status.as_ref().and_then(|status| status.human_did.as_deref()) { ui.small(format!("Signing identity: {did}")); }
+            ui.label("Unlisted walls remain public plaintext: anyone with the identifier can read or share them. Unlisted requests discovery opt-out, not confidentiality.");
             ui.label("Wall name");
             ui.text_edit_singleline(&mut self.wall_name);
             ui.label("Wall bio");
@@ -7946,35 +8294,19 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed public wall",
             );
-            if ui.button("Publish wall locally").clicked() {
-                let link_values: Vec<String> = self
-                    .wall_links
-                    .lines()
-                    .map(str::trim)
-                    .filter(|link| !link.is_empty())
-                    .map(str::to_string)
-                    .collect();
-                let link_refs: Vec<&str> = link_values.iter().map(String::as_str).collect();
-                self.notice = if self.wall_name.trim().is_empty() {
-                    "A wall name is required.".to_string()
-                } else if !self.signing_confirmation {
-                    "Confirm signing before publishing the wall.".to_string()
-                } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_public_wall_confirmed(
-                        self.wall_name.trim(),
-                        self.wall_bio.trim(),
-                        &link_refs,
-                        self.wall_unlisted,
-                    ) {
-                        Ok(()) => {
-                            self.signing_confirmation = false;
-                            "Public wall written locally. No directory was contacted.".to_string()
-                        }
-                        Err(error) => format!("Could not publish public wall: {error}"),
-                    }
+            if ui.add_enabled(self.app_action.is_none(), egui::Button::new("Publish wall locally")).clicked() {
+                if !self.signing_confirmation {
+                    self.notice = "Confirm signing before publishing the wall.".into();
                 } else {
-                    "Local workspace unavailable.".to_string()
-                };
+                    let snapshot = wall_editor::Snapshot { name: self.wall_name.clone(), bio: self.wall_bio.clone(), links: self.wall_links.clone(), unlisted: self.wall_unlisted };
+                    match snapshot.draft() {
+                        Ok(draft) => {
+                            let operation_id = wall_editor::request_id(&mut self.wall_operation, &draft);
+                            self.start_core_action(CoreAction::PublishWall { draft: draft.clone() }, AppCommand::PublishWall { operation_id, draft });
+                        }
+                        Err(error) => self.notice = error,
+                    }
+                }
             }
         });
         ui.add_space(12.0);
@@ -8017,41 +8349,27 @@ No tracking. No forced updates.",
                     .add_enabled(target_valid && !self.follow_target.trim().is_empty(), egui::Button::new("Follow locally"))
                     .clicked()
                 {
-                    self.notice = if self.follow_target.trim().is_empty() {
-                        "Enter a did:mini target first.".to_string()
+                    if self.follow_target.trim().is_empty() {
+                        self.notice = "Enter a did:mini target first.".into();
                     } else if !self.signing_confirmation {
-                        "Confirm signing before changing the follow graph.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target_confirmed(&self.follow_target, true) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                "Follow object written locally.".to_string()
-                            }
-                            Err(error) => format!("Could not follow target: {error}"),
-                        }
+                        self.notice = "Confirm signing before changing the follow graph.".into();
                     } else {
-                        "Local workspace unavailable.".to_string()
-                    };
+                        let target = self.follow_target.clone();
+                        self.set_follow_via_core(&target, true, &target, None);
+                    }
                 }
                 if ui
                     .add_enabled(target_valid && !self.follow_target.trim().is_empty(), egui::Button::new("Unfollow locally"))
                     .clicked()
                 {
-                    self.notice = if self.follow_target.trim().is_empty() {
-                        "Enter a did:mini target first.".to_string()
+                    if self.follow_target.trim().is_empty() {
+                        self.notice = "Enter a did:mini target first.".into();
                     } else if !self.signing_confirmation {
-                        "Confirm signing before changing the follow graph.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target_confirmed(&self.follow_target, false) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                "Unfollow object written locally.".to_string()
-                            }
-                            Err(error) => format!("Could not unfollow target: {error}"),
-                        }
+                        self.notice = "Confirm signing before changing the follow graph.".into();
                     } else {
-                        "Local workspace unavailable.".to_string()
-                    };
+                        let target = self.follow_target.clone();
+                        self.set_follow_via_core(&target, false, &target, None);
+                    }
                 }
             });
             ui.checkbox(
@@ -9542,5 +9860,180 @@ shot at dusk",
             .is_empty());
 
         std::fs::remove_dir_all(&test_root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod follow_runtime_tests {
+    use super::*;
+    #[test]
+    fn core_action_diagnostics_omit_private_draft_text_and_photo_bytes() {
+        let draft = PublicProfileDetails {
+            display_name: "Public".into(),
+            bio: "Bio".into(),
+            avatar: None,
+            location: None,
+            age: None,
+            fields: vec![],
+        };
+        let editor = profile_editor::Snapshot {
+            location: "private-disabled-location".into(),
+            age: "private-disabled-age".into(),
+            photo_path: "private-local-path".into(),
+            ..profile_editor::Snapshot::default()
+        };
+        let photo = CoreAction::PublishProfileWithPhoto {
+            draft: draft.clone(),
+            editor: editor.clone(),
+            photo: b"private-raw-image-data".to_vec(),
+        };
+        assert_eq!(format!("{photo:?}"), "PublishProfileWithPhoto");
+        let details = CoreAction::PublishProfileDetails {
+            draft,
+            editor: Some(editor),
+        };
+        assert_eq!(format!("{details:?}"), "PublishProfileDetails");
+        let post = CoreAction::PublishPost {
+            text: "unpublished-draft".into(),
+        };
+        assert_eq!(format!("{post:?}"), "PublishPost");
+    }
+    #[test]
+    fn community_retry_binds_name_and_charter_and_receipt_preserves_edited_form() {
+        let mut pending = None;
+        let first = community_request_id(&mut pending, "name", "charter");
+        assert_eq!(community_request_id(&mut pending, "name", "charter"), first);
+        let edited = community_request_id(&mut pending, "name", "new charter");
+        assert_ne!(edited, first);
+        assert_ne!(
+            community_request_id(&mut pending, "other", "new charter"),
+            edited
+        );
+        assert!(community_draft_matches(
+            "name ", "charter", "name ", "charter"
+        ));
+        assert!(!community_draft_matches(
+            "name ", "charter", "name", "charter"
+        ));
+        assert!(!community_draft_matches(
+            "name", "charter", "name", "edited"
+        ));
+    }
+
+    #[test]
+    fn uncertain_membership_reply_reuses_only_same_community_and_state() {
+        let mut pending = None;
+        let first = social_toggle_request_id(&mut pending, "membership", "community-a", true);
+        assert_eq!(
+            social_toggle_request_id(&mut pending, "membership", "community-a", true),
+            first
+        );
+        let leave = social_toggle_request_id(&mut pending, "membership", "community-a", false);
+        assert_ne!(leave, first);
+        assert_ne!(
+            social_toggle_request_id(&mut pending, "membership", "community-b", false),
+            leave
+        );
+    }
+
+    #[test]
+    fn uncertain_comment_reply_reuses_exact_parent_text_and_operation_id() {
+        let mut pending = None;
+        let original = comment_request_id(&mut pending, "parent-a", "comment");
+        assert_eq!(
+            comment_request_id(&mut pending, "parent-a", "comment"),
+            original
+        );
+        let edit = comment_request_id(&mut pending, "parent-a", "edited");
+        assert_ne!(edit, original);
+        assert_ne!(comment_request_id(&mut pending, "parent-b", "edited"), edit);
+    }
+    #[test]
+    fn comment_receipt_cannot_erase_edited_or_retargeted_reply_and_topic_drafts() {
+        assert!(comment_draft_matches(
+            "parent",
+            &["original"],
+            Some("parent"),
+            &["original"]
+        ));
+        assert!(!comment_draft_matches(
+            "parent",
+            &["original"],
+            Some("parent"),
+            &["original "]
+        ));
+        assert!(!comment_draft_matches(
+            "parent",
+            &["original"],
+            Some("other"),
+            &["original"]
+        ));
+        assert!(!comment_draft_matches(
+            "parent",
+            &["original"],
+            None,
+            &["original"]
+        ));
+        assert!(!comment_draft_matches(
+            "community",
+            &["title", "body"],
+            Some("community"),
+            &["new title", "body"]
+        ));
+        assert!(!comment_draft_matches(
+            "community",
+            &["title", "body"],
+            Some("community"),
+            &["title", "new body"]
+        ));
+        assert!(comment_draft_matches(
+            "community",
+            &["title", "body"],
+            Some("community"),
+            &["title", "body"]
+        ));
+    }
+
+    #[test]
+    fn uncertain_like_response_retains_target_state_and_operation_id() {
+        let mut pending = None;
+        let original = social_toggle_request_id(&mut pending, "like", "public-post", true);
+        assert_eq!(
+            social_toggle_request_id(&mut pending, "like", "public-post", true),
+            original
+        );
+        assert_ne!(
+            social_toggle_request_id(&mut pending, "like", "public-post", false),
+            original
+        );
+        let removed = pending.as_ref().unwrap().2.clone();
+        assert_ne!(
+            social_toggle_request_id(&mut pending, "like", "other-post", false),
+            removed
+        );
+    }
+
+    #[test]
+    fn uncertain_follow_response_reuses_only_the_exact_signed_intent() {
+        let mut pending = None;
+        let first = follow_request_id(&mut pending, "target-a", true);
+        assert_eq!(follow_request_id(&mut pending, "target-a", true), first);
+        let unfollow = follow_request_id(&mut pending, "target-a", false);
+        assert_ne!(unfollow, first);
+        assert_eq!(follow_request_id(&mut pending, "target-a", false), unfollow);
+        assert_ne!(follow_request_id(&mut pending, "target-b", false), unfollow);
+    }
+    #[test]
+    fn delayed_or_busy_follow_completion_cannot_start_a_stale_nearby_send() {
+        let now = Instant::now();
+        let intent = Some(("127.0.0.1:7773".to_string(), now + Duration::from_secs(10)));
+        assert_eq!(
+            fresh_follow_endpoint(intent.clone(), now, true).as_deref(),
+            Some("127.0.0.1:7773")
+        );
+        assert!(
+            fresh_follow_endpoint(intent.clone(), now + Duration::from_secs(11), true).is_none()
+        );
+        assert!(fresh_follow_endpoint(intent, now, false).is_none());
     }
 }

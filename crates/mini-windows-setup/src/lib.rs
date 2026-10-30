@@ -533,6 +533,7 @@ impl Setup {
         manifest: &PackageManifest,
         options: &InstallOptions,
     ) -> Result<InstallPlan, SetupError> {
+        manifest.validate_client_bundle()?;
         let active = self.layout.current()?;
         let kind = match &active {
             None => PlanKind::FirstInstall,
@@ -618,6 +619,7 @@ impl Setup {
         now_ms: u64,
     ) -> Result<InstallReport, SetupError> {
         let manifest = container.manifest();
+        manifest.validate_client_bundle()?;
         let offered = manifest.digest_hex();
         if approval.package_digest() != offered {
             return Err(SetupError::ApprovalMismatch {
@@ -785,6 +787,7 @@ impl Setup {
     /// wrong" are different situations.
     pub fn verify_installed(&self, version_text: &str) -> Result<VerifyReport, SetupError> {
         let manifest = self.layout.stored_manifest(version_text)?;
+        manifest.validate_client_bundle()?;
         let version_dir = self.layout.version_dir(version_text);
         let mut problems = Vec::new();
         // Files and manifest can be replaced *together* --- by copying another

@@ -14,6 +14,7 @@ use mini_windows_setup::{
 };
 use std::path::PathBuf;
 
+const SERVICE: &[u8] = b"MZ application core fixture";
 const DESKTOP_V1: &[u8] = b"#!/bin/sh\necho mininet-desktop 0.1.0\n";
 const DESKTOP_V2: &[u8] = b"#!/bin/sh\necho mininet-desktop 0.2.0\n";
 const CLI: &[u8] = b"#!/bin/sh\necho mini cli\n";
@@ -45,6 +46,7 @@ fn package(version: &str, desktop: &[u8]) -> PackageManifest {
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", desktop).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mini.exe", CLI).unwrap(),
             PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
         ],
@@ -60,6 +62,7 @@ fn bytes_for(manifest: &PackageManifest, desktop: &[u8]) -> Vec<u8> {
     container::write(manifest, |path| {
         Ok(match path {
             "mininet-desktop.exe" => desktop.to_vec(),
+            "mininet-app-service.exe" => SERVICE.to_vec(),
             "mini.exe" => CLI.to_vec(),
             "mininet-setup.exe" => SETUP.to_vec(),
             other => panic!("unexpected file {other}"),
@@ -127,10 +130,10 @@ fn a_first_install_writes_every_file_activates_it_and_registers_one_shortcut() {
         .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
         .unwrap();
 
-    assert_eq!(report.files_written, 3);
+    assert_eq!(report.files_written, 4);
     assert_eq!(
         report.bytes_written,
-        (DESKTOP_V1.len() + CLI.len() + SETUP.len()) as u64
+        (DESKTOP_V1.len() + CLI.len() + SETUP.len() + SERVICE.len()) as u64
     );
     assert!(report.previous.is_none());
     assert!(report.launch_path.is_file());
@@ -306,7 +309,7 @@ fn a_plan_lists_every_change_before_anything_is_written() {
     let fixture = Fixture::new("plan-detail");
     let manifest = package("0.1.0", DESKTOP_V1);
     let plan = fixture.setup.plan(&manifest, &fixture.options).unwrap();
-    assert_eq!(plan.files.len(), 3);
+    assert_eq!(plan.files.len(), 4);
     assert_eq!(plan.total_bytes, manifest.total_bytes());
     assert_eq!(plan.package_digest, manifest.digest_hex());
     assert_eq!(plan.shell_actions.len(), 2);
@@ -353,10 +356,10 @@ fn verification_reads_the_installed_files_back_and_finds_them_intact() {
         .unwrap();
     let report = fixture.setup.verify_installed("0.1.0").unwrap();
     assert!(report.is_intact());
-    assert_eq!(report.files_checked, 3);
+    assert_eq!(report.files_checked, 4);
     assert_eq!(
         report.bytes_checked,
-        (DESKTOP_V1.len() + CLI.len() + SETUP.len()) as u64
+        (DESKTOP_V1.len() + CLI.len() + SETUP.len() + SERVICE.len()) as u64
     );
 }
 
@@ -865,6 +868,7 @@ fn the_shortcuts_a_manifest_declares_are_the_ones_created() {
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mini.exe", CLI).unwrap(),
         ],
         vec![
@@ -882,6 +886,7 @@ fn the_shortcuts_a_manifest_declares_are_the_ones_created() {
     let bytes = mini_windows_setup::container::write(&manifest, |path| {
         Ok(match path {
             "mininet-desktop.exe" => DESKTOP_V1.to_vec(),
+            "mininet-app-service.exe" => SERVICE.to_vec(),
             "mini.exe" => CLI.to_vec(),
             other => panic!("unexpected {other}"),
         })
@@ -941,6 +946,7 @@ fn upgrading_to_a_manifest_with_a_different_shortcut_name_retires_the_old_one() 
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
         ],
         vec![PackageShortcut {
@@ -952,6 +958,7 @@ fn upgrading_to_a_manifest_with_a_different_shortcut_name_retires_the_old_one() 
     let first_bytes = mini_windows_setup::container::write(&first, |path| {
         Ok(match path {
             "mininet-desktop.exe" => DESKTOP_V1.to_vec(),
+            "mininet-app-service.exe" => SERVICE.to_vec(),
             "mininet-setup.exe" => SETUP.to_vec(),
             other => panic!("unexpected {other}"),
         })
@@ -980,6 +987,7 @@ fn upgrading_to_a_manifest_with_a_different_shortcut_name_retires_the_old_one() 
         },
         vec![
             PackageFile::describe("mininet-desktop.exe", DESKTOP_V2).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
             PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
         ],
         vec![PackageShortcut {
@@ -991,6 +999,7 @@ fn upgrading_to_a_manifest_with_a_different_shortcut_name_retires_the_old_one() 
     let second_bytes = mini_windows_setup::container::write(&second, |path| {
         Ok(match path {
             "mininet-desktop.exe" => DESKTOP_V2.to_vec(),
+            "mininet-app-service.exe" => SERVICE.to_vec(),
             "mininet-setup.exe" => SETUP.to_vec(),
             other => panic!("unexpected {other}"),
         })
@@ -1064,12 +1073,21 @@ fn a_package_for_another_architecture_is_refused() {
             launch: "mininet-desktop.exe",
             built_at_ms: 1,
         },
-        vec![PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap()],
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mininet-app-service.exe", SERVICE).unwrap(),
+        ],
         vec![],
     )
     .unwrap();
-    let bytes =
-        mini_windows_setup::container::write(&manifest, |_| Ok(DESKTOP_V1.to_vec())).unwrap();
+    let bytes = mini_windows_setup::container::write(&manifest, |path| {
+        Ok(if path == "mininet-app-service.exe" {
+            SERVICE.to_vec()
+        } else {
+            DESKTOP_V1.to_vec()
+        })
+    })
+    .unwrap();
     let container = Container::open(&bytes).unwrap();
     let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
     let mut options = options(&base);
@@ -1225,4 +1243,37 @@ fn the_install_lock_never_sits_inside_the_directory_it_guards() {
         .uninstall(&approval, &fixture.options, &mut shell, 2_000)
         .unwrap();
     assert!(!root.exists());
+}
+
+#[test]
+fn mutated_incomplete_client_is_refused_before_plan_or_shell_changes() {
+    let fixture = Fixture::new("bundle-plan");
+    let shell = RecordingShell::default();
+    let mut manifest = package("0.1.0", DESKTOP_V1);
+    manifest
+        .files
+        .retain(|file| file.path != "mininet-app-service.exe");
+    assert!(fixture.setup.plan(&manifest, &fixture.options).is_err());
+    assert!(shell.actions.is_empty());
+    assert!(!fixture.setup.layout().root().exists());
+}
+#[test]
+fn verification_refuses_an_incomplete_stored_client_manifest() {
+    let fixture = Fixture::new("bundle-verify");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1000, &mut shell)
+        .unwrap();
+    let before = shell.actions.len();
+    let mut manifest = package("0.1.0", DESKTOP_V1);
+    manifest
+        .files
+        .retain(|file| file.path != "mininet-app-service.exe");
+    std::fs::write(
+        fixture.setup.layout().manifest_path("0.1.0"),
+        manifest.to_bytes(),
+    )
+    .unwrap();
+    assert!(fixture.setup.verify_installed("0.1.0").is_err());
+    assert_eq!(shell.actions.len(), before);
 }

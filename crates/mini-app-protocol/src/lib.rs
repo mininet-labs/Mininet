@@ -17,6 +17,9 @@ pub const PROTOCOL_VERSION: u16 = 1;
 pub const MAX_FRAME_BYTES: usize = 1024 * 1024;
 pub const MAX_OPERATION_ID_BYTES: usize = 96;
 pub const MAX_POST_BYTES: usize = 16 * 1024;
+pub const MAX_COMMENT_BYTES: usize = 16 * 1024;
+pub const MAX_COMMUNITY_NAME_BYTES: usize = 96;
+pub const MAX_COMMUNITY_CHARTER_BYTES: usize = 4096;
 pub const MAX_PROFILE_NAME_BYTES: usize = 64;
 pub const MAX_PROFILE_BIO_BYTES: usize = 1024;
 pub const MAX_FEED_ITEMS: u16 = 50;
@@ -24,11 +27,89 @@ pub const MAX_EVENTS_PER_RESPONSE: u16 = 64;
 pub const MAX_DELIVERIES_PER_RESPONSE: u16 = 64;
 pub const MAX_DELIVERY_KEL_BYTES: usize = 16 * 1024;
 pub const MAX_DELIVERY_PEERS: u16 = 64;
-const MAX_DID_BYTES: usize = 256;
-const MAX_OBJECT_ID_BYTES: usize = 256;
+pub const MAX_DID_BYTES: usize = 256;
+pub const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
+pub const MAX_LOCATION_BYTES: usize = 128;
+pub const MAX_WALL_NAME_BYTES: usize = 64;
+pub const MAX_WALL_BIO_BYTES: usize = 1024;
+pub const MAX_WALL_LINKS: usize = 16;
+pub const MAX_WALL_LINK_BYTES: usize = 256;
+pub const MAX_PROFILE_PHOTO_BYTES: usize = 96 * 1024;
+pub const MAX_PROFILE_FIELDS: usize = 16;
+pub const MAX_PROFILE_FIELD_LABEL_BYTES: usize = 32;
+pub const MAX_PROFILE_FIELD_VALUE_BYTES: usize = 256;
 const MAX_FEED_BODY_BYTES: usize = MAX_POST_BYTES;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WallVisibility {
+    Public,
+    Unlisted,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicWallDraft {
+    pub display_name: String,
+    pub bio: String,
+    pub public_links: Vec<String>,
+    pub visibility: WallVisibility,
+}
+impl PublicWallDraft {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self.display_name.len() > MAX_WALL_NAME_BYTES
+            || self.display_name.trim().is_empty()
+            || self.bio.len() > MAX_WALL_BIO_BYTES
+            || self.public_links.len() > MAX_WALL_LINKS
+            || self
+                .public_links
+                .iter()
+                .any(|value| value.len() > MAX_WALL_LINK_BYTES)
+        {
+            return Err(ProtocolError::LimitExceeded("public wall draft"));
+        }
+        Ok(())
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileField {
+    pub label: String,
+    pub value: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicProfileDetails {
+    pub display_name: String,
+    pub bio: String,
+    pub avatar: Option<String>,
+    pub location: Option<String>,
+    pub age: Option<u8>,
+    pub fields: Vec<ProfileField>,
+}
+impl PublicProfileDetails {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self.display_name.len() > MAX_PROFILE_NAME_BYTES
+            || self.display_name.trim().is_empty()
+            || self.bio.len() > MAX_PROFILE_BIO_BYTES
+            || self
+                .avatar
+                .as_ref()
+                .is_some_and(|id| id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES)
+            || self
+                .location
+                .as_ref()
+                .is_some_and(|value| value.is_empty() || value.len() > MAX_LOCATION_BYTES)
+            || self.age == Some(0)
+            || self.fields.len() > MAX_PROFILE_FIELDS
+            || self.fields.iter().any(|field| {
+                field.label.is_empty()
+                    || field.label.len() > MAX_PROFILE_FIELD_LABEL_BYTES
+                    || field.value.is_empty()
+                    || field.value.len() > MAX_PROFILE_FIELD_VALUE_BYTES
+            })
+        {
+            return Err(ProtocolError::LimitExceeded("public profile details"));
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FeedOrder {
     Chronological,
@@ -52,6 +133,13 @@ pub enum FeedReason {
 pub enum ObjectKind {
     Profile,
     Post,
+    Follow,
+    Reaction,
+    Comment,
+    Membership,
+    Community,
+    Wall,
+    MediaPost,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +224,15 @@ pub enum DeliveryFailure {
     Interrupted,
 }
 
+/// Owner-reviewed summary of one canonical public object, never signed bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryObjectView {
+    pub object_id: String,
+    pub kind: ObjectKind,
+    pub summary: String,
+    pub targets: Vec<String>,
+}
+
 /// Metadata only: signed bytes and identity secrets never cross this reply.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeliveryView {
@@ -198,6 +295,108 @@ impl Request {
                 }
                 if bio.len() > MAX_PROFILE_BIO_BYTES {
                     return Err(ProtocolError::LimitExceeded("profile bio"));
+                }
+            }
+            Command::PublishMediaPost {
+                operation_id,
+                media_id,
+                caption,
+            } => {
+                validate_operation_id(operation_id)?;
+                if media_id.is_empty()
+                    || media_id.len() > MAX_OBJECT_ID_BYTES
+                    || caption.len() > MAX_POST_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("media caption post"));
+                }
+            }
+            Command::PublishWall {
+                operation_id,
+                draft,
+            } => {
+                validate_operation_id(operation_id)?;
+                draft.validate()?;
+            }
+            Command::PublishProfileWithPhoto {
+                operation_id,
+                draft,
+                photo,
+            } => {
+                validate_operation_id(operation_id)?;
+                draft.validate()?;
+                if draft.avatar.is_some()
+                    || photo.is_empty()
+                    || photo.len() > MAX_PROFILE_PHOTO_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("reviewed profile JPEG"));
+                }
+            }
+            Command::PublishProfileDetails {
+                operation_id,
+                draft,
+            } => {
+                validate_operation_id(operation_id)?;
+                draft.validate()?;
+            }
+            Command::PreviewPublicDelivery { object_id } => {
+                if object_id.is_empty() || object_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("delivery preview object ID"));
+                }
+            }
+            Command::PublishCommunity {
+                operation_id,
+                name,
+                charter,
+            } => {
+                validate_operation_id(operation_id)?;
+                if name.len() > MAX_COMMUNITY_NAME_BYTES
+                    || name.trim().is_empty()
+                    || charter.len() > MAX_COMMUNITY_CHARTER_BYTES
+                {
+                    return Err(ProtocolError::LimitExceeded("community name or charter"));
+                }
+            }
+            Command::SetMembership {
+                operation_id,
+                community_id,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                if community_id.is_empty() || community_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("membership community ID"));
+                }
+            }
+            Command::PublishComment {
+                operation_id,
+                parent_id,
+                text,
+            } => {
+                validate_operation_id(operation_id)?;
+                if parent_id.is_empty() || parent_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("comment parent ID"));
+                }
+                if text.len() > MAX_COMMENT_BYTES || text.trim().is_empty() {
+                    return Err(ProtocolError::LimitExceeded("comment text"));
+                }
+            }
+            Command::SetLike {
+                operation_id,
+                target_id,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                if target_id.is_empty() || target_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("like target ID"));
+                }
+            }
+            Command::SetFollow {
+                operation_id,
+                target_did,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                if target_did.is_empty() || target_did.len() > MAX_DID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("follow target DID"));
                 }
             }
             Command::PublishPost { operation_id, text } => {
@@ -290,6 +489,52 @@ impl Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    PublishMediaPost {
+        operation_id: String,
+        media_id: String,
+        caption: String,
+    },
+    PublishWall {
+        operation_id: String,
+        draft: PublicWallDraft,
+    },
+    PublishProfileWithPhoto {
+        operation_id: String,
+        draft: PublicProfileDetails,
+        photo: Vec<u8>,
+    },
+    PublishProfileDetails {
+        operation_id: String,
+        draft: PublicProfileDetails,
+    },
+    PreviewPublicDelivery {
+        object_id: String,
+    },
+    PublishCommunity {
+        operation_id: String,
+        name: String,
+        charter: String,
+    },
+    SetMembership {
+        operation_id: String,
+        community_id: String,
+        joined: bool,
+    },
+    PublishComment {
+        operation_id: String,
+        parent_id: String,
+        text: String,
+    },
+    SetLike {
+        operation_id: String,
+        target_id: String,
+        active: bool,
+    },
+    SetFollow {
+        operation_id: String,
+        target_did: String,
+        following: bool,
+    },
     Status,
     CreateRoot,
     UnlockIdentity,
@@ -389,6 +634,7 @@ pub enum ResponseBody {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reply {
+    PublicDeliveryObject(DeliveryObjectView),
     Ack,
     Status(AccountStatus),
     Profile(Option<ProfileView>),
@@ -546,6 +792,60 @@ pub fn read_response<R: Read>(reader: &mut R) -> Result<Option<Response>, Protoc
     }))
 }
 
+fn encode_profile_details(
+    encoder: &mut Encoder,
+    draft: &PublicProfileDetails,
+) -> Result<(), ProtocolError> {
+    draft.validate()?;
+    encoder.string(&draft.display_name, MAX_PROFILE_NAME_BYTES)?;
+    encoder.string(&draft.bio, MAX_PROFILE_BIO_BYTES)?;
+    encoder.option_string(draft.avatar.as_deref(), MAX_OBJECT_ID_BYTES)?;
+    encoder.option_string(draft.location.as_deref(), MAX_LOCATION_BYTES)?;
+    encoder.bool(draft.age.is_some());
+    if let Some(age) = draft.age {
+        encoder.u8(age);
+    }
+    encoder.u8(draft.fields.len() as u8);
+    for field in &draft.fields {
+        encoder.string(&field.label, MAX_PROFILE_FIELD_LABEL_BYTES)?;
+        encoder.string(&field.value, MAX_PROFILE_FIELD_VALUE_BYTES)?;
+    }
+    Ok(())
+}
+fn decode_profile_details(
+    decoder: &mut Decoder<'_>,
+) -> Result<PublicProfileDetails, ProtocolError> {
+    let display_name = decoder.string(MAX_PROFILE_NAME_BYTES)?;
+    let bio = decoder.string(MAX_PROFILE_BIO_BYTES)?;
+    let avatar = decoder.option_string(MAX_OBJECT_ID_BYTES)?;
+    let location = decoder.option_string(MAX_LOCATION_BYTES)?;
+    let age = if decoder.bool()? {
+        Some(decoder.u8()?)
+    } else {
+        None
+    };
+    let count = decoder.u8()? as usize;
+    if count > MAX_PROFILE_FIELDS {
+        return Err(ProtocolError::LimitExceeded("public profile field count"));
+    }
+    let mut fields = Vec::with_capacity(count);
+    for _ in 0..count {
+        fields.push(ProfileField {
+            label: decoder.string(MAX_PROFILE_FIELD_LABEL_BYTES)?,
+            value: decoder.string(MAX_PROFILE_FIELD_VALUE_BYTES)?,
+        });
+    }
+    let draft = PublicProfileDetails {
+        display_name,
+        bio,
+        avatar,
+        location,
+        age,
+        fields,
+    };
+    draft.validate()?;
+    Ok(draft)
+}
 fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), ProtocolError> {
     match command {
         Command::Status => encoder.u8(0),
@@ -578,6 +878,105 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
                 FeedScope::Everyone => 1,
             });
             encoder.u16(*limit);
+        }
+        Command::PublishMediaPost {
+            operation_id,
+            media_id,
+            caption,
+        } => {
+            encoder.u8(33);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(media_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(caption, MAX_POST_BYTES)?;
+        }
+        Command::PublishWall {
+            operation_id,
+            draft,
+        } => {
+            encoder.u8(32);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(&draft.display_name, MAX_WALL_NAME_BYTES)?;
+            encoder.string(&draft.bio, MAX_WALL_BIO_BYTES)?;
+            encoder.u8(match draft.visibility {
+                WallVisibility::Public => 0,
+                WallVisibility::Unlisted => 1,
+            });
+            encoder.u8(draft.public_links.len() as u8);
+            for link in &draft.public_links {
+                encoder.string(link, MAX_WALL_LINK_BYTES)?;
+            }
+        }
+        Command::PublishProfileWithPhoto {
+            operation_id,
+            draft,
+            photo,
+        } => {
+            encoder.u8(31);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encode_profile_details(encoder, draft)?;
+            encoder.byte_string(photo, MAX_PROFILE_PHOTO_BYTES)?;
+        }
+        Command::PublishProfileDetails {
+            operation_id,
+            draft,
+        } => {
+            encoder.u8(30);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encode_profile_details(encoder, draft)?;
+        }
+        Command::PreviewPublicDelivery { object_id } => {
+            encoder.u8(29);
+            encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Command::PublishCommunity {
+            operation_id,
+            name,
+            charter,
+        } => {
+            encoder.u8(28);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(name, MAX_COMMUNITY_NAME_BYTES)?;
+            encoder.string(charter, MAX_COMMUNITY_CHARTER_BYTES)?;
+        }
+        Command::SetMembership {
+            operation_id,
+            community_id,
+            joined,
+        } => {
+            encoder.u8(27);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(community_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(u8::from(*joined));
+        }
+        Command::PublishComment {
+            operation_id,
+            parent_id,
+            text,
+        } => {
+            encoder.u8(26);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(parent_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(text, MAX_COMMENT_BYTES)?;
+        }
+        Command::SetLike {
+            operation_id,
+            target_id,
+            active,
+        } => {
+            encoder.u8(25);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(target_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(u8::from(*active));
+        }
+        Command::SetFollow {
+            operation_id,
+            target_did,
+            following,
+        } => {
+            encoder.u8(24);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(target_did, MAX_DID_BYTES)?;
+            encoder.u8(u8::from(*following));
         }
         Command::PublishPost { operation_id, text } => {
             encoder.u8(7);
@@ -693,6 +1092,87 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 limit: decoder.u16()?,
             })
         }
+        33 => Ok(Command::PublishMediaPost {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            media_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            caption: decoder.string(MAX_POST_BYTES)?,
+        }),
+        32 => {
+            let operation_id = decoder.string(MAX_OPERATION_ID_BYTES)?;
+            let display_name = decoder.string(MAX_WALL_NAME_BYTES)?;
+            let bio = decoder.string(MAX_WALL_BIO_BYTES)?;
+            let visibility = match decoder.u8()? {
+                0 => WallVisibility::Public,
+                1 => WallVisibility::Unlisted,
+                _ => return Err(ProtocolError::Decode("invalid wall visibility".into())),
+            };
+            let count = decoder.u8()? as usize;
+            if count > MAX_WALL_LINKS {
+                return Err(ProtocolError::LimitExceeded("wall link count"));
+            }
+            let mut public_links = Vec::with_capacity(count);
+            for _ in 0..count {
+                public_links.push(decoder.string(MAX_WALL_LINK_BYTES)?);
+            }
+            Ok(Command::PublishWall {
+                operation_id,
+                draft: PublicWallDraft {
+                    display_name,
+                    bio,
+                    public_links,
+                    visibility,
+                },
+            })
+        }
+        31 => Ok(Command::PublishProfileWithPhoto {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            draft: decode_profile_details(decoder)?,
+            photo: decoder.byte_string(MAX_PROFILE_PHOTO_BYTES)?,
+        }),
+        30 => Ok(Command::PublishProfileDetails {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            draft: decode_profile_details(decoder)?,
+        }),
+        29 => Ok(Command::PreviewPublicDelivery {
+            object_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        28 => Ok(Command::PublishCommunity {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            name: decoder.string(MAX_COMMUNITY_NAME_BYTES)?,
+            charter: decoder.string(MAX_COMMUNITY_CHARTER_BYTES)?,
+        }),
+        27 => Ok(Command::SetMembership {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            community_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            joined: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid membership action".into())),
+            },
+        }),
+        26 => Ok(Command::PublishComment {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            parent_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            text: decoder.string(MAX_COMMENT_BYTES)?,
+        }),
+        25 => Ok(Command::SetLike {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            target_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            active: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid like action".into())),
+            },
+        }),
+        24 => Ok(Command::SetFollow {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            target_did: decoder.string(MAX_DID_BYTES)?,
+            following: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid follow action".into())),
+            },
+        }),
         7 => Ok(Command::PublishPost {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             text: decoder.string(MAX_POST_BYTES)?,
@@ -748,6 +1228,31 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
 
 fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolError> {
     match reply {
+        Reply::PublicDeliveryObject(view) => {
+            if view.targets.len() > 1 {
+                return Err(ProtocolError::LimitExceeded("delivery preview targets"));
+            }
+            encoder.u8(11);
+            encoder.string(&view.object_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(match view.kind {
+                ObjectKind::Post => 1,
+                ObjectKind::Follow => 2,
+                ObjectKind::Reaction => 3,
+                ObjectKind::Comment => 4,
+                ObjectKind::Membership => 5,
+                ObjectKind::Community => 6,
+                ObjectKind::Profile | ObjectKind::Wall | ObjectKind::MediaPost => {
+                    return Err(ProtocolError::InvalidRequest(
+                        "profile and wall delivery are unsupported".into(),
+                    ))
+                }
+            });
+            encoder.string(&view.summary, MAX_POST_BYTES)?;
+            encoder.u8(view.targets.len() as u8);
+            for target in &view.targets {
+                encoder.string(target, MAX_OBJECT_ID_BYTES)?;
+            }
+        }
         Reply::Ack => encoder.u8(0),
         Reply::Status(status) => {
             encoder.u8(1);
@@ -827,6 +1332,37 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
 
 fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
     match decoder.u8()? {
+        11 => {
+            let object_id = decoder.string(MAX_OBJECT_ID_BYTES)?;
+            let kind = match decoder.u8()? {
+                1 => ObjectKind::Post,
+                2 => ObjectKind::Follow,
+                3 => ObjectKind::Reaction,
+                4 => ObjectKind::Comment,
+                5 => ObjectKind::Membership,
+                6 => ObjectKind::Community,
+                _ => {
+                    return Err(ProtocolError::Decode(
+                        "unsupported delivery preview kind".into(),
+                    ))
+                }
+            };
+            let summary = decoder.string(MAX_POST_BYTES)?;
+            let count = decoder.u8()?;
+            if count > 1 {
+                return Err(ProtocolError::LimitExceeded("delivery preview targets"));
+            }
+            let mut targets = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                targets.push(decoder.string(MAX_OBJECT_ID_BYTES)?);
+            }
+            Ok(Reply::PublicDeliveryObject(DeliveryObjectView {
+                object_id,
+                kind,
+                summary,
+                targets,
+            }))
+        }
         0 => Ok(Reply::Ack),
         1 => Ok(Reply::Status(decode_status(decoder)?)),
         2 => Ok(Reply::Profile(decode_profile_option(decoder)?)),
@@ -1052,6 +1588,13 @@ fn encode_published(
     encoder.u8(match published.kind {
         ObjectKind::Profile => 0,
         ObjectKind::Post => 1,
+        ObjectKind::Follow => 2,
+        ObjectKind::Reaction => 3,
+        ObjectKind::Comment => 4,
+        ObjectKind::Membership => 5,
+        ObjectKind::Community => 6,
+        ObjectKind::Wall => 7,
+        ObjectKind::MediaPost => 8,
     });
     encoder.string(&published.object_id, MAX_OBJECT_ID_BYTES)?;
     encoder.bool(published.duplicate);
@@ -1062,6 +1605,13 @@ fn decode_published(decoder: &mut Decoder<'_>) -> Result<PublishedObject, Protoc
     let kind = match decoder.u8()? {
         0 => ObjectKind::Profile,
         1 => ObjectKind::Post,
+        2 => ObjectKind::Follow,
+        3 => ObjectKind::Reaction,
+        4 => ObjectKind::Comment,
+        5 => ObjectKind::Membership,
+        6 => ObjectKind::Community,
+        7 => ObjectKind::Wall,
+        8 => ObjectKind::MediaPost,
         tag => {
             return Err(ProtocolError::Decode(format!(
                 "unknown object kind tag {tag}"
@@ -1091,6 +1641,13 @@ fn encode_event(encoder: &mut Encoder, event: &ServiceEvent) -> Result<(), Proto
             encoder.u8(match kind {
                 ObjectKind::Profile => 0,
                 ObjectKind::Post => 1,
+                ObjectKind::Follow => 2,
+                ObjectKind::Reaction => 3,
+                ObjectKind::Comment => 4,
+                ObjectKind::Membership => 5,
+                ObjectKind::Community => 6,
+                ObjectKind::Wall => 7,
+                ObjectKind::MediaPost => 8,
             });
             encoder.string(object_id, MAX_OBJECT_ID_BYTES)?;
         }
@@ -1116,6 +1673,13 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
             let kind = match decoder.u8()? {
                 0 => ObjectKind::Profile,
                 1 => ObjectKind::Post,
+                2 => ObjectKind::Follow,
+                3 => ObjectKind::Reaction,
+                4 => ObjectKind::Comment,
+                5 => ObjectKind::Membership,
+                6 => ObjectKind::Community,
+                7 => ObjectKind::Wall,
+                8 => ObjectKind::MediaPost,
                 tag => {
                     return Err(ProtocolError::Decode(format!(
                         "unknown event object kind tag {tag}"
@@ -1634,5 +2198,752 @@ mod tests {
     #[test]
     fn clean_eof_is_not_a_protocol_failure() {
         assert!(read_request(&mut &[][..]).unwrap().is_none());
+    }
+}
+
+#[cfg(test)]
+mod follow_protocol_tests {
+    use super::*;
+    #[test]
+    fn follow_command_and_published_events_round_trip_with_bounded_fields() {
+        for following in [true, false] {
+            let request = Request::new(
+                19,
+                Command::SetFollow {
+                    operation_id: "follow:1".into(),
+                    target_did: "did:mini:public-target".into(),
+                    following,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Follow,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 1,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Follow,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(19, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, target_did) in [
+            ("../invalid".into(), "did".into()),
+            ("valid".into(), String::new()),
+            ("valid".into(), "x".repeat(MAX_DID_BYTES + 1)),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::SetFollow {
+                    operation_id,
+                    target_did,
+                    following: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod like_protocol_tests {
+    use super::*;
+    #[test]
+    fn like_command_publication_and_events_round_trip_and_reject_invalid_bounds() {
+        for active in [true, false] {
+            let request = Request::new(
+                20,
+                Command::SetLike {
+                    operation_id: "like:1".into(),
+                    target_id: "public-object".into(),
+                    active,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+            *bytes.last_mut().unwrap() = 2;
+            assert!(read_request(&mut bytes.as_slice()).is_err());
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Reaction,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 2,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Reaction,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(20, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, target_id) in [
+            ("../invalid".into(), "object".into()),
+            ("valid".into(), String::new()),
+            ("valid".into(), "x".repeat(MAX_OBJECT_ID_BYTES + 1)),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::SetLike {
+                    operation_id,
+                    target_id,
+                    active: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod comment_protocol_tests {
+    use super::*;
+    #[test]
+    fn comment_commands_publications_events_round_trip_and_text_is_bounded_nonblank() {
+        let request = Request::new(
+            21,
+            Command::PublishComment {
+                operation_id: "comment:1".into(),
+                parent_id: "parent".into(),
+                text: "hello".into(),
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Comment,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 3,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Comment,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(21, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, parent_id, text) in [
+            ("../invalid".into(), "parent".into(), "hi".into()),
+            ("valid".into(), String::new(), "hi".into()),
+            (
+                "valid".into(),
+                "x".repeat(MAX_OBJECT_ID_BYTES + 1),
+                "hi".into(),
+            ),
+            ("valid".into(), "parent".into(), String::new()),
+            ("valid".into(), "parent".into(), " \n\t".into()),
+            (
+                "valid".into(),
+                "parent".into(),
+                "x".repeat(MAX_COMMENT_BYTES + 1),
+            ),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishComment {
+                    operation_id,
+                    parent_id,
+                    text
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod membership_protocol_tests {
+    use super::*;
+    #[test]
+    fn membership_commands_publications_events_round_trip_and_bounds_reject() {
+        for joined in [true, false] {
+            let request = Request::new(
+                22,
+                Command::SetMembership {
+                    operation_id: "membership:1".into(),
+                    community_id: "community".into(),
+                    joined,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+            *bytes.last_mut().unwrap() = 2;
+            assert!(read_request(&mut bytes.as_slice()).is_err());
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Membership,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 4,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Membership,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(22, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, community_id) in [
+            ("../bad".into(), "community".into()),
+            ("valid".into(), String::new()),
+            ("valid".into(), "x".repeat(MAX_OBJECT_ID_BYTES + 1)),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::SetMembership {
+                    operation_id,
+                    community_id,
+                    joined: true
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod community_protocol_tests {
+    use super::*;
+    #[test]
+    fn community_commands_publications_events_round_trip_and_name_charter_bounds_reject() {
+        let request = Request::new(
+            23,
+            Command::PublishCommunity {
+                operation_id: "community:1".into(),
+                name: "Community".into(),
+                charter: "Charter".into(),
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Community,
+                object_id: "object".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 5,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Community,
+                    object_id: "object".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(23, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for (operation_id, name, charter) in [
+            ("../bad".into(), "Name".into(), String::new()),
+            ("valid".into(), " \n".into(), String::new()),
+            (
+                "valid".into(),
+                "x".repeat(MAX_COMMUNITY_NAME_BYTES + 1),
+                String::new(),
+            ),
+            (
+                "valid".into(),
+                "Name".into(),
+                "x".repeat(MAX_COMMUNITY_CHARTER_BYTES + 1),
+            ),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishCommunity {
+                    operation_id,
+                    name,
+                    charter
+                }
+            )
+            .validate()
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod public_delivery_preview_tests {
+    use super::*;
+    #[test]
+    fn public_preview_round_trips_bounded_metadata_and_rejects_larger_summaries_or_targets() {
+        let request = Request::new(
+            24,
+            Command::PreviewPublicDelivery {
+                object_id: "object".into(),
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        let view = DeliveryObjectView {
+            object_id: "object".into(),
+            kind: ObjectKind::Comment,
+            summary: "x".repeat(MAX_POST_BYTES),
+            targets: vec!["t".repeat(MAX_OBJECT_ID_BYTES)],
+        };
+        let response = Response::ok(24, Reply::PublicDeliveryObject(view.clone()));
+        let mut bytes = Vec::new();
+        write_response(&mut bytes, &response).unwrap();
+        assert_eq!(
+            read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+            response
+        );
+        for invalid in [
+            DeliveryObjectView {
+                summary: "x".repeat(MAX_POST_BYTES + 1),
+                ..view.clone()
+            },
+            DeliveryObjectView {
+                targets: vec!["one".into(), "two".into()],
+                ..view.clone()
+            },
+            DeliveryObjectView {
+                targets: vec!["t".repeat(MAX_OBJECT_ID_BYTES + 1)],
+                ..view.clone()
+            },
+            DeliveryObjectView {
+                kind: ObjectKind::Profile,
+                ..view
+            },
+        ] {
+            assert!(write_response(
+                &mut Vec::new(),
+                &Response::ok(24, Reply::PublicDeliveryObject(invalid))
+            )
+            .is_err());
+        }
+        assert!(Request::new(
+            1,
+            Command::PreviewPublicDelivery {
+                object_id: "x".repeat(MAX_OBJECT_ID_BYTES + 1)
+            }
+        )
+        .validate()
+        .is_err());
+    }
+}
+
+#[cfg(test)]
+mod profile_details_protocol_tests {
+    use super::*;
+    fn draft() -> PublicProfileDetails {
+        PublicProfileDetails {
+            display_name: "Alice".into(),
+            bio: "About".into(),
+            avatar: Some("avatar".into()),
+            location: Some("Chosen city".into()),
+            age: Some(25),
+            fields: vec![
+                ProfileField {
+                    label: "First".into(),
+                    value: "One".into(),
+                },
+                ProfileField {
+                    label: "Second".into(),
+                    value: "Two".into(),
+                },
+            ],
+        }
+    }
+    #[test]
+    fn profile_details_options_and_order_round_trip_and_every_field_limit_is_checked() {
+        for details in [
+            draft(),
+            PublicProfileDetails {
+                avatar: None,
+                location: None,
+                age: None,
+                fields: Vec::new(),
+                ..draft()
+            },
+        ] {
+            let request = Request::new(
+                25,
+                Command::PublishProfileDetails {
+                    operation_id: "details:1".into(),
+                    draft: details,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        let base = draft();
+        let invalid = vec![
+            PublicProfileDetails {
+                display_name: "x".repeat(MAX_PROFILE_NAME_BYTES + 1),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                display_name: String::new(),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                bio: "x".repeat(MAX_PROFILE_BIO_BYTES + 1),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                avatar: Some("x".repeat(MAX_OBJECT_ID_BYTES + 1)),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                avatar: Some(String::new()),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                location: Some("x".repeat(MAX_LOCATION_BYTES + 1)),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                location: Some(String::new()),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                age: Some(0),
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![base.fields[0].clone(); MAX_PROFILE_FIELDS + 1],
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![ProfileField {
+                    label: "x".repeat(MAX_PROFILE_FIELD_LABEL_BYTES + 1),
+                    value: "v".into(),
+                }],
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![ProfileField {
+                    label: "label".into(),
+                    value: "x".repeat(MAX_PROFILE_FIELD_VALUE_BYTES + 1),
+                }],
+                ..base.clone()
+            },
+            PublicProfileDetails {
+                fields: vec![ProfileField {
+                    label: String::new(),
+                    value: "v".into(),
+                }],
+                ..base
+            },
+        ];
+        for draft in invalid {
+            assert!(write_request(
+                &mut Vec::new(),
+                &Request::new(
+                    25,
+                    Command::PublishProfileDetails {
+                        operation_id: "details:1".into(),
+                        draft
+                    }
+                )
+            )
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod profile_photo_protocol_tests {
+    use super::*;
+    fn draft() -> PublicProfileDetails {
+        PublicProfileDetails {
+            display_name: "Alice".into(),
+            bio: "About".into(),
+            avatar: None,
+            location: None,
+            age: None,
+            fields: Vec::new(),
+        }
+    }
+    #[test]
+    fn reviewed_photo_command_round_trip_rejects_large_empty_or_preexisting_avatar() {
+        let request = Request::new(
+            26,
+            Command::PublishProfileWithPhoto {
+                operation_id: "photo:1".into(),
+                draft: draft(),
+                photo: vec![1; MAX_PROFILE_PHOTO_BYTES],
+            },
+        );
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        assert_eq!(
+            read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+            request
+        );
+        for (details, photo) in [
+            (draft(), Vec::new()),
+            (draft(), vec![0; MAX_PROFILE_PHOTO_BYTES + 1]),
+            (
+                PublicProfileDetails {
+                    avatar: Some("old-avatar".into()),
+                    ..draft()
+                },
+                vec![1],
+            ),
+        ] {
+            assert!(write_request(
+                &mut Vec::new(),
+                &Request::new(
+                    26,
+                    Command::PublishProfileWithPhoto {
+                        operation_id: "photo:1".into(),
+                        draft: details,
+                        photo
+                    }
+                )
+            )
+            .is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod wall_protocol_tests {
+    use super::*;
+    fn draft() -> PublicWallDraft {
+        PublicWallDraft {
+            display_name: "Wall".into(),
+            bio: "Bio".into(),
+            public_links: vec!["https://example.test".into()],
+            visibility: WallVisibility::Public,
+        }
+    }
+    #[test]
+    fn wall_visibility_round_trips_and_all_draft_bounds_are_checked() {
+        for visibility in [WallVisibility::Public, WallVisibility::Unlisted] {
+            let request = Request::new(
+                27,
+                Command::PublishWall {
+                    operation_id: "wall:1".into(),
+                    draft: PublicWallDraft {
+                        visibility,
+                        ..draft()
+                    },
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::Wall,
+                object_id: "wall".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 6,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::Wall,
+                    object_id: "wall".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(27, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+        for invalid in [
+            PublicWallDraft {
+                display_name: "x".repeat(MAX_WALL_NAME_BYTES + 1),
+                ..draft()
+            },
+            PublicWallDraft {
+                display_name: " ".into(),
+                ..draft()
+            },
+            PublicWallDraft {
+                bio: "x".repeat(MAX_WALL_BIO_BYTES + 1),
+                ..draft()
+            },
+            PublicWallDraft {
+                public_links: vec![String::new(); MAX_WALL_LINKS + 1],
+                ..draft()
+            },
+            PublicWallDraft {
+                public_links: vec!["x".repeat(MAX_WALL_LINK_BYTES + 1)],
+                ..draft()
+            },
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishWall {
+                    operation_id: "wall:1".into(),
+                    draft: invalid
+                }
+            )
+            .validate()
+            .is_err());
+        }
+        assert!(write_response(
+            &mut Vec::new(),
+            &Response::ok(
+                1,
+                Reply::PublicDeliveryObject(DeliveryObjectView {
+                    object_id: "wall".into(),
+                    kind: ObjectKind::Wall,
+                    summary: "wall".into(),
+                    targets: Vec::new()
+                })
+            )
+        )
+        .is_err());
+    }
+}
+
+#[cfg(test)]
+mod media_post_protocol_tests {
+    use super::*;
+    #[test]
+    fn media_caption_command_round_trips_blank_and_maximum_and_bounds_reject() {
+        for caption in [String::new(), "x".repeat(MAX_POST_BYTES)] {
+            let request = Request::new(
+                28,
+                Command::PublishMediaPost {
+                    operation_id: "media-post:1".into(),
+                    media_id: "media".into(),
+                    caption,
+                },
+            );
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for (operation_id, media_id, caption) in [
+            ("../bad".into(), "media".into(), String::new()),
+            ("valid".into(), String::new(), String::new()),
+            (
+                "valid".into(),
+                "x".repeat(MAX_OBJECT_ID_BYTES + 1),
+                String::new(),
+            ),
+            (
+                "valid".into(),
+                "media".into(),
+                "x".repeat(MAX_POST_BYTES + 1),
+            ),
+        ] {
+            assert!(Request::new(
+                1,
+                Command::PublishMediaPost {
+                    operation_id,
+                    media_id,
+                    caption
+                }
+            )
+            .validate()
+            .is_err());
+        }
+        for reply in [
+            Reply::Published(PublishedObject {
+                kind: ObjectKind::MediaPost,
+                object_id: "post".into(),
+                duplicate: true,
+            }),
+            Reply::Events(vec![ServiceEvent {
+                event_id: 7,
+                kind: ServiceEventKind::ObjectPublished {
+                    kind: ObjectKind::MediaPost,
+                    object_id: "post".into(),
+                },
+            }]),
+        ] {
+            let response = Response::ok(28, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
     }
 }

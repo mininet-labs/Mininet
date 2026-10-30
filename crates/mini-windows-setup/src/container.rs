@@ -51,6 +51,7 @@ pub fn write<F>(manifest: &PackageManifest, mut contents: F) -> Result<Vec<u8>, 
 where
     F: FnMut(&str) -> Result<Vec<u8>, SetupError>,
 {
+    manifest.validate_client_bundle()?;
     let manifest_bytes = manifest.to_bytes();
     // Checked before allocating, not after writing: the manifest format
     // permits hundreds of files of up to 512 MiB, so a package that could

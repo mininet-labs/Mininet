@@ -45,8 +45,8 @@ pub use discovery::{
 };
 
 pub use post::{
-    build_intake_post, build_post, decode_post, publish_media_post, publish_post, resolve_post,
-    Post, PostKind, MAX_POST_BYTES,
+    build_intake_post, build_media_post, build_post, decode_post, publish_media_post, publish_post,
+    resolve_post, Post, PostKind, MAX_POST_BYTES,
 };
 
 pub use spam::{PostRateLimiter, MAX_TRACKED_AUTHORS};
@@ -65,9 +65,9 @@ pub use private_graph::{
 };
 
 pub use wall::{
-    publish_wall, publish_wall_linkage, resolve_wall, resolve_wall_linkage, PublicWall,
-    VisibilityPolicy, MAX_WALL_BIO_BYTES, MAX_WALL_LINKS, MAX_WALL_LINK_BYTES, MAX_WALL_NAME_BYTES,
-    MAX_WALL_PINNED,
+    build_wall, decode_wall, publish_wall, publish_wall_linkage, resolve_wall,
+    resolve_wall_linkage, PublicWall, VisibilityPolicy, MAX_WALL_BIO_BYTES, MAX_WALL_LINKS,
+    MAX_WALL_LINK_BYTES, MAX_WALL_NAME_BYTES, MAX_WALL_PINNED,
 };
 
 use did_mini::{Controller, Did};
@@ -243,6 +243,29 @@ pub fn publish_community<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let community = build_community(
+        owner,
+        device,
+        name,
+        charter,
+        membership,
+        timestamp_ms,
+        sequence,
+    )?;
+    store.insert(&community)?;
+    Ok(community)
+}
+
+/// Build the legacy public community card without mutating a store.
+pub fn build_community(
+    owner: &Did,
+    device: &Controller,
+    name: &str,
+    charter: &str,
+    membership: MembershipMode,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if name.is_empty()
         || name.len() > MAX_COMMUNITY_NAME_BYTES
         || charter.len() > MAX_COMMUNITY_CHARTER_BYTES
@@ -253,24 +276,30 @@ pub fn publish_community<B: Backend>(
     put_str(&mut payload, name);
     put_str(&mut payload, charter);
     payload.push(membership.byte());
-    let community = ObjectBuilder::new(ObjectType::COMMUNITY)
+    ObjectBuilder::new(ObjectType::COMMUNITY)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .payload(Payload::Public(payload))
-        .sign(owner, device)?;
-    store.insert(&community)?;
-    Ok(community)
+        .sign(owner, device)
+        .map_err(Into::into)
 }
 
 /// Decode and validate a community card.
 pub fn resolve_community<B: Backend>(store: &Store<B>, id: &ObjectId) -> Result<Community> {
-    let object = store.get(id)?;
-    if object.object_type != ObjectType::COMMUNITY {
+    decode_community(&store.get(id)?)
+}
+
+/// Decode one canonical plain community card; author provenance is separate.
+pub fn decode_community(object: &Object) -> Result<Community> {
+    if object.object_type != ObjectType::COMMUNITY || !object.links.is_empty() {
         return Err(SocialError::BadCommunity);
     }
     let Payload::Public(bytes) = &object.payload else {
         return Err(SocialError::BadCommunity);
     };
+    if bytes.len() > MAX_COMMUNITY_NAME_BYTES + MAX_COMMUNITY_CHARTER_BYTES + 9 {
+        return Err(SocialError::BadCommunity);
+    }
     let mut pos = 0;
     let name = get_str(bytes, &mut pos).ok_or(SocialError::BadCommunity)?;
     let charter = get_str(bytes, &mut pos).ok_or(SocialError::BadCommunity)?;
@@ -285,7 +314,7 @@ pub fn resolve_community<B: Backend>(store: &Store<B>, id: &ObjectId) -> Result<
     }
     Ok(Community {
         id: object.id().clone(),
-        owner: object.author_human,
+        owner: object.author_human.clone(),
         name,
         charter,
         membership: mode,
@@ -303,14 +332,46 @@ pub fn set_membership<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
-    let object = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.to_string()))
+    let object = build_membership(member, device, community, joined, timestamp_ms, sequence)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build a public membership declaration without mutating a store.
+pub fn build_membership(
+    member: &Did,
+    device: &Controller,
+    community: &ObjectId,
+    joined: bool,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.to_string()))
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("community", community.clone())
         .payload(Payload::Public(vec![u8::from(joined)]))
-        .sign(member, device)?;
-    store.insert(&object)?;
-    Ok(object)
+        .sign(member, device)
+        .map_err(Into::into)
+}
+
+/// Decode a canonical membership declaration, not an admission decision.
+pub fn decode_membership(object: &Object) -> Result<(ObjectId, bool)> {
+    if object.object_type != ObjectType::Custom(MEMBERSHIP_TYPE.into())
+        || object.links.len() != 1
+        || object.links[0].rel != "community"
+    {
+        return Err(SocialError::BadCommunity);
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return Err(SocialError::BadCommunity);
+    };
+    let joined = match bytes.as_slice() {
+        [0] => false,
+        [1] => true,
+        _ => return Err(SocialError::BadCommunity),
+    };
+    Ok((object.links[0].target.clone(), joined))
 }
 
 /// Return active members, deterministically resolved per member.
@@ -592,6 +653,20 @@ pub fn publish_profile_details<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let (profile, head) = build_profile_details(human, device, draft, timestamp_ms, sequence)?;
+    store.insert(&profile)?;
+    store.apply_head(&head)?;
+    Ok(profile)
+}
+
+/// Build the exact extensible public profile and its head without store writes.
+pub fn build_profile_details(
+    human: &Did,
+    device: &Controller,
+    draft: &PublicProfileDraft<'_>,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<(Object, Object)> {
     validate_profile_details(draft)?;
     let mut payload = PROFILE_V2_MAGIC.to_vec();
     put_str(&mut payload, draft.display_name);
@@ -613,7 +688,18 @@ pub fn publish_profile_details<B: Backend>(
         put_str(&mut payload, &field.label);
         put_str(&mut payload, &field.value);
     }
-    publish_profile_payload(store, human, device, payload, timestamp_ms, sequence)
+    let profile = ObjectBuilder::new(ObjectType::PROFILE)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .sign(human, device)?;
+    let head = ObjectBuilder::new(ObjectType::HEAD)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .link("target", profile.id().clone())
+        .payload(Payload::Public(b"profile".to_vec()))
+        .sign(human, device)?;
+    Ok((profile, head))
 }
 
 fn validate_profile_details(draft: &PublicProfileDraft<'_>) -> Result<()> {
@@ -638,30 +724,6 @@ fn validate_profile_details(draft: &PublicProfileDraft<'_>) -> Result<()> {
         }
     }
     Ok(())
-}
-
-fn publish_profile_payload<B: Backend>(
-    store: &mut Store<B>,
-    human: &Did,
-    device: &Controller,
-    payload: Vec<u8>,
-    timestamp_ms: u64,
-    sequence: u64,
-) -> Result<Object> {
-    let profile = ObjectBuilder::new(ObjectType::PROFILE)
-        .timestamp_ms(timestamp_ms)
-        .sequence(sequence)
-        .payload(Payload::Public(payload))
-        .sign(human, device)?;
-    store.insert(&profile)?;
-    let head = ObjectBuilder::new(ObjectType::HEAD)
-        .timestamp_ms(timestamp_ms)
-        .sequence(sequence)
-        .link("target", profile.id().clone())
-        .payload(Payload::Public(b"profile".to_vec()))
-        .sign(human, device)?;
-    store.apply_head(&head)?;
-    Ok(profile)
 }
 
 /// Resolve every latest signed profile currently present, sorted by display
@@ -706,16 +768,44 @@ pub fn set_follow<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let object = build_follow(follower, device, target, follow, timestamp_ms, sequence)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build the exact public FOLLOW object without mutating a store.
+pub fn build_follow(
+    follower: &Did,
+    device: &Controller,
+    target: &Did,
+    follow: bool,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     let mut payload = Vec::new();
     payload.push(u8::from(follow));
     put_str(&mut payload, target.as_str());
-    let obj = ObjectBuilder::new(ObjectType::FOLLOW)
+    ObjectBuilder::new(ObjectType::FOLLOW)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .payload(Payload::Public(payload))
-        .sign(follower, device)?;
-    store.insert(&obj)?;
-    Ok(obj)
+        .sign(follower, device)
+        .map_err(Into::into)
+}
+
+/// Decode a canonical plain FOLLOW edge. Signature/provenance verification is
+/// the caller's responsibility, as with other social decoders.
+pub fn decode_follow(object: &Object) -> Result<(bool, Did)> {
+    if !object.links.is_empty() {
+        return Err(SocialError::BadInteraction);
+    }
+    let (following, target) = follow_edge(object).ok_or(SocialError::BadInteraction)?;
+    let mut canonical = vec![u8::from(following)];
+    put_str(&mut canonical, target.as_str());
+    if !matches!(&object.payload, Payload::Public(bytes) if bytes == &canonical) {
+        return Err(SocialError::BadInteraction);
+    }
+    Ok((following, target))
 }
 
 fn follow_edge(obj: &Object) -> Option<(bool, Did)> {
@@ -831,19 +921,65 @@ pub fn publish_comment<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let comment = build_comment(human, device, parent, text, timestamp_ms, sequence)?;
+    store.insert(&comment)?;
+    Ok(comment)
+}
+
+/// Build the legacy public comment bytes without mutating a store.
+pub fn build_comment(
+    human: &Did,
+    device: &Controller,
+    parent: &ObjectId,
+    text: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if text.len() > MAX_COMMENT_BYTES {
         return Err(SocialError::FieldTooLarge);
     }
     let mut payload = Vec::new();
     put_str(&mut payload, text);
-    let comment = ObjectBuilder::new(ObjectType::COMMENT)
+    ObjectBuilder::new(ObjectType::COMMENT)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("re", parent.clone())
         .payload(Payload::Public(payload))
-        .sign(human, device)?;
-    store.insert(&comment)?;
-    Ok(comment)
+        .sign(human, device)
+        .map_err(Into::into)
+}
+
+/// Decode one canonical plain public comment; provenance is checked separately.
+pub fn decode_comment(object: &Object) -> Result<Comment> {
+    if object.object_type != ObjectType::COMMENT
+        || object.links.len() != 1
+        || object.links[0].rel != "re"
+    {
+        return Err(SocialError::BadInteraction);
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return Err(SocialError::BadInteraction);
+    };
+    if bytes.len() > MAX_COMMENT_BYTES + 4 {
+        return Err(SocialError::BadInteraction);
+    }
+    let prefix: [u8; 4] = bytes
+        .get(..4)
+        .ok_or(SocialError::BadInteraction)?
+        .try_into()
+        .map_err(|_| SocialError::BadInteraction)?;
+    let length = u32::from_be_bytes(prefix) as usize;
+    if length > MAX_COMMENT_BYTES || length.checked_add(4) != Some(bytes.len()) {
+        return Err(SocialError::BadInteraction);
+    }
+    let text = String::from_utf8(bytes[4..].to_vec()).map_err(|_| SocialError::BadInteraction)?;
+    Ok(Comment {
+        id: object.id().clone(),
+        author: object.author_human.clone(),
+        parent: object.links[0].target.clone(),
+        text,
+        timestamp_ms: object.timestamp_ms,
+    })
 }
 
 /// Resolve direct replies in deterministic chronological order.
@@ -851,34 +987,12 @@ pub fn comments<B: Backend>(store: &Store<B>, parent: &ObjectId) -> Result<Vec<C
     let mut out = Vec::new();
     for id in store.linking_to(parent)? {
         let object = store.get(&id)?;
-        if object.object_type != ObjectType::COMMENT {
-            continue;
-        }
-        let Some(link) = object.links.iter().find(|link| link.rel == "re") else {
+        let Ok(comment) = decode_comment(&object) else {
             continue;
         };
-        if &link.target != parent
-            || object.links.iter().filter(|link| link.rel == "re").count() != 1
-        {
-            continue;
+        if &comment.parent == parent {
+            out.push(comment);
         }
-        let Payload::Public(bytes) = &object.payload else {
-            continue;
-        };
-        let mut pos = 0;
-        let Some(text) = get_str(bytes, &mut pos) else {
-            continue;
-        };
-        if pos != bytes.len() || text.len() > MAX_COMMENT_BYTES {
-            continue;
-        }
-        out.push(Comment {
-            id: object.id().clone(),
-            author: object.author_human,
-            parent: parent.clone(),
-            text,
-            timestamp_ms: object.timestamp_ms,
-        });
     }
     out.sort_by(|a, b| {
         a.timestamp_ms
@@ -901,7 +1015,7 @@ pub enum ReactionKind {
     Upvote,
     /// Forum-style negative vote.
     Downvote,
-    /// Private-to-the-user save/bookmark marker.
+    /// Legacy public save marker; this encoding does not provide private bookmarks.
     Save,
 }
 
@@ -943,14 +1057,52 @@ pub fn set_reaction<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
-    let reaction = ObjectBuilder::new(ObjectType::REACTION)
+    let reaction = build_reaction(human, device, target, kind, active, timestamp_ms, sequence)?;
+    store.insert(&reaction)?;
+    Ok(reaction)
+}
+
+/// Build the legacy public reaction wire format without mutating a store.
+#[allow(clippy::too_many_arguments)]
+pub fn build_reaction(
+    human: &Did,
+    device: &Controller,
+    target: &ObjectId,
+    kind: ReactionKind,
+    active: bool,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    ObjectBuilder::new(ObjectType::REACTION)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link("target", target.clone())
         .payload(Payload::Public(vec![kind.byte(), u8::from(active)]))
-        .sign(human, device)?;
-    store.insert(&reaction)?;
-    Ok(reaction)
+        .sign(human, device)
+        .map_err(Into::into)
+}
+
+/// Decode one canonical public reaction. This does not verify author provenance.
+pub fn decode_reaction(object: &Object) -> Result<(ObjectId, ReactionKind, bool)> {
+    if object.object_type != ObjectType::REACTION
+        || object.links.len() != 1
+        || object.links[0].rel != "target"
+    {
+        return Err(SocialError::BadInteraction);
+    }
+    let Payload::Public(bytes) = &object.payload else {
+        return Err(SocialError::BadInteraction);
+    };
+    if bytes.len() != 2 {
+        return Err(SocialError::BadInteraction);
+    }
+    let kind = ReactionKind::from_byte(bytes[0]).ok_or(SocialError::BadInteraction)?;
+    let active = match bytes[1] {
+        0 => false,
+        1 => true,
+        _ => return Err(SocialError::BadInteraction),
+    };
+    Ok((object.links[0].target.clone(), kind, active))
 }
 
 /// Deterministic active reaction totals for any target object.
@@ -1130,4 +1282,397 @@ pub(crate) fn get_str(b: &[u8], pos: &mut usize) -> Option<String> {
     let s = String::from_utf8(b[*pos..*pos + len].to_vec()).ok()?;
     *pos += len;
     Some(s)
+}
+
+#[cfg(test)]
+mod follow_builder_tests {
+    use super::*;
+    #[test]
+    fn follow_builder_preserves_legacy_wire_and_rejects_noncanonical_edges() {
+        let mut root = Controller::incept_single_from_seeds(&[1; 32], &[2; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[3; 32], &[4; 32]).unwrap();
+        root.delegate_device(&device.did(), did_mini::Capabilities::primary())
+            .unwrap();
+        let target = Controller::incept_single_from_seeds(&[5; 32], &[6; 32])
+            .unwrap()
+            .did();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for follow in [true, false] {
+            let built = build_follow(&root.did(), &device, &target, follow, 7, 8).unwrap();
+            let inserted =
+                set_follow(&mut store, &root.did(), &device, &target, follow, 7, 8).unwrap();
+            let mut payload = vec![u8::from(follow)];
+            put_str(&mut payload, target.as_str());
+            let legacy = ObjectBuilder::new(ObjectType::FOLLOW)
+                .timestamp_ms(7)
+                .sequence(8)
+                .payload(Payload::Public(payload.clone()))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(built.to_bytes(), inserted.to_bytes());
+            assert_eq!(decode_follow(&built).unwrap(), (follow, target.clone()));
+            payload.push(0);
+            let malformed = ObjectBuilder::new(ObjectType::FOLLOW)
+                .payload(Payload::Public(payload))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_follow(&malformed).is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod reaction_builder_tests {
+    use super::*;
+    #[test]
+    fn reaction_builder_keeps_every_legacy_kind_wire_and_decoder_is_strict() {
+        let root = Controller::incept_single_from_seeds(&[21; 32], &[22; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[23; 32], &[24; 32]).unwrap();
+        let target = build_post(&root.did(), &device, "target", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for kind in [
+            ReactionKind::Like,
+            ReactionKind::Love,
+            ReactionKind::Laugh,
+            ReactionKind::Upvote,
+            ReactionKind::Downvote,
+            ReactionKind::Save,
+        ] {
+            for active in [true, false] {
+                let built =
+                    build_reaction(&root.did(), &device, &target, kind, active, 7, 8).unwrap();
+                let legacy = ObjectBuilder::new(ObjectType::REACTION)
+                    .timestamp_ms(7)
+                    .sequence(8)
+                    .link("target", target.clone())
+                    .payload(Payload::Public(vec![kind.byte(), u8::from(active)]))
+                    .sign(&root.did(), &device)
+                    .unwrap();
+                assert_eq!(built.to_bytes(), legacy.to_bytes());
+                assert_eq!(
+                    built.to_bytes(),
+                    set_reaction(
+                        &mut store,
+                        &root.did(),
+                        &device,
+                        &target,
+                        kind,
+                        active,
+                        7,
+                        8
+                    )
+                    .unwrap()
+                    .to_bytes()
+                );
+                assert_eq!(
+                    decode_reaction(&built).unwrap(),
+                    (target.clone(), kind, active)
+                );
+            }
+        }
+        for payload in [vec![1, 2], vec![1, 1, 0], vec![0, 1]] {
+            let malformed = ObjectBuilder::new(ObjectType::REACTION)
+                .link("target", target.clone())
+                .payload(Payload::Public(payload))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_reaction(&malformed).is_err());
+        }
+        let extra = ObjectBuilder::new(ObjectType::REACTION)
+            .link("target", target.clone())
+            .link("other", target)
+            .payload(Payload::Public(vec![1, 1]))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_reaction(&extra).is_err());
+    }
+}
+
+#[cfg(test)]
+mod comment_builder_tests {
+    use super::*;
+    #[test]
+    fn comment_decoder_and_reads_accept_full_declared_utf8_limit_only() {
+        let root = Controller::incept_single_from_seeds(&[35; 32], &[36; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[37; 32], &[38; 32]).unwrap();
+        let parent = build_post(&root.did(), &device, "parent", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for (index, text) in [
+            "x".repeat(4096),
+            "x".repeat(4097),
+            "x".repeat(MAX_COMMENT_BYTES),
+            "🦀".repeat(MAX_COMMENT_BYTES / 4),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let object = publish_comment(
+                &mut store,
+                &root.did(),
+                &device,
+                &parent,
+                &text,
+                index as u64,
+                index as u64,
+            )
+            .unwrap();
+            assert_eq!(decode_comment(&object).unwrap().text, text);
+            assert!(comments(&store, &parent)
+                .unwrap()
+                .iter()
+                .any(|comment| comment.id == *object.id() && comment.text == text));
+        }
+        let oversized = "x".repeat(MAX_COMMENT_BYTES + 1);
+        assert!(build_comment(&root.did(), &device, &parent, &oversized, 1, 1).is_err());
+        let mut payload = Vec::new();
+        put_str(&mut payload, &oversized);
+        let object = ObjectBuilder::new(ObjectType::COMMENT)
+            .link("re", parent)
+            .payload(Payload::Public(payload))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_comment(&object).is_err());
+    }
+    #[test]
+    fn comment_builder_preserves_legacy_wire_and_decoder_rejects_extra_shape() {
+        let root = Controller::incept_single_from_seeds(&[31; 32], &[32; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[33; 32], &[34; 32]).unwrap();
+        let parent = build_post(&root.did(), &device, "parent", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        let mut payload = Vec::new();
+        put_str(&mut payload, "hello 🌱");
+        let legacy = ObjectBuilder::new(ObjectType::COMMENT)
+            .timestamp_ms(7)
+            .sequence(8)
+            .link("re", parent.clone())
+            .payload(Payload::Public(payload.clone()))
+            .sign(&root.did(), &device)
+            .unwrap();
+        let built = build_comment(&root.did(), &device, &parent, "hello 🌱", 7, 8).unwrap();
+        assert_eq!(built.to_bytes(), legacy.to_bytes());
+        assert_eq!(
+            built.to_bytes(),
+            publish_comment(&mut store, &root.did(), &device, &parent, "hello 🌱", 7, 8)
+                .unwrap()
+                .to_bytes()
+        );
+        let decoded = decode_comment(&built).unwrap();
+        assert_eq!(decoded.text, "hello 🌱");
+        assert_eq!(decoded.parent, parent);
+        for malformed in [vec![0, 0, 0, 1, 0xff], {
+            let mut bytes = payload.clone();
+            bytes.push(0);
+            bytes
+        }] {
+            let object = ObjectBuilder::new(ObjectType::COMMENT)
+                .link("re", parent.clone())
+                .payload(Payload::Public(malformed))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_comment(&object).is_err());
+        }
+        let extra = ObjectBuilder::new(ObjectType::COMMENT)
+            .link("re", parent.clone())
+            .link("extra", parent.clone())
+            .payload(Payload::Public(payload))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_comment(&extra).is_err());
+        assert!(build_comment(
+            &root.did(),
+            &device,
+            &parent,
+            &"x".repeat(MAX_COMMENT_BYTES + 1),
+            1,
+            1
+        )
+        .is_err());
+    }
+}
+
+#[cfg(test)]
+mod membership_builder_tests {
+    use super::*;
+    #[test]
+    fn membership_builder_preserves_wire_and_rejects_noncanonical_declarations() {
+        let root = Controller::incept_single_from_seeds(&[41; 32], &[42; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[43; 32], &[44; 32]).unwrap();
+        let community = build_post(&root.did(), &device, "id fixture", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for joined in [true, false] {
+            let legacy = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.into()))
+                .timestamp_ms(7)
+                .sequence(8)
+                .link("community", community.clone())
+                .payload(Payload::Public(vec![u8::from(joined)]))
+                .sign(&root.did(), &device)
+                .unwrap();
+            let built = build_membership(&root.did(), &device, &community, joined, 7, 8).unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(
+                built.to_bytes(),
+                set_membership(&mut store, &root.did(), &device, &community, joined, 7, 8)
+                    .unwrap()
+                    .to_bytes()
+            );
+            assert_eq!(
+                decode_membership(&built).unwrap(),
+                (community.clone(), joined)
+            );
+        }
+        for bytes in [vec![2], vec![1, 0], vec![]] {
+            let object = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.into()))
+                .link("community", community.clone())
+                .payload(Payload::Public(bytes))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_membership(&object).is_err());
+        }
+        let object = ObjectBuilder::new(ObjectType::Custom(MEMBERSHIP_TYPE.into()))
+            .link("community", community.clone())
+            .link("extra", community)
+            .payload(Payload::Public(vec![1]))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert!(decode_membership(&object).is_err());
+    }
+}
+
+#[cfg(test)]
+mod community_builder_tests {
+    use super::*;
+    #[test]
+    fn community_builder_keeps_both_legacy_modes_and_decoder_rejects_noncanonical_shape() {
+        let root = Controller::incept_single_from_seeds(&[51; 32], &[52; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[53; 32], &[54; 32]).unwrap();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for mode in [MembershipMode::Open, MembershipMode::ApprovalRequired] {
+            let mut payload = Vec::new();
+            put_str(&mut payload, "Community");
+            put_str(&mut payload, "Charter");
+            payload.push(mode.byte());
+            let legacy = ObjectBuilder::new(ObjectType::COMMUNITY)
+                .timestamp_ms(7)
+                .sequence(8)
+                .payload(Payload::Public(payload.clone()))
+                .sign(&root.did(), &device)
+                .unwrap();
+            let built =
+                build_community(&root.did(), &device, "Community", "Charter", mode, 7, 8).unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(
+                built.to_bytes(),
+                publish_community(
+                    &mut store,
+                    &root.did(),
+                    &device,
+                    "Community",
+                    "Charter",
+                    mode,
+                    7,
+                    8
+                )
+                .unwrap()
+                .to_bytes()
+            );
+            let decoded = decode_community(&built).unwrap();
+            assert_eq!(decoded.membership, mode);
+            assert_eq!(resolve_community(&store, built.id()).unwrap(), decoded);
+            payload.push(0);
+            let malformed = ObjectBuilder::new(ObjectType::COMMUNITY)
+                .payload(Payload::Public(payload))
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_community(&malformed).is_err());
+            let linked = ObjectBuilder::new(ObjectType::COMMUNITY)
+                .link("extra", built.id().clone())
+                .payload(built.payload.clone())
+                .sign(&root.did(), &device)
+                .unwrap();
+            assert!(decode_community(&linked).is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod profile_details_builder_tests {
+    use super::*;
+    #[test]
+    fn store_free_profile_details_matches_exact_legacy_profile_and_head_bytes() {
+        let root = Controller::incept_single_from_seeds(&[71; 32], &[72; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[73; 32], &[74; 32]).unwrap();
+        let fields = vec![
+            PublicProfileField {
+                label: "One".into(),
+                value: "First".into(),
+            },
+            PublicProfileField {
+                label: "Two".into(),
+                value: "Second".into(),
+            },
+        ];
+        let draft = PublicProfileDraft {
+            display_name: "Alice",
+            bio: "About",
+            avatar: None,
+            location: Some("Chosen city"),
+            age: Some(25),
+            fields: &fields,
+        };
+        let (profile, head) = build_profile_details(&root.did(), &device, &draft, 7, 8).unwrap();
+        let mut payload = PROFILE_V2_MAGIC.to_vec();
+        put_str(&mut payload, "Alice");
+        put_str(&mut payload, "About");
+        put_str(&mut payload, "");
+        put_str(&mut payload, "Chosen city");
+        payload.extend_from_slice(&[1, 25]);
+        payload.extend_from_slice(&2u16.to_be_bytes());
+        for field in &fields {
+            put_str(&mut payload, &field.label);
+            put_str(&mut payload, &field.value);
+        }
+        let legacy = ObjectBuilder::new(ObjectType::PROFILE)
+            .timestamp_ms(7)
+            .sequence(8)
+            .payload(Payload::Public(payload))
+            .sign(&root.did(), &device)
+            .unwrap();
+        let legacy_head = ObjectBuilder::new(ObjectType::HEAD)
+            .timestamp_ms(7)
+            .sequence(8)
+            .link("target", legacy.id().clone())
+            .payload(Payload::Public(b"profile".to_vec()))
+            .sign(&root.did(), &device)
+            .unwrap();
+        assert_eq!(profile.to_bytes(), legacy.to_bytes());
+        assert_eq!(head.to_bytes(), legacy_head.to_bytes());
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        assert_eq!(
+            publish_profile_details(&mut store, &root.did(), &device, &draft, 7, 8)
+                .unwrap()
+                .to_bytes(),
+            profile.to_bytes()
+        );
+        assert_eq!(decode_profile(&profile).unwrap().fields, fields);
+    }
 }

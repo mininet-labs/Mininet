@@ -67,6 +67,15 @@ fn stdio_host_schedules_idle_without_unlocking_or_enabling_network_and_closes_cl
     assert!(
         matches!(response.body, ResponseBody::Ok(Reply::DeliveryRuntime(status)) if !status.enabled && !status.listening)
     );
+    // A forwarded stop remains pending while earlier requests are handled;
+    // pipelined control frames must keep response IDs and release the stop guard.
+    write_request(&mut input, &Request::new(5, Command::LockIdentity)).unwrap();
+    write_request(&mut input, &Request::new(6, Command::DeliveryRuntimeStatus)).unwrap();
+    for expected in [5, 6] {
+        let response = received.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(response.request_id, expected);
+        assert!(matches!(response.body, ResponseBody::Ok(_)));
+    }
     drop(input);
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {

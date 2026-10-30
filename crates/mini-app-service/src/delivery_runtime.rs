@@ -153,6 +153,12 @@ impl<V: IdentityVault> Core<V> {
         now_ms: u64,
     ) -> Result<DeliveryView, ServiceError> {
         self.ensure_signing_available()?;
+        if self.delivery_interrupt.is_stopped() {
+            return Err(ServiceError::new(
+                ErrorCode::Busy,
+                "delivery control request is pending",
+            ));
+        }
         if !self.delivery_policy.enabled {
             return Err(bad("public delivery networking is disabled"));
         }
@@ -181,6 +187,9 @@ impl<V: IdentityVault> Core<V> {
                 &identity.device,
                 routing,
             );
+            if self.delivery_interrupt.is_stopped() {
+                return Err(DeliveryFailure::Interrupted);
+            }
             let stream = TcpStream::connect_timeout(&peer.endpoint, Duration::from_secs(5))
                 .map_err(|_| DeliveryFailure::Unavailable)?;
             delivery_transport::send(
@@ -190,11 +199,20 @@ impl<V: IdentityVault> Core<V> {
                 &peer.device,
                 &record.object_bytes,
                 crate::now_ms(),
+                &self.delivery_interrupt,
             )
         })();
         let completed = match result {
             Ok(()) => self.outbox.acknowledge(id)?,
-            Err(failure) => self.outbox.retry(id, crate::now_ms(), failure)?,
+            Err(failure) => self.outbox.retry(
+                id,
+                crate::now_ms(),
+                if self.delivery_interrupt.is_stopped() {
+                    DeliveryFailure::Interrupted
+                } else {
+                    failure
+                },
+            )?,
         };
         let view = delivery_view(&completed);
         self.emit(ServiceEventKind::DeliveryChanged(view.clone()));
@@ -204,6 +222,9 @@ impl<V: IdentityVault> Core<V> {
     /// locked identities and disabled networking perform no socket operations.
     /// At most one receive and one outgoing attempt run per turn.
     pub fn poll_delivery(&mut self) -> Result<(), ServiceError> {
+        if self.delivery_interrupt.is_stopped() {
+            return Ok(());
+        }
         if !self.delivery_policy.enabled || self.identity.is_none() {
             self.delivery_listener = None;
             return Ok(());
@@ -254,6 +275,7 @@ impl<V: IdentityVault> Core<V> {
                                 &peer.device,
                                 &mut self.store,
                                 crate::now_ms(),
+                                &self.delivery_interrupt,
                             );
                             // Storage may have committed even when the ack was lost.
                             // Refreshing the feed makes no delivery/read receipt claim.

@@ -3300,3 +3300,10 @@ identity; queued bytes survive locked restarts. This is a reachable numeric-TCP
 profile, not NAT traversal, a private messenger, calling, or whole-product beta
 certification. See `docs/design/durable-public-delivery.md` and the journey-level
 acceptance register in `docs/planning/integrated-beta-delivery.md`.
+
+Desktop follow/unfollow mutations now have a proposed application-service path: a
+bounded typed command, canonical legacy-compatible builder, exact-byte journal,
+restart-safe receipts and feed events. All desktop follow call sites use this
+path rather than renderer unlocking/sequencing. New signatures require explicit
+core unlock; duplicate receipts remain readable while locked. Other social/media
+mutators still need migration; this is not a whole-product readiness claim.

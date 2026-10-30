@@ -1222,8 +1222,11 @@ fn sample_package(
     let desktop = b"#!/bin/sh\necho selftest-client\n".to_vec();
     let cli = b"#!/bin/sh\necho selftest-cli\n".to_vec();
     let setup = b"#!/bin/sh\necho selftest-setup\n".to_vec();
+    let service = b"selftest-app-service-fixture".to_vec();
     let files = vec![
         mini_windows_setup::PackageFile::describe("mininet-desktop.exe", &desktop)
+            .map_err(|error| error.to_string())?,
+        mini_windows_setup::PackageFile::describe("mininet-app-service.exe", &service)
             .map_err(|error| error.to_string())?,
         mini_windows_setup::PackageFile::describe("mini.exe", &cli)
             .map_err(|error| error.to_string())?,
@@ -1253,6 +1256,7 @@ fn sample_package(
     .map_err(|error| error.to_string())?;
     let bytes = mini_windows_setup::container::write(&manifest, |path| match path {
         "mininet-desktop.exe" => Ok(desktop.clone()),
+        "mininet-app-service.exe" => Ok(service.clone()),
         "mini.exe" => Ok(cli.clone()),
         "mininet-setup.exe" => Ok(setup.clone()),
         other => Err(mini_windows_setup::SetupError::MissingFile {

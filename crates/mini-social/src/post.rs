@@ -148,17 +148,30 @@ pub fn publish_media_post<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let post = build_media_post(human, device, media, caption, timestamp_ms, sequence)?;
+    store.insert(&post)?;
+    Ok(post)
+}
+
+/// Build the exact canonical media-caption post without store writes.
+pub fn build_media_post(
+    human: &Did,
+    device: &Controller,
+    media: ObjectId,
+    caption: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if caption.len() > MAX_POST_BYTES {
         return Err(SocialError::FieldTooLarge);
     }
-    let post = ObjectBuilder::new(ObjectType::POST)
+    ObjectBuilder::new(ObjectType::POST)
         .timestamp_ms(timestamp_ms)
         .sequence(sequence)
         .link(MEDIA_LINK_REL, media)
         .payload(Payload::Public(caption.as_bytes().to_vec()))
-        .sign(human, device)?;
-    store.insert(&post)?;
-    Ok(post)
+        .sign(human, device)
+        .map_err(Into::into)
 }
 
 /// Decode and structurally validate an already-fetched `POST` object —
@@ -211,4 +224,59 @@ pub fn decode_post(object: &Object) -> Result<Post> {
 pub fn resolve_post<B: Backend>(store: &Store<B>, id: &ObjectId) -> Result<Post> {
     let object = store.get(id)?;
     decode_post(&object)
+}
+
+#[cfg(test)]
+mod media_builder_tests {
+    use super::*;
+    #[test]
+    fn store_free_media_post_preserves_wire_and_caption_limits_including_blank() {
+        let owner = Controller::incept_single_from_seeds(&[101; 32], &[102; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&owner.did(), &[103; 32], &[104; 32])
+                .unwrap();
+        let media = build_post(&owner.did(), &device, "id fixture", 1, 1)
+            .unwrap()
+            .id()
+            .clone();
+        let mut store = Store::new(mini_store::MemoryBackend::new());
+        for caption in [String::new(), "x".repeat(MAX_POST_BYTES)] {
+            let built =
+                build_media_post(&owner.did(), &device, media.clone(), &caption, 7, 8).unwrap();
+            let legacy = ObjectBuilder::new(ObjectType::POST)
+                .timestamp_ms(7)
+                .sequence(8)
+                .link("media", media.clone())
+                .payload(Payload::Public(caption.as_bytes().to_vec()))
+                .sign(&owner.did(), &device)
+                .unwrap();
+            assert_eq!(built.to_bytes(), legacy.to_bytes());
+            assert_eq!(
+                built.to_bytes(),
+                publish_media_post(
+                    &mut store,
+                    &owner.did(),
+                    &device,
+                    media.clone(),
+                    &caption,
+                    7,
+                    8
+                )
+                .unwrap()
+                .to_bytes()
+            );
+            assert!(
+                matches!(decode_post(&built).unwrap().kind,PostKind::Media{media:target} if target==media)
+            );
+        }
+        assert!(build_media_post(
+            &owner.did(),
+            &device,
+            media,
+            &"x".repeat(MAX_POST_BYTES + 1),
+            1,
+            1
+        )
+        .is_err());
+    }
 }

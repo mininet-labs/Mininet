@@ -268,7 +268,7 @@ impl PackageManifest {
                 });
             }
         }
-        Ok(Self {
+        let manifest = Self {
             package: package.to_string(),
             version_text: version_text.to_string(),
             version,
@@ -278,7 +278,33 @@ impl PackageManifest {
             built_at_ms,
             files,
             shortcuts,
-        })
+        };
+        manifest.validate_client_bundle()?;
+        Ok(manifest)
+    }
+
+    /// Require the core process beside Mininet's desktop launch executable.
+    /// This is also called at mutable-manifest entry points, not just parsing.
+    pub fn validate_client_bundle(&self) -> Result<(), SetupError> {
+        path::check(&self.launch)?;
+        let basename = self.launch.rsplit('/').next().unwrap_or("");
+        if !self.package.eq_ignore_ascii_case("mininet-windows-client")
+            && !basename.eq_ignore_ascii_case("mininet-desktop.exe")
+        {
+            return Ok(());
+        }
+        let sibling = match self.launch.rsplit_once('/') {
+            Some((directory, _)) => format!("{directory}/mininet-app-service.exe"),
+            None => "mininet-app-service.exe".into(),
+        };
+        let mut matches = self
+            .files
+            .iter()
+            .filter(|file| file.path.eq_ignore_ascii_case(&sibling));
+        if matches.next().is_none_or(|file| file.length == 0) || matches.next().is_some() {
+            return Err(SetupError::MalformedManifest{line:0,reason:"Mininet desktop bundles require exactly one nonempty sibling mininet-app-service.exe"});
+        }
+        Ok(())
     }
 
     /// Total installed size in bytes, for the wizard's disk-space line.

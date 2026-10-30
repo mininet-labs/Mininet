@@ -2695,10 +2695,12 @@ name = "mini-app-service"
 version = "0.0.1"
 dependencies = [
  "did-mini",
+ "image",
  "mini-app-protocol",
  "mini-bearer",
  "mini-crypto",
  "mini-durable",
+ "mini-media",
  "mini-objects",
  "mini-social",
  "mini-store",
