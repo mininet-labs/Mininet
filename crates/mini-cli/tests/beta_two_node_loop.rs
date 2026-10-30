@@ -12,7 +12,7 @@ use std::time::Duration;
 const EPOCH: &str = "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a";
 
 fn tempdir(tag: &str) -> String {
-    let mut p = PathBuf::from(std::env::temp_dir());
+    let mut p: PathBuf = std::env::temp_dir();
     p.push(format!(
         "mini-cli-beta-2node-{tag}-{}-{}",
         std::process::id(),
