@@ -2,7 +2,7 @@
   "counts": {
     "crates": 93,
     "files": 1247,
-    "headings": 4220,
+    "headings": 4219,
     "rust_symbols": 14818
   },
   "crates": {
@@ -1471,7 +1471,7 @@
       "title": "Mininet AI Session Entry Point"
     },
     {
-      "bytes": 25978,
+      "bytes": 17298,
       "group": "root",
       "headings": [
         {
@@ -1486,74 +1486,69 @@
         },
         {
           "level": 2,
-          "line": 33,
+          "line": 30,
           "text": "Canonical sources \u2014 load what the task requires"
         },
         {
           "level": 2,
-          "line": 79,
+          "line": 66,
           "text": "Hard rules (violating any of these is the only real failure mode)"
         },
         {
           "level": 2,
-          "line": 121,
+          "line": 108,
           "text": "Workflow ritual (what the founder expects every batch)"
         },
         {
           "level": 2,
-          "line": 146,
+          "line": 133,
           "text": "Codebase map (the 30-second version)"
         },
         {
           "level": 2,
-          "line": 287,
-          "text": "Latest merged work and open PRs (as of 2026-09-13 \u2014 check GitHub before trusting this list, it will go stale)"
-        },
-        {
-          "level": 2,
-          "line": 336,
+          "line": 220,
           "text": "Current priority (D-0066 \u2014 Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)"
         },
         {
           "level": 2,
-          "line": 368,
+          "line": 252,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 390,
+          "line": 261,
           "text": "Session hygiene for the agent"
         }
       ],
       "keywords": [
         "what",
-        "current",
         "never",
         "canonical",
-        "work",
-        "context",
-        "check",
-        "authority",
+        "every",
         "constitutional",
+        "context",
+        "founder",
+        "current",
+        "authority",
+        "invariants",
+        "governance",
+        "direction",
         "claude",
         "agent",
-        "founder",
-        "every",
+        "failure",
+        "work",
         "session",
         "agents",
-        "governance",
-        "count",
-        "one",
         "directive",
         "project",
         "sources",
         "task",
-        "hard",
-        "these"
+        "requires",
+        "hard"
       ],
-      "lines": 402,
+      "lines": 273,
       "path": "CLAUDE.md",
-      "sha256": "ef0d18a139a13e9ad61a7b04a324cd64f75c75d94e93568bcfd5b0038d36a788",
+      "sha256": "877085699165fd82a2a8a388c26a95e52e4f8aba5dceb13db061f41202a73f67",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -25073,7 +25068,7 @@
       "title": "use std::path::PathBuf;"
     },
     {
-      "bytes": 11356,
+      "bytes": 11350,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25098,13 +25093,13 @@
         "full",
         "clone",
         "tester",
+        "members",
         "trust",
-        "as_identity",
-        "format"
+        "as_identity"
       ],
       "lines": 406,
       "path": "crates/mini-cli/tests/beta_two_node_loop.rs",
-      "sha256": "a80b3e3f42381307e3c9eb4ea22a637511ed8e95aff18e381f8ddda30b150759",
+      "sha256": "a11a41df31e40c11936ca5f6ed4f5ad9c0a3d347aa15ee55e113c390095ab14d",
       "symbols": [
         {
           "kind": "const",
