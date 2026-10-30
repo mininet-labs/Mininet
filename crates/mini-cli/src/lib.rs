@@ -45,6 +45,8 @@
 #![warn(missing_debug_implementations)]
 
 mod beta;
+mod beta_grants;
+mod beta_wallet;
 mod build;
 mod cli;
 mod coordination;

@@ -34,7 +34,7 @@ use crate::store::open_store;
 
 const CLAIM_DOMAIN: &[u8] = b"mininet/beta/claim-secret/v1";
 
-fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
+pub(crate) fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
     if pos + 1 >= args.len() {
         return None;
@@ -43,7 +43,7 @@ fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     Some(args.remove(pos))
 }
 
-fn extract_flag_multi(args: &mut Vec<String>, flag: &str) -> Vec<String> {
+pub(crate) fn extract_flag_multi(args: &mut Vec<String>, flag: &str) -> Vec<String> {
     let mut values = Vec::new();
     while let Some(value) = extract_flag(args, flag) {
         values.push(value);
@@ -51,7 +51,7 @@ fn extract_flag_multi(args: &mut Vec<String>, flag: &str) -> Vec<String> {
     values
 }
 
-fn extract_bool_flag(args: &mut Vec<String>, flag: &str) -> bool {
+pub(crate) fn extract_bool_flag(args: &mut Vec<String>, flag: &str) -> bool {
     if let Some(pos) = args.iter().position(|value| value == flag) {
         args.remove(pos);
         true
@@ -60,11 +60,15 @@ fn extract_bool_flag(args: &mut Vec<String>, flag: &str) -> bool {
     }
 }
 
-fn required_flag(args: &mut Vec<String>, flag: &str, context: &str) -> Result<String> {
+pub(crate) fn required_flag(args: &mut Vec<String>, flag: &str, context: &str) -> Result<String> {
     extract_flag(args, flag).ok_or_else(|| CliError::Usage(format!("{context}: {flag} required")))
 }
 
-fn required_items(args: &mut Vec<String>, flag: &str, context: &str) -> Result<Vec<String>> {
+pub(crate) fn required_items(
+    args: &mut Vec<String>,
+    flag: &str,
+    context: &str,
+) -> Result<Vec<String>> {
     let values = extract_flag_multi(args, flag);
     if values.is_empty() {
         return Err(CliError::Usage(format!(
@@ -74,7 +78,7 @@ fn required_items(args: &mut Vec<String>, flag: &str, context: &str) -> Result<V
     Ok(values)
 }
 
-fn reject_remaining(args: Vec<String>, context: &str) -> Result<()> {
+pub(crate) fn reject_remaining(args: Vec<String>, context: &str) -> Result<()> {
     if args.is_empty() {
         Ok(())
     } else {
@@ -85,7 +89,7 @@ fn reject_remaining(args: Vec<String>, context: &str) -> Result<()> {
     }
 }
 
-fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
+pub(crate) fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
     if args.is_empty() {
         Err(CliError::Usage(format!("{context}: missing argument")))
     } else {
@@ -93,11 +97,11 @@ fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
     }
 }
 
-fn parse_id(value: &str) -> Result<ObjectId> {
+pub(crate) fn parse_id(value: &str) -> Result<ObjectId> {
     ObjectId::parse(value).map_err(|error| CliError::Object(error.to_string()))
 }
 
-fn beta_err(error: mini_beta::BetaError) -> CliError {
+pub(crate) fn beta_err(error: mini_beta::BetaError) -> CliError {
     CliError::Object(format!("beta: {error}"))
 }
 
@@ -105,7 +109,7 @@ fn forge_err(error: mini_forge::ForgeError) -> CliError {
     CliError::Forge(error.to_string())
 }
 
-fn crypto_err(error: mini_crypto::CryptoError) -> CliError {
+pub(crate) fn crypto_err(error: mini_crypto::CryptoError) -> CliError {
     CliError::Identity(format!("entropy: {error}"))
 }
 
@@ -200,7 +204,22 @@ fn ephemeral_artifact_signer<B: Backend>(store: &mut Store<B>) -> Result<(Contro
     Ok((human, device))
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// Parse exactly 32 bytes of lowercase or uppercase hex (an epoch, account or
+/// nonce) with a precise error naming what was being parsed.
+pub(crate) fn parse_hex32(value: &str, what: &str) -> Result<[u8; 32]> {
+    let value = value.trim();
+    if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(CliError::Usage(format!("{what} must be 64 hex characters")));
+    }
+    let mut out = [0u8; 32];
+    for (index, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&value[index * 2..index * 2 + 2], 16)
+            .map_err(|_| CliError::Usage(format!("{what} must be 64 hex characters")))?;
+    }
+    Ok(out)
+}
+
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes
         .iter()
         .fold(String::with_capacity(bytes.len() * 2), |mut out, byte| {

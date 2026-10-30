@@ -902,7 +902,7 @@ pub fn inspect_proposal<B: Backend>(
     oracle: &dyn IdentityOracle,
     id: &ObjectId,
 ) -> Result<ProposalView> {
-    inspect_proposal_with_state(store, oracle, id, None)
+    inspect_proposal_with_state(store, oracle, id, None, None)
 }
 
 fn inspect_proposal_with_state<B: Backend>(
@@ -910,6 +910,7 @@ fn inspect_proposal_with_state<B: Backend>(
     oracle: &dyn IdentityOracle,
     id: &ObjectId,
     resolved: Option<(&ObjectId, &ProjectState)>,
+    well_formed_cache: Option<&mut std::collections::HashMap<ObjectId, bool>>,
 ) -> Result<ProposalView> {
     let pr = store.get(id)?;
     if pr.object_type != ObjectType::Custom(PR_TYPE.to_string()) || !author_verified(oracle, &pr) {
@@ -931,7 +932,23 @@ fn inspect_proposal_with_state<B: Backend>(
     let head = link("head")?;
     let base = link("base")?;
     let commit = store.get(&head)?;
-    if !author_verified(oracle, &commit) || !crate::commit_is_well_formed(store, &commit) {
+    if !author_verified(oracle, &commit) {
+        return Err(ForgeError::BadObject);
+    }
+    // Full tree validation can cost up to the checkout limits. Many proposals
+    // may reference one stored head, so a listing validates each head once.
+    let well_formed = match well_formed_cache {
+        Some(cache) => match cache.get(&head) {
+            Some(known) => *known,
+            None => {
+                let checked = crate::commit_is_well_formed(store, &commit);
+                cache.insert(head.clone(), checked);
+                checked
+            }
+        },
+        None => crate::commit_is_well_formed(store, &commit),
+    };
+    if !well_formed {
         return Err(ForgeError::BadObject);
     }
     let owned_state;
@@ -981,8 +998,15 @@ pub fn list_proposals<B: Backend>(
 ) -> Result<Vec<ProposalView>> {
     let state = resolve_project(store, oracle, project)?;
     let mut proposals = Vec::new();
+    let mut well_formed_heads = std::collections::HashMap::new();
     for id in store.linking_to(project)? {
-        if let Ok(view) = inspect_proposal_with_state(store, oracle, &id, Some((project, &state))) {
+        if let Ok(view) = inspect_proposal_with_state(
+            store,
+            oracle,
+            &id,
+            Some((project, &state)),
+            Some(&mut well_formed_heads),
+        ) {
             if &view.project == project {
                 if proposals.len() >= 1024 {
                     return Err(ForgeError::FieldTooLarge);
