@@ -3,7 +3,8 @@ name = "mini-desktop"
 version = "0.0.1"
 description = "Sovereignty-first Windows desktop reference client shell for Mininet."
 edition.workspace = true
-rust-version.workspace = true
+# File::try_lock/unlock are the process-exclusion boundary (stable in 1.89).
+rust-version = "1.89"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -24,6 +25,8 @@ mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }
 mini-messaging = { path = "../mini-messaging" }
 mini-bearer = { path = "../mini-bearer" }
+mini-transport-security = { path = "../mini-transport-security" }
+zeroize = "1"
 mini-sync = { path = "../mini-sync" }
 mini-ticket = { path = "../mini-ticket" }
 mini-crypto = { path = "../mini-crypto" }

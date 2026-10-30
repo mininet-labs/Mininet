@@ -2931,12 +2931,14 @@ dependencies = [
  "mini-store",
  "mini-sync",
  "mini-ticket",
+ "mini-transport-security",
  "mini-windows-setup",
  "mini-windows-vault",
  "mp4",
  "openh264",
  "rodio",
  "symphonia",
+ "zeroize",
 ]
 
 [[package]]
