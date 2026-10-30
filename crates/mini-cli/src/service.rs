@@ -297,8 +297,15 @@ fn run(
                             let task = thread::Builder::new().name("mini-sync-peer".into()).spawn(
                                 move || {
                                     if seed_only {
-                                        crate::seed::serve_stream(&home, stream, &allowed_peers)
-                                            .is_ok()
+                                        crate::seed::serve_stream(
+                                            &home,
+                                            stream,
+                                            &allowed_peers,
+                                            || {
+                                                phase.store(true, Ordering::Release);
+                                            },
+                                        )
+                                        .is_ok()
                                     } else {
                                         let mut admitted = None;
                                         let result = crate::sync::serve_stream(

@@ -735,6 +735,6 @@ fn follow_mesh(home: &Path, store: &Path, mut args: Vec<String>) -> Result<Value
         }
     }
     Ok(
-        json!({"transfers":transfers,"failures":failures,"advertisements_refreshed":refreshed,"complete":failures.is_empty(),"stop_requested":home.join("seed-follow.stop").try_exists().map_err(err)?,"automatic_paid_requests":0,"discovery_scope":"owner-activated contacts","note":"Retained IDs are not automatically renewed during this job. Advertisements remain availability hints."}),
+        json!({"transfers":transfers,"failures":failures,"advertisements_refreshed":refreshed,"complete":failures.is_empty() && !home.join("seed-follow.stop").try_exists().map_err(err)?,"stop_requested":home.join("seed-follow.stop").try_exists().map_err(err)?,"automatic_paid_requests":0,"discovery_scope":"owner-activated contacts","note":"Retained IDs are not automatically renewed during this job. Advertisements remain availability hints."}),
     )
 }

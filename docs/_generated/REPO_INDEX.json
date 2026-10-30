@@ -19554,7 +19554,7 @@
       "title": "use std::fs::{File, OpenOptions};"
     },
     {
-      "bytes": 40509,
+      "bytes": 40793,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -19583,9 +19583,9 @@
         "limit",
         "aad"
       ],
-      "lines": 1064,
+      "lines": 1072,
       "path": "crates/mini-cli/src/seed.rs",
-      "sha256": "4e3f90e42e6eb3c12b23638e9222a301583922b62c3c65e61cedd34aa4ad612b",
+      "sha256": "b72f18fbde651976c00a568b33ed05e1f5228dd4f03afa2e7384177145f32977",
       "symbols": [
         {
           "kind": "mod",
@@ -19784,67 +19784,67 @@
         },
         {
           "kind": "struct",
-          "line": 499,
+          "line": 507,
           "name": "Session"
         },
         {
           "kind": "fn",
-          "line": 504,
+          "line": 512,
           "name": "connect"
         },
         {
           "kind": "fn",
-          "line": 512,
+          "line": 520,
           "name": "remaining"
         },
         {
           "kind": "fn",
-          "line": 518,
+          "line": 526,
           "name": "connect_until"
         },
         {
           "kind": "fn",
-          "line": 565,
+          "line": 573,
           "name": "ingest"
         },
         {
           "kind": "struct",
-          "line": 579,
+          "line": 587,
           "name": "DeliveryAck"
         },
         {
           "kind": "struct",
-          "line": 583,
+          "line": 591,
           "name": "FetchOptions"
         },
         {
           "kind": "fn",
-          "line": 591,
+          "line": 599,
           "name": "fetch"
         },
         {
           "kind": "fn",
-          "line": 714,
+          "line": 722,
           "name": "decode_hex"
         },
         {
           "kind": "fn",
-          "line": 723,
+          "line": 731,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 1023,
+          "line": 1031,
           "name": "render"
         },
         {
           "kind": "fn",
-          "line": 1031,
+          "line": 1039,
           "name": "remote_inventory"
         },
         {
           "kind": "struct",
-          "line": 1034,
+          "line": 1042,
           "name": "Page"
         }
       ],
@@ -20033,7 +20033,7 @@
       "title": "use super::*;"
     },
     {
-      "bytes": 29142,
+      "bytes": 29203,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -20064,7 +20064,7 @@
       ],
       "lines": 741,
       "path": "crates/mini-cli/src/seed/mesh.rs",
-      "sha256": "cd28a21115651ab0b44ab96a2a43acfa45cd18374689dd2b7ecc58a6d61cbebf",
+      "sha256": "6fd51cfaf7fbdcee177d9948bc54c7f43b40ff56dafbb5e4f1f84151a252e940",
       "symbols": [
         {
           "kind": "mod",
@@ -20481,7 +20481,7 @@
       "title": "use crate::error::{CliError, Result};"
     },
     {
-      "bytes": 16115,
+      "bytes": 16468,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -20510,9 +20510,9 @@
         "return",
         "store"
       ],
-      "lines": 373,
+      "lines": 380,
       "path": "crates/mini-cli/src/service.rs",
-      "sha256": "c1abd109f0ae1c662415988c228105202ba940cdd9632529cdff6e59aa9f15e9",
+      "sha256": "f11a8cee6859dba2cfa2fe0e08287e4cd2b8b7129234cae30ae370d9f99717e7",
       "symbols": [
         {
           "kind": "const",
@@ -36358,7 +36358,7 @@
       "title": "use crate::seed_runtime::{Action, Job, Node};"
     },
     {
-      "bytes": 25306,
+      "bytes": 25316,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -36389,7 +36389,7 @@
       ],
       "lines": 771,
       "path": "crates/mini-desktop/src/seed_runtime.rs",
-      "sha256": "34ad2f9d2cd88fc656bdd0025586241853f1feb477ab455afd6667bd3c50f28c",
+      "sha256": "2cfdd6590e6730f3225f195ff28b6113254d00ae9a878f9e0fa4d25a028076ba",
       "symbols": [
         {
           "kind": "const",

@@ -365,7 +365,12 @@ fn offer(home: &Path, id: &str) -> Result<Offer> {
         price: p,
     })
 }
-pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> Result<()> {
+pub(crate) fn serve_stream(
+    home: &Path,
+    stream: TcpStream,
+    allowed: &[Did],
+    on_authenticated: impl FnOnce(),
+) -> Result<()> {
     let identity = crate::identity::load(home)?;
     let mut b = TcpBearer::from_stream(stream).map_err(err)?;
     let hello = b.recv().map_err(err)?;
@@ -384,6 +389,9 @@ pub(crate) fn serve_stream(home: &Path, stream: TcpStream, allowed: &[Did]) -> R
     if !allowed.contains(&peer) {
         return Err(err("peer is not allowed to use this seed service"));
     }
+    // The peer is proven and allowlisted: it no longer counts as a pending
+    // handshake, so long transfers are not cut off by the handshake deadline.
+    on_authenticated();
     crate::sync::send_session_proof(&mut b, &mut c, &identity, &transcript, b'r', &peer)?;
     match recv::<Request>(&mut b, &mut c)? {
         Request::Advertisement => mesh::advertise(home, &mut b, &mut c)?,
@@ -896,7 +904,7 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
                     std::thread::sleep(Duration::from_millis(interval));
                 }
             }
-            json!({"transfers":transfers,"complete":true,"paid_requests":0,"stop_requested":home.join("seed-follow.stop").try_exists().map_err(err)?,"note":"Explicit peer polling; no discovery, paid fetch or automatic lease renewal."})
+            json!({"transfers":transfers,"complete":!home.join("seed-follow.stop").try_exists().map_err(err)?,"paid_requests":0,"stop_requested":home.join("seed-follow.stop").try_exists().map_err(err)?,"note":"Explicit peer polling; no discovery, paid fetch or automatic lease renewal."})
         }
         "price" => {
             let rate = number(&need(&mut args, "--micro-per-mib")?)?;
