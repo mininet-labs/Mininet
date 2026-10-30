@@ -355,6 +355,241 @@ pub fn task_claim(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resu
 }
 
 /// `mini task review <task-id> --head <id> --kind <kind> --disposition <d> ...`
+/// `mini campaign create --title <title> --description <text> --expires-ms <n>`
+pub fn campaign_create(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let title = required_flag(&mut args, "--title", "campaign create")?;
+    let description = required_flag(&mut args, "--description", "campaign create")?;
+    let expires_ms = required_u64(&mut args, "--expires-ms", "campaign create")?;
+    reject_remaining(args, "campaign create")?;
+
+    let identity = crate::identity::load_or_init(home)?;
+    let mut store = open_store(store_path)?;
+    let object = mini_forge::create_campaign(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        &title,
+        &description,
+        expires_ms,
+        sequence::now_ms(),
+        sequence::next(home, store_path)?,
+    )
+    .map_err(|error| CliError::Forge(error.to_string()))?;
+
+    Ok(
+        CommandResult::new(format!("campaign created: {}", object.id().as_str()))
+            .field("campaign_id", JsonValue::str(object.id().as_str())),
+    )
+}
+
+/// `mini finding create --target <id> [--head <id>] --findings <text>`
+pub fn finding_create(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let target_id = parse_id(&required_flag(&mut args, "--target", "finding create")?)?;
+    let reviewed_head = extract_flag(&mut args, "--head")
+        .map(|value| parse_id(&value))
+        .transpose()?;
+    let findings = required_flag(&mut args, "--findings", "finding create")?;
+    reject_remaining(args, "finding create")?;
+
+    let identity = crate::identity::load_or_init(home)?;
+    let mut store = open_store(store_path)?;
+    let object = mini_forge::create_finding(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        &target_id,
+        reviewed_head.as_ref(),
+        &findings,
+        sequence::now_ms(),
+        sequence::next(home, store_path)?,
+    )
+    .map_err(|error| CliError::Forge(error.to_string()))?;
+
+    Ok(
+        CommandResult::new(format!("finding created: {}", object.id().as_str()))
+            .field("finding_id", JsonValue::str(object.id().as_str())),
+    )
+}
+
+/// `mini disposition create --finding <id> --disposition <d> --notes <text>`
+pub fn disposition_create(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let finding_id = parse_id(&required_flag(
+        &mut args,
+        "--finding",
+        "disposition create",
+    )?)?;
+    let disposition = mini_forge::FindingDisposition::parse(&required_flag(
+        &mut args,
+        "--disposition",
+        "disposition create",
+    )?)
+    .ok_or_else(|| CliError::Usage("invalid disposition".into()))?;
+    let notes = required_flag(&mut args, "--notes", "disposition create")?;
+    reject_remaining(args, "disposition create")?;
+
+    let identity = crate::identity::load_or_init(home)?;
+    let mut store = open_store(store_path)?;
+    let object = mini_forge::create_disposition(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        &finding_id,
+        disposition,
+        &notes,
+        sequence::now_ms(),
+        sequence::next(home, store_path)?,
+    )
+    .map_err(|error| CliError::Forge(error.to_string()))?;
+
+    Ok(
+        CommandResult::new(format!("disposition created: {}", object.id().as_str()))
+            .field("disposition_id", JsonValue::str(object.id().as_str())),
+    )
+}
+
+/// `mini campaign show <campaign-id>`
+pub fn campaign_show(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let id = parse_id(&next(&mut args, "campaign show")?)?;
+    reject_remaining(args, "campaign show")?;
+
+    let identity = crate::identity::load_or_init(home)?;
+    let store = open_store(store_path)?;
+    let oracle = build_oracle(home, &identity)?;
+    let snapshot = mini_forge::campaign_snapshot(&store, &oracle, &id)
+        .map_err(|error| CliError::Forge(error.to_string()))?;
+
+    let mut human = format!(
+        "campaign {}\nidentity root: {}\ntitle: {}\ndescription: {}\nexpires_ms: {}\n",
+        snapshot.campaign.id.as_str(),
+        snapshot.campaign.author.as_str(),
+        snapshot.campaign.title,
+        snapshot.campaign.description,
+        snapshot.campaign.expires_ms
+    );
+
+    human.push_str("findings:\n");
+    if snapshot.findings.is_empty() {
+        human.push_str("  (none)\n");
+    } else {
+        for finding in &snapshot.findings {
+            human.push_str(&format!(
+                "  {} by {}:\n    target: {}\n    head: {:?}\n    findings: {}\n",
+                finding.id.as_str(),
+                finding.author.as_str(),
+                finding.target_id.as_str(),
+                finding.reviewed_head.as_ref().map(|id| id.as_str()),
+                finding.findings
+            ));
+        }
+    }
+
+    human.push_str("dispositions:\n");
+    if snapshot.dispositions.is_empty() {
+        human.push_str("  (none)\n");
+    } else {
+        for disposition in &snapshot.dispositions {
+            human.push_str(&format!(
+                "  {} by {}:\n    finding: {}\n    disposition: {}\n    notes: {}\n",
+                disposition.id.as_str(),
+                disposition.author.as_str(),
+                disposition.finding_id.as_str(),
+                disposition.disposition.as_str(),
+                disposition.notes
+            ));
+        }
+    }
+
+    Ok(CommandResult::new(human)
+        .field("campaign", campaign_json(&snapshot.campaign))
+        .field(
+            "findings",
+            JsonValue::Array(snapshot.findings.iter().map(finding_json).collect()),
+        )
+        .field(
+            "dispositions",
+            JsonValue::Array(snapshot.dispositions.iter().map(disposition_json).collect()),
+        ))
+}
+
+fn campaign_json(campaign: &mini_forge::Campaign) -> JsonValue {
+    JsonValue::Object(vec![
+        ("id".to_string(), JsonValue::str(campaign.id.as_str())),
+        (
+            "author".to_string(),
+            JsonValue::str(campaign.author.as_str()),
+        ),
+        ("title".to_string(), JsonValue::str(campaign.title.as_str())),
+        (
+            "description".to_string(),
+            JsonValue::str(campaign.description.as_str()),
+        ),
+        (
+            "expires_ms".to_string(),
+            JsonValue::num(campaign.expires_ms),
+        ),
+    ])
+}
+
+fn finding_json(finding: &mini_forge::Finding) -> JsonValue {
+    JsonValue::Object(vec![
+        ("id".to_string(), JsonValue::str(finding.id.as_str())),
+        (
+            "author".to_string(),
+            JsonValue::str(finding.author.as_str()),
+        ),
+        (
+            "target_id".to_string(),
+            JsonValue::str(finding.target_id.as_str()),
+        ),
+        (
+            "reviewed_head".to_string(),
+            JsonValue::opt_str(finding.reviewed_head.as_ref().map(|id| id.as_str())),
+        ),
+        (
+            "findings".to_string(),
+            JsonValue::str(finding.findings.as_str()),
+        ),
+    ])
+}
+
+fn disposition_json(disposition: &mini_forge::Disposition) -> JsonValue {
+    JsonValue::Object(vec![
+        ("id".to_string(), JsonValue::str(disposition.id.as_str())),
+        (
+            "author".to_string(),
+            JsonValue::str(disposition.author.as_str()),
+        ),
+        (
+            "finding_id".to_string(),
+            JsonValue::str(disposition.finding_id.as_str()),
+        ),
+        (
+            "disposition".to_string(),
+            JsonValue::str(disposition.disposition.as_str()),
+        ),
+        (
+            "notes".to_string(),
+            JsonValue::str(disposition.notes.as_str()),
+        ),
+    ])
+}
+
 pub fn task_review(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<CommandResult> {
     let task_id = parse_id(&next(&mut args, "task review")?)?;
     let reviewed_head = parse_id(&required_flag(&mut args, "--head", "task review")?)?;

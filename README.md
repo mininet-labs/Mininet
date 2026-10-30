@@ -22,6 +22,20 @@ explanation of what Mininet is, why it exists, how it works today, and
 what is still an open question, written for a reader who has never opened
 this repository (D-0323).
 
+## Start contributing
+
+Read the [**team leaders and architects welcome pack**](docs/contributors/WELCOME.md)
+for the first-hour reading order, ten proposed engineering domains, cross-team
+interfaces, launch gates and a first-week contribution plan. Then follow
+[CONTRIBUTING.md](CONTRIBUTING.md) and choose a bounded task tied to the
+[release roadmap](docs/ROADMAP_TO_RELEASE.md).
+
+The welcome pack is a proposed coordination model, not a grant of review or
+merge authority. Its dated PR/status snapshot must be checked against
+[current implementation status](docs/STATUS.md) and configured review rules.
+Open Beta, the native Forge transition and real-value Go-Live have separate
+acceptance gates; code tests alone do not close hardware or external-review gates.
+
 ## What no one can change
 
 These are not promises of good behavior — they are structural, enforced in
@@ -50,8 +64,8 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: 79 crates indexed by
-`tools/mininet_nav.py`, with no external
+This repository is the **self-contained Rust core**, defined by the [workspace manifest](Cargo.toml)
+and indexed by `tools/mininet_nav.py`, with no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
