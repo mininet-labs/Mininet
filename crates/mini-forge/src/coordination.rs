@@ -1299,3 +1299,303 @@ mod tests {
         assert!(parse_work_claim_object(&malformed).is_none());
     }
 }
+/// Identifies a coordination campaign object.
+pub const CAMPAIGN_TYPE: &str = "mini/campaign";
+/// Identifies a coordination finding object.
+pub const FINDING_TYPE: &str = "mini/finding";
+/// Identifies a coordination disposition object.
+pub const DISPOSITION_TYPE: &str = "mini/disposition";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Campaign {
+    pub id: ObjectId,
+    pub author: Did,
+    pub title: String,
+    pub description: String,
+    pub expires_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Finding {
+    pub id: ObjectId,
+    pub author: Did,
+    pub target_id: ObjectId,
+    pub reviewed_head: Option<ObjectId>,
+    pub findings: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FindingDisposition {
+    Corrected,
+    AcceptedWithGate,
+    Rejected,
+    Deferred,
+    ConstitutionalDisagreement,
+}
+
+impl FindingDisposition {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Corrected => "corrected",
+            Self::AcceptedWithGate => "accepted-with-gate",
+            Self::Rejected => "rejected",
+            Self::Deferred => "deferred",
+            Self::ConstitutionalDisagreement => "constitutional-disagreement",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "corrected" => Some(Self::Corrected),
+            "accepted-with-gate" => Some(Self::AcceptedWithGate),
+            "rejected" => Some(Self::Rejected),
+            "deferred" => Some(Self::Deferred),
+            "constitutional-disagreement" => Some(Self::ConstitutionalDisagreement),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Disposition {
+    pub id: ObjectId,
+    pub author: Did,
+    pub finding_id: ObjectId,
+    pub disposition: FindingDisposition,
+    pub notes: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CampaignSnapshot {
+    pub campaign: Campaign,
+    pub findings: Vec<Finding>,
+    pub dispositions: Vec<Disposition>,
+}
+
+/// Create a time-limited coordination campaign.
+#[allow(clippy::too_many_arguments)]
+pub fn create_campaign<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    title: &str,
+    description: &str,
+    expires_ms: u64,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    if expires_ms <= timestamp_ms {
+        return Err(ForgeError::BadObject);
+    }
+    validate_text(title, MAX_SHORT_TEXT_BYTES, false)?;
+    validate_text(description, MAX_TEXT_BYTES, true)?;
+    let mut payload = vec![PAYLOAD_VERSION];
+    put_str(&mut payload, title);
+    put_str(&mut payload, description);
+    payload.extend_from_slice(&expires_ms.to_be_bytes());
+    let object = ObjectBuilder::new(ObjectType::Custom(CAMPAIGN_TYPE.into()))
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .sign(human, device)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Create a finding about a locally present target and optional reviewed head.
+#[allow(clippy::too_many_arguments)]
+pub fn create_finding<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    target_id: &ObjectId,
+    reviewed_head: Option<&ObjectId>,
+    findings: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    // `campaign_snapshot` is the only public finding reader and resolves
+    // findings through their campaign, so a finding about anything else would
+    // be persisted but unreadable. Require a structurally valid campaign.
+    if parse_campaign(&store.get(target_id)?).is_none() {
+        return Err(ForgeError::BadObject);
+    }
+    if let Some(head) = reviewed_head {
+        let _ = store.get(head)?;
+    }
+    validate_text(findings, MAX_TEXT_BYTES, true)?;
+    let mut payload = vec![PAYLOAD_VERSION];
+    put_str(&mut payload, findings);
+    let mut builder = ObjectBuilder::new(ObjectType::Custom(FINDING_TYPE.into()))
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .link("target", target_id.clone());
+    if let Some(head) = reviewed_head {
+        builder = builder.link("reviewed", head.clone());
+    }
+    let object = builder.sign(human, device)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Record a response to a structurally valid finding. This grants no authority.
+#[allow(clippy::too_many_arguments)]
+pub fn create_disposition<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    finding_id: &ObjectId,
+    disposition: FindingDisposition,
+    notes: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    if parse_finding(&store.get(finding_id)?).is_none() {
+        return Err(ForgeError::BadObject);
+    }
+    validate_text(notes, MAX_TEXT_BYTES, true)?;
+    let mut payload = vec![PAYLOAD_VERSION];
+    put_str(&mut payload, disposition.as_str());
+    put_str(&mut payload, notes);
+    let object = ObjectBuilder::new(ObjectType::Custom(DISPOSITION_TYPE.into()))
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .link("finding", finding_id.clone())
+        .sign(human, device)?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+fn campaign_payload<'a>(obj: &'a Object, kind: &str) -> Option<&'a [u8]> {
+    if obj.object_type != ObjectType::Custom(kind.into()) {
+        return None;
+    }
+    let payload = public_payload(obj)?;
+    if payload.first() != Some(&PAYLOAD_VERSION) {
+        return None;
+    }
+    Some(payload)
+}
+
+fn parse_campaign(obj: &Object) -> Option<Campaign> {
+    let p = campaign_payload(obj, CAMPAIGN_TYPE)?;
+    let mut off = 1;
+    let title = take_bounded_str(p, &mut off, MAX_SHORT_TEXT_BYTES, true)?;
+    let description = take_bounded_str(p, &mut off, MAX_TEXT_BYTES, true)?;
+    let expires_ms = take_u64(p, &mut off)?;
+    if off != p.len() || !obj.links.is_empty() || expires_ms <= obj.timestamp_ms {
+        return None;
+    }
+    Some(Campaign {
+        id: obj.id().clone(),
+        author: obj.author_human.clone(),
+        title,
+        description,
+        expires_ms,
+    })
+}
+
+fn parse_finding(obj: &Object) -> Option<Finding> {
+    let p = campaign_payload(obj, FINDING_TYPE)?;
+    let mut off = 1;
+    let findings = take_bounded_str(p, &mut off, MAX_TEXT_BYTES, true)?;
+    let target_id = unique_link(obj, "target")??;
+    let reviewed_head = unique_link(obj, "reviewed")?;
+    if off != p.len()
+        || obj
+            .links
+            .iter()
+            .any(|l| l.rel != "target" && l.rel != "reviewed")
+    {
+        return None;
+    }
+    Some(Finding {
+        id: obj.id().clone(),
+        author: obj.author_human.clone(),
+        target_id,
+        reviewed_head,
+        findings,
+    })
+}
+
+fn parse_disposition(obj: &Object) -> Option<Disposition> {
+    let p = campaign_payload(obj, DISPOSITION_TYPE)?;
+    let mut off = 1;
+    let disposition =
+        FindingDisposition::parse(&take_bounded_str(p, &mut off, MAX_SHORT_TEXT_BYTES, true)?)?;
+    let notes = take_bounded_str(p, &mut off, MAX_TEXT_BYTES, true)?;
+    let finding_id = unique_link(obj, "finding")??;
+    if off != p.len() || obj.links.iter().any(|l| l.rel != "finding") {
+        return None;
+    }
+    Some(Disposition {
+        id: obj.id().clone(),
+        author: obj.author_human.clone(),
+        finding_id,
+        disposition,
+        notes,
+    })
+}
+
+/// Materialize verified campaign evidence in deterministic object-ID order.
+/// Malformed and unknown-author evidence is excluded; more than 1024 selected
+/// records fails closed rather than silently presenting a complete snapshot.
+pub fn campaign_snapshot<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    id: &ObjectId,
+) -> Result<CampaignSnapshot> {
+    let object = store.get(id)?;
+    if !crate::oracle::author_verified(oracle, &object) {
+        return Err(ForgeError::BadObject);
+    }
+    let campaign = parse_campaign(&object).ok_or(ForgeError::BadObject)?;
+    let mut findings = Vec::new();
+    for key in store.linking_to(id)? {
+        let Ok(object) = store.get(&key) else {
+            continue;
+        };
+        if !crate::oracle::author_verified(oracle, &object) {
+            continue;
+        }
+        if let Some(finding) = parse_finding(&object).filter(|f| f.target_id == *id) {
+            if findings.len() >= 1024 {
+                return Err(ForgeError::FieldTooLarge);
+            }
+            findings.push(finding);
+        }
+    }
+    findings.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+    let ids: std::collections::BTreeSet<_> = findings.iter().map(|f| f.id.as_str()).collect();
+    let mut dispositions = Vec::new();
+    let mut responses = std::collections::BTreeMap::new();
+    for finding in &findings {
+        for key in store.linking_to(&finding.id)? {
+            responses.insert(key.as_str().to_owned(), key);
+        }
+    }
+    for key in responses.into_values() {
+        let Ok(object) = store.get(&key) else {
+            continue;
+        };
+        if !crate::oracle::author_verified(oracle, &object) {
+            continue;
+        }
+        if let Some(response) =
+            parse_disposition(&object).filter(|d| ids.contains(d.finding_id.as_str()))
+        {
+            if dispositions.len() >= 1024 {
+                return Err(ForgeError::FieldTooLarge);
+            }
+            dispositions.push(response);
+        }
+    }
+    dispositions.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+    Ok(CampaignSnapshot {
+        campaign,
+        findings,
+        dispositions,
+    })
+}
