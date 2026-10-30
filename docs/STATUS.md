@@ -3166,3 +3166,14 @@ shared "community" list as one's own local rules (constitution principle
 convention. 12 unit tests. Not yet wired into any client — `mini-desktop`
 still has its own separate `muted.txt`, and integrating both onto
 `mini-safety` is open follow-up.
+
+## Proposed integrated runtime delivery slice
+
+Draft PR #379 extends the existing application core with a bounded durable
+public-post outbox, persistent peer authorization, authenticated exact-object
+delivery, verified-storage acknowledgments, retry/cancellation state and idle
+service scheduling. Networking stays default off and requires an unlocked
+identity; queued bytes survive locked restarts. This is a reachable numeric-TCP
+profile, not NAT traversal, a private messenger, calling, or whole-product beta
+certification. See `docs/design/durable-public-delivery.md` and the journey-level
+acceptance register in `docs/planning/integrated-beta-delivery.md`.

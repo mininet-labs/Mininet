@@ -14,6 +14,13 @@ reasons from. This applies equally to AI-assisted contributions: an AI
 drafting code under the D-0037 policy is expected to have read and be
 reasoning from the same eighteen directives a human contributor would.
 
+New contributors, team leads and architects can use the
+[welcome pack](docs/contributors/WELCOME.md) for a guided first hour, proposed
+review-routing domains, cross-team handoffs and release-gate priorities. It is a
+dated proposed operating model; it does not replace the directives, enacted
+decisions, configured CODEOWNERS or current status and grants no appointment,
+reviewer standing or merge authority.
+
 **Before proposing something novel, check `docs/FAILURE_BOOK.md`.** If an
 idea was already tried and rejected — a networking approach, a
 personhood construction, a chain-stack choice — it's recorded there with
