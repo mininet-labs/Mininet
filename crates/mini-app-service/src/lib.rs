@@ -14,6 +14,11 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod delivery_peers;
+mod delivery_runtime;
+mod delivery_transport;
+mod outbox;
+
 use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
@@ -113,6 +118,10 @@ pub struct Core<V: IdentityVault> {
     human: Option<Did>,
     next_sequence: u64,
     journal: MutationJournal,
+    outbox: outbox::Outbox,
+    peers: delivery_peers::PeerBook,
+    delivery_policy: delivery_runtime::Policy,
+    delivery_listener: Option<std::net::TcpListener>,
     events: VecDeque<ServiceEvent>,
     next_event_id: u64,
     _process_lock: Option<File>,
@@ -151,6 +160,10 @@ impl<V: IdentityVault> Core<V> {
         );
         let journal = MutationJournal::open(root.join("app-service"))?;
         journal.recover(&mut store)?;
+        let outbox = outbox::Outbox::open(root.join("app-service/outbox"))?;
+        let peers = delivery_peers::PeerBook::open(root.join("app-service/delivery-peers"))?;
+        let delivery_policy =
+            delivery_runtime::Policy::open(root.join("app-service/delivery-policy"))?;
 
         let human = if vault.root_exists() {
             let seeds = vault.load_root()?;
@@ -168,6 +181,10 @@ impl<V: IdentityVault> Core<V> {
             human,
             next_sequence,
             journal,
+            outbox,
+            peers,
+            delivery_policy,
+            delivery_listener: None,
             events: VecDeque::new(),
             next_event_id: 1,
             _process_lock: process_lock,
@@ -175,6 +192,9 @@ impl<V: IdentityVault> Core<V> {
     }
 
     pub fn handle(&mut self, command: Command) -> Result<Reply, ServiceError> {
+        mini_app_protocol::Request::new(0, command.clone())
+            .validate()
+            .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
         match command {
             Command::Status => self.status().map(Reply::Status),
             Command::CreateRoot => {
@@ -210,8 +230,141 @@ impl<V: IdentityVault> Core<V> {
             Command::DrainEvents { limit } => {
                 Ok(Reply::Events(self.drain_events(usize::from(limit))))
             }
+            Command::DeliveryRuntimeStatus => {
+                Ok(Reply::DeliveryRuntime(self.delivery_runtime_status()))
+            }
+            Command::ExportDeliveryIdentity => {
+                self.ensure_signing_available()?;
+                let identity = self.identity.as_ref().expect("checked identity");
+                Ok(Reply::DeliveryIdentity(
+                    mini_app_protocol::DeliveryIdentity {
+                        root_kel: identity.root.kel().to_bytes(),
+                        device_kel: identity.device.kel().to_bytes(),
+                    },
+                ))
+            }
+            Command::AuthorizeDeliveryPeer {
+                peer_id,
+                endpoint,
+                root_kel,
+                device_kel,
+            } => {
+                self.ensure_signing_available()?;
+                let peer = self
+                    .peers
+                    .authorize(&peer_id, &endpoint, &root_kel, &device_kel)?;
+                self.delivery_listener = None;
+                Ok(Reply::DeliveryPeers(vec![peer.view()]))
+            }
+            Command::RevokeDeliveryPeer { peer_id } => {
+                self.delivery_listener = None;
+                self.peers.revoke(&peer_id)?;
+                self.delivery_listener = None;
+                Ok(Reply::Ack)
+            }
+            Command::DeliveryPeers => Ok(Reply::DeliveryPeers(
+                self.peers
+                    .list()?
+                    .iter()
+                    .map(delivery_peers::Peer::view)
+                    .collect(),
+            )),
+            Command::AttemptDelivery { operation_id } => self
+                .attempt_delivery(&operation_id, now_ms())
+                .map(Reply::Delivery),
+            Command::SetDeliveryEnabled { enabled } => {
+                if enabled {
+                    self.ensure_signing_available()?;
+                }
+                self.delivery_policy.set_enabled(enabled)?;
+                self.delivery_listener = None;
+                Ok(Reply::DeliveryRuntime(self.delivery_runtime_status()))
+            }
+            Command::SetDeliveryListener { peer_id, endpoint } => {
+                self.ensure_signing_available()?;
+                self.authorized_delivery_peer(&peer_id)?;
+                self.delivery_policy.set_listener(&peer_id, &endpoint)?;
+                self.delivery_listener = None;
+                Ok(Reply::DeliveryRuntime(self.delivery_runtime_status()))
+            }
+            Command::StopDeliveryListener => {
+                self.delivery_policy.clear_listener()?;
+                self.delivery_listener = None;
+                Ok(Reply::DeliveryRuntime(self.delivery_runtime_status()))
+            }
+            Command::QueuePublicDelivery {
+                operation_id,
+                peer_id,
+                object_id,
+            } => self
+                .queue_public_delivery(&operation_id, &peer_id, &object_id)
+                .map(Reply::Delivery),
+            Command::DeliveryStatus { operation_id } => {
+                let record = self.outbox.get(&operation_id)?.ok_or_else(|| {
+                    ServiceError::new(ErrorCode::BadRequest, "unknown delivery operation")
+                })?;
+                Ok(Reply::Delivery(delivery_view(&record)))
+            }
+            Command::ListDeliveriesAfter {
+                after_operation_id,
+                limit,
+            } => Ok(Reply::Deliveries(
+                self.outbox
+                    .list_after(after_operation_id.as_deref(), usize::from(limit))?
+                    .iter()
+                    .map(delivery_view)
+                    .collect(),
+            )),
+            Command::ListDeliveries { limit } => Ok(Reply::Deliveries(
+                self.outbox
+                    .list(usize::from(limit))?
+                    .iter()
+                    .map(delivery_view)
+                    .collect(),
+            )),
+            Command::CancelDelivery { operation_id } => {
+                let record = self.outbox.cancel(&operation_id)?;
+                let view = delivery_view(&record);
+                self.emit(ServiceEventKind::DeliveryChanged(view.clone()));
+                Ok(Reply::Delivery(view))
+            }
             Command::Shutdown => Ok(Reply::Ack),
         }
+    }
+
+    fn queue_public_delivery(
+        &mut self,
+        operation_id: &str,
+        peer_id: &str,
+        object_id: &str,
+    ) -> Result<mini_app_protocol::DeliveryView, ServiceError> {
+        self.ensure_signing_available()?;
+        self.authorized_delivery_peer(peer_id)?;
+        let id = ObjectId::parse(object_id).map_err(storage_or_social)?;
+        let object = self.store.get(&id).map_err(storage_or_social)?;
+        let identity = self.identity.as_ref().expect("checked unlocked identity");
+        // This first slice intentionally sends only one own public text post.
+        // It cannot select private envelopes, attachments or an entire store.
+        if object.object_type != ObjectType::POST
+            || !object.links.is_empty()
+            || !matches!(object.payload, Payload::Public(_))
+            || object.author_human != identity.root.did()
+            || object.author_device != identity.device.did()
+        {
+            return Err(ServiceError::new(
+                ErrorCode::BadRequest,
+                "delivery requires an own public text post without linked content",
+            ));
+        }
+        mini_objects::verify_provenance(&object, &identity.root.kel(), &identity.device.kel())
+            .map_err(storage_or_social)?;
+        mini_social::decode_post(&object).map_err(storage_or_social)?;
+        let record = self
+            .outbox
+            .enqueue(operation_id, peer_id, object_id, &object.to_bytes())?;
+        let view = delivery_view(&record);
+        self.emit(ServiceEventKind::DeliveryChanged(view.clone()));
+        Ok(view)
     }
 
     fn status(&self) -> Result<AccountStatus, ServiceError> {
@@ -277,6 +430,7 @@ impl<V: IdentityVault> Core<V> {
     }
 
     fn lock(&mut self) {
+        self.delivery_listener = None;
         if self.identity.take().is_some() {
             self.emit(ServiceEventKind::IdentityChanged { unlocked: false });
         }
@@ -594,6 +748,29 @@ fn profile_view(profile: mini_social::Profile) -> Result<ProfileView, ServiceErr
         bio: profile.bio,
         avatar: profile.avatar.map(|id| id.as_str().to_string()),
     })
+}
+
+fn delivery_view(record: &outbox::DeliveryRecord) -> mini_app_protocol::DeliveryView {
+    use mini_app_protocol::{DeliveryFailure as F, DeliveryState as S};
+    mini_app_protocol::DeliveryView {
+        operation_id: record.operation_id.clone(),
+        peer_id: record.peer_id.clone(),
+        object_id: record.object_id.clone(),
+        state: match record.state {
+            outbox::DeliveryState::Queued => S::Queued,
+            outbox::DeliveryState::InFlight => S::InFlight,
+            outbox::DeliveryState::RetryWaiting => S::RetryWaiting,
+            outbox::DeliveryState::Delivered => S::Delivered,
+            outbox::DeliveryState::Cancelled => S::Cancelled,
+        },
+        attempts: record.attempts,
+        next_attempt_ms: record.next_attempt_ms,
+        last_failure: record.last_failure.map(|failure| match failure {
+            outbox::DeliveryFailure::Unavailable => F::Unavailable,
+            outbox::DeliveryFailure::Rejected => F::Rejected,
+            outbox::DeliveryFailure::Interrupted => F::Interrupted,
+        }),
+    }
 }
 
 fn root_from_seeds(seeds: &SeedPair) -> Result<Controller, ServiceError> {
@@ -1365,6 +1542,295 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ))
+    }
+
+    #[test]
+    fn offline_delivery_recovers_and_reports_verified_remote_receipt_without_new_signature() {
+        let sender_root = temp_root("sender-runtime");
+        let receiver_root = temp_root("receiver-runtime");
+        let sender_vault = MemoryVault::seeded();
+        let receiver_vault = MemoryVault {
+            root: Some(SeedPair {
+                current: [21; 32],
+                next: [22; 32],
+            }),
+            device: Some(SeedPair {
+                current: [23; 32],
+                next: [24; 32],
+            }),
+        };
+        let mut sender =
+            Core::open_inner(sender_root.clone(), sender_vault.clone(), false).unwrap();
+        let mut recipient =
+            Core::open_inner(receiver_root.clone(), receiver_vault.clone(), false).unwrap();
+        sender.handle(Command::UnlockIdentity).unwrap();
+        recipient.handle(Command::UnlockIdentity).unwrap();
+        let Reply::DeliveryIdentity(sender_public) =
+            sender.handle(Command::ExportDeliveryIdentity).unwrap()
+        else {
+            panic!("identity reply");
+        };
+        let Reply::DeliveryIdentity(recipient_public) =
+            recipient.handle(Command::ExportDeliveryIdentity).unwrap()
+        else {
+            panic!("identity reply");
+        };
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = probe.local_addr().unwrap();
+        drop(probe);
+        sender
+            .handle(Command::AuthorizeDeliveryPeer {
+                peer_id: "recipient".into(),
+                endpoint: address.to_string(),
+                root_kel: recipient_public.root_kel,
+                device_kel: recipient_public.device_kel,
+            })
+            .unwrap();
+        recipient
+            .handle(Command::AuthorizeDeliveryPeer {
+                peer_id: "sender".into(),
+                endpoint: address.to_string(),
+                root_kel: sender_public.root_kel,
+                device_kel: sender_public.device_kel,
+            })
+            .unwrap();
+        let Reply::Published(post) = sender
+            .handle(Command::PublishPost {
+                operation_id: "post:once".into(),
+                text: "survives an offline recipient".into(),
+            })
+            .unwrap()
+        else {
+            panic!("post reply");
+        };
+        let sequence_after_publication = sender.next_sequence;
+        sender
+            .handle(Command::QueuePublicDelivery {
+                operation_id: "send:once".into(),
+                peer_id: "recipient".into(),
+                object_id: post.object_id.clone(),
+            })
+            .unwrap();
+        assert!(sender
+            .handle(Command::AttemptDelivery {
+                operation_id: "send:once".into()
+            })
+            .is_err());
+        assert_eq!(sender.outbox.get("send:once").unwrap().unwrap().attempts, 0);
+        sender
+            .handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        let failed = sender.attempt_delivery("send:once", now_ms()).unwrap();
+        assert_eq!(failed.state, mini_app_protocol::DeliveryState::RetryWaiting);
+        let exact_bytes = sender
+            .outbox
+            .get("send:once")
+            .unwrap()
+            .unwrap()
+            .object_bytes;
+        drop(sender);
+        let mut sender = Core::open_inner(sender_root.clone(), sender_vault, false).unwrap();
+        assert!(sender.delivery_policy.enabled);
+        sender.poll_delivery().unwrap();
+        assert_eq!(sender.outbox.get("send:once").unwrap().unwrap().attempts, 1);
+        assert!(sender.delivery_listener.is_none());
+        sender.handle(Command::UnlockIdentity).unwrap();
+        recipient
+            .handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        recipient
+            .handle(Command::SetDeliveryListener {
+                peer_id: "sender".into(),
+                endpoint: address.to_string(),
+            })
+            .unwrap();
+        let listener = std::net::TcpListener::bind(address).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        recipient.delivery_listener = Some(listener);
+        let expected_id = ObjectId::parse(&post.object_id).unwrap();
+        let remote_id = expected_id.clone();
+        let worker = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+            while std::time::Instant::now() < deadline {
+                recipient.poll_delivery().unwrap();
+                if recipient.store.get(&remote_id).is_ok() {
+                    return recipient;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            panic!("recipient did not ingest queued post");
+        });
+        let delivered = sender
+            .attempt_delivery("send:once", failed.next_attempt_ms)
+            .unwrap();
+        assert_eq!(delivered.state, mini_app_protocol::DeliveryState::Delivered);
+        assert_eq!(delivered.attempts, 2);
+        assert_eq!(sender.next_sequence, sequence_after_publication);
+        let recipient = worker.join().unwrap();
+        assert_eq!(
+            recipient.store.get(&expected_id).unwrap().to_bytes(),
+            exact_bytes
+        );
+        assert_eq!(
+            recipient.store.by_type(&ObjectType::POST).unwrap(),
+            vec![expected_id.clone()]
+        );
+        assert_eq!(
+            sender.attempt_delivery("send:once", now_ms()).unwrap(),
+            delivered
+        );
+        drop(sender);
+        drop(recipient);
+        let mut sender =
+            Core::open_inner(sender_root.clone(), MemoryVault::seeded(), false).unwrap();
+        assert_eq!(
+            sender
+                .handle(Command::DeliveryStatus {
+                    operation_id: "send:once".into()
+                })
+                .unwrap(),
+            Reply::Delivery(delivered)
+        );
+        let recipient = Core::open_inner(receiver_root.clone(), receiver_vault, false).unwrap();
+        assert_eq!(
+            recipient.store.get(&expected_id).unwrap().to_bytes(),
+            exact_bytes
+        );
+        drop(sender);
+        drop(recipient);
+        fs::remove_dir_all(sender_root).unwrap();
+        fs::remove_dir_all(receiver_root).unwrap();
+    }
+
+    #[test]
+    fn revoked_recipient_never_connects_and_locked_identity_stops_listener() {
+        let root = temp_root("delivery-permissions");
+        let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+        core.handle(Command::UnlockIdentity).unwrap();
+        let Reply::DeliveryIdentity(public) = core.handle(Command::ExportDeliveryIdentity).unwrap()
+        else {
+            panic!("identity reply");
+        };
+        core.handle(Command::AuthorizeDeliveryPeer {
+            peer_id: "peer".into(),
+            endpoint: "127.0.0.1:9".into(),
+            root_kel: public.root_kel,
+            device_kel: public.device_kel,
+        })
+        .unwrap();
+        let Reply::Published(post) = core
+            .handle(Command::PublishPost {
+                operation_id: "post:1".into(),
+                text: "public".into(),
+            })
+            .unwrap()
+        else {
+            panic!("post reply");
+        };
+        core.handle(Command::QueuePublicDelivery {
+            operation_id: "send:1".into(),
+            peer_id: "peer".into(),
+            object_id: post.object_id,
+        })
+        .unwrap();
+        core.handle(Command::SetDeliveryEnabled { enabled: true })
+            .unwrap();
+        core.handle(Command::RevokeDeliveryPeer {
+            peer_id: "peer".into(),
+        })
+        .unwrap();
+        let attempt = core.attempt_delivery("send:1", now_ms()).unwrap();
+        assert_eq!(
+            attempt.last_failure,
+            Some(mini_app_protocol::DeliveryFailure::Rejected)
+        );
+        assert_eq!(
+            attempt.state,
+            mini_app_protocol::DeliveryState::RetryWaiting
+        );
+        core.delivery_listener = Some(std::net::TcpListener::bind("127.0.0.1:0").unwrap());
+        core.handle(Command::LockIdentity).unwrap();
+        assert!(core.delivery_listener.is_none());
+        core.poll_delivery().unwrap();
+        assert_eq!(core.outbox.get("send:1").unwrap().unwrap().attempts, 1);
+        core.handle(Command::CancelDelivery {
+            operation_id: "send:1".into(),
+        })
+        .unwrap();
+        drop(core);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn queued_public_post_survives_locked_restart_and_cancellation_without_resigning() {
+        let root = temp_root("durable-outbox");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(root.clone(), vault.clone(), false).unwrap();
+        core.handle(Command::UnlockIdentity).unwrap();
+        let Reply::Published(post) = core
+            .handle(Command::PublishPost {
+                operation_id: "publish:1".into(),
+                text: "public post".into(),
+            })
+            .unwrap()
+        else {
+            panic!("publication reply");
+        };
+        let identity = core.identity.as_ref().unwrap();
+        let root_kel = identity.root.kel().to_bytes();
+        let device_kel = identity.device.kel().to_bytes();
+        core.handle(Command::AuthorizeDeliveryPeer {
+            peer_id: "recipient".into(),
+            endpoint: "127.0.0.1:9".into(),
+            root_kel,
+            device_kel,
+        })
+        .unwrap();
+        let next_sequence = core.next_sequence;
+        let queue = Command::QueuePublicDelivery {
+            operation_id: "send:1".into(),
+            peer_id: "recipient".into(),
+            object_id: post.object_id.clone(),
+        };
+        let queued = core.handle(queue.clone()).unwrap();
+        assert_eq!(queued, core.handle(queue).unwrap());
+        let bytes = core.outbox.get("send:1").unwrap().unwrap().object_bytes;
+        assert_eq!(core.next_sequence, next_sequence);
+        drop(core);
+        let mut restarted = Core::open_inner(root.clone(), vault, false).unwrap();
+        assert!(restarted.identity.is_none());
+        assert_eq!(
+            restarted
+                .handle(Command::DeliveryStatus {
+                    operation_id: "send:1".into()
+                })
+                .unwrap(),
+            queued
+        );
+        assert_eq!(
+            restarted
+                .outbox
+                .get("send:1")
+                .unwrap()
+                .unwrap()
+                .object_bytes,
+            bytes
+        );
+        let Reply::Delivery(cancelled) = restarted
+            .handle(Command::CancelDelivery {
+                operation_id: "send:1".into(),
+            })
+            .unwrap()
+        else {
+            panic!("delivery reply");
+        };
+        assert_eq!(cancelled.state, mini_app_protocol::DeliveryState::Cancelled);
+        assert_eq!(restarted.next_sequence, next_sequence);
+        assert!(restarted
+            .handle(Command::ListDeliveries { limit: 0 })
+            .is_err());
+        drop(restarted);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

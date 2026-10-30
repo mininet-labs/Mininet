@@ -4,15 +4,25 @@
 //! endpoints; content signatures remain an independent trust boundary.
 use std::fs;
 use std::io::Read;
-use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
 
+#[path = "service_quota.rs"]
+pub(crate) mod quota;
+
 const MAX_WORKERS: usize = 4;
+const MAX_HANDSHAKES: usize = 8;
+const MAX_SOURCE_HANDSHAKES: usize = 2;
+const HANDSHAKE_DEADLINE: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(25);
 const MAX_STATE: usize = 4096;
 fn io(e: std::io::Error) -> CliError {
@@ -101,6 +111,9 @@ fn is_running(home: &Path) -> Result<bool> {
     }
 }
 struct Worker {
+    source: IpAddr,
+    authenticated: Arc<AtomicBool>,
+    handshake_deadline: Instant,
     socket: TcpStream,
     deadline: Instant,
     task: JoinHandle<bool>,
@@ -171,6 +184,7 @@ fn run(
     let control = mini_durable::lock_exclusive(&home.join("service.control.lock")).map_err(io)?;
     let _owner = mini_durable::try_lock_exclusive(&home.join("service.lock"))
         .map_err(|e| CliError::Io(format!("service already running or lock unavailable: {e}")))?;
+    quota::initialize(store).map_err(|e| CliError::Store(e.to_string()))?;
     let listener = TcpListener::bind(addr).map_err(io)?;
     listener.set_nonblocking(true).map_err(io)?;
     let mut state = State {
@@ -187,12 +201,17 @@ fn run(
     }
     drop(control);
     let mut workers: Vec<Worker> = Vec::new();
+    let active_peers = Arc::new(Mutex::new(std::collections::BTreeSet::<String>::new()));
     let mut stopping = false;
     let mut fatal = None;
     loop {
         stopping |= home.join("service.stop").exists();
         for worker in &workers {
-            if stopping || Instant::now() >= worker.deadline {
+            if stopping
+                || Instant::now() >= worker.deadline
+                || (!worker.authenticated.load(Ordering::Acquire)
+                    && Instant::now() >= worker.handshake_deadline)
+            {
                 let _ = worker.socket.shutdown(Shutdown::Both);
             }
         }
@@ -223,9 +242,21 @@ fn run(
         }
         if !stopping && (limit == 0 || state.accepted < limit) {
             match listener.accept() {
-                Ok((stream, _peer)) => {
+                Ok((stream, source)) => {
                     state.accepted += 1;
-                    if workers.len() >= MAX_WORKERS {
+                    if workers
+                        .iter()
+                        .filter(|w| !w.authenticated.load(Ordering::Acquire))
+                        .count()
+                        >= MAX_HANDSHAKES
+                        || workers
+                            .iter()
+                            .filter(|w| {
+                                w.source == source.ip() && !w.authenticated.load(Ordering::Acquire)
+                            })
+                            .count()
+                            >= MAX_SOURCE_HANDSHAKES
+                    {
                         let _ = stream.shutdown(Shutdown::Both);
                         state.failed += 1;
                     } else {
@@ -236,13 +267,46 @@ fn run(
                             let home = home.to_path_buf();
                             let store = store.to_path_buf();
                             let allowed_peers = allowed_peers.clone();
+                            let authenticated = Arc::new(AtomicBool::new(false));
+                            let phase = authenticated.clone();
+                            let active_peers = active_peers.clone();
                             let task = thread::Builder::new().name("mini-sync-peer".into()).spawn(
                                 move || {
-                                    crate::sync::serve_stream(&home, &store, stream, &allowed_peers)
-                                        .is_ok()
+                                    let mut admitted = None;
+                                    let result = crate::sync::serve_stream(
+                                        &home,
+                                        &store,
+                                        stream,
+                                        &allowed_peers,
+                                        |peer| {
+                                            let mut active = active_peers
+                                                .lock()
+                                                .map_err(|_| usage("admission lock poisoned"))?;
+                                            if active.len() >= MAX_WORKERS
+                                                || active.contains(peer.as_str())
+                                            {
+                                                return Err(usage(
+                                                    "authenticated peer capacity reached",
+                                                ));
+                                            }
+                                            active.insert(peer.as_str().to_string());
+                                            admitted = Some(peer.as_str().to_string());
+                                            phase.store(true, Ordering::Release);
+                                            Ok(())
+                                        },
+                                    );
+                                    if let Some(peer) = admitted {
+                                        if let Ok(mut active) = active_peers.lock() {
+                                            active.remove(&peer);
+                                        }
+                                    }
+                                    result.is_ok()
                                 },
                             )?;
                             Ok(Worker {
+                                source: source.ip(),
+                                authenticated,
+                                handshake_deadline: Instant::now() + HANDSHAKE_DEADLINE,
                                 socket: shutdown,
                                 deadline: Instant::now() + idle.saturating_mul(4),
                                 task,

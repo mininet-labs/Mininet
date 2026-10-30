@@ -261,14 +261,9 @@ pub(crate) fn serve_stream(
     store_path: &Path,
     stream: std::net::TcpStream,
     allowed_peers: &[did_mini::Did],
+    admit: impl FnOnce(&did_mini::Did) -> Result<()>,
 ) -> Result<IngestReport> {
     let identity = crate::identity::load(home)?;
-    let mut store = open_store(store_path)?;
-    seed_own_kel_carriers(&identity, &mut store)?;
-    let mut cache = build_kel_cache(home, &identity)?;
-    cache
-        .hydrate_from_store(&store)
-        .map_err(|e| CliError::Sync(e.to_string()))?;
     let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
     let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
     let (mut channel, response) =
@@ -291,6 +286,13 @@ pub(crate) fn serve_stream(
             "peer is not authorized for this service".into(),
         ));
     }
+    admit(&peer)?;
+    let mut store = open_store(store_path)?;
+    seed_own_kel_carriers(&identity, &mut store)?;
+    let mut cache = build_kel_cache(home, &identity)?;
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
     send_session_proof(
         &mut bearer,
         &mut channel,
@@ -299,6 +301,11 @@ pub(crate) fn serve_stream(
         b'r',
         &peer,
     )?;
+    drop(store);
+    let mut store = mini_store::Store::new(
+        crate::service::quota::QuotaBackend::open(store_path, peer.as_str())
+            .map_err(|e| CliError::Store(e.to_string()))?,
+    );
     mini_sync::sync_bidirectional_paged(
         &mut bearer,
         &mut channel,
@@ -309,12 +316,12 @@ pub(crate) fn serve_stream(
     .map_err(|e| CliError::Sync(e.to_string()))
 }
 
-const SESSION_AAD: &[u8] = b"MINI/FORGE-SESSION1";
-const SESSION_TYPE: &str = "mini/forge-session-v1";
+const SESSION_AAD: &[u8] = b"MINI/FORGE-SESSION2";
+const SESSION_TYPE: &str = "mini/forge-session-v2";
 const MAX_SESSION_PROOF: usize = 16 * 1024;
 
 fn session_transcript(hello: &[u8], response: &[u8]) -> [u8; 32] {
-    let mut data = b"mini/forge-session/transcript/v1\0".to_vec();
+    let mut data = b"mini/forge-session/transcript/v2\0".to_vec();
     data.extend_from_slice(&(hello.len() as u32).to_be_bytes());
     data.extend_from_slice(hello);
     data.extend_from_slice(&(response.len() as u32).to_be_bytes());
@@ -322,7 +329,7 @@ fn session_transcript(hello: &[u8], response: &[u8]) -> [u8; 32] {
     mini_crypto::HashAlgorithm::Blake3.digest(&data)
 }
 fn proof_payload(transcript: &[u8; 32], role: u8, audience: &did_mini::Did) -> Vec<u8> {
-    let mut payload = b"mini/forge-session/proof/v1\0".to_vec();
+    let mut payload = b"mini/forge-session/proof/v2\0".to_vec();
     payload.push(role);
     payload.extend_from_slice(transcript);
     payload.extend_from_slice(audience.as_str().as_bytes());
