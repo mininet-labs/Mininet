@@ -61,6 +61,7 @@ mod provenance;
 mod release;
 mod remote;
 mod repo;
+mod resident;
 mod selftest;
 mod sequence;
 mod service;

@@ -1723,6 +1723,15 @@ given time.
 
 ## 10. Self-hosted forge spine (D-0066, tracking issue #102)
 
+**Resident AI owner assistance:** the desktop now has an explicitly configured
+local-model assistant and local inspection/search; CLI tools add diagnostics,
+source-granted questions, confirmed patch workflows, hosting plans and budget
+arithmetic. Model output remains labeled advisory text and cannot dispatch
+actions, acquire human approval weight or authorize funds. This is local
+assistance, not a paid peer-inference marketplace or a closed external gate.
+See [Resident AI](design/resident-ai.md) for setup, boundaries and evidence.
+
+
 **Native Forge Unix launch profile:** history migration now preserves merge
 parents and executable bits with verified bounded continuation; iterative Git
 mirrors support deep ancestry. The persistent service adds pinned, trusted-KEL
