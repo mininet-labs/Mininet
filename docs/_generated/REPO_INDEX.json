@@ -3,7 +3,7 @@
     "crates": 89,
     "files": 1174,
     "headings": 4040,
-    "rust_symbols": 13576
+    "rust_symbols": 13578
   },
   "crates": {
     "askama_derive": {
@@ -35247,16 +35247,16 @@
       "title": "use eframe::egui;"
     },
     {
-      "bytes": 39181,
+      "bytes": 41675,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "self",
         "loaded",
         "string",
+        "option",
         "bool",
         "false",
-        "option",
         "edits",
         "edit",
         "replacement",
@@ -35273,12 +35273,12 @@
         "as_ref",
         "invalidate",
         "preview",
-        "confirmation",
-        "draftinfo"
+        "draftinfo",
+        "saved"
       ],
-      "lines": 824,
+      "lines": 881,
       "path": "crates/mini-desktop/src/resident_patch.rs",
-      "sha256": "93f28d2dd63ab76806a7ebb17f194281f4fa78dddf26a1589cb97e4c13ea4ec0",
+      "sha256": "db2704c3e5ce157477efee38be1b5c85cee7ce7ce25d059ebd085d0b84039c88",
       "symbols": [
         {
           "kind": "struct",
@@ -35307,127 +35307,132 @@
         },
         {
           "kind": "impl",
-          "line": 65,
+          "line": 66,
           "name": "Panel"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 73,
           "name": "editor_unstaged"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 123,
           "name": "discard_memory"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 130,
           "name": "invalidate"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 138,
           "name": "sync_root"
         },
         {
           "kind": "fn",
-          "line": 173,
+          "line": 175,
           "name": "request_editor"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 182,
           "name": "install_editor"
         },
         {
           "kind": "fn",
-          "line": 189,
+          "line": 191,
           "name": "resolve_editor"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 201,
           "name": "spawn"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 230,
+          "name": "revalidate_checkpoint"
+        },
+        {
+          "kind": "fn",
+          "line": 355,
           "name": "resume"
         },
         {
           "kind": "fn",
-          "line": 353,
+          "line": 382,
           "name": "edit_staged"
         },
         {
           "kind": "fn",
-          "line": 374,
+          "line": 403,
           "name": "recover_file"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 426,
           "name": "can_resume"
         },
         {
           "kind": "fn",
-          "line": 400,
+          "line": 429,
           "name": "load"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 457,
           "name": "stage"
         },
         {
           "kind": "mod",
-          "line": 584,
+          "line": 613,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 586,
+          "line": 615,
           "name": "loaded_panel"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 632,
           "name": "model_answer_is_only_a_draft_and_clears_previous_authorization"
         },
         {
           "kind": "fn",
-          "line": 624,
+          "line": 653,
           "name": "workspace_changes_and_wrong_file_baselines_cannot_carry_authority"
         },
         {
           "kind": "fn",
-          "line": 637,
+          "line": 666,
           "name": "loading_baseline_preserves_an_explicit_model_draft_without_staging_it"
         },
         {
           "kind": "fn",
-          "line": 673,
+          "line": 702,
           "name": "resumed_edits_never_restore_apply_authorization_or_replace_without_acknowledgement"
         },
         {
           "kind": "fn",
-          "line": 707,
+          "line": 736,
           "name": "editing_a_resumed_file_keeps_the_original_hash_and_requires_restaging"
         },
         {
           "kind": "fn",
-          "line": 727,
+          "line": 756,
           "name": "close_guard_distinguishes_saved_staging_from_unsaved_editor_text"
         },
         {
           "kind": "fn",
-          "line": 767,
+          "line": 824,
           "name": "stale_repair_requires_acceptance_and_only_loads_an_unstaged_current_baseline"
         },
         {
           "kind": "fn",
-          "line": 809,
+          "line": 866,
           "name": "selecting_model_text_cannot_silently_replace_unstaged_editor_work"
         }
       ],
@@ -69962,7 +69967,7 @@
       "title": "use std::io::{Read, Write};"
     },
     {
-      "bytes": 35920,
+      "bytes": 36987,
       "group": "crate:mini-resident",
       "headings": [],
       "keywords": [
@@ -69991,9 +69996,9 @@
         "starts_with",
         "return"
       ],
-      "lines": 931,
+      "lines": 959,
       "path": "crates/mini-resident/src/workspace.rs",
-      "sha256": "ec852a4e41a0c58bed10d64f225959e6da75898f75750692743818ffa969bd6f",
+      "sha256": "ad4d8fc22aa487c3583d9811ce0b6bf7157992a42613c8402bd66f21dc994ba0",
       "symbols": [
         {
           "kind": "const",
@@ -70157,72 +70162,77 @@
         },
         {
           "kind": "fn",
-          "line": 574,
+          "line": 581,
           "name": "publish"
         },
         {
           "kind": "fn",
-          "line": 594,
+          "line": 601,
           "name": "rollback"
         },
         {
           "kind": "impl",
-          "line": 620,
+          "line": 627,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 621,
+          "line": 628,
           "name": "drop"
         },
         {
           "kind": "mod",
-          "line": 632,
+          "line": 639,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 635,
+          "line": 642,
           "name": "owner_context_and_patch_are_bounded_and_hash_checked"
         },
         {
           "kind": "fn",
-          "line": 663,
+          "line": 670,
           "name": "grants_reject_protected_ancestors_case_insensitively"
         },
         {
           "kind": "fn",
-          "line": 681,
+          "line": 688,
           "name": "hosting_summary_streams_binary_without_model_context"
         },
         {
           "kind": "fn",
-          "line": 696,
+          "line": 703,
           "name": "symlinks_never_grant_outside_context_or_patch"
         },
         {
           "kind": "fn",
-          "line": 714,
+          "line": 721,
           "name": "late_new_file_collision_never_overwrites_and_rolls_back_prior_edits"
         },
         {
           "kind": "fn",
-          "line": 766,
+          "line": 774,
+          "name": "new_source_files_are_published_with_ordinary_permissions"
+        },
+        {
+          "kind": "fn",
+          "line": 794,
           "name": "identical_late_new_file_is_not_deleted_by_rollback"
         },
         {
           "kind": "fn",
-          "line": 803,
+          "line": 831,
           "name": "patch_lock_serializes_writers_and_recovery_artifacts_are_never_context"
         },
         {
           "kind": "fn",
-          "line": 840,
+          "line": 868,
           "name": "executable_permissions_survive_publication_and_atomic_rollback"
         },
         {
           "kind": "fn",
-          "line": 888,
+          "line": 916,
           "name": "failed_rollback_retains_original_without_clobbering_later_owner_edit"
         }
       ],
