@@ -577,7 +577,10 @@ mod workspace_tests {
             }
             paths.push(path);
         }
-        let mut budget = SnapshotBudget::default();
+        let mut budget = SnapshotBudget {
+            files: 128 * 32,
+            ..SnapshotBudget::default()
+        };
         assert!(read_snapshot(&paths, 0, &mut budget).is_ok());
         assert_eq!(budget.files, 0);
         let extra = root.path().join("extra");
