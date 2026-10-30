@@ -118,7 +118,7 @@ fn check_existing_trust(home: &Path, kel: &Kel) -> Result<()> {
     }
     Ok(())
 }
-fn save_trusted_kel(home: &Path, kel: &Kel) -> Result<()> {
+fn save_pinned_kel(home: &Path, kel: &Kel) -> Result<()> {
     let dir = trusted_kels_dir(home);
     mini_durable::create_dir_all(&dir).map_err(|e| CliError::Io(e.to_string()))?;
     mini_durable::atomic_replace(&dir.join(format!("{}.kel", kel.scid())), &kel.to_bytes())
@@ -142,8 +142,8 @@ pub fn cmd_trust_kel_result(
     let _lock = prepare_trust(home)?;
     check_existing_trust(home, &bundle.human)?;
     check_existing_trust(home, &bundle.device)?;
-    save_trusted_kel(home, &bundle.human)?;
-    save_trusted_kel(home, &bundle.device)?;
+    save_pinned_kel(home, &bundle.human)?;
+    save_pinned_kel(home, &bundle.device)?;
     let human = format!(
         "now trusting KELs for human {} and device {}",
         bundle.human.scid(),
@@ -159,7 +159,7 @@ pub fn trust_kel(home: &Path, kel: Kel) -> Result<()> {
         .map_err(|e| CliError::Identity(e.to_string()))?;
     let _lock = prepare_trust(home)?;
     check_existing_trust(home, &kel)?;
-    save_trusted_kel(home, &kel)
+    save_pinned_kel(home, &kel)
 }
 /// Human-output compatibility wrapper for existing Rust callers.
 pub fn cmd_trust_kel(home: &Path, hex: &str) -> Result<String> {

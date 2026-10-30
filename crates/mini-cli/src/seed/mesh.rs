@@ -63,7 +63,7 @@ fn contacts(home: &Path) -> Result<BTreeMap<String, Contact>> {
     }
     Ok(all)
 }
-fn trusted<'a>(
+fn cached_kels<'a>(
     cache: &'a mini_sync::KelCache,
     obj: &Object,
 ) -> Result<(&'a did_mini::Kel, &'a did_mini::Kel)> {
@@ -159,7 +159,7 @@ fn pull_ad(home: &Path, contact: &Contact, deadline: Instant) -> Result<Advertis
     }
     let identity = crate::identity::load(home)?;
     let cache = crate::store::build_kel_cache(home, &identity)?;
-    let (root, device) = trusted(&cache, &obj)?;
+    let (root, device) = cached_kels(&cache, &obj)?;
     local_catalog(home)?
         .replace(&obj, root, device, now())
         .map_err(err)
@@ -202,7 +202,7 @@ fn current_ads(home: &Path) -> Result<(Vec<Advertisement>, Vec<Value>)> {
     let mut ads = Vec::new();
     let mut rejected = Vec::new();
     for obj in local_catalog(home)?.objects(now()).map_err(err)? {
-        match trusted(&cache, &obj)
+        match cached_kels(&cache, &obj)
             .and_then(|(root, device)| catalog::verify(&obj, root, device, now()).map_err(err))
         {
             Ok(mut ad) => {
@@ -459,7 +459,7 @@ pub(super) fn dispatch(
                         .ok_or_else(|| err("active provider advertisement missing"))?;
                     let identity = crate::identity::load(home)?;
                     let cache = crate::store::build_kel_cache(home, &identity)?;
-                    let (root, device) = trusted(&cache, &obj)?;
+                    let (root, device) = cached_kels(&cache, &obj)?;
                     catalog::verify(&obj, root, device, now()).map_err(err)?;
                     let mut f = OpenOptions::new()
                         .write(true)
@@ -532,7 +532,7 @@ struct ObjectHeader {
 fn accept(home: &Path, obj: &Object) -> Result<Advertisement> {
     let identity = crate::identity::load(home)?;
     let cache = crate::store::build_kel_cache(home, &identity)?;
-    let (root, device) = trusted(&cache, obj)?;
+    let (root, device) = cached_kels(&cache, obj)?;
     local_catalog(home)?
         .replace(obj, root, device, now())
         .map_err(err)
@@ -543,7 +543,7 @@ pub(super) fn serve_catalog(home: &Path, b: &mut TcpBearer, c: &mut Channel) -> 
     let mut objects = Vec::new();
     let mut total = 0;
     for obj in local_catalog(home)?.objects(now()).map_err(err)? {
-        if trusted(&cache, &obj)
+        if cached_kels(&cache, &obj)
             .and_then(|(root, device)| catalog::verify(&obj, root, device, now()).map_err(err))
             .is_err()
         {

@@ -22647,7 +22647,7 @@
       "title": "use super::*;"
     },
     {
-      "bytes": 29199,
+      "bytes": 29223,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -22671,14 +22671,14 @@
         "identity",
         "session",
         "contacts",
-        "trusted",
         "header",
         "btreemap",
-        "usize"
+        "usize",
+        "clone"
       ],
       "lines": 741,
       "path": "crates/mini-cli/src/seed/mesh.rs",
-      "sha256": "7f27e9f0d9aed42d493abcb231f133429d3e1375fb47b54d92704f2d83e50784",
+      "sha256": "580fb8744ecec489ccdf7484825073824447eea74cc7d1cd3b1e44be780dad76",
       "symbols": [
         {
           "kind": "mod",
@@ -22728,7 +22728,7 @@
         {
           "kind": "fn",
           "line": 66,
-          "name": "trusted"
+          "name": "cached_kels"
         },
         {
           "kind": "fn",
@@ -23349,7 +23349,7 @@
       "title": "use mini_store::{Backend, FsBackend, Result, StoreError};"
     },
     {
-      "bytes": 9082,
+      "bytes": 9078,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -23380,7 +23380,7 @@
       ],
       "lines": 217,
       "path": "crates/mini-cli/src/store.rs",
-      "sha256": "0c176e383b23386c84e5753bbab165b4208b23da7176a4859839dee917660eb5",
+      "sha256": "21038513974f61b5ff8b361bd512ca037177598328b45ca6257a75ef4b816ef5",
       "symbols": [
         {
           "kind": "fn",
@@ -23425,7 +23425,7 @@
         {
           "kind": "fn",
           "line": 121,
-          "name": "save_trusted_kel"
+          "name": "save_pinned_kel"
         },
         {
           "kind": "fn",
@@ -79975,7 +79975,7 @@
       "title": "use crate::{Check, Outcome, Report};"
     },
     {
-      "bytes": 21828,
+      "bytes": 22158,
       "group": "crate:mini-selftest",
       "headings": [],
       "keywords": [
@@ -80004,9 +80004,9 @@
         "run",
         "process"
       ],
-      "lines": 630,
+      "lines": 636,
       "path": "crates/mini-selftest/src/coverage.rs",
-      "sha256": "ac089a7aebe37752455f19e5314c308dff4018979fbf7804f3eddda3872882f9",
+      "sha256": "25c76233459891ff4148c7972bf7947a10db96887734a40bff2df8227e08077a",
       "symbols": [
         {
           "kind": "enum",
@@ -80045,17 +80045,17 @@
         },
         {
           "kind": "fn",
-          "line": 599,
+          "line": 605,
           "name": "runnable_count"
         },
         {
           "kind": "fn",
-          "line": 607,
+          "line": 613,
           "name": "gaps"
         },
         {
           "kind": "fn",
-          "line": 618,
+          "line": 624,
           "name": "summary"
         }
       ],
