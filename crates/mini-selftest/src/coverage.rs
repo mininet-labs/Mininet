@@ -560,6 +560,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-seed",
+        Coverage::Gap {
+            reason: "owner-controlled public-object seeding needs configured peers, quotas and a paid-fetch counterparty; its pool, catalog and evidence behaviour is covered by crate tests and the seed_network integration suite, not by in-process diagnostics",
+        },
+    ),
+    (
         "mini-mesh",
         Coverage::Gap {
             reason: "a dedup-flood mesh needs several linked peers; single-node behaviour would not show the flooding property at all",

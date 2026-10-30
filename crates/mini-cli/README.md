@@ -202,6 +202,22 @@ context, local search/inspection, shipped diagnostics and explicitly confirmed
 patches. Hosting/fee commands plan from owner inputs without networking or
 payments. See [Resident AI](../../docs/design/resident-ai.md).
 
+Owner-controlled peer seeding is available through `mini seed`: explicit pool
+quotas, selected public-object retention, authenticated serving, live following,
+verified delivery receipts and optional wallet-supplied pending payment claims.
+See [seed network](../../docs/design/seed-network.md) for commands and payout limits.
+
+Seed mesh commands also support explicit contacts, signed expiring catalogues,
+relay/import/export, fallback retrieval, multi-contact following and verified
+literal search of selected public source objects. These remain owner-controlled
+operations; discovered hints never activate endpoints or spending automatically.
+
+Use `seed collection-preview` and `collection-add --confirm` to review and share
+bounded linked history/media collections atomically. `collection-fetch` resumes
+verified graph retrieval within explicit object/byte/attempt windows; `media-export`
+reconstructs digest-verified bytes to a new file. Downloaded graphs are not
+automatically reseeded. See the seed-network runbook for command examples.
+
 
 ### Campaign review evidence
 

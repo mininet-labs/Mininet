@@ -35,6 +35,7 @@ fn usage(s: &str) -> CliError {
 #[derive(Default)]
 struct State {
     address: String,
+    seed_only: bool,
     accepted: u64,
     completed: u64,
     failed: u64,
@@ -43,8 +44,13 @@ struct State {
 impl State {
     fn save(&self, home: &Path) -> Result<()> {
         let text = format!(
-            "mini-sync-service/v1\n{}\n{}\n{}\n{}\n{}\n",
-            self.address, self.accepted, self.completed, self.failed, self.active
+            "mini-sync-service/v1\n{}\n{}\n{}\n{}\n{}\n{}\n",
+            self.address,
+            self.accepted,
+            self.completed,
+            self.failed,
+            self.active,
+            if self.seed_only { "seed" } else { "store" }
         );
         mini_durable::atomic_replace(&home.join("service.state"), text.as_bytes()).map_err(io)
     }
@@ -62,7 +68,7 @@ impl State {
             return Err(usage("service state exceeds limit"));
         }
         let rows: Vec<_> = text.lines().collect();
-        if rows.len() != 6
+        if !(rows.len() == 6 || rows.len() == 7)
             || rows[0] != "mini-sync-service/v1"
             || rows[1].parse::<SocketAddr>().is_err()
         {
@@ -75,6 +81,11 @@ impl State {
         };
         Ok(Self {
             address: rows[1].into(),
+            seed_only: match rows.get(6).copied().unwrap_or("store") {
+                "seed" => true,
+                "store" => false,
+                _ => return Err(usage("invalid service scope")),
+            },
             accepted: number(2)?,
             completed: number(3)?,
             failed: number(4)?,
@@ -101,6 +112,14 @@ impl State {
             JsonValue::num(if running { self.active } else { 0 }),
         )
         .field("endpoint_authenticated", JsonValue::Bool(true))
+        .field(
+            "scope",
+            JsonValue::str(if self.seed_only {
+                "seed-pool"
+            } else {
+                "whole-store"
+            }),
+        )
     }
 }
 fn is_running(home: &Path) -> Result<bool> {
@@ -138,12 +157,14 @@ pub fn dispatch(home: &Path, store: &Path, args: Vec<String>, json: bool) -> Res
             let mut limit = 0u64;
             let mut timeout_ms = 30_000u64;
             let mut acknowledged = false;
+            let mut seed_only = false;
             let mut allowed_peers = Vec::new();
             let mut seen = std::collections::BTreeSet::new();
             let mut i = 1;
             while i < args.len() {
                 let flag = args[i].as_str();
                 if flag != "--allow-peer" && !seen.insert(flag) { return Err(usage("duplicate service flag")); }
+                if flag == "--seed-only" { seed_only = true; i += 1; continue; }
                 if flag == "--allow-store-sharing" { acknowledged = true; i += 1; continue; }
                 let value = args.get(i + 1).ok_or_else(|| usage("missing service flag value"))?;
                 match flag {
@@ -159,11 +180,12 @@ pub fn dispatch(home: &Path, store: &Path, args: Vec<String>, json: bool) -> Res
                 }
                 i += 2;
             }
-            if !acknowledged { return Err(usage("service run requires --allow-store-sharing: all stored objects are offered to allowed peers")); }
+            if acknowledged && seed_only { return Err(usage("choose seed-only or whole-store sharing, not both")); }
+            if !acknowledged && !seed_only { return Err(usage("service run requires --allow-store-sharing: all stored objects are offered to allowed peers")); }
             if !(50..=300_000).contains(&timeout_ms) { return Err(usage("idle-timeout-ms must be 50..300000")); }
             if allowed_peers.is_empty() { return Err(usage("service requires at least one --allow-peer DID")); }
             let addr: SocketAddr = address.parse().map_err(|_| usage("service requires a numeric IP:port"))?;
-            run(home, store, addr, limit, Duration::from_millis(timeout_ms), allowed_peers)?
+            run(home, store, addr, limit, Duration::from_millis(timeout_ms), allowed_peers, seed_only)?
         }
         _ => return Err(usage("service run [--addr <ip:port>] --allow-store-sharing --allow-peer DID [--max-connections N] [--idle-timeout-ms N] | status | stop")),
     };
@@ -177,6 +199,7 @@ fn run(
     limit: u64,
     idle: Duration,
     allowed_peers: Vec<did_mini::Did>,
+    seed_only: bool,
 ) -> Result<CommandResult> {
     crate::identity::load(home)?;
     // Serialize startup with stop/status so an acknowledged stop cannot be
@@ -189,6 +212,7 @@ fn run(
     listener.set_nonblocking(true).map_err(io)?;
     let mut state = State {
         address: listener.local_addr().map_err(io)?.to_string(),
+        seed_only,
         ..State::default()
     };
     {
@@ -273,28 +297,41 @@ fn run(
                             let task = thread::Builder::new().name("mini-sync-peer".into()).spawn(
                                 move || {
                                     let mut admitted = None;
-                                    let result = crate::sync::serve_stream(
-                                        &home,
-                                        &store,
-                                        stream,
-                                        &allowed_peers,
-                                        |peer| {
-                                            let mut active = active_peers
-                                                .lock()
-                                                .map_err(|_| usage("admission lock poisoned"))?;
-                                            if active.len() >= MAX_WORKERS
-                                                || active.contains(peer.as_str())
-                                            {
-                                                return Err(usage(
-                                                    "authenticated peer capacity reached",
-                                                ));
-                                            }
-                                            active.insert(peer.as_str().to_string());
-                                            admitted = Some(peer.as_str().to_string());
-                                            phase.store(true, Ordering::Release);
-                                            Ok(())
-                                        },
-                                    );
+                                    // Seed and whole-store sessions share one bounded,
+                                    // per-peer admission rule and cleanup path.
+                                    let admit = |peer: &did_mini::Did| -> Result<()> {
+                                        let mut active = active_peers
+                                            .lock()
+                                            .map_err(|_| usage("admission lock poisoned"))?;
+                                        if active.len() >= MAX_WORKERS
+                                            || active.contains(peer.as_str())
+                                        {
+                                            return Err(usage(
+                                                "authenticated peer capacity reached",
+                                            ));
+                                        }
+                                        active.insert(peer.as_str().to_string());
+                                        admitted = Some(peer.as_str().to_string());
+                                        phase.store(true, Ordering::Release);
+                                        Ok(())
+                                    };
+                                    let result = if seed_only {
+                                        crate::seed::serve_stream(
+                                            &home,
+                                            stream,
+                                            &allowed_peers,
+                                            admit,
+                                        )
+                                    } else {
+                                        crate::sync::serve_stream(
+                                            &home,
+                                            &store,
+                                            stream,
+                                            &allowed_peers,
+                                            admit,
+                                        )
+                                        .map(|_| ())
+                                    };
                                     if let Some(peer) = admitted {
                                         if let Ok(mut active) = active_peers.lock() {
                                             active.remove(&peer);

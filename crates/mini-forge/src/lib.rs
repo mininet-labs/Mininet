@@ -46,6 +46,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod collection;
+pub use collection::{source_dependencies, SourceNodeKind};
 mod coordination;
 mod git_export;
 mod git_import;

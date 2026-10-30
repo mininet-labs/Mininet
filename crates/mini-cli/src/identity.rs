@@ -20,6 +20,7 @@ use zeroize::Zeroizing;
 use did_mini::{Capabilities, Controller, Did};
 use mini_crypto::SigningKey;
 
+use crate::json::{CommandResult, JsonValue};
 use crate::CliError;
 
 const SEED_FILE_LEN: usize = 64; // current_seed(32) || next_seed(32)
@@ -201,34 +202,82 @@ pub fn load_or_init(home: &Path) -> Result<Identity, CliError> {
 
 /// `mini identity init`
 pub fn cmd_init(home: &Path) -> Result<String, CliError> {
+    cmd_init_result(home).map(|result| result.human)
+}
+
+pub(crate) fn cmd_init_result(home: &Path) -> Result<CommandResult, CliError> {
     let identity = init(home)?;
-    Ok(format!(
+    let human = format!(
         "identity created\n  human:  {}\n  device: {}",
         identity.human_did().as_str(),
         identity.device_did().as_str()
-    ))
+    );
+    Ok(identity_result(&identity, human, "created"))
 }
 
-/// `mini identity show`
+/// `mini identity show` loads an existing profile and never initializes one.
 pub fn cmd_show(home: &Path) -> Result<String, CliError> {
+    cmd_show_result(home).map(|result| result.human)
+}
+
+pub(crate) fn cmd_show_result(home: &Path) -> Result<CommandResult, CliError> {
     let identity = load(home)?;
-    Ok(format!(
+    let human = format!(
         "human:  {}\ndevice: {}",
         identity.human_did().as_str(),
         identity.device_did().as_str()
-    ))
+    );
+    Ok(identity_result(&identity, human, "initialized"))
+}
+fn identity_result(identity: &Identity, human: String, state: &str) -> CommandResult {
+    CommandResult::new(human).field(
+        "result",
+        JsonValue::Object(vec![
+            (
+                "human_did".into(),
+                JsonValue::str(identity.human_did().as_str()),
+            ),
+            (
+                "device_did".into(),
+                JsonValue::str(identity.device_did().as_str()),
+            ),
+            (state.into(), JsonValue::Bool(true)),
+        ]),
+    )
 }
 
 /// `mini kel export` — print this home's human **and** device KELs as
 /// hex, for another `mini` home to `mini kel trust` (see
-/// `crate::store::trust_kel`). Both are required: provenance verification
+/// `crate::store::cmd_trust_kel`). Both are required: provenance verification
 /// (`mini_objects::verify_provenance`) checks the signing device's
 /// delegation against the root's KEL *and* needs the device's own KEL to
 /// verify the device's signature itself -- trusting only the human root's
 /// KEL is not enough to verify anything that root's device ever signed.
 pub fn cmd_export_kel(home: &Path) -> Result<String, CliError> {
+    cmd_export_kel_result(home).map(|result| result.human)
+}
+pub(crate) fn cmd_export_kel_result(home: &Path) -> Result<CommandResult, CliError> {
     let identity = load(home)?;
-    Ok(hex_encode(&bundle_kels(&identity)))
+    let bytes = bundle_kels(&identity);
+    let hex = hex_encode(&bytes);
+    Ok(CommandResult::new(hex.clone()).field(
+        "result",
+        JsonValue::Object(vec![
+            (
+                "human_did".into(),
+                JsonValue::str(identity.human_did().as_str()),
+            ),
+            (
+                "device_did".into(),
+                JsonValue::str(identity.device_did().as_str()),
+            ),
+            (
+                "bundle_id".into(),
+                JsonValue::str(blake3::hash(&bytes).to_hex().to_string()),
+            ),
+            ("hex".into(), JsonValue::str(hex)),
+        ]),
+    ))
 }
 
 fn bundle_kels(identity: &Identity) -> Vec<u8> {
@@ -280,13 +329,20 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 pub(crate) fn hex_decode(s: &str) -> Result<Vec<u8>, CliError> {
     if s.len() % 2 != 0 {
-        return Err(CliError::Usage("hex input has odd length".to_string()));
+        return Err(CliError::Usage("hex input has odd length".into()));
     }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&s[i..i + 2], 16)
-                .map_err(|_| CliError::Usage("invalid hex".to_string()))
+    let digit = |b: u8| match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    };
+    s.as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let high = digit(pair[0]).ok_or_else(|| CliError::Usage("invalid hex".into()))?;
+            let low = digit(pair[1]).ok_or_else(|| CliError::Usage("invalid hex".into()))?;
+            Ok(high * 16 + low)
         })
         .collect()
 }

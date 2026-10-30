@@ -320,7 +320,7 @@ const SESSION_AAD: &[u8] = b"MINI/FORGE-SESSION2";
 const SESSION_TYPE: &str = "mini/forge-session-v2";
 const MAX_SESSION_PROOF: usize = 16 * 1024;
 
-fn session_transcript(hello: &[u8], response: &[u8]) -> [u8; 32] {
+pub(crate) fn session_transcript(hello: &[u8], response: &[u8]) -> [u8; 32] {
     let mut data = b"mini/forge-session/transcript/v2\0".to_vec();
     data.extend_from_slice(&(hello.len() as u32).to_be_bytes());
     data.extend_from_slice(hello);
@@ -335,7 +335,7 @@ fn proof_payload(transcript: &[u8; 32], role: u8, audience: &did_mini::Did) -> V
     payload.extend_from_slice(audience.as_str().as_bytes());
     payload
 }
-fn send_session_proof(
+pub(crate) fn send_session_proof(
     bearer: &mut TcpBearer,
     channel: &mut mini_bearer::Channel,
     identity: &crate::identity::Identity,
@@ -357,7 +357,7 @@ fn send_session_proof(
         .send(&frame)
         .map_err(|e| CliError::Sync(e.to_string()))
 }
-fn receive_session_proof(
+pub(crate) fn receive_session_proof(
     bearer: &mut TcpBearer,
     channel: &mut mini_bearer::Channel,
     home: &Path,
