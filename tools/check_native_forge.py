@@ -20,7 +20,7 @@ import tomllib
 CLI_TESTS = [
     "git_bridge", "git_history", "native_forge_review", "native_remotes",
     "native_service", "two_developers", "network_sync", "cli_json_output",
-    "network_sync_release", "resident_commands", "seed_network",
+    "network_sync_release", "resident_commands", "native_workspace_review", "seed_network",
 ]
 
 
