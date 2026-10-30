@@ -2088,6 +2088,9 @@ impl MininetApp {
                         }
                         self.app_last_event_id = Some(event.event_id);
                         match event.kind {
+                            ServiceEventKind::DeliveryChanged(_) => {
+                                // Durable status is fetched explicitly; this event carries no source bytes.
+                            }
                             ServiceEventKind::RootCreated { .. } => self.request_core_status(),
                             ServiceEventKind::IdentityChanged { unlocked } => {
                                 if let Some(status) = self.app_status.as_mut() {

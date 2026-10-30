@@ -3213,3 +3213,13 @@ use compare-and-save in the desktop to reject competing checkpoint replacement,
 and expose stale replacement/current-source comparison for explicitly acknowledged
 manual repair. Recovery loads only an unstaged editor draft with the accepted
 current baseline; it never silently rebases, stages, applies or restores approval.
+## Proposed integrated runtime delivery slice
+
+Draft PR #379 extends the existing application core with a bounded durable
+public-post outbox, persistent peer authorization, authenticated exact-object
+delivery, verified-storage acknowledgments, retry/cancellation state and idle
+service scheduling. Networking stays default off and requires an unlocked
+identity; queued bytes survive locked restarts. This is a reachable numeric-TCP
+profile, not NAT traversal, a private messenger, calling, or whole-product beta
+certification. See `docs/design/durable-public-delivery.md` and the journey-level
+acceptance register in `docs/planning/integrated-beta-delivery.md`.
