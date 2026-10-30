@@ -31,7 +31,7 @@ fn parse_pair(code: &str) -> Result<Pair, String> {
         .and_then(|s| s.split_once(':'))
         .ok_or("Invalid public pairing code")?;
     fn decode(text: &str) -> Result<Vec<u8>, String> {
-        if text.is_empty() || text.len() > MAX_DELIVERY_KEL_BYTES * 2 || text.len() % 2 != 0 {
+        if text.is_empty() || text.len() > MAX_DELIVERY_KEL_BYTES * 2 || !text.len().is_multiple_of(2) {
             return Err("Invalid public record length".into());
         }
         text.as_bytes()
@@ -458,7 +458,7 @@ fn delivery_row(ui: &mut egui::Ui, delivery: &DeliveryView) -> Option<Command> {
                     .map(|duration| duration.as_millis().min(u128::from(u64::MAX)) as u64)
                     .unwrap_or(0);
                 let remaining = delivery.next_attempt_ms.saturating_sub(now);
-                let seconds = remaining / 1000 + u64::from(remaining % 1000 != 0);
+                let seconds = remaining / 1000 + u64::from(!remaining.is_multiple_of(1000));
                 if seconds == 0 {
                     ui.label("Retry is due when networking is enabled and identity is unlocked");
                 } else {

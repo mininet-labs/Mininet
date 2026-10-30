@@ -19,6 +19,9 @@ mini-messaging	direct	core-service	Messages	W1	Current shared-key beta remains l
 mini-social	direct	core-service	Home People Communities	W1	User-selected feeds and portable moderation; no paid influence over governance
 mini-media	direct	core-service	Media Library Creator	W1	Chunked local-first media with explicit bandwidth/seeding policy
 mini-forge	none	forge-service	Forge	W4	Separate governance/build service; must not acquire a dependency path into wallet/value code
+mini-beta	none	forge-service	Forge	W4	Open-Beta campaign/finding/contribution coordination objects; resettable test currency only, code-level walled from mini-value/mini-treasury/mini-chain/mini-forge governance authority
+mini-beta-exec	none	forge-service	Forge	W4	Durable/replicated execution for resettable Beta MINI test value; not production settlement, shares mini-beta's process boundary and value/governance wall
+mini-beta-grants	none	forge-service	Forge	W4	Campaign-scoped multi-party Beta MINI grant acceptance evidence; no production value or governance authority
 mini-bootstrap	none	core-service	Setup and recovery	W4	Offline bootstrap transport must be real before claiming no-internet recovery
 mini-update	none	setup-tool	Updates	W1	Evaluation is read-only; activation always requires explicit owner approval for an exact release
 mini-chain	none	node-service	Node	W6	Testnet/full-node mode only until consensus/value external gates are satisfied
@@ -45,7 +48,7 @@ mini-build-runner-wasmtime	none	worker	Forge	W4	Spawn sandboxed worker on demand
 mini-installer	none	platform-excluded	Setup	W7	Legacy POSIX installer is intentionally not part of the Windows runtime
 mini-privacy-policy	none	core-service	Privacy	W1	One policy engine gates privacy-sensitive routes before network work starts
 mini-transport-policy	none	core-service	Connections and Privacy	W2	Enable only mechanisms that actually exist and expose cost/privacy trade-offs
-mini-transport-security	none	core-service	Connections	W2	Authenticated peer binding must be proven over real channels, not inferred from TCP reachability
+mini-transport-security	direct	core-service	Connections	W2	Authenticated peer binding must be proven over real channels, not inferred from TCP reachability
 mini-resource-pricing	none	node-service	Earnings	W2	Quotes/service pricing only; must not create governance weight or hidden paid ranking
 mini-relay	none	node-service	Connections	W2	Replaceable opt-in relay operators; disappearance must cost convenience only
 mini-bridge	none	node-service	Connections	W2	Optional anti-censorship entry path; requires real bridge operator tests
@@ -89,3 +92,5 @@ mini-storage-fraud	none	node-service	Storage and Earnings	W2	Needs multi-holder 
 mini-shielded-verify	none	node-service	Node and Wallet	W6	Verify against canonical ledger view; running-chain gate applies
 mini-mesh	none	node-service	Connections	W2	Multi-peer dedup flooding requires real linked-peer tests and bounded resource policy
 mini-safety	none	core-service	Safety	W1	Viewer-local block/mute state only; never removes content from the network or denies access; community lists are explicit one-time import, never auto-subscribe
+mini-resident	direct	core-service	Resident AI	W3	Owner-granted context and reviewed patches; local model configuration and explicit consequential-action consent required
+mini-seed	none	node-service	Storage and Node	W2	Owner-controlled public-object seeding with explicit quotas; payment claims stay owner-supplied and unaudited until the value gates close

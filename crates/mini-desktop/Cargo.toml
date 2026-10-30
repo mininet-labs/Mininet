@@ -3,7 +3,8 @@ name = "mini-desktop"
 version = "0.0.1"
 description = "Sovereignty-first Windows desktop reference client shell for Mininet."
 edition.workspace = true
-rust-version.workspace = true
+# File::try_lock/unlock are the process-exclusion boundary (stable in 1.89).
+rust-version = "1.89"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -14,16 +15,20 @@ name = "mininet-desktop"
 path = "src/main.rs"
 
 [dependencies]
+serde_json = "1"
 # Keep the renderer explicit: no persistence, webbrowser, web screen reader,
 # or optional platform integration is pulled into the reference shell.
 eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
+mini-resident = { path = "../mini-resident" }
 mini-app-protocol = { path = "../mini-app-protocol" }
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }
 mini-messaging = { path = "../mini-messaging" }
 mini-bearer = { path = "../mini-bearer" }
+mini-transport-security = { path = "../mini-transport-security" }
+zeroize = "1"
 mini-sync = { path = "../mini-sync" }
 mini-ticket = { path = "../mini-ticket" }
 mini-crypto = { path = "../mini-crypto" }

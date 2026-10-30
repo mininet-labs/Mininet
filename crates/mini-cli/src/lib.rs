@@ -20,15 +20,20 @@
 //! the encrypted channel while preserving the out-of-process Wasmtime runner
 //! boundary and treating every worker result as untrusted evidence.
 //!
+//! Git snapshot migration and export mirrors (`git`), safe snapshot workspaces
+//! (`repo commit --workspace`), structured exact-head reviews (`pr --json`),
+//! and saved peer endpoints (`remote`) provide the native developer workflow.
+//! See `docs/design/native-forge-migration.md` for the supported boundary.
+//!
 //! ## Honest limits
 //!
 //! - No key rotation from the CLI yet (`crate::identity`'s module docs).
-//! - No daemon (`mini-devd`): every invocation is a fresh process reading
-//!   local files: acceptable for solo/small-group use, not for background
-//!   sync or live event subscriptions. `mini sync` handles exactly one
-//!   connection per invocation, then exits (`crate::sync`'s module docs).
-//!   Native release serving is likewise one request per invocation; it is not
-//!   a persistent update service.
+//! - `mini service run` now hosts authenticated native synchronization with
+//!   bounded workers; it is an owner-invoked foreground process suitable for
+//!   supervision. Legacy `mini sync` remains bounded per invocation. There
+//!   is no local daemon IPC/event-subscription API or automatic discovery.
+//!   Native release serving remains one request per invocation; source sync
+//!   never becomes a persistent forced-update service.
 //! - The per-home sequence counter (`crate::sequence`) serializes concurrent
 //!   invocations with an OS-backed lock, but other files in a home are not a
 //!   general transaction boundary.
@@ -39,10 +44,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod beta;
 mod build;
 mod cli;
 mod coordination;
 mod error;
+mod git;
 pub mod identity;
 mod installer;
 mod intake;
@@ -53,9 +60,13 @@ mod pr;
 mod project;
 mod provenance;
 mod release;
+mod remote;
 mod repo;
+mod resident;
+mod seed;
 mod selftest;
 mod sequence;
+mod service;
 pub mod store;
 mod sync;
 mod windows;

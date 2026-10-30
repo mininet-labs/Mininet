@@ -17,6 +17,9 @@ const OBJECTS_BYTE_BUDGET: usize = 4 * 1024 * 1024;
 /// Maximum KEL carriers processed in one pull (identity-cache DoS bound).
 const PULL_KEL_CARRIER_BUDGET: usize = 512;
 const MAX_WANT_ROUNDS: usize = 1024;
+const PAGED_MAX_IDS: usize = 65_536;
+const PAGED_MAX_ID_BYTES: usize = 8 * 1024 * 1024;
+const PAGED_PULL_BYTES: usize = 64 * 1024 * 1024;
 /// A targeted release retrieval is one bounded exchange, not a general
 /// replication session. The selector in `mini-forge` uses the same ceiling.
 const MAX_RETRIEVAL_OBJECTS: usize = 4096;
@@ -32,8 +35,10 @@ pub enum SyncRole {
 }
 
 /// What one sync ingested (this peer's own pull).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IngestReport {
+    /// False when a bounded window leaves work for a subsequent sync.
+    pub complete: bool,
     /// Objects received over the wire.
     pub received: usize,
     /// Content objects verified and inserted.
@@ -48,6 +53,20 @@ pub struct IngestReport {
     pub invalid: usize,
     /// Dropped without decoding: the peer sent objects we never asked for.
     pub unsolicited: usize,
+}
+
+impl Default for IngestReport {
+    fn default() -> Self {
+        Self {
+            complete: true,
+            received: 0,
+            accepted: 0,
+            carriers: 0,
+            unknown_author: 0,
+            invalid: 0,
+            unsolicited: 0,
+        }
+    }
 }
 
 /// Result of one exact retrieval request.
@@ -123,15 +142,46 @@ pub fn sync_bidirectional<B: Backend>(
     cache: &mut KelCache,
     role: SyncRole,
 ) -> Result<IngestReport> {
+    sync_mode(bearer, chan, store, cache, role, false, PULL_BYTE_BUDGET)
+}
+
+/// Versioned paged reconciliation for mutually authenticated forge sessions.
+/// Both peers must explicitly select this API; legacy MINI/SYNC1 is unchanged.
+/// Inventories use bounded flow-controlled pages. Only missing IDs consume
+/// the 65536-ID / 8MiB work window, so later sessions advance past known IDs.
+/// At most 64MiB of object bytes transfer per pull. WindowDone persists a
+/// verified subset with complete=false; subsequent syncs resume missing IDs.
+/// An individual object larger than the byte window returns an error.
+pub fn sync_bidirectional_paged<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &mut Store<B>,
+    cache: &mut KelCache,
+    role: SyncRole,
+) -> Result<IngestReport> {
+    sync_mode(bearer, chan, store, cache, role, true, PAGED_PULL_BYTES)
+}
+
+fn sync_mode<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &mut Store<B>,
+    cache: &mut KelCache,
+    role: SyncRole,
+    paged: bool,
+    window_bytes: usize,
+) -> Result<IngestReport> {
     match role {
         SyncRole::Initiator => {
-            let report = pull(bearer, chan, store, cache)?;
-            serve_pull(bearer, chan, store)?;
+            let mut report = pull(bearer, chan, store, cache, paged, window_bytes)?;
+            report.complete &= serve_pull_mode(bearer, chan, store, paged, window_bytes)?;
             Ok(report)
         }
         SyncRole::Responder => {
-            serve_pull(bearer, chan, store)?;
-            pull(bearer, chan, store, cache)
+            let sent_complete = serve_pull_mode(bearer, chan, store, paged, window_bytes)?;
+            let mut report = pull(bearer, chan, store, cache, paged, window_bytes)?;
+            report.complete &= sent_complete;
+            Ok(report)
         }
     }
 }
@@ -143,6 +193,8 @@ fn pull<B: Backend>(
     chan: &mut Channel,
     store: &mut Store<B>,
     cache: &mut KelCache,
+    paged: bool,
+    window_bytes: usize,
 ) -> Result<IngestReport> {
     let report = IngestReport::default();
     let my_ids = sorted_ids(store)?;
@@ -161,9 +213,49 @@ fn pull<B: Backend>(
         .collect();
     send(bearer, chan, &Msg::NeedBuckets(need))?;
 
-    let offered = match recv(bearer, chan)? {
-        Msg::Ids(ids) => ids,
-        _ => return Err(SyncError::Protocol),
+    let mut inventory_partial = false;
+    let offered = if paged {
+        let mut ids = Vec::new();
+        let mut unique = std::collections::BTreeSet::new();
+        let mut id_bytes = 0usize;
+        loop {
+            match recv(bearer, chan)? {
+                Msg::Done => break,
+                Msg::Ids(page) if !page.is_empty() => {
+                    for id in page {
+                        let oid = ObjectId::parse(&id)?;
+                        // Keep only missing IDs. Already-held inventory never
+                        // consumes the next session's bounded work window.
+                        if !store.contains(&oid)? {
+                            id_bytes = id_bytes
+                                .checked_add(id.len())
+                                .ok_or(SyncError::LimitExceeded)?;
+                            if ids.len() < PAGED_MAX_IDS && id_bytes <= PAGED_MAX_ID_BYTES {
+                                if !unique.insert(id.clone()) {
+                                    return Err(SyncError::Protocol);
+                                }
+                                ids.push(id);
+                            } else {
+                                inventory_partial = true;
+                            }
+                        }
+                    }
+                    let more = ids.len() < PAGED_MAX_IDS && id_bytes < PAGED_MAX_ID_BYTES;
+                    send(bearer, chan, &Msg::InventoryMore(more))?;
+                }
+                Msg::WindowDone => {
+                    inventory_partial = true;
+                    break;
+                }
+                _ => return Err(SyncError::Protocol),
+            }
+        }
+        ids
+    } else {
+        match recv(bearer, chan)? {
+            Msg::Ids(ids) => ids,
+            _ => return Err(SyncError::Protocol),
+        }
     };
     // Everything offered that we lack, structurally validated.
     let mut wants: Vec<String> = Vec::new();
@@ -178,10 +270,13 @@ fn pull<B: Backend>(
     // peer can cost us at most what we asked for, and never more than
     // PULL_BYTE_BUDGET bytes total.
     let mut received_bytes: Vec<Vec<u8>> = Vec::new();
-    let mut budget = PULL_BYTE_BUDGET;
+    let mut budget = window_bytes;
+    let mut partial = false;
+    let mut received_ids = std::collections::BTreeSet::new();
+    let wanted_ids: std::collections::BTreeSet<&str> = wants.iter().map(String::as_str).collect();
     let mut rounds = 0usize;
     let mut cursor = 0usize;
-    loop {
+    'wants: loop {
         rounds += 1;
         if rounds > MAX_WANT_ROUNDS {
             return Err(SyncError::LimitExceeded);
@@ -199,9 +294,23 @@ fn pull<B: Backend>(
         // Objects batches for this want, terminated by an empty batch.
         loop {
             match recv(bearer, chan)? {
+                Msg::WindowDone if paged => {
+                    partial = true;
+                    break 'wants;
+                }
                 Msg::Objects(objs) if objs.is_empty() => break,
                 Msg::Objects(objs) => {
                     for o in objs {
+                        if paged {
+                            if received_ids.len() >= PAGED_MAX_IDS {
+                                return Err(SyncError::LimitExceeded);
+                            }
+                            let object = Object::from_bytes(&o)?;
+                            let id = object.id().as_str().to_string();
+                            if !wanted_ids.contains(id.as_str()) || !received_ids.insert(id) {
+                                return Err(SyncError::Protocol);
+                            }
+                        }
                         budget = budget
                             .checked_sub(o.len())
                             .ok_or(SyncError::LimitExceeded)?;
@@ -213,7 +322,19 @@ fn pull<B: Backend>(
         }
     }
 
-    ingest_objects(store, cache, received_bytes, &wants)
+    if paged && !partial && received_ids.len() != wants.len() {
+        return Err(SyncError::RetrievalIncomplete);
+    }
+    let mut report = ingest_objects(store, cache, received_bytes, &wants)?;
+    if paged {
+        report.complete = !partial && !inventory_partial;
+        for id in &wants {
+            if !store.contains(&ObjectId::parse(id)?)? {
+                report.complete = false;
+            }
+        }
+    }
+    Ok(report)
 }
 
 /// Decode and ingest one bounded set of received object bytes. This is shared
@@ -232,11 +353,13 @@ fn ingest_objects<B: Backend>(
 
     // Two-pass verified ingest: decode all, DROP anything we never asked for,
     // absorb carriers first, then verify and insert content.
+    let requested: std::collections::BTreeSet<&str> =
+        requested_ids.iter().map(String::as_str).collect();
     let mut decoded: Vec<Object> = Vec::new();
     for bytes in &received_bytes {
         match Object::from_bytes(bytes) {
             Ok(o) => {
-                if requested_ids.iter().any(|w| w == o.id().as_str()) {
+                if requested.contains(o.id().as_str()) {
                     decoded.push(o);
                 } else {
                     report.unsolicited += 1;
@@ -308,6 +431,15 @@ pub fn serve_pull<B: Backend>(
     chan: &mut Channel,
     store: &mut Store<B>,
 ) -> Result<()> {
+    serve_pull_mode(bearer, chan, store, false, PULL_BYTE_BUDGET).map(|_| ())
+}
+fn serve_pull_mode<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &mut Store<B>,
+    paged: bool,
+    window_bytes: usize,
+) -> Result<bool> {
     let my_ids = sorted_ids(store)?;
     let client_root = match recv(bearer, chan)? {
         Msg::RootDigest(d) => d,
@@ -315,7 +447,7 @@ pub fn serve_pull<B: Backend>(
     };
     if client_root == digest_of(&my_ids) {
         send(bearer, chan, &Msg::Done)?;
-        return Ok(());
+        return Ok(true);
     }
     send(bearer, chan, &Msg::BucketDigests(bucket_digests(&my_ids)))?;
 
@@ -323,12 +455,47 @@ pub fn serve_pull<B: Backend>(
         Msg::NeedBuckets(n) => n,
         _ => return Err(SyncError::Protocol),
     };
-    let offered: Vec<String> = my_ids
+    let mut offered: Vec<String> = my_ids
         .iter()
         .filter(|id| need.contains(&bucket_of(id)))
         .cloned()
         .collect();
-    send(bearer, chan, &Msg::Ids(offered))?;
+    let mut inventory_complete = true;
+    if paged {
+        // Identity carriers must precede bounded content windows so valid
+        // unknown-author history cannot indefinitely starve its own KELs.
+        let carrier_ids = store.by_type(&ObjectType::Custom(crate::KEL_CARRIER.into()))?;
+        let carriers: std::collections::BTreeSet<&str> =
+            carrier_ids.iter().map(ObjectId::as_str).collect();
+        offered.sort_by_key(|id| !carriers.contains(id.as_str()));
+        for (index, page) in offered.chunks(WANT_BATCH).enumerate() {
+            send(bearer, chan, &Msg::Ids(page.to_vec()))?;
+            match recv(bearer, chan)? {
+                Msg::InventoryMore(true) => {}
+                Msg::InventoryMore(false) => {
+                    inventory_complete = (index + 1) * WANT_BATCH >= offered.len();
+                    break;
+                }
+                _ => return Err(SyncError::Protocol),
+            }
+        }
+        send(
+            bearer,
+            chan,
+            &if inventory_complete {
+                Msg::Done
+            } else {
+                Msg::WindowDone
+            },
+        )?;
+    } else {
+        send(bearer, chan, &Msg::Ids(offered.clone()))?;
+    }
+    let offered_set: std::collections::BTreeSet<&str> =
+        offered.iter().map(String::as_str).collect();
+    let mut sent_budget = window_bytes;
+    let mut sent_objects = 0usize;
+    let mut requested = std::collections::BTreeSet::new();
 
     let mut rounds = 0usize;
     loop {
@@ -342,17 +509,34 @@ pub fn serve_pull<B: Backend>(
         };
         if want.is_empty() {
             send(bearer, chan, &Msg::Done)?;
-            return Ok(());
+            return Ok(inventory_complete);
         }
         let mut batch: Vec<Vec<u8>> = Vec::new();
         let mut batch_bytes = 0usize;
         for id in &want {
+            if paged && (!offered_set.contains(id.as_str()) || !requested.insert(id.clone())) {
+                return Err(SyncError::Protocol);
+            }
             let oid = ObjectId::parse(id)?;
             let obj = match store.get(&oid) {
                 Ok(o) => o,
                 Err(_) => continue, // we never claimed it after all
             };
             let bytes = obj.to_bytes();
+            if paged {
+                if bytes.len() > sent_budget {
+                    if sent_objects == 0 {
+                        return Err(SyncError::LimitExceeded);
+                    }
+                    if !batch.is_empty() {
+                        send(bearer, chan, &Msg::Objects(batch))?;
+                    }
+                    send(bearer, chan, &Msg::WindowDone)?;
+                    return Ok(false);
+                }
+                sent_budget -= bytes.len();
+                sent_objects += 1;
+            }
             if !batch.is_empty() && batch_bytes + bytes.len() > OBJECTS_BYTE_BUDGET {
                 send(bearer, chan, &Msg::Objects(std::mem::take(&mut batch)))?;
                 batch_bytes = 0;
@@ -523,4 +707,204 @@ fn has_duplicate_strings(values: &[String]) -> bool {
         .iter()
         .enumerate()
         .any(|(index, value)| values[..index].iter().any(|previous| previous == value))
+}
+
+#[cfg(test)]
+mod paged_tests {
+    use super::*;
+    use mini_bearer::{pair, Initiator, Responder};
+    use mini_store::MemoryBackend;
+
+    #[test]
+    fn paged_offer_rejects_duplicate_ids_across_pages() {
+        let (mut client, mut server) = pair();
+        let (init, hello) = Initiator::start().unwrap();
+        let (mut server_channel, response) = Responder::respond(&hello).unwrap();
+        let mut client_channel = init.finish(&response).unwrap();
+        let task = std::thread::spawn(move || {
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::RootDigest(_)
+            ));
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::BucketDigests(vec![(1, [1; 32])]),
+            )
+            .unwrap();
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::NeedBuckets(_)
+            ));
+            let hash = mini_crypto::Multihash::of(HashAlgorithm::Blake3, b"same-offer");
+            let id =
+                mini_crypto::encoding::encode(mini_crypto::encoding::BASE58BTC, &hash.to_bytes())
+                    .unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Ids(vec![id.clone()]),
+            )
+            .unwrap();
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::InventoryMore(true)
+            ));
+            send(&mut server, &mut server_channel, &Msg::Ids(vec![id])).unwrap();
+        });
+        let result = pull(
+            &mut client,
+            &mut client_channel,
+            &mut Store::new(MemoryBackend::new()),
+            &mut KelCache::new(),
+            true,
+            PAGED_PULL_BYTES,
+        );
+        assert!(matches!(result, Err(SyncError::Protocol)));
+        task.join().unwrap();
+    }
+
+    #[test]
+    fn paged_inventory_skips_more_than_65536_already_present_ids() {
+        use mini_store::Backend;
+        let mut backend = MemoryBackend::new();
+        let mut ids = Vec::new();
+        for n in 0..(PAGED_MAX_IDS + 1) {
+            let hash = mini_crypto::Multihash::of(HashAlgorithm::Blake3, &n.to_be_bytes());
+            let id =
+                mini_crypto::encoding::encode(mini_crypto::encoding::BASE58BTC, &hash.to_bytes())
+                    .unwrap();
+            // Inventory needs only membership; no bytes are requested/ingested.
+            backend.put_blob(&id, b"already held").unwrap();
+            ids.push(id);
+        }
+        let (mut client, mut server) = pair();
+        let (init, hello) = Initiator::start().unwrap();
+        let (mut server_channel, response) = Responder::respond(&hello).unwrap();
+        let mut client_channel = init.finish(&response).unwrap();
+        let task = std::thread::spawn(move || {
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::RootDigest(_)
+            ));
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::BucketDigests(vec![(1, [1; 32])]),
+            )
+            .unwrap();
+            assert!(matches!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::NeedBuckets(_)
+            ));
+            for page in ids.chunks(WANT_BATCH) {
+                send(&mut server, &mut server_channel, &Msg::Ids(page.to_vec())).unwrap();
+                assert_eq!(
+                    recv(&mut server, &mut server_channel).unwrap(),
+                    Msg::InventoryMore(true)
+                );
+            }
+            send(&mut server, &mut server_channel, &Msg::Done).unwrap();
+            assert_eq!(
+                recv(&mut server, &mut server_channel).unwrap(),
+                Msg::Want(vec![])
+            );
+            send(&mut server, &mut server_channel, &Msg::Done).unwrap();
+        });
+        let report = pull(
+            &mut client,
+            &mut client_channel,
+            &mut Store::new(backend),
+            &mut KelCache::new(),
+            true,
+            PAGED_PULL_BYTES,
+        )
+        .unwrap();
+        assert!(report.complete);
+        assert_eq!(report.received, 0);
+        task.join().unwrap();
+    }
+
+    #[test]
+    fn paged_windows_persist_verified_progress_and_resume_to_completion() {
+        use did_mini::{Capabilities, Controller};
+        use mini_objects::{ObjectBuilder, Payload};
+        let mut root = Controller::incept_single_from_seeds(&[11; 32], &[12; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[13; 32], &[14; 32]).unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        let mut server_store = Store::new(MemoryBackend::new());
+        let mut server_cache = KelCache::new();
+        server_cache.insert_verified(root.kel());
+        server_cache.insert_verified(device.kel());
+        let carriers = [
+            crate::kel_carrier(&root.kel(), &root.did(), &device).unwrap(),
+            crate::kel_carrier(&device.kel(), &root.did(), &device).unwrap(),
+        ];
+        let carrier_bytes: usize = carriers.iter().map(|c| c.to_bytes().len()).sum();
+        for carrier in &carriers {
+            server_store.insert(carrier).unwrap();
+        }
+        let mut post_bytes = 0;
+        for n in 0..2 {
+            let post = ObjectBuilder::new(ObjectType::POST)
+                .sequence(n)
+                .payload(Payload::Public(vec![n as u8; 4096]))
+                .sign(&root.did(), &device)
+                .unwrap();
+            post_bytes = post.to_bytes().len();
+            server_store.insert(&post).unwrap();
+        }
+        let window = carrier_bytes + post_bytes;
+        let mut client_store = Store::new(MemoryBackend::new());
+        let mut client_cache = KelCache::new();
+        let mut encounter = || {
+            let (mut client, mut server) = pair();
+            let (init, hello) = Initiator::start().unwrap();
+            let (mut server_channel, response) = Responder::respond(&hello).unwrap();
+            let mut client_channel = init.finish(&response).unwrap();
+            std::thread::scope(|scope| {
+                let server_store = &mut server_store;
+                let server_cache = &mut server_cache;
+                let task = scope.spawn(move || {
+                    sync_mode(
+                        &mut server,
+                        &mut server_channel,
+                        server_store,
+                        server_cache,
+                        SyncRole::Responder,
+                        true,
+                        window,
+                    )
+                    .unwrap()
+                });
+                let report = sync_mode(
+                    &mut client,
+                    &mut client_channel,
+                    &mut client_store,
+                    &mut client_cache,
+                    SyncRole::Initiator,
+                    true,
+                    window,
+                )
+                .unwrap();
+                (report, task.join().unwrap())
+            })
+        };
+        let (first, first_server) = encounter();
+        assert!(!first.complete);
+        assert!(!first_server.complete);
+        assert_eq!(first.accepted, 1);
+        assert_eq!(first.carriers, 2);
+        assert_eq!(first.unknown_author, 0);
+        let (second, second_server) = encounter();
+        assert!(second.complete);
+        assert!(second_server.complete);
+        assert_eq!(second.accepted, 1);
+        let (third, _) = encounter();
+        assert!(third.complete);
+        assert_eq!(third.received, 0);
+        assert_eq!(client_store.all_ids().unwrap().len(), 4);
+    }
 }

@@ -182,6 +182,24 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         Coverage::Exercised { area: "forge" },
     ),
     (
+        "mini-beta",
+        Coverage::Gap {
+            reason: "resettable, test-domain-only Open Beta coordination and Beta MINI ledger, code-level walled from production value/governance; its own campaign/finding/contribution/grant round-trip tests already cover this, a diagnostic would only repeat them",
+        },
+    ),
+    (
+        "mini-beta-exec",
+        Coverage::Gap {
+            reason: "durable/replicated execution for the same resettable test currency; covered by its own crash-recovery and replication tests, not by this in-process diagnostics suite",
+        },
+    ),
+    (
+        "mini-beta-grants",
+        Coverage::Gap {
+            reason: "campaign-scoped multi-party Beta MINI grant acceptance evidence; covered by its own acceptance/duplicate-rejection tests",
+        },
+    ),
+    (
         "mini-bootstrap",
         Coverage::Gap {
             reason: "genesis capsules are a first-run network-formation step; a client that already has an identity has nothing meaningful to bootstrap from",
@@ -398,6 +416,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-resident",
+        Coverage::Gap {
+            reason: "owner-controlled AI context and patch workflows are covered by crate tests; diagnostics do not invoke a model or mutate source code",
+        },
+    ),
+    (
         "mini-app-service",
         Coverage::Gap {
             reason: "the per-user application-service process itself; identity/profile/post/feed flow, restart-idempotent publication, and single-instance refusal are covered by its own in-crate and cross-process tests, not by this in-process diagnostics suite",
@@ -533,6 +557,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         "mini-shielded-verify",
         Coverage::Gap {
             reason: "verifies shielded spends against a canonical ledger view, which needs a running chain",
+        },
+    ),
+    (
+        "mini-seed",
+        Coverage::Gap {
+            reason: "owner-controlled public-object seeding needs configured peers, quotas and a paid-fetch counterparty; its pool, catalog and evidence behaviour is covered by crate tests and the seed_network integration suite, not by in-process diagnostics",
         },
     ),
     (

@@ -2729,6 +2729,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-beta"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
+name = "mini-beta-exec"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "did-mini",
+ "mini-beta",
+ "mini-beta-grants",
+ "mini-objects",
+ "mini-store",
+ "rand_core 0.6.4",
+ "tempfile",
+]
+
+[[package]]
+name = "mini-beta-grants"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-beta",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-bootstrap"
 version = "0.0.1"
 dependencies = [
@@ -2788,6 +2821,7 @@ dependencies = [
  "did-mini",
  "fs4",
  "mini-bearer",
+ "mini-beta",
  "mini-build-runner-wasmtime",
  "mini-crypto",
  "mini-durable",
@@ -2803,11 +2837,18 @@ dependencies = [
  "mini-pipeline-protocol",
  "mini-presence",
  "mini-provenance",
+ "mini-resident",
+ "mini-seed",
  "mini-selftest",
+ "mini-settlement",
+ "mini-storage",
  "mini-store",
  "mini-sync",
  "mini-windows-setup",
+ "serde",
+ "serde_json",
  "tempfile",
+ "zeroize",
 ]
 
 [[package]]
@@ -2928,17 +2969,21 @@ dependencies = [
  "mini-media",
  "mini-messaging",
  "mini-objects",
+ "mini-resident",
  "mini-selftest",
  "mini-social",
  "mini-store",
  "mini-sync",
  "mini-ticket",
+ "mini-transport-security",
  "mini-windows-setup",
  "mini-windows-vault",
  "mp4",
  "openh264",
  "rodio",
+ "serde_json",
  "symphonia",
+ "zeroize",
 ]
 
 [[package]]
@@ -3289,6 +3334,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-resident"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "mini-durable",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "mini-resource-pricing"
 version = "0.0.1"
 dependencies = [
@@ -3343,6 +3399,18 @@ dependencies = [
  "mini-sync",
  "mini-transport-security",
  "mini-web-types",
+]
+
+[[package]]
+name = "mini-seed"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-durable",
+ "mini-objects",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

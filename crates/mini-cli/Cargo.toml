@@ -14,10 +14,18 @@ name = "mini"
 path = "src/main.rs"
 
 [dependencies]
+mini-seed = { path = "../mini-seed" }
+mini-storage = { path = "../mini-storage" }
+mini-settlement = { path = "../mini-settlement" }
+serde = { version = "1", features = ["derive"] }
+mini-resident = { path = "../mini-resident" }
+serde_json = "1"
+zeroize = "1"
 mini-durable = { path = "../mini-durable" }
 blake3 = "1"
 did-mini = { path = "../did-mini" }
 fs4 = { version = "1.1.0", features = ["sync"] }
+mini-beta = { path = "../mini-beta" }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-forge = { path = "../mini-forge" }

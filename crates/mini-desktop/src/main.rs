@@ -22,6 +22,13 @@ mod player;
 mod profile_editor;
 mod profile_photo;
 mod public_delivery;
+mod resident;
+mod seed_panel;
+mod seed_runtime;
+
+mod resident_patch;
+
+mod private_relationship;
 mod theme;
 mod timeline;
 mod video;
@@ -77,6 +84,8 @@ enum View {
     Library,
     Earnings,
     System,
+    ResidentAI,
+    SeedNetwork,
     Diagnostics,
     Updates,
     Privacy,
@@ -251,6 +260,8 @@ impl Default for PrivacyState {
 
 struct MininetApp {
     workspace: Option<Workspace>,
+    resident: resident::Panel,
+    seed_panel: seed_panel::Panel,
     app_service: Option<app_service::Client>,
     public_delivery: public_delivery::PublicDeliveryPanel,
     app_status: Option<AccountStatus>,
@@ -1031,6 +1042,41 @@ impl Workspace {
         Ok(self.conversations.len() - 1)
     }
 
+    /// Explicit owner-selected authenticated pairing entry point. Ordinary
+    /// root-DID connection cards remain unable to invoke this operation.
+    #[allow(dead_code)]
+    fn pair_private<B: mini_bearer::Bearer>(
+        &mut self,
+        connection: &mut mini_transport_security::AuthenticatedConnection<B>,
+        expected_peer: &Did,
+        initiator: bool,
+    ) -> Result<Did, String> {
+        let identity = self.identity.as_ref().ok_or("identity is locked")?;
+        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
+        let mut relationships =
+            private_relationship::Relationships::open(vault, identity.root.did())?;
+        relationships.pair(
+            connection,
+            &identity.root,
+            &identity.device,
+            expected_peer,
+            initiator,
+            now_ms(),
+        )
+    }
+
+    /// Only a target committed by authenticated confidential pairing may be
+    /// followed; absent state never recreates or re-delegates a pseudonym.
+    #[allow(dead_code)] // reachable once an authenticated pairing UI exists
+    fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
+        let identity = self.identity.as_ref().ok_or("identity is locked")?;
+        let vault = private_relationship::FileVault::open(self.root.join("relationships.dpapi"))?;
+        let mut relationships =
+            private_relationship::Relationships::open(vault, identity.root.did())?;
+        relationships.follow(&mut self.store, target_pseudonym, true, now_ms())?;
+        Ok(())
+    }
+
     fn send_private_message(&mut self, index: usize, body: &str) -> Result<(), String> {
         let identity = self
             .identity
@@ -1460,6 +1506,8 @@ impl Default for MininetApp {
             }
         };
         Self {
+            resident: resident::Panel::default(),
+            seed_panel: seed_panel::Panel::default(),
             workspace,
             app_service,
             public_delivery: public_delivery::PublicDeliveryPanel::default(),
@@ -1728,6 +1776,18 @@ fn fresh_follow_endpoint(
 
 impl eframe::App for MininetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.resident.poll_edits();
+        if self.resident.edit_in_progress() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            if ctx.input(|i| i.viewport().close_requested()) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            }
+        }
+        if ctx.input(|i| i.viewport().close_requested()) && self.resident.request_close() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.view = View::ResidentAI;
+        }
+        self.resident.close_dialog(ctx);
         if !self.theme_applied {
             theme::apply(ctx);
             self.theme_applied = true;
@@ -1862,6 +1922,8 @@ impl eframe::App for MininetApp {
                             View::Library => self.library(ui),
                             View::Earnings => self.earnings(ui),
                             View::System => self.system(ui),
+                            View::SeedNetwork => self.seed_panel.ui(ui),
+                            View::ResidentAI => self.resident.ui(ui, &resident::config_home()),
                             View::Diagnostics => self.diagnostics(ui),
                             View::Updates => self.updates(ui),
                             View::Privacy => self.privacy(ui),
@@ -3152,6 +3214,8 @@ impl MininetApp {
                 self.nav_button(ui, View::Connections, "🔗", "Connections");
                 self.nav_button(ui, View::Library, "📋", "Library");
                 self.nav_button(ui, View::Earnings, "💰", "Earnings");
+                self.nav_button(ui, View::SeedNetwork, "◈", "Seed network");
+                self.nav_button(ui, View::ResidentAI, "✦", "Resident AI");
                 self.nav_button(ui, View::System, "🖥", "System & storage");
                 ui.add_space(12.0);
                 ui.separator();
@@ -4882,6 +4946,8 @@ No tracking. No forced updates.",
 
     fn header(&self, ui: &mut egui::Ui) {
         let (title, subtitle) = match self.view {
+            View::SeedNetwork => ("Seed network", "Owner-controlled public collections, verified search and explicit peer hosting."),
+            View::ResidentAI => ("Resident AI", "Owner-controlled local assistance. Preview the context you choose to share."),
             View::Onboarding => (
                 "Welcome to Mininet",
                 "Create your local root, then publish the public profile you choose to share.",
@@ -5339,6 +5405,13 @@ No tracking. No forced updates.",
                     .hint_text("mininet-peer-v1;endpoint=…;did=…;name=…")
                     .desired_rows(2)
                     .desired_width(f32::INFINITY),
+            );
+            ui.add_enabled(
+                false,
+                theme::secondary_button("Add peer and follow privately"),
+            )
+            .on_hover_text(
+                "Private following requires an authenticated pairwise identity. Ordinary connection cards cannot establish one.",
             );
             if ui.add(theme::primary_button("Add peer and follow")).clicked() {
                 match connectivity::ConnectionCard::decode(&self.card_input) {
@@ -9722,6 +9795,71 @@ shot at dusk",
         assert_eq!(local.len(), 1, "fetched post is searchable locally");
 
         std::fs::remove_dir_all(test_root).unwrap();
+    }
+
+    /// The incomplete client identity lifecycle must never publish a FOLLOW.
+    #[test]
+    fn follow_privately_fails_closed_without_pseudonym_state() {
+        use super::{now_ms, DesktopIdentity, Workspace};
+        use mini_social::{derive_relationship_pseudonym, following};
+        use mini_store::FsBackend;
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-private-follow-{}-{}",
+            std::process::id(),
+            now_ms()
+        ));
+
+        let alice_root = Controller::incept_single_from_seeds(&[30; 32], &[31; 32]).unwrap();
+        let alice_root_did = alice_root.did();
+        let alice_device =
+            Controller::incept_device_single_from_seeds(&alice_root_did, &[32; 32], &[33; 32])
+                .unwrap();
+        let bob_root = Controller::incept_single_from_seeds(&[40; 32], &[41; 32]).unwrap();
+        // Bob's own pseudonym for his relationship with Alice: Alice learns
+        // this out of band (a `verify_relationship_linkage` exchange, out of
+        // scope for this test), not from the object store.
+        let bob_pseudonym_for_alice =
+            derive_relationship_pseudonym(&bob_root, &alice_root_did).unwrap();
+        let bob_pseudonym_for_alice_did = bob_pseudonym_for_alice.did();
+
+        // Alice's own relationship pseudonym for this counterpart, computed
+        // independently to check what the workspace call actually published
+        // — derived before `alice_root` moves into the workspace below.
+        let alice_pseudonym_for_bob =
+            derive_relationship_pseudonym(&alice_root, &bob_pseudonym_for_alice_did).unwrap();
+        let alice_pseudonym_for_bob_did = alice_pseudonym_for_bob.did();
+
+        let mut workspace = Workspace {
+            store: Store::new(FsBackend::open(&test_root).unwrap()),
+            identity: Some(DesktopIdentity {
+                root: alice_root,
+                device: alice_device,
+            }),
+            human: Some(alice_root_did.clone()),
+            root: test_root.clone(),
+            sequence: 0,
+            conversations: Vec::new(),
+        };
+
+        let error = workspace
+            .follow_privately(&bob_pseudonym_for_alice_did)
+            .unwrap_err();
+        assert!(error.contains("durable pseudonym/device state"));
+        assert_eq!(workspace.sequence, 0);
+        assert!(workspace
+            .store
+            .by_type(&mini_objects::ObjectType::FOLLOW)
+            .unwrap()
+            .is_empty());
+        assert!(following(&workspace.store, &alice_root_did)
+            .unwrap()
+            .is_empty());
+        assert!(following(&workspace.store, &alice_pseudonym_for_bob_did)
+            .unwrap()
+            .is_empty());
+
+        std::fs::remove_dir_all(&test_root).unwrap();
     }
 }
 

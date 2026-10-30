@@ -9,12 +9,17 @@ resolver = "2"
 exclude = ["vendor/askama_derive"]
 members = [
     "crates/mini-durable",
+    "crates/mini-resident",
+    "crates/mini-seed",
     "crates/mini-crypto",
     "crates/did-mini",
     "crates/mini-witness-service",
     "crates/mini-bearer",
     "crates/mini-presence",
     "crates/mini-reward",
+    "crates/mini-beta",
+    "crates/mini-beta-grants",
+    "crates/mini-beta-exec",
     "crates/mini-keystone",
     "crates/mini-ffi",
     "crates/mini-objects",
