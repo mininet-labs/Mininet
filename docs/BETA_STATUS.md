@@ -163,8 +163,10 @@ be silently linked merely to manufacture reputation continuity.
   stored) from the unlocked root seed and a random per-account nonce, with its
   KEL carriers published for verified sync, so public BETA objects carry no primary
   DID. The list of owned accounts is local state (registration receipts), so a
-  profile restored from the seed alone does not see its old accounts. *Not yet done:* the `mini beta` CLI still signs BETA objects with the CLI
-  identity (tracked separately).
+  profile restored from the seed alone does not see its old accounts. The `mini beta` CLI works the same way: accounts
+  and transfers are signed by per-account identities derived from the CLI root
+  seed and a random nonce (`beta-accounts/` markers hold the local owned-account
+  list), never by the CLI's primary DID.
 - [x] Persist/replicate beta grant/transfer events rather than relying only on
   the reference in-memory accounting core. Balances are derived from the
   durable signed-object set (`mini-beta-exec`), so any replica that holds the

@@ -190,6 +190,24 @@ pub fn load(home: &Path) -> Result<Identity, CliError> {
     Ok(Identity { human, device })
 }
 
+/// The human root's current signing seed, for deriving unlinkable
+/// purpose-specific identities (BETA accounts). The caller must not retain it
+/// beyond one derivation and never print it.
+pub(crate) fn human_root_seed(home: &Path) -> Result<Zeroizing<[u8; 32]>, CliError> {
+    if !home.exists() {
+        return Err(CliError::NotInitialized);
+    }
+    if home.is_symlink() {
+        return Err(CliError::Identity(
+            "identity home must not be a symlink".into(),
+        ));
+    }
+    let _identity_lock = mini_durable::lock_exclusive(&home.join("identity.lock"))
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    let (current, _next) = read_seed_file(&human_seed_path(home))?;
+    Ok(current)
+}
+
 /// Load the identity at `home` if one exists, otherwise create one —
 /// the convenience path most commands want.
 pub fn load_or_init(home: &Path) -> Result<Identity, CliError> {

@@ -11,9 +11,9 @@ use std::path::Path;
 use did_mini::Did;
 use mini_beta::{BetaAccountId, BetaEpochId, BetaMiniPolicy, MICRO_BETA_MINI_PER_BETA_MINI};
 use mini_beta_exec::{
-    create_account_registration, create_transfer, derive_account_id,
-    parse_account_registration_object, resolve_snapshot, BetaOutputRef, BetaSnapshot,
-    BetaTransferOutput, EpochIssuancePolicy, BETA_ACCOUNT_TYPE,
+    create_account_registration, create_transfer, parse_account_registration_object,
+    resolve_snapshot, BetaOutputRef, BetaSnapshot, BetaTransferOutput, EpochIssuancePolicy,
+    BETA_ACCOUNT_TYPE, MAX_TRANSFER_INPUTS,
 };
 use mini_crypto::random_32;
 use mini_objects::{ObjectId, ObjectType};
@@ -22,13 +22,12 @@ use mini_store::{Backend, Store};
 use crate::beta::{
     extract_flag, extract_flag_multi, hex, parse_hex32, parse_id, reject_remaining, required_flag,
 };
+use crate::beta_identity;
 use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
-use crate::sequence;
 use crate::store::open_store;
 
 const MAX_AUTHORIZED_CAMPAIGNS: usize = 64;
-const MAX_TRANSFER_INPUTS: usize = 256;
 const LABEL: &str = "BETA test value (not production MINI; no conversion; provisional)";
 
 /// Route `mini beta <noun> <sub>`; returns the JSON `kind` and the outcome.
@@ -109,13 +108,21 @@ fn issuance_policy(
     Ok(EpochIssuancePolicy::new(epoch, &ids))
 }
 
-/// Registrations of `owner` in `epoch`, as `(registration id, account)`.
+/// This home's registered accounts in `epoch`, as `(registration id, account)`:
+/// the accounts whose per-account identity this home can re-derive.
 fn owned_accounts<B: Backend>(
+    home: &Path,
     store: &Store<B>,
-    owner: &Did,
     epoch: BetaEpochId,
 ) -> Result<Vec<(ObjectId, BetaAccountId)>> {
+    let mine: std::collections::HashMap<[u8; 32], Did> = beta_identity::owned(home, epoch)?
+        .into_iter()
+        .map(|identity| (identity.nonce, identity.owner()))
+        .collect();
     let mut owned = Vec::new();
+    if mine.is_empty() {
+        return Ok(owned);
+    }
     for id in store
         .by_type(&ObjectType::Custom(BETA_ACCOUNT_TYPE.to_string()))
         .map_err(store_err)?
@@ -124,7 +131,8 @@ fn owned_accounts<B: Backend>(
         let Ok(registration) = parse_account_registration_object(&object) else {
             continue;
         };
-        if registration.epoch == epoch && &registration.owner == owner {
+        if registration.epoch == epoch && mine.get(&registration.nonce) == Some(&registration.owner)
+        {
             owned.push((id, registration.account));
         }
     }
@@ -201,19 +209,24 @@ fn warnings(snapshot: &BetaSnapshot) -> String {
 pub fn account_new(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<CommandResult> {
     let epoch = epoch_arg(&mut args, "beta account new")?;
     reject_remaining(args, "beta account new")?;
-    let identity = crate::identity::load_or_init(home)?;
-    let owner = identity.human_did();
+    // Ensure the primary identity exists (it holds the seed everything derives from).
+    crate::identity::load_or_init(home)?;
     let nonce = random_32().map_err(|e| CliError::Identity(format!("entropy: {e}")))?;
-    let account = derive_account_id(epoch, &owner, nonce).map_err(exec_err)?;
+    let account_identity = beta_identity::derive(home, epoch, nonce)?;
+    let account = account_identity.account;
     let mut store = open_store(store_path)?;
+    let _guard = beta_identity::lock(home)?;
+    beta_identity::record(home, epoch, &nonce)?;
+    beta_identity::publish_kels(&account_identity, &mut store)?;
+    let sequence = beta_identity::next_sequence(&store, &account_identity.owner())?;
     let object = create_account_registration(
         &mut store,
-        &owner,
-        &identity.device,
+        &account_identity.owner(),
+        &account_identity.device,
         epoch,
         nonce,
-        sequence::now_ms(),
-        sequence::next(home, store_path)?,
+        crate::sequence::now_ms(),
+        sequence,
     )
     .map_err(exec_err)?;
     Ok(CommandResult::new(format!(
@@ -236,9 +249,9 @@ pub fn account_list(
 ) -> Result<CommandResult> {
     let epoch = epoch_arg(&mut args, "beta account list")?;
     reject_remaining(args, "beta account list")?;
-    let identity = crate::identity::load_or_init(home)?;
+    crate::identity::load_or_init(home)?;
     let store = open_store(store_path)?;
-    let owned = owned_accounts(&store, &identity.human_did(), epoch)?;
+    let owned = owned_accounts(home, &store, epoch)?;
     let human = if owned.is_empty() {
         format!("{LABEL}\nno BETA accounts registered by this identity in this epoch")
     } else {
@@ -290,13 +303,13 @@ pub fn wallet_balance(
         })
         .transpose()?;
     reject_remaining(args, context)?;
-    let identity = crate::identity::load_or_init(home)?;
+    crate::identity::load_or_init(home)?;
     let store = open_store(store_path)?;
     let snapshot = resolve_snapshot(&store, epoch, BetaMiniPolicy::open_beta_default(), &policy)
         .map_err(exec_err)?;
     let accounts: Vec<BetaAccountId> = match single {
         Some(account) => vec![account],
-        None => owned_accounts(&store, &identity.human_did(), epoch)?
+        None => owned_accounts(home, &store, epoch)?
             .into_iter()
             .map(|(_, account)| account)
             .collect(),
@@ -362,17 +375,16 @@ pub fn transfer_send(
             "{context}: --amount must be positive"
         )));
     }
-    let identity = crate::identity::load_or_init(home)?;
-    let owner = identity.human_did();
+    crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
-    if !owned_accounts(&store, &owner, epoch)?
-        .iter()
-        .any(|(_, account)| *account == from)
-    {
-        return Err(CliError::Usage(format!(
-            "{context}: --from is not a BETA account registered by this identity in this epoch"
-        )));
-    }
+    let sender = beta_identity::owned(home, epoch)?
+        .into_iter()
+        .find(|identity| identity.account == from)
+        .ok_or_else(|| {
+            CliError::Usage(format!(
+                "{context}: --from is not a BETA account registered by this identity in this epoch"
+            ))
+        })?;
     if !account_is_registered(&store, &to, epoch)? {
         return Err(CliError::Usage(format!(
             "{context}: --to is not a registered BETA account in this epoch (the recipient must register first and share the account id)"
@@ -435,17 +447,20 @@ pub fn transfer_send(
             amount: change,
         });
     }
+    let _guard = beta_identity::lock(home)?;
+    beta_identity::publish_kels(&sender, &mut store)?;
+    let sequence = beta_identity::next_sequence(&store, &sender.owner())?;
     let object = create_transfer(
         &mut store,
-        &owner,
-        &identity.device,
+        &sender.owner(),
+        &sender.device,
         epoch,
         from,
         &inputs,
         &outputs,
         &memo,
-        sequence::now_ms(),
-        sequence::next(home, store_path)?,
+        crate::sequence::now_ms(),
+        sequence,
     )
     .map_err(exec_err)?;
     Ok(CommandResult::new(format!(

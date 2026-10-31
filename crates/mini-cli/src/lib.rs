@@ -46,6 +46,7 @@
 
 mod beta;
 mod beta_grants;
+mod beta_identity;
 mod beta_wallet;
 mod build;
 mod cli;

@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1259,
+    "files": 1260,
     "headings": 4248,
-    "rust_symbols": 14899
+    "rust_symbols": 14906
   },
   "crates": {
     "askama_derive": {
@@ -20600,38 +20600,105 @@
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 17201,
+      "bytes": 6578,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "home",
+        "nonce",
+        "clierror",
+        "map_err",
+        "epoch",
+        "to_string",
+        "info",
+        "account",
+        "beta",
+        "did",
+        "path",
+        "dir",
+        "human",
+        "name",
+        "identity_err",
+        "identity",
+        "accountidentity",
+        "device",
+        "seed",
+        "controller",
+        "error",
+        "result",
+        "part",
+        "entry"
+      ],
+      "lines": 169,
+      "path": "crates/mini-cli/src/beta_identity.rs",
+      "sha256": "0be67c2236bd9129f01bb0b82da3d706b4d8cb9a1404379187a6bb5e86328735",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "INFO"
+        },
+        {
+          "kind": "const",
+          "line": 27,
+          "name": "MAX_MARKERS"
+        },
+        {
+          "kind": "impl",
+          "line": 37,
+          "name": "AccountIdentity"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "owner"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "dir"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "identity_err"
+        }
+      ],
+      "title": "use std::fs;"
+    },
+    {
+      "bytes": 17943,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "beta",
         "store",
-        "epoch",
         "args",
+        "epoch",
         "clierror",
+        "home",
         "str",
-        "account",
         "error",
         "result",
         "vec",
         "format",
         "context",
-        "betaepochid",
         "new",
         "campaigns",
+        "account",
         "wallet",
-        "betaaccountid",
-        "home",
+        "path",
+        "betaepochid",
         "string",
-        "registration",
         "max_authorized_campaigns",
         "beta_core_err",
         "store_err",
-        "value"
+        "value",
+        "betaaccountid"
       ],
-      "lines": 466,
+      "lines": 481,
       "path": "crates/mini-cli/src/beta_wallet.rs",
-      "sha256": "4a887578a0b17042ee4b9403701958ecfa6f20911498f5451f737fa29a71b70a",
+      "sha256": "80605d2ea7986f988e9c5e37c1fa06fd4332fe762e24e050adb8dc241f7e99e6",
       "symbols": [
         {
           "kind": "const",
@@ -20641,51 +20708,46 @@
         {
           "kind": "const",
           "line": 31,
-          "name": "MAX_TRANSFER_INPUTS"
-        },
-        {
-          "kind": "const",
-          "line": 32,
           "name": "LABEL"
         },
         {
           "kind": "fn",
-          "line": 35,
+          "line": 34,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 56,
+          "line": 55,
           "name": "exec_err"
         },
         {
           "kind": "fn",
-          "line": 60,
+          "line": 59,
           "name": "beta_core_err"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 63,
           "name": "store_err"
         },
         {
           "kind": "fn",
-          "line": 69,
+          "line": 68,
           "name": "format_beta"
         },
         {
           "kind": "fn",
-          "line": 77,
+          "line": 76,
           "name": "epoch_arg"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 81,
           "name": "account_arg"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 88,
           "name": "issuance_policy"
         },
         {
@@ -20695,37 +20757,37 @@
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 143,
           "name": "account_is_registered"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 162,
           "name": "snapshot_fields"
         },
         {
           "kind": "fn",
-          "line": 179,
+          "line": 187,
           "name": "warnings"
         },
         {
           "kind": "fn",
-          "line": 201,
+          "line": 209,
           "name": "account_new"
         },
         {
           "kind": "fn",
-          "line": 232,
+          "line": 245,
           "name": "account_list"
         },
         {
           "kind": "fn",
-          "line": 278,
+          "line": 291,
           "name": "wallet_balance"
         },
         {
           "kind": "fn",
-          "line": 345,
+          "line": 358,
           "name": "transfer_send"
         }
       ],
@@ -21642,7 +21704,7 @@
       "title": "use std::collections::{BTreeMap, BTreeSet, VecDeque};"
     },
     {
-      "bytes": 16902,
+      "bytes": 17620,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21671,9 +21733,9 @@
         "err",
         "controller"
       ],
-      "lines": 483,
+      "lines": 501,
       "path": "crates/mini-cli/src/identity.rs",
-      "sha256": "e84ddf15299b53df596dda941664cba416f866654b83325759f3a5b82af61398",
+      "sha256": "61d88b7574c3d024c047c4c83561eb87b5a0688126670f94d70c9a75a2b9a44d",
       "symbols": [
         {
           "kind": "const",
@@ -21737,87 +21799,87 @@
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 213,
           "name": "load_or_init"
         },
         {
           "kind": "fn",
-          "line": 204,
+          "line": 222,
           "name": "cmd_init"
         },
         {
           "kind": "fn",
-          "line": 219,
+          "line": 237,
           "name": "cmd_show"
         },
         {
           "kind": "fn",
-          "line": 232,
+          "line": 250,
           "name": "identity_result"
         },
         {
           "kind": "fn",
-          "line": 256,
+          "line": 274,
           "name": "cmd_export_kel"
         },
         {
           "kind": "fn",
-          "line": 283,
+          "line": 301,
           "name": "bundle_kels"
         },
         {
           "kind": "fn",
-          "line": 320,
+          "line": 338,
           "name": "hex_encode"
         },
         {
           "kind": "fn",
-          "line": 350,
+          "line": 368,
           "name": "fresh_seed_pair"
         },
         {
           "kind": "mod",
-          "line": 360,
+          "line": 378,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 364,
+          "line": 382,
           "name": "init_then_load_reconstructs_the_identical_identity"
         },
         {
           "kind": "fn",
-          "line": 385,
+          "line": 403,
           "name": "init_twice_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 392,
+          "line": 410,
           "name": "loading_before_init_fails"
         },
         {
           "kind": "fn",
-          "line": 398,
+          "line": 416,
           "name": "two_homes_get_different_identities"
         },
         {
           "kind": "fn",
-          "line": 407,
+          "line": 425,
           "name": "partial_initialization_never_overwrites_an_existing_device"
         },
         {
           "kind": "fn",
-          "line": 427,
+          "line": 445,
           "name": "secret_files_are_private_and_links_or_widened_permissions_are_refused"
         },
         {
           "kind": "fn",
-          "line": 449,
+          "line": 467,
           "name": "concurrent_initializers_publish_only_one_identity"
         },
         {
           "kind": "fn",
-          "line": 470,
+          "line": 488,
           "name": "tempdir"
         }
       ],
@@ -22332,7 +22394,7 @@
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 4723,
+      "bytes": 4742,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -22361,9 +22423,9 @@
         "two",
         "commit"
       ],
-      "lines": 122,
+      "lines": 123,
       "path": "crates/mini-cli/src/lib.rs",
-      "sha256": "9a37d7075118863c421ee0d1c39c2b6d430f59c07e0f7eb4f48cc2723814cb80",
+      "sha256": "5652a333aaca01b81ac4a447ccbd8d4463ceef8708b4d7f1f5759de43cc07dd7",
       "symbols": [
         {
           "kind": "mod",
@@ -22378,141 +22440,146 @@
         {
           "kind": "mod",
           "line": 49,
-          "name": "beta_wallet"
+          "name": "beta_identity"
         },
         {
           "kind": "mod",
           "line": 50,
-          "name": "build"
+          "name": "beta_wallet"
         },
         {
           "kind": "mod",
           "line": 51,
-          "name": "cli"
+          "name": "build"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "coordination"
+          "name": "cli"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "error"
+          "name": "coordination"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "git"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "identity"
+          "name": "git"
         },
         {
           "kind": "mod",
           "line": 56,
-          "name": "installer"
+          "name": "identity"
         },
         {
           "kind": "mod",
           "line": 57,
-          "name": "intake"
+          "name": "installer"
         },
         {
           "kind": "mod",
           "line": 58,
-          "name": "json"
+          "name": "intake"
         },
         {
           "kind": "mod",
           "line": 59,
-          "name": "keystone"
+          "name": "json"
         },
         {
           "kind": "mod",
           "line": 60,
-          "name": "maintenance"
+          "name": "keystone"
         },
         {
           "kind": "mod",
           "line": 61,
-          "name": "pr"
+          "name": "maintenance"
         },
         {
           "kind": "mod",
           "line": 62,
-          "name": "project"
+          "name": "pr"
         },
         {
           "kind": "mod",
           "line": 63,
-          "name": "provenance"
+          "name": "project"
         },
         {
           "kind": "mod",
           "line": 64,
-          "name": "release"
+          "name": "provenance"
         },
         {
           "kind": "mod",
           "line": 65,
-          "name": "remote"
+          "name": "release"
         },
         {
           "kind": "mod",
           "line": 66,
-          "name": "repo"
+          "name": "remote"
         },
         {
           "kind": "mod",
           "line": 67,
-          "name": "resident"
+          "name": "repo"
         },
         {
           "kind": "mod",
           "line": 68,
-          "name": "seed"
+          "name": "resident"
         },
         {
           "kind": "mod",
           "line": 69,
-          "name": "selftest"
+          "name": "seed"
         },
         {
           "kind": "mod",
           "line": 70,
-          "name": "sequence"
+          "name": "selftest"
         },
         {
           "kind": "mod",
           "line": 71,
-          "name": "service"
+          "name": "sequence"
         },
         {
           "kind": "mod",
           "line": 72,
-          "name": "store"
+          "name": "service"
         },
         {
           "kind": "mod",
           "line": 73,
-          "name": "sync"
+          "name": "store"
         },
         {
           "kind": "mod",
           "line": 74,
+          "name": "sync"
+        },
+        {
+          "kind": "mod",
+          "line": 75,
           "name": "windows"
         },
         {
           "kind": "fn",
-          "line": 88,
+          "line": 89,
           "name": "json_error_envelope"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 97,
           "name": "command_kind"
         }
       ],
@@ -25621,7 +25688,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 15540,
+      "bytes": 17048,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25650,9 +25717,9 @@
         "panic",
         "iter"
       ],
-      "lines": 587,
+      "lines": 631,
       "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
-      "sha256": "08ad448e0c6860678793b7477641e9ad96d6c5cc3cf2ed480f5f86124114939e",
+      "sha256": "7f96e2362200ff406696f84e4d6f54e515774fb53256ae29a3a15e79540492e0",
       "symbols": [
         {
           "kind": "const",
@@ -25733,6 +25800,11 @@
           "kind": "fn",
           "line": 497,
           "name": "epoch_rollover_retires_old_value_and_carries_nothing_forward"
+        },
+        {
+          "kind": "fn",
+          "line": 589,
+          "name": "beta_objects_are_signed_by_per_account_identities_not_the_primary_did"
         }
       ],
       "title": "use std::path::PathBuf;"
@@ -110788,7 +110860,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 11332,
+      "bytes": 11475,
       "group": "docs",
       "headings": [
         {
@@ -110853,22 +110925,22 @@
         },
         {
           "level": 3,
-          "line": 177,
+          "line": 179,
           "text": "Forge canonicality"
         },
         {
           "level": 3,
-          "line": 190,
+          "line": 192,
           "text": "Substantive production safety gates"
         },
         {
           "level": 2,
-          "line": 201,
+          "line": 203,
           "text": "Build and test"
         },
         {
           "level": 2,
-          "line": 228,
+          "line": 230,
           "text": "Overall readiness statement"
         }
       ],
@@ -110898,9 +110970,9 @@
         "target",
         "what"
       ],
-      "lines": 236,
+      "lines": 238,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "c7312dcfce65d12f9214a6946f3339a086e3d2b82d4b8e5e5e4dca75009bfe55",
+      "sha256": "7423a40afeb1900d778c437e36d90c9dc61b6c4866a34c01b5508bde24746e3a",
       "symbols": [],
       "title": "Open Beta status"
     },
