@@ -2,7 +2,7 @@
   "counts": {
     "crates": 93,
     "files": 1255,
-    "headings": 4241,
+    "headings": 4243,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135573,44 +135573,49 @@
       "title": "{"
     },
     {
-      "bytes": 1904,
+      "bytes": 2410,
       "group": "root",
       "headings": [
         {
           "level": 1,
           "line": 1,
           "text": "Mininet Lab"
+        },
+        {
+          "level": 2,
+          "line": 24,
+          "text": "Trust model (read before using `sudo`)"
         }
       ],
       "keywords": [
         "lab",
-        "proves",
+        "sudo",
         "ci-local",
+        "runs",
+        "netlab",
+        "root",
+        "proves",
         "beta",
         "windows",
-        "wine",
-        "agent",
-        "what",
-        "xvfb",
-        "doctor",
-        "machine",
-        "quick",
-        "check",
-        "job",
-        "audit",
-        "android",
         "windows-test",
-        "runs",
-        "network",
-        "drill",
-        "sudo",
-        "netlab",
+        "wine",
         "outage-drill",
-        "real"
+        "gui",
+        "checkout",
+        "run",
+        "trust",
+        "model",
+        "read",
+        "using",
+        "disposable",
+        "agent",
+        "everything",
+        "script",
+        "what"
       ],
-      "lines": 23,
+      "lines": 32,
       "path": "lab/README.md",
-      "sha256": "51ba28dd1322502145ecb3bad02702f5893ff6923e2a50827c00cffe99dfb1aa",
+      "sha256": "191ece889d082b3aaf64abf2445a7327c5c6e14d0d059cb32aeeb5e523aad705",
       "symbols": [],
       "title": "Mininet Lab"
     },
@@ -135850,58 +135855,64 @@
       "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
     },
     {
-      "bytes": 3595,
+      "bytes": 3698,
       "group": "root",
       "headings": [
         {
           "level": 1,
           "line": 2,
-          "text": "Two isolated network namespaces joined only by a veth pair. Neither has a"
+          "text": "TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md)."
         },
         {
           "level": 1,
           "line": 3,
-          "text": "default route or DNS, so GitHub (or anything else) is unreachable by"
+          "text": "Two isolated network namespaces joined only by a veth pair. Neither has a"
         },
         {
           "level": 1,
           "line": 4,
-          "text": "construction. The operator publishes a Beta campaign; the tester discovers"
+          "text": "default route or DNS, so GitHub (or anything else) is unreachable by"
         },
         {
           "level": 1,
           "line": 5,
-          "text": "it over a real TCP `mini sync` across the veth. Requires root."
+          "text": "construction. The operator publishes a Beta campaign; the tester discovers"
         },
         {
           "level": 1,
           "line": 6,
+          "text": "it over a real TCP `mini sync` across the veth. Requires root."
+        },
+        {
+          "level": 1,
+          "line": 7,
           "text": "Usage: sudo lab/netlab/outage-drill.sh [path-to-mini]"
         },
         {
           "level": 1,
-          "line": 12,
+          "line": 13,
           "text": "Root is needed only for `ip netns`; every worktree binary runs unprivileged."
         },
         {
           "level": 1,
-          "line": 51,
+          "line": 52,
           "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
         }
       ],
       "keywords": [
         "netns",
         "echo",
+        "root",
         "campaign",
         "dev",
         "sync",
         "exit",
         "route",
-        "root",
         "null",
         "veth",
         "run_uid",
         "run_gid",
+        "lab",
         "default",
         "beta",
         "tester",
@@ -135911,15 +135922,14 @@
         "link",
         "step",
         "exec",
-        "connect",
-        "setpriv",
-        "reuid"
+        "runs",
+        "connect"
       ],
-      "lines": 60,
+      "lines": 61,
       "path": "lab/netlab/outage-drill.sh",
-      "sha256": "37a0b84c9208234d09813eb4f701cf943ad7b40e29a925bf491278e7c855a664",
+      "sha256": "7e9041fde894193b517270983b7802734c696c9694eb31f5778e4d23807a1aab",
       "symbols": [],
-      "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
+      "title": "TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md)."
     },
     {
       "bytes": 682,

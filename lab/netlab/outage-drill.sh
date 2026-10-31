@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md).
 # Two isolated network namespaces joined only by a veth pair. Neither has a
 # default route or DNS, so GitHub (or anything else) is unreachable by
 # construction. The operator publishes a Beta campaign; the tester discovers

@@ -20,3 +20,12 @@ external audit gates. `. lab/env.sh` exports the wine/mingw cargo variables.
 Typical agent loop: `lab/doctor.sh` → code → `lab/ci-local.sh --quick` →
 `lab/windows-test.sh -p <touched crate>` → `sudo lab/netlab/outage-drill.sh` →
 `lab/ci-local.sh` before pushing.
+
+## Trust model (read before using `sudo`)
+
+`sudo lab/netlab/outage-drill.sh` runs *this checkout's* script as root, and
+only demotes the `mini` binary it launches. Anything in the checkout can
+therefore run as root. **Only run netlab on code you have reviewed**, or run the
+lab inside a disposable VM/container you are willing to lose. It is not a
+sandbox against a hostile checkout. Everything else in the lab (`ci-local.sh`,
+`windows-test.sh`, `gui/screenshot.sh`) needs no root and runs as the caller.
