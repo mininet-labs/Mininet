@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1247,
     "headings": 4219,
-    "rust_symbols": 14822
+    "rust_symbols": 14823
   },
   "crates": {
     "askama_derive": {
@@ -25180,7 +25180,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 13328,
+      "bytes": 15540,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25209,9 +25209,9 @@
         "panic",
         "iter"
       ],
-      "lines": 495,
+      "lines": 587,
       "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
-      "sha256": "1f64d62cd9f9af542f893ceef3639652bd4b6dd8b80a6d47325526b474bfc739",
+      "sha256": "08ad448e0c6860678793b7477641e9ad96d6c5cc3cf2ed480f5f86124114939e",
       "symbols": [
         {
           "kind": "const",
@@ -25287,6 +25287,11 @@
           "kind": "fn",
           "line": 459,
           "name": "accounts_are_fresh_per_registration_and_listed_per_owner"
+        },
+        {
+          "kind": "fn",
+          "line": 497,
+          "name": "epoch_rollover_retires_old_value_and_carries_nothing_forward"
         }
       ],
       "title": "use std::path::PathBuf;"
@@ -110255,7 +110260,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 9990,
+      "bytes": 10259,
       "group": "docs",
       "headings": [
         {
@@ -110367,7 +110372,7 @@
       ],
       "lines": 224,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "8416b25aa8203d9654452110545c4f2c5a03f0207e887a055301271454669d90",
+      "sha256": "acc2756eb54966ec1516c31bb4eb39313ab0ab122aa3185197f955948e2b3f29",
       "symbols": [],
       "title": "Open Beta status"
     },

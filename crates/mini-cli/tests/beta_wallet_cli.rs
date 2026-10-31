@@ -492,3 +492,95 @@ fn accounts_are_fresh_per_registration_and_listed_per_owner() {
         "another owner's account is not listed"
     );
 }
+
+#[test]
+fn epoch_rollover_retires_old_value_and_carries_nothing_forward() {
+    let w = world();
+    let new_epoch = "0b".repeat(32);
+    assert_eq!(balance(&w, &w.alice_home, &w.alice_account), 100);
+
+    // The old epoch's value is not destroyed, but it has no standing in the new one.
+    let carried = run(&[
+        "--json",
+        "--home",
+        &w.alice_home,
+        "--store",
+        &w.store,
+        "beta",
+        "wallet",
+        "balance",
+        "--epoch",
+        &new_epoch,
+        "--campaign",
+        &w.campaign,
+        "--account",
+        &w.alice_account,
+    ]);
+    assert_eq!(number(&carried, "amount_micro"), 0, "nothing carries over");
+    assert_eq!(number(&carried, "total_issued_micro"), 0);
+
+    // An old account cannot act in the new epoch.
+    let spend = run_err(&[
+        "--home",
+        &w.alice_home,
+        "--store",
+        &w.store,
+        "beta",
+        "transfer",
+        "send",
+        "--epoch",
+        &new_epoch,
+        "--campaign",
+        &w.campaign,
+        "--from",
+        &w.alice_account,
+        "--to",
+        &w.bob_account,
+        "--amount",
+        "10",
+        "--memo",
+        "x",
+    ]);
+    assert!(
+        spend.contains("not a BETA account registered by this identity"),
+        "{spend}"
+    );
+
+    // A fresh account in the new epoch is a different opaque id and starts at zero.
+    let fresh = field(
+        &run(&[
+            "--json",
+            "--home",
+            &w.alice_home,
+            "--store",
+            &w.store,
+            "beta",
+            "account",
+            "new",
+            "--epoch",
+            &new_epoch,
+        ]),
+        "account",
+    );
+    assert_ne!(fresh, w.alice_account);
+    let out = run(&[
+        "--json",
+        "--home",
+        &w.alice_home,
+        "--store",
+        &w.store,
+        "beta",
+        "wallet",
+        "balance",
+        "--epoch",
+        &new_epoch,
+        "--campaign",
+        &w.campaign,
+        "--account",
+        &fresh,
+    ]);
+    assert_eq!(number(&out, "amount_micro"), 0);
+
+    // The retired epoch is unchanged, so rollover rewrites no history.
+    assert_eq!(balance(&w, &w.alice_home, &w.alice_account), 100);
+}
