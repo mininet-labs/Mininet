@@ -1743,6 +1743,152 @@ fn proposal_inspection_binds_quorum_and_exposes_stale_base() {
     assert!(mini_forge::inspect_proposal(&w.store, &KelDirectory::new(), pr.id()).is_err());
 }
 
+fn listing_prs(w: &mut World, texts: &[Vec<u8>], shared_head: bool) {
+    let mut shared: Option<ObjectId> = None;
+    for (i, text) in texts.iter().enumerate() {
+        let head = match (&shared, shared_head) {
+            (Some(h), true) => h.clone(),
+            _ => {
+                let h = a_commit(
+                    &mut w.store,
+                    &w.contrib.0.did(),
+                    &w.contrib.1,
+                    text,
+                    1000 + i as u64,
+                )
+                .id()
+                .clone();
+                shared = Some(h.clone());
+                h
+            }
+        };
+        propose(
+            &mut w.store,
+            &w.contrib.0.did(),
+            &w.contrib.1,
+            &w.proj,
+            "main",
+            &format!("pr {i}"),
+            &head,
+            &w.proj,
+            200,
+            2000 + i as u64,
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn proposal_listing_pages_before_inspection_and_matches_unpaged_listing() {
+    let mut w = world();
+    let oracle = w.oracle();
+    let texts: Vec<Vec<u8>> = (0..5).map(|i| vec![b'a' + i as u8; 10]).collect();
+    listing_prs(&mut w, &texts, false);
+    let all = mini_forge::list_proposals(&w.store, &oracle, &w.proj).unwrap();
+    assert_eq!(all.len(), 5);
+    let mut paged = Vec::new();
+    let mut offset = 0;
+    let mut pages = 0;
+    loop {
+        let page = mini_forge::list_proposals_page(
+            &w.store,
+            &oracle,
+            &w.proj,
+            mini_forge::ListingLimits {
+                offset,
+                page_size: 2,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        pages += 1;
+        paged.extend(page.proposals.iter().map(|v| v.id.clone()));
+        match page.next_offset {
+            Some(next) => offset = next,
+            None => break,
+        }
+    }
+    assert!(pages >= 3);
+    let mut expected: Vec<_> = all.iter().map(|v| v.id.clone()).collect();
+    expected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    let mut got = paged.clone();
+    got.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    assert_eq!(got, expected);
+    assert_eq!(paged.len(), 5, "no proposal repeated across pages");
+    for bad in [0, mini_forge::MAX_LISTING_PAGE + 1] {
+        assert!(mini_forge::list_proposals_page(
+            &w.store,
+            &oracle,
+            &w.proj,
+            mini_forge::ListingLimits {
+                page_size: bad,
+                ..Default::default()
+            },
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn proposal_listing_fails_closed_past_total_validation_work_cap() {
+    let mut w = world();
+    let oracle = w.oracle();
+    let texts: Vec<Vec<u8>> = (0..3).map(|i| vec![b'a' + i as u8; 1000]).collect();
+    listing_prs(&mut w, &texts, false);
+    // Three distinct 1000-byte heads: a 2500-byte cap cannot cover them.
+    let tight = mini_forge::ListingLimits {
+        max_validation_bytes: 2500,
+        ..Default::default()
+    };
+    assert!(matches!(
+        mini_forge::list_proposals_page(&w.store, &oracle, &w.proj, tight),
+        Err(ForgeError::ListingBudgetExceeded)
+    ));
+    // A roomy cap preserves existing behaviour.
+    let roomy = mini_forge::ListingLimits {
+        max_validation_bytes: 4000,
+        ..Default::default()
+    };
+    assert_eq!(
+        mini_forge::list_proposals_page(&w.store, &oracle, &w.proj, roomy)
+            .unwrap()
+            .proposals
+            .len(),
+        3
+    );
+    // A smaller page stays under the same tight cap.
+    let small_page = mini_forge::ListingLimits {
+        page_size: 2,
+        max_validation_bytes: 2500,
+        ..Default::default()
+    };
+    assert!(
+        mini_forge::list_proposals_page(&w.store, &oracle, &w.proj, small_page)
+            .unwrap()
+            .next_offset
+            .is_some()
+    );
+}
+
+#[test]
+fn proposal_listing_charges_a_shared_head_once() {
+    let mut w = world();
+    let oracle = w.oracle();
+    let texts: Vec<Vec<u8>> = (0..4).map(|_| vec![b'z'; 1000]).collect();
+    listing_prs(&mut w, &texts, true);
+    let cap = mini_forge::ListingLimits {
+        max_validation_bytes: 1500,
+        ..Default::default()
+    };
+    assert_eq!(
+        mini_forge::list_proposals_page(&w.store, &oracle, &w.proj, cap)
+            .unwrap()
+            .proposals
+            .len(),
+        4
+    );
+}
+
 #[test]
 fn proposal_inspection_rejects_ambiguous_links_and_labels_review_evidence() {
     let mut w = world();

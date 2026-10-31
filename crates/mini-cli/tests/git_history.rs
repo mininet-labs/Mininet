@@ -399,6 +399,55 @@ fn git_history_recovers_published_mapping_after_index_loss() {
     assert_eq!(checkpoints(&home, "sha1"), 1);
 }
 
+/// Simulates the crash window between importer provenance insertion and
+/// checkpoint-index publication on a multi-commit history: the signed mapping
+/// is durable in the store but the advisory index file is missing. Resume must
+/// discover and reuse it, never sign a second mapping or native commit.
+#[test]
+fn git_history_crash_before_checkpoint_publication_resumes_without_second_mapping() {
+    let temp = tempfile::tempdir().unwrap();
+    let repo = temp.path().join("source");
+    root(&repo, "sha1");
+    for name in ["a.txt", "b.txt"] {
+        fs::write(repo.join(name), name).unwrap();
+        git(&repo, &["add", name]);
+        git(&repo, &["commit", "-m", name]);
+    }
+    let tip = git(&repo, &["rev-parse", "HEAD"]);
+    let home = temp.path().join("home");
+    let store = temp.path().join("store");
+    let args = ["import-history", repo.to_str().unwrap()];
+    let first = run(&home, &store, &args).unwrap();
+    let count = |kind: mini_objects::ObjectType| {
+        mini_cli::store::open_store(&store)
+            .unwrap()
+            .by_type(&kind)
+            .unwrap()
+            .len()
+    };
+    let mappings = || {
+        count(mini_objects::ObjectType::Custom(
+            "mini/git-history-provenance-v1".into(),
+        ))
+    };
+    let commits = || count(mini_objects::ObjectType::COMMIT);
+    assert_eq!((mappings(), commits()), (3, 3));
+    // Crash window: tip mapping inserted, index never published.
+    fs::remove_file(home.join("git-history/sha1").join(&tip)).unwrap();
+    let second = run(&home, &store, &args).unwrap();
+    assert_eq!(field(&first, "commit_id"), field(&second, "commit_id"));
+    assert_eq!(
+        field(&first, "provenance_id"),
+        field(&second, "provenance_id")
+    );
+    assert!(second.contains("\"imported_commits\":0"));
+    assert_eq!((mappings(), commits()), (3, 3));
+    assert!(home.join("git-history/sha1").join(&tip).exists());
+    // A further resume stays a no-op.
+    run(&home, &store, &args).unwrap();
+    assert_eq!((mappings(), commits()), (3, 3));
+}
+
 #[test]
 fn history_batch_streams_past_the_old_4096_commit_enumeration_cap() {
     use std::io::Write;
