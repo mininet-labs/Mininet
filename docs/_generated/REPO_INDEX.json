@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1247,
-    "headings": 4219,
+    "files": 1255,
+    "headings": 4248,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135573,6 +135573,447 @@
       "title": "{"
     },
     {
+      "bytes": 2452,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet Lab"
+        },
+        {
+          "level": 2,
+          "line": 24,
+          "text": "Trust model"
+        }
+      ],
+      "keywords": [
+        "lab",
+        "wine",
+        "proves",
+        "ci-local",
+        "beta",
+        "windows",
+        "network",
+        "netlab",
+        "outage-drill",
+        "gui",
+        "code",
+        "root",
+        "trust",
+        "model",
+        "disposable",
+        "agent",
+        "script",
+        "what",
+        "bootstrap",
+        "xvfb",
+        "doctor",
+        "machine",
+        "mirror",
+        "quick"
+      ],
+      "lines": 34,
+      "path": "lab/README.md",
+      "sha256": "8467bd70db1947cb9a5ddc0a2e0c16e8c213621f93b6122374dd286a60dc99dc",
+      "symbols": [],
+      "title": "Mininet Lab"
+    },
+    {
+      "bytes": 1036,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Idempotent. Nothing here touches the repository."
+        }
+      ],
+      "keywords": [
+        "sudo",
+        "lab",
+        "rustup",
+        "dev",
+        "null",
+        "bootstrap",
+        "installs",
+        "everything",
+        "needs",
+        "debian",
+        "ubuntu",
+        "machine",
+        "root",
+        "idempotent",
+        "nothing",
+        "here",
+        "touches",
+        "repository",
+        "env",
+        "apt-get",
+        "install",
+        "curl",
+        "command",
+        "cargo"
+      ],
+      "lines": 22,
+      "path": "lab/bootstrap.sh",
+      "sha256": "ed29e3618b0c91a22a350663e7c1bab220079714f3015777cb6a73ac5512b471",
+      "symbols": [],
+      "title": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
+    },
+    {
+      "bytes": 1610,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Usage: lab/ci-local.sh [--quick]   (--quick skips the full workspace test run)"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "Index only tracked + untracked-but-not-ignored files (what a contributor can"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "commit), so ignored build artifacts never make the check fail."
+        }
+      ],
+      "keywords": [
+        "step",
+        "venv",
+        "nav",
+        "check",
+        "quick",
+        "tools",
+        "ci-local",
+        "build",
+        "python3",
+        "lab",
+        "run",
+        "index",
+        "commit",
+        "never",
+        "fail",
+        "bin",
+        "cargo",
+        "exit",
+        "null",
+        "generated",
+        "echo",
+        "origin",
+        "main",
+        "mirrors"
+      ],
+      "lines": 34,
+      "path": "lab/ci-local.sh",
+      "sha256": "9cf3512af257412b447f6a1d0d98ba2a863b0eeb4ce32e903b4a1a20c2032881",
+      "symbols": [],
+      "title": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
+    },
+    {
+      "bytes": 1407,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Reports which lab capabilities work on THIS machine. Exit 0 always; read the table."
+        }
+      ],
+      "keywords": [
+        "lab",
+        "cargo",
+        "install",
+        "apt",
+        "cargo-deny",
+        "dev",
+        "null",
+        "target",
+        "mingw-w64",
+        "xvfb",
+        "docker",
+        "python3",
+        "doctor",
+        "reports",
+        "capabilities",
+        "work",
+        "machine",
+        "exit",
+        "always",
+        "read",
+        "table",
+        "env",
+        "printf",
+        "rustup"
+      ],
+      "lines": 20,
+      "path": "lab/doctor.sh",
+      "sha256": "ed1f53a40abcf392ee67a3d4da719010acc5efd4edae5c23679c6cd0d27ab068",
+      "symbols": [],
+      "title": "Reports which lab capabilities work on THIS machine. Exit 0 always; read the table."
+    },
+    {
+      "bytes": 678,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
+        }
+      ],
+      "keywords": [
+        "export",
+        "lab",
+        "env",
+        "usr",
+        "source",
+        "sets",
+        "variables",
+        "every",
+        "script",
+        "expects",
+        "lab_root",
+        "cargo_incremental",
+        "wineprefix",
+        "winedebug",
+        "winedlloverrides",
+        "wine",
+        "wine64",
+        "bin",
+        "cargo_target_x86_64_pc_windows_gnu_linker",
+        "dirname",
+        "bash_source",
+        "pwd",
+        "keeps",
+        "target"
+      ],
+      "lines": 12,
+      "path": "lab/env.sh",
+      "sha256": "1f9be4788c0c23712db211f57db40fb0573e1db73224f904a4a006c4ecc0dd01",
+      "symbols": [],
+      "title": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
+    },
+    {
+      "bytes": 1364,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "headless agent can see whether the GUI starts and renders. Output: PNG path."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Usage: lab/gui/screenshot.sh [out.png] [seconds-to-wait]"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "Pick a free display and verify our own server owns it."
+        }
+      ],
+      "keywords": [
+        "app",
+        "home_dir",
+        "display",
+        "out",
+        "gui",
+        "screenshot",
+        "png",
+        "dev",
+        "null",
+        "mininet-desktop",
+        "kill",
+        "lab",
+        "exit",
+        "echo",
+        "launches",
+        "virtual",
+        "saves",
+        "headless",
+        "agent",
+        "see",
+        "whether",
+        "starts",
+        "renders",
+        "output"
+      ],
+      "lines": 25,
+      "path": "lab/gui/screenshot.sh",
+      "sha256": "e8e761f94f1730f6fb1963cbcb7f7acf01fdf5992daee68b1a8650a6a2fb8084",
+      "symbols": [],
+      "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
+    },
+    {
+      "bytes": 4398,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Two isolated network namespaces joined only by a veth pair. Neither has a"
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "default route or DNS, so GitHub (or anything else) is unreachable by"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "construction. The operator publishes a Beta campaign; the tester discovers"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "it over a real TCP `mini sync` across the veth."
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "NO ROOT, NO SUDO: the whole drill runs inside a throwaway rootless user+mount+"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "network namespace (`unshare -Urmn`). \"Root\" in there is the invoking user"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "mapped to uid 0 and has no power over the host, so a hostile checkout cannot"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "use this script to gain host privileges. Do not run it with sudo."
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "Usage: lab/netlab/outage-drill.sh [path-to-mini]   (builds mini-cli if omitted)"
+        },
+        {
+          "level": 1,
+          "line": 30,
+          "text": "Inside the private namespaces: a private /run so `ip netns` needs no host files."
+        },
+        {
+          "level": 1,
+          "line": 73,
+          "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
+        }
+      ],
+      "keywords": [
+        "netns",
+        "echo",
+        "campaign",
+        "exit",
+        "dev",
+        "sync",
+        "root",
+        "run",
+        "null",
+        "route",
+        "host",
+        "veth",
+        "set",
+        "exec",
+        "link",
+        "listener",
+        "network",
+        "namespaces",
+        "default",
+        "beta",
+        "tester",
+        "real",
+        "sudo",
+        "inside"
+      ],
+      "lines": 83,
+      "path": "lab/netlab/outage-drill.sh",
+      "sha256": "6f5d90730d26b086800ef5b46c7fab2122b6bc6a92798afb70a6a7fe773ddb1d",
+      "symbols": [],
+      "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
+    },
+    {
+      "bytes": 682,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Run crate tests as REAL Windows binaries (x86_64-pc-windows-gnu) under wine."
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Usage: lab/windows-test.sh [-p crate]...   (default: mini-durable mini-app-protocol)"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Wine is not Windows: it catches path/prefix/IO-semantics bugs, but the"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "windows-client CI job on real Windows remains authoritative."
+        }
+      ],
+      "keywords": [
+        "windows",
+        "wine",
+        "lab",
+        "real",
+        "pkgs",
+        "windows-test",
+        "x86_64-pc-windows-gnu",
+        "mini-durable",
+        "mini-app-protocol",
+        "run",
+        "binaries",
+        "usage",
+        "default",
+        "catches",
+        "path",
+        "prefix",
+        "io-semantics",
+        "bugs",
+        "but",
+        "windows-client",
+        "job",
+        "remains",
+        "authoritative",
+        "env"
+      ],
+      "lines": 14,
+      "path": "lab/windows-test.sh",
+      "sha256": "d077a40a2810c6b0bb2ba5ed21f60aeaef0b4858327d2cad21a5a6a17cfd4be3",
+      "symbols": [],
+      "title": "Run crate tests as REAL Windows binaries (x86_64-pc-windows-gnu) under wine."
+    },
+    {
       "bytes": 925,
       "group": "root",
       "headings": [
@@ -141535,6 +141976,14 @@
     "governance/policy.yml",
     "governance/work-claims.json",
     "governance/work-claims.schema.json",
+    "lab/README.md",
+    "lab/bootstrap.sh",
+    "lab/ci-local.sh",
+    "lab/doctor.sh",
+    "lab/env.sh",
+    "lab/gui/screenshot.sh",
+    "lab/netlab/outage-drill.sh",
+    "lab/windows-test.sh",
     "os/grapheneos-overlay/README.md",
     "packaging/windows/README.md",
     "packaging/windows/build-release.sh",
