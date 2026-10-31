@@ -159,7 +159,7 @@ fn foreign_account(core: &mut Core<MemoryVault>, epoch: [u8; 32]) -> [u8; 32] {
         &foreign.did(),
         &foreign,
         BetaEpochId::new(epoch).unwrap(),
-        [9; 32],
+        mini_crypto::random_32().unwrap(),
         10,
         1,
     )
