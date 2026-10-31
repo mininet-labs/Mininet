@@ -2518,6 +2518,7 @@ impl MininetApp {
             }
             (CoreAction::BetaRegisterAccount, Ok(AppReply::BetaAccount { account, .. })) => {
                 self.beta_wallet.on_account(&account);
+                self.reload_workspace();
                 self.notice = "Registered a fresh BETA test account.".into();
             }
             (CoreAction::BetaBalances, Ok(AppReply::BetaBalances(view))) => {
@@ -2533,6 +2534,7 @@ impl MininetApp {
                 }),
             ) => {
                 self.beta_wallet.on_transfer(amount_micro, change_micro);
+                self.reload_workspace();
                 self.notice = "BETA transfer signed through the application core.".into();
             }
             (action, Ok(_)) => {

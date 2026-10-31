@@ -197,6 +197,9 @@ impl<V: IdentityVault> Core<V> {
             &policy,
         )
         .map_err(exec_error)?;
+        if snapshot.account_conflicts.contains(&to) || snapshot.account_conflicts.contains(&from) {
+            return Err(bad("BETA account registration is conflicted"));
+        }
         if snapshot.balance(&from) < amount {
             return Err(bad("insufficient BETA balance"));
         }
