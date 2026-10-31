@@ -31,7 +31,7 @@ TEXT_SUFFIXES = {
 }
 
 EXCLUDED_DIRS = {
-    ".git", "target", ".idea", ".vscode", "node_modules", "__pycache__",
+    ".git", ".claude", "target", ".idea", ".vscode", "node_modules", "__pycache__",
 }
 
 GENERATED_DIR = Path("docs/_generated")
