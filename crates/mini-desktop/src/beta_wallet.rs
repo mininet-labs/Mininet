@@ -206,6 +206,17 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
             .into();
     }
 
+    /// A cached balances view belongs to the epoch and campaign inputs it was
+    /// fetched with; editing either drops it so it is never shown beside inputs
+    /// that describe a different epoch or trust anchor.
+    pub(crate) fn drop_stale_view(&mut self) {
+        if self.balances.is_some()
+            && self.balances_for != (self.epoch.clone(), self.campaigns.clone())
+        {
+            self.balances = None;
+        }
+    }
+
     pub(crate) fn on_balances(&mut self, view: BetaBalancesView) {
         self.status = if view.conflicts > 0 {
             format!(
@@ -270,11 +281,7 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
         });
         ui.add_space(8.0);
         // A cached view belongs to the inputs it was fetched with.
-        if self.balances.is_some()
-            && self.balances_for != (self.epoch.clone(), self.campaigns.clone())
-        {
-            self.balances = None;
-        }
+        self.drop_stale_view();
         if let Some(view) = &self.balances {
             theme::card_frame().show(ui, |ui| {
                 ui.label(egui::RichText::new("Your BETA accounts (provisional)").strong());
@@ -468,6 +475,29 @@ mod tests {
             id(p.transfer_request().unwrap()),
             "answered id is not reused"
         );
+    }
+
+    #[test]
+    fn changing_epoch_or_campaigns_drops_the_cached_balances_view() {
+        let view = || BetaBalancesView {
+            epoch: [7; 32],
+            accounts: Vec::new(),
+            total_issued_micro: 5,
+            conflicts: 0,
+            snapshot_digest: [0; 32],
+        };
+        let mut p = panel();
+        p.on_balances(view());
+        p.drop_stale_view();
+        assert!(p.balances.is_some(), "unchanged inputs keep the view");
+        p.epoch = "08".repeat(32);
+        p.drop_stale_view();
+        assert!(p.balances.is_none(), "a new epoch never shows the old view");
+        p.epoch = "07".repeat(32);
+        p.on_balances(view());
+        p.campaigns.push_str("\nzother");
+        p.drop_stale_view();
+        assert!(p.balances.is_none(), "a new trust anchor drops the view");
     }
 
     #[test]

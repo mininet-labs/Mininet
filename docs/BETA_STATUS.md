@@ -174,7 +174,7 @@ be silently linked merely to manufacture reputation continuity.
   A two-node replication test is still outstanding.
 - [ ] Provide a private fresh claim path for accepted participation without
   binding public GitHub identity to the beta account.
-- [ ] Prove epoch reset/retirement through the actual product surface. *Proven through the CLI by `epoch_rollover_retires_old_value_and_carries_nothing_forward` (balances and accounts do not carry into a new epoch, old accounts cannot act there, history is unchanged); the desktop BETA wallet now exists, but its epoch rollover has not been exercised through the real desktop UI, so the box stays open.*
+- [ ] Prove epoch reset/retirement through the actual product surface. *Proven through the CLI by `epoch_rollover_retires_old_value_and_carries_nothing_forward` (balances and accounts do not carry into a new epoch, old accounts cannot act there, history is unchanged); the application core that backs the desktop BETA wallet is proven the same way by `epoch_rollover_through_the_application_core_retires_old_value` (no carried accounts or issuance, old accounts cannot send or receive in the new epoch, old-epoch history untouched), and the panel's stale-view drop on epoch/campaign change is unit-tested. Not yet exercised: a real desktop session on a real display, so the box stays open.*
 
 ### Forge canonicality
 

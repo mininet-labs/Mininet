@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1260,
     "headings": 4248,
-    "rust_symbols": 14926
+    "rust_symbols": 14928
   },
   "crates": {
     "askama_derive": {
@@ -10635,7 +10635,7 @@
       "title": "use crate::{profile_details_values, validate_profile_details_pair, ErrorCode, ServiceError};"
     },
     {
-      "bytes": 16962,
+      "bytes": 18596,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -10664,9 +10664,9 @@
         "entry",
         "members"
       ],
-      "lines": 509,
+      "lines": 554,
       "path": "crates/mini-app-service/src/tests/beta_wallet_tests.rs",
-      "sha256": "4d7615ed1c3d4f3f6441236e6a75826e89a986e491ff9fdf17aaead69f69d087",
+      "sha256": "578b2cfbd147220407047713bf58fcac197d493ed84c3d2a178b1c8f6c4fb0ac",
       "symbols": [
         {
           "kind": "const",
@@ -10782,6 +10782,11 @@
           "kind": "fn",
           "line": 479,
           "name": "beta_objects_are_not_signed_by_the_primary_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 511,
+          "name": "epoch_rollover_through_the_application_core_retires_old_value"
         }
       ],
       "title": "use super::*;"
@@ -25290,38 +25295,38 @@
       "title": "use std::path::PathBuf;"
     },
     {
-      "bytes": 11010,
+      "bytes": 11266,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "unwrap",
-        "string",
         "store",
         "str",
+        "string",
         "new",
+        "std",
         "args",
         "vec",
         "to_string",
         "homes",
-        "self",
         "fixture",
-        "std",
         "tag",
         "mini_cli",
         "tempdir",
         "try_run",
         "beta",
-        "campaign",
+        "next",
         "home",
         "author",
         "epoch",
         "run",
+        "path",
         "format",
         "dids"
       ],
-      "lines": 388,
+      "lines": 393,
       "path": "crates/mini-cli/tests/beta_grants_cli.rs",
-      "sha256": "c1f1affb2c0f493d4d6bead12fdf35f663028bd28c2a325dd28a2a93c762096a",
+      "sha256": "6bd68663fd81f3d1ebf591b14cfc28710032a9b99b92c5a24644674276bb27b7",
       "symbols": [
         {
           "kind": "const",
@@ -25345,82 +25350,82 @@
         },
         {
           "kind": "fn",
-          "line": 36,
+          "line": 41,
           "name": "try_run"
         },
         {
           "kind": "fn",
-          "line": 41,
+          "line": 46,
           "name": "run"
         },
         {
           "kind": "struct",
-          "line": 45,
+          "line": 50,
           "name": "Fixture"
         },
         {
           "kind": "impl",
-          "line": 52,
+          "line": 57,
           "name": "Fixture"
         },
         {
           "kind": "fn",
-          "line": 53,
+          "line": 58,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 134,
           "name": "cmd"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 140,
           "name": "id_after"
         },
         {
           "kind": "fn",
-          "line": 146,
+          "line": 151,
           "name": "policy"
         },
         {
           "kind": "fn",
-          "line": 183,
+          "line": 188,
           "name": "grant"
         },
         {
           "kind": "fn",
-          "line": 210,
+          "line": 215,
           "name": "approve"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 222,
           "name": "policy_and_testing_grant_create_ok"
         },
         {
           "kind": "fn",
-          "line": 226,
+          "line": 231,
           "name": "class_and_contribution_mismatch_rejected"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 285,
           "name": "approve_by_non_member_rejected"
         },
         {
           "kind": "fn",
-          "line": 288,
+          "line": 293,
           "name": "threshold_met_accepts_and_unmet_does_not"
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 327,
           "name": "duplicate_approvals_from_one_member_count_once"
         },
         {
           "kind": "fn",
-          "line": 350,
+          "line": 355,
           "name": "too_many_members_is_usage_error"
         }
       ],
@@ -25688,7 +25693,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 17048,
+      "bytes": 17454,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25697,29 +25702,29 @@
         "json",
         "args",
         "unwrap",
-        "home",
-        "field",
         "std",
+        "home",
+        "run",
+        "field",
         "key",
         "store",
-        "run",
-        "beta",
+        "world",
+        "path",
         "account",
+        "new",
         "to_string",
         "needle",
         "operator",
+        "beta",
         "epoch_hex",
-        "world",
-        "path",
-        "new",
         "describe",
-        "wallet",
         "panic",
-        "iter"
+        "iter",
+        "collect"
       ],
-      "lines": 631,
+      "lines": 638,
       "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
-      "sha256": "7f96e2362200ff406696f84e4d6f54e515774fb53256ae29a3a15e79540492e0",
+      "sha256": "8e566f043a553dbdea1f1041ae85ec0b65f1bceca4046dc93ab1549cf5d86de8",
       "symbols": [
         {
           "kind": "const",
@@ -25738,72 +25743,72 @@
         },
         {
           "kind": "fn",
-          "line": 34,
+          "line": 41,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 46,
           "name": "run_err"
         },
         {
           "kind": "fn",
-          "line": 47,
+          "line": 54,
           "name": "field"
         },
         {
           "kind": "fn",
-          "line": 56,
+          "line": 63,
           "name": "number"
         },
         {
           "kind": "struct",
-          "line": 70,
+          "line": 77,
           "name": "World"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 89,
           "name": "world"
         },
         {
           "kind": "fn",
-          "line": 231,
+          "line": 238,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 259,
           "name": "accepted_grant_funds_a_balance_that_is_always_labelled_beta_and_provisional"
         },
         {
           "kind": "fn",
-          "line": 291,
+          "line": 298,
           "name": "transfer_moves_value_with_change_and_conserves_the_supply"
         },
         {
           "kind": "fn",
-          "line": 366,
+          "line": 373,
           "name": "unsafe_transfers_are_refused_before_anything_is_signed"
         },
         {
           "kind": "fn",
-          "line": 413,
+          "line": 420,
           "name": "issuance_needs_an_explicit_campaign_anchor_and_a_valid_epoch"
         },
         {
           "kind": "fn",
-          "line": 459,
+          "line": 466,
           "name": "accounts_are_fresh_per_registration_and_listed_per_owner"
         },
         {
           "kind": "fn",
-          "line": 497,
+          "line": 504,
           "name": "epoch_rollover_retires_old_value_and_carries_nothing_forward"
         },
         {
           "kind": "fn",
-          "line": 589,
+          "line": 596,
           "name": "beta_objects_are_signed_by_per_account_identities_not_the_primary_did"
         }
       ],
@@ -37564,7 +37569,7 @@
       "title": "use mini_app_protocol::{"
     },
     {
-      "bytes": 17085,
+      "bytes": 18208,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -37593,9 +37598,9 @@
         "line",
         "balances"
       ],
-      "lines": 491,
+      "lines": 521,
       "path": "crates/mini-desktop/src/beta_wallet.rs",
-      "sha256": "0407d2b78655209a56a27a211b1eb8938d82a11277c82bb3c7fb3afad047528c",
+      "sha256": "2a76c1b4cc950cf56003907cee412cbfe8f9d2ac612d2b4864f33d600abd5dbf",
       "symbols": [
         {
           "kind": "const",
@@ -37614,37 +37619,42 @@
         },
         {
           "kind": "mod",
-          "line": 340,
+          "line": 347,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 350,
           "name": "panel"
         },
         {
           "kind": "fn",
-          "line": 356,
+          "line": 363,
           "name": "amounts_are_exact_decimal_micro_units_without_floats"
         },
         {
           "kind": "fn",
-          "line": 385,
+          "line": 392,
           "name": "ids_and_campaigns_are_validated_and_deduplicated"
         },
         {
           "kind": "fn",
-          "line": 409,
+          "line": 416,
           "name": "requests_are_built_only_from_valid_input"
         },
         {
           "kind": "fn",
-          "line": 440,
+          "line": 447,
           "name": "a_retried_request_reuses_its_operation_id_until_the_core_answers"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 481,
+          "name": "changing_epoch_or_campaigns_drops_the_cached_balances_view"
+        },
+        {
+          "kind": "fn",
+          "line": 504,
           "name": "replies_update_state_and_never_hide_conflicts"
         }
       ],
@@ -110960,7 +110970,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 11475,
+      "bytes": 11762,
       "group": "docs",
       "headings": [
         {
@@ -111072,7 +111082,7 @@
       ],
       "lines": 238,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "7423a40afeb1900d778c437e36d90c9dc61b6c4866a34c01b5508bde24746e3a",
+      "sha256": "73e4f07e4ebad28a0b3efd73c77409575d527cbcf22850215aa5d5beff5f7df0",
       "symbols": [],
       "title": "Open Beta status"
     },
