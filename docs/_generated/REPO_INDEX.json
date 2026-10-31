@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1247,
     "headings": 4219,
-    "rust_symbols": 14818
+    "rust_symbols": 14822
   },
   "crates": {
     "askama_derive": {
@@ -24782,38 +24782,38 @@
       "title": "use std::path::PathBuf;"
     },
     {
-      "bytes": 10581,
+      "bytes": 11010,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "unwrap",
-        "store",
         "string",
-        "self",
+        "store",
         "str",
         "new",
+        "args",
+        "vec",
         "to_string",
         "homes",
-        "dids",
+        "self",
         "fixture",
         "std",
         "tag",
         "mini_cli",
-        "vec",
         "tempdir",
         "try_run",
         "beta",
-        "args",
         "campaign",
         "home",
         "author",
         "epoch",
         "run",
-        "format"
+        "format",
+        "dids"
       ],
-      "lines": 377,
+      "lines": 388,
       "path": "crates/mini-cli/tests/beta_grants_cli.rs",
-      "sha256": "3d04d5326c96732535b6880f23108ddf2757f4fd7a8bdd338ec213fc08805abb",
+      "sha256": "c1f1affb2c0f493d4d6bead12fdf35f663028bd28c2a325dd28a2a93c762096a",
       "symbols": [
         {
           "kind": "const",
@@ -24827,87 +24827,92 @@
         },
         {
           "kind": "fn",
-          "line": 12,
+          "line": 14,
+          "name": "describe"
+        },
+        {
+          "kind": "fn",
+          "line": 23,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 25,
+          "line": 36,
           "name": "try_run"
         },
         {
           "kind": "fn",
-          "line": 30,
+          "line": 41,
           "name": "run"
         },
         {
           "kind": "struct",
-          "line": 34,
+          "line": 45,
           "name": "Fixture"
         },
         {
           "kind": "impl",
-          "line": 41,
+          "line": 52,
           "name": "Fixture"
         },
         {
           "kind": "fn",
-          "line": 42,
+          "line": 53,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 129,
           "name": "cmd"
         },
         {
           "kind": "fn",
-          "line": 124,
+          "line": 135,
           "name": "id_after"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 146,
           "name": "policy"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 183,
           "name": "grant"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 210,
           "name": "approve"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 217,
           "name": "policy_and_testing_grant_create_ok"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 226,
           "name": "class_and_contribution_mismatch_rejected"
         },
         {
           "kind": "fn",
-          "line": 269,
+          "line": 280,
           "name": "approve_by_non_member_rejected"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 288,
           "name": "threshold_met_accepts_and_unmet_does_not"
         },
         {
           "kind": "fn",
-          "line": 311,
+          "line": 322,
           "name": "duplicate_approvals_from_one_member_count_once"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 350,
           "name": "too_many_members_is_usage_error"
         }
       ],
@@ -24991,232 +24996,53 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 9420,
+      "bytes": 9848,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "cli",
         "str",
-        "json",
         "run",
         "campaign",
-        "operator",
-        "beta",
+        "json",
         "store",
         "home",
         "tester",
-        "finding",
+        "field",
+        "beta",
         "std",
+        "string",
         "unwrap",
         "key",
         "needle",
-        "string",
+        "operator",
+        "args",
         "to_string",
         "full",
         "epoch",
-        "field",
         "loop",
-        "tag",
-        "start",
-        "init"
+        "finding",
+        "panic",
+        "vec"
       ],
-      "lines": 336,
+      "lines": 347,
       "path": "crates/mini-cli/tests/beta_native_loop.rs",
-      "sha256": "9445c87f6d936464d75a260bf9cd7d4f75ea1d5cf3c37e88bd73088df529613f",
+      "sha256": "15a3fe70ce046ef733a7d6cbc2e9c6479a75a5a6d13b836d12546a7614b8ea0c",
       "symbols": [
         {
           "kind": "const",
           "line": 10,
-          "name": "EPOCH"
-        },
-        {
-          "kind": "fn",
-          "line": 12,
-          "name": "tempdir"
-        },
-        {
-          "kind": "fn",
-          "line": 25,
-          "name": "field"
-        },
-        {
-          "kind": "fn",
-          "line": 34,
-          "name": "number"
-        },
-        {
-          "kind": "struct",
-          "line": 48,
-          "name": "Cli"
-        },
-        {
-          "kind": "impl",
-          "line": 52,
-          "name": "Cli"
-        },
-        {
-          "kind": "fn",
-          "line": 53,
-          "name": "run"
-        },
-        {
-          "kind": "fn",
-          "line": 66,
-          "name": "a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github"
-        }
-      ],
-      "title": "use std::path::PathBuf;"
-    },
-    {
-      "bytes": 11350,
-      "group": "crate:mini-cli",
-      "headings": [],
-      "keywords": [
-        "home",
-        "store",
-        "json",
-        "str",
-        "string",
-        "args",
-        "run",
-        "node",
-        "std",
-        "unwrap",
-        "self",
-        "operator",
-        "tempdir",
-        "sync",
-        "to_string",
-        "key",
-        "needle",
-        "kel",
-        "full",
-        "clone",
-        "tester",
-        "members",
-        "trust",
-        "as_identity"
-      ],
-      "lines": 406,
-      "path": "crates/mini-cli/tests/beta_two_node_loop.rs",
-      "sha256": "a11a41df31e40c11936ca5f6ed4f5ad9c0a3d347aa15ee55e113c390095ab14d",
-      "symbols": [
-        {
-          "kind": "const",
-          "line": 12,
           "name": "EPOCH"
         },
         {
           "kind": "fn",
           "line": 14,
-          "name": "tempdir"
-        },
-        {
-          "kind": "fn",
-          "line": 27,
-          "name": "field"
-        },
-        {
-          "kind": "fn",
-          "line": 36,
-          "name": "number"
-        },
-        {
-          "kind": "fn",
-          "line": 50,
-          "name": "run"
-        },
-        {
-          "kind": "struct",
-          "line": 55,
-          "name": "Node"
-        },
-        {
-          "kind": "impl",
-          "line": 60,
-          "name": "Node"
-        },
-        {
-          "kind": "fn",
-          "line": 61,
-          "name": "json"
-        },
-        {
-          "kind": "fn",
-          "line": 64,
-          "name": "plain"
-        },
-        {
-          "kind": "fn",
-          "line": 68,
-          "name": "as_identity"
-        },
-        {
-          "kind": "fn",
-          "line": 85,
-          "name": "sync"
-        },
-        {
-          "kind": "fn",
-          "line": 126,
-          "name": "the_beta_loop_converges_across_two_independent_stores_over_real_sync"
-        }
-      ],
-      "title": "use std::net::TcpListener;"
-    },
-    {
-      "bytes": 12888,
-      "group": "crate:mini-cli",
-      "headings": [],
-      "keywords": [
-        "json",
-        "string",
-        "str",
-        "unwrap",
-        "args",
-        "home",
-        "beta",
-        "std",
-        "key",
-        "store",
-        "operator",
-        "run",
-        "field",
-        "to_string",
-        "needle",
-        "epoch_hex",
-        "world",
-        "path",
-        "campaign",
-        "account",
-        "new",
-        "wallet",
-        "tag",
-        "format"
-      ],
-      "lines": 484,
-      "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
-      "sha256": "b549db031e48cb47a2cb2e7a0cc3a038707ff597a3914d73f44f66303a553fdb",
-      "symbols": [
-        {
-          "kind": "const",
-          "line": 8,
-          "name": "EPOCH_HEX"
-        },
-        {
-          "kind": "fn",
-          "line": 10,
-          "name": "tempdir"
+          "name": "describe"
         },
         {
           "kind": "fn",
           "line": 23,
-          "name": "run"
-        },
-        {
-          "kind": "fn",
-          "line": 28,
-          "name": "run_err"
+          "name": "tempdir"
         },
         {
           "kind": "fn",
@@ -25231,41 +25057,235 @@
         {
           "kind": "struct",
           "line": 59,
+          "name": "Cli"
+        },
+        {
+          "kind": "impl",
+          "line": 63,
+          "name": "Cli"
+        },
+        {
+          "kind": "fn",
+          "line": 64,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github"
+        }
+      ],
+      "title": "use std::path::PathBuf;"
+    },
+    {
+      "bytes": 11778,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "home",
+        "string",
+        "store",
+        "args",
+        "str",
+        "json",
+        "node",
+        "run",
+        "std",
+        "unwrap",
+        "self",
+        "tempdir",
+        "sync",
+        "to_string",
+        "key",
+        "needle",
+        "operator",
+        "panic",
+        "vec",
+        "full",
+        "clone",
+        "field",
+        "as_identity",
+        "iter"
+      ],
+      "lines": 417,
+      "path": "crates/mini-cli/tests/beta_two_node_loop.rs",
+      "sha256": "2e6a97f0359fce93a7fe6b05520792aac6bb8a5e3c1b4444e4e776d942011b9c",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 12,
+          "name": "EPOCH"
+        },
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "describe"
+        },
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "field"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "number"
+        },
+        {
+          "kind": "fn",
+          "line": 61,
+          "name": "run"
+        },
+        {
+          "kind": "struct",
+          "line": 66,
+          "name": "Node"
+        },
+        {
+          "kind": "impl",
+          "line": 71,
+          "name": "Node"
+        },
+        {
+          "kind": "fn",
+          "line": 72,
+          "name": "json"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "plain"
+        },
+        {
+          "kind": "fn",
+          "line": 79,
+          "name": "as_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "sync"
+        },
+        {
+          "kind": "fn",
+          "line": 137,
+          "name": "the_beta_loop_converges_across_two_independent_stores_over_real_sync"
+        }
+      ],
+      "title": "use std::net::TcpListener;"
+    },
+    {
+      "bytes": 13328,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "string",
+        "str",
+        "json",
+        "args",
+        "unwrap",
+        "home",
+        "field",
+        "std",
+        "key",
+        "store",
+        "run",
+        "beta",
+        "account",
+        "to_string",
+        "needle",
+        "operator",
+        "epoch_hex",
+        "world",
+        "path",
+        "new",
+        "describe",
+        "wallet",
+        "panic",
+        "iter"
+      ],
+      "lines": 495,
+      "path": "crates/mini-cli/tests/beta_wallet_cli.rs",
+      "sha256": "1f64d62cd9f9af542f893ceef3639652bd4b6dd8b80a6d47325526b474bfc739",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 8,
+          "name": "EPOCH_HEX"
+        },
+        {
+          "kind": "fn",
+          "line": 12,
+          "name": "describe"
+        },
+        {
+          "kind": "fn",
+          "line": 21,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 34,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 39,
+          "name": "run_err"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "field"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
+          "name": "number"
+        },
+        {
+          "kind": "struct",
+          "line": 70,
           "name": "World"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 82,
           "name": "world"
         },
         {
           "kind": "fn",
-          "line": 220,
+          "line": 231,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 252,
           "name": "accepted_grant_funds_a_balance_that_is_always_labelled_beta_and_provisional"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 291,
           "name": "transfer_moves_value_with_change_and_conserves_the_supply"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 366,
           "name": "unsafe_transfers_are_refused_before_anything_is_signed"
         },
         {
           "kind": "fn",
-          "line": 402,
+          "line": 413,
           "name": "issuance_needs_an_explicit_campaign_anchor_and_a_valid_epoch"
         },
         {
           "kind": "fn",
-          "line": 448,
+          "line": 459,
           "name": "accounts_are_fresh_per_registration_and_listed_per_owner"
         }
       ],

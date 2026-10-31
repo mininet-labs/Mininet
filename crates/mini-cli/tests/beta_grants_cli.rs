@@ -9,6 +9,17 @@ use mini_objects::{ObjectBuilder, ObjectType, Payload};
 const EPOCH: &str = "0909090909090909090909090909090909090909090909090909090909090909";
 const ACCT: &str = "0707070707070707070707070707070707070707070707070707070707070707";
 
+/// Names the command without echoing arguments or output: those carry account
+/// and object ids, which must never reach a log or panic message.
+fn describe<S: AsRef<str>>(args: &[S]) -> String {
+    args.iter()
+        .map(AsRef::as_ref)
+        .filter(|a| !a.starts_with("--") && a.chars().all(|c| c.is_ascii_lowercase() || c == '-'))
+        .take(4)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn tempdir(tag: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
     p.push(format!(
@@ -28,7 +39,7 @@ fn try_run(args: &[&str]) -> Result<String, mini_cli::CliError> {
 }
 
 fn run(args: &[&str]) -> String {
-    try_run(args).unwrap_or_else(|e| panic!("command {args:?} failed: {e}"))
+    try_run(args).unwrap_or_else(|e| panic!("command `{}` failed: {e}", describe(args)))
 }
 
 struct Fixture {
@@ -124,7 +135,7 @@ impl Fixture {
     fn id_after(out: &str, prefix: &str) -> String {
         out.lines()
             .find_map(|l| l.strip_prefix(prefix))
-            .unwrap_or_else(|| panic!("no {prefix:?} in {out}"))
+            .unwrap_or_else(|| panic!("no {prefix:?} in command output"))
             .split_whitespace()
             .next()
             .unwrap()

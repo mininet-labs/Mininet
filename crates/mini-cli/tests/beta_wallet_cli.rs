@@ -7,6 +7,17 @@ use mini_objects::{ObjectBuilder, ObjectType, Payload};
 
 const EPOCH_HEX: &str = "0707070707070707070707070707070707070707070707070707070707070707";
 
+/// Names the command without echoing arguments or output: those carry account
+/// and object ids, which must never reach a log or panic message.
+fn describe<S: AsRef<str>>(args: &[S]) -> String {
+    args.iter()
+        .map(AsRef::as_ref)
+        .filter(|a| !a.starts_with("--") && a.chars().all(|c| c.is_ascii_lowercase() || c == '-'))
+        .take(4)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn tempdir(tag: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
     p.push(format!(
@@ -22,13 +33,13 @@ fn tempdir(tag: &str) -> PathBuf {
 
 fn run(args: &[&str]) -> String {
     let owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-    mini_cli::run(&owned).unwrap_or_else(|e| panic!("command {args:?} failed: {e}"))
+    mini_cli::run(&owned).unwrap_or_else(|e| panic!("command `{}` failed: {e}", describe(args)))
 }
 
 fn run_err(args: &[&str]) -> String {
     let owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     mini_cli::run(&owned)
-        .expect_err(&format!("expected failure for {args:?}"))
+        .expect_err(&format!("expected failure for `{}`", describe(args)))
         .to_string()
 }
 
@@ -37,7 +48,7 @@ fn field(json: &str, key: &str) -> String {
     let needle = format!("\"{key}\":\"");
     let start = json
         .find(&needle)
-        .unwrap_or_else(|| panic!("{key} in {json}"))
+        .unwrap_or_else(|| panic!("missing field {key}"))
         + needle.len();
     json[start..].split('"').next().unwrap().to_string()
 }
@@ -46,7 +57,7 @@ fn number(json: &str, key: &str) -> u64 {
     let needle = format!("\"{key}\":");
     let start = json
         .find(&needle)
-        .unwrap_or_else(|| panic!("{key} in {json}"))
+        .unwrap_or_else(|| panic!("missing field {key}"))
         + needle.len();
     json[start..]
         .chars()
