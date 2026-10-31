@@ -14,7 +14,8 @@ MINI="${1:-$ROOT/target/debug/mini}"
 RUN_UID="${SUDO_UID:-65534}"; RUN_GID="${SUDO_GID:-65534}"
 W="$(mktemp -d)"; chmod 755 "$W"; chown "$RUN_UID:$RUN_GID" "$W"
  A=labop$$; B=labte$$
-cleanup() { ip netns del "$A" 2>/dev/null || true; ip netns del "$B" 2>/dev/null || true; rm -rf "$W"; }
+LISTENER=""
+cleanup() { [ -z "$LISTENER" ] || { kill "$LISTENER" 2>/dev/null; wait "$LISTENER" 2>/dev/null; } || true; ip netns del "$A" 2>/dev/null || true; ip netns del "$B" 2>/dev/null || true; rm -rf "$W"; }
 trap cleanup EXIT
 ip netns add "$A"; ip netns add "$B"
 VA=vA$$; VB=vB$$
@@ -44,7 +45,9 @@ CAMP="$(opj beta campaign create "$PROJECT" --epoch "$EPOCH" --title Drill \
     --testing-grant 1000 | sed -n 's/.*"campaign_id":"\([^"]*\)".*/\1/p')"
 [ -n "$CAMP" ] || { echo "campaign id missing" >&2; exit 1; }
 te identity init >/dev/null
-tej beta campaign list | grep -q "$CAMP" && { echo "tester should not know the campaign yet" >&2; exit 1; } || echo "tester knows nothing before sync"
+BEFORE="$(tej beta campaign list)"
+case "$BEFORE" in *"$CAMP"*) echo "tester should not know the campaign yet" >&2; exit 1;; esac
+echo "tester knows nothing before sync"
 
 step "replication over a real TCP connection inside the veth"
 op sync listen --addr 10.77.0.1:7077 >/dev/null &
@@ -56,5 +59,6 @@ for i in $(seq 50); do
     sleep 0.2
 done
 wait "$LISTENER"
-tej beta campaign list | grep -q "$CAMP" && echo "tester discovered the campaign with no GitHub and no internet"
+AFTER="$(tej beta campaign list)"
+case "$AFTER" in *"$CAMP"*) echo "tester discovered the campaign with no GitHub and no internet";; *) echo "FAIL: campaign did not replicate" >&2; exit 1;; esac
 step "PASS"

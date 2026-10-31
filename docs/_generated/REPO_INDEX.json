@@ -135667,7 +135667,7 @@
       "title": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
     },
     {
-      "bytes": 1116,
+      "bytes": 1147,
       "group": "root",
       "headings": [
         {
@@ -135686,12 +135686,11 @@
         "venv",
         "quick",
         "ci-local",
-        "bin",
         "tools",
         "lab",
         "check",
+        "bin",
         "cargo",
-        "python",
         "python3",
         "echo",
         "origin",
@@ -135705,11 +135704,12 @@
         "cheap",
         "repo",
         "gates",
-        "usage"
+        "usage",
+        "skips"
       ],
-      "lines": 23,
+      "lines": 24,
       "path": "lab/ci-local.sh",
-      "sha256": "4a584abee9883fa42fcc571ab2abd88cfb5c99f26e8f526658730c7daf5ae07a",
+      "sha256": "2e405856c57997eda4e33b78e4b11e893540a4015f2667259f49778e797c6b94",
       "symbols": [],
       "title": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
     },
@@ -135798,7 +135798,7 @@
       "title": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
     },
     {
-      "bytes": 1135,
+      "bytes": 1311,
       "group": "root",
       "headings": [
         {
@@ -135818,24 +135818,23 @@
         },
         {
           "level": 1,
-          "line": 10,
+          "line": 11,
           "text": "Pick a free display and verify our own server owns it."
         }
       ],
       "keywords": [
+        "app",
         "display",
         "out",
-        "app",
         "gui",
         "screenshot",
         "png",
-        "mininet-desktop",
         "dev",
         "null",
+        "mininet-desktop",
+        "kill",
         "home_dir",
         "lab",
-        "lab_root",
-        "kill",
         "exit",
         "echo",
         "launches",
@@ -135846,16 +135845,17 @@
         "see",
         "whether",
         "starts",
-        "renders"
+        "renders",
+        "output"
       ],
-      "lines": 23,
+      "lines": 25,
       "path": "lab/gui/screenshot.sh",
-      "sha256": "8b65dd3e92baee3e31ba287bf5dda060bd1388c6a9c24b39300ef20e30305441",
+      "sha256": "634af99458e0f850a490fad3982afa82779b83d534fcb7e919e25cbbe41ee5c3",
       "symbols": [],
       "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
     },
     {
-      "bytes": 3698,
+      "bytes": 3906,
       "group": "root",
       "headings": [
         {
@@ -135895,23 +135895,24 @@
         },
         {
           "level": 1,
-          "line": 52,
+          "line": 55,
           "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
         }
       ],
       "keywords": [
         "netns",
         "echo",
-        "root",
-        "campaign",
         "dev",
-        "sync",
+        "campaign",
+        "root",
         "exit",
-        "route",
         "null",
+        "sync",
+        "route",
         "veth",
         "run_uid",
         "run_gid",
+        "listener",
         "lab",
         "default",
         "beta",
@@ -135922,12 +135923,11 @@
         "link",
         "step",
         "exec",
-        "runs",
-        "connect"
+        "runs"
       ],
-      "lines": 61,
+      "lines": 65,
       "path": "lab/netlab/outage-drill.sh",
-      "sha256": "7e9041fde894193b517270983b7802734c696c9694eb31f5778e4d23807a1aab",
+      "sha256": "11d98b7c0327ffc61d959bd615d08f6fcad739c2ba29705c31a94ca0afabd593",
       "symbols": [],
       "title": "TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md)."
     },

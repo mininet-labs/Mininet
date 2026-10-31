@@ -9,8 +9,9 @@ step fmt;     cargo fmt --all -- --check
 step clippy;  cargo clippy --keep-going --all-targets --all-features -- -D warnings
 if [ "${1:-}" != "--quick" ]; then step test; cargo test --all --all-features; fi
 step "beta interchange adapters"
-VENV="${TMPDIR:-/tmp}/mininet-lab-beta-venv"
-[ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
+VENV="$(mktemp -d)"   # fresh, owner-private, never a shared predictable path
+trap 'rm -rf "$VENV"' EXIT
+python3 -m venv "$VENV"
 "$VENV/bin/python" -m pip install -q -r tools/requirements-beta-interchange.txt
 "$VENV/bin/python" -m unittest discover -s tools -p test_check_beta_payload.py
 step "nav index"
