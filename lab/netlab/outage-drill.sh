@@ -8,14 +8,21 @@
 # network namespace (`unshare -Urmn`). "Root" in there is the invoking user
 # mapped to uid 0 and has no power over the host, so a hostile checkout cannot
 # use this script to gain host privileges. Do not run it with sudo.
-# Usage: lab/netlab/outage-drill.sh [path-to-mini]
+# Usage: lab/netlab/outage-drill.sh [path-to-mini]   (builds mini-cli if omitted)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MINI="${1:-$ROOT/target/debug/mini}"
+MINI="${1:-}"
 if [ "$(id -u)" -eq 0 ] && [ -z "${LAB_NETLAB_INNER:-}" ] && [ -z "${LAB_NETLAB_ALLOW_ROOT:-}" ]; then
     echo "refusing to run as host root: run as a normal user (no sudo)" >&2; exit 1
 fi
-[ -x "$MINI" ] || { echo "build first: cargo build -p mini-cli --bin mini" >&2; exit 1; }
+if [ -z "${LAB_NETLAB_INNER:-}" ] && [ -z "$MINI" ]; then
+    # Build the CLI (outside the namespaces, with network for crates if needed)
+    # and honour Cargo's configured target directory.
+    (cd "$ROOT" && cargo build -p mini-cli --bin mini)
+    TARGET_DIR="$(cd "$ROOT" && cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')"
+    MINI="$TARGET_DIR/debug/mini"
+fi
+[ -x "$MINI" ] || { echo "mini binary not found: $MINI" >&2; exit 1; }
 if [ -z "${LAB_NETLAB_INNER:-}" ]; then
     command -v unshare >/dev/null || { echo "unshare (util-linux) required" >&2; exit 1; }
     LAB_NETLAB_INNER=1 exec unshare -Urmn "$0" "$MINI"

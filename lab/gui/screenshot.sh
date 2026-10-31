@@ -11,8 +11,8 @@ TARGET_DIR="$(cargo metadata --format-version 1 --no-deps | python3 -c 'import j
 # Pick a free display and verify our own server owns it.
 for n in $(seq 90 130); do [ -e "/tmp/.X11-unix/X$n" ] || [ -e "/tmp/.X$n-lock" ] || break; done
 D=:$n; Xvfb $D -screen 0 1280x800x24 >/dev/null 2>&1 & XV=$!
-APP=""
-trap '[ -z "$APP" ] || kill "$APP" 2>/dev/null; kill "$XV" 2>/dev/null || true' EXIT
+APP=""; HOME_DIR=""
+trap '[ -z "$APP" ] || kill "$APP" 2>/dev/null; kill "$XV" 2>/dev/null; [ -z "$HOME_DIR" ] || rm -rf "$HOME_DIR"; true' EXIT
 sleep 1
 kill -0 "$XV" 2>/dev/null || { echo "Xvfb failed to start on $D" >&2; exit 1; }
 HOME_DIR="$(mktemp -d)"

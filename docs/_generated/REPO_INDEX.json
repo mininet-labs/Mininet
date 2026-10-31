@@ -2,7 +2,7 @@
   "counts": {
     "crates": 93,
     "files": 1255,
-    "headings": 4246,
+    "headings": 4248,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135667,7 +135667,7 @@
       "title": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
     },
     {
-      "bytes": 1147,
+      "bytes": 1610,
       "group": "root",
       "headings": [
         {
@@ -135679,37 +135679,47 @@
           "level": 1,
           "line": 3,
           "text": "Usage: lab/ci-local.sh [--quick]   (--quick skips the full workspace test run)"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "Index only tracked + untracked-but-not-ignored files (what a contributor can"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "commit), so ignored build artifacts never make the check fail."
         }
       ],
       "keywords": [
         "step",
         "venv",
-        "quick",
-        "ci-local",
-        "tools",
-        "lab",
+        "nav",
         "check",
+        "quick",
+        "tools",
+        "ci-local",
+        "build",
+        "python3",
+        "lab",
+        "run",
+        "index",
+        "commit",
+        "never",
+        "fail",
         "bin",
         "cargo",
-        "python3",
+        "exit",
+        "null",
+        "generated",
         "echo",
         "origin",
         "main",
-        "mirrors",
-        "job",
-        "github",
-        "workflows",
-        "yml",
-        "plus",
-        "cheap",
-        "repo",
-        "gates",
-        "usage",
-        "skips"
+        "mirrors"
       ],
-      "lines": 24,
+      "lines": 34,
       "path": "lab/ci-local.sh",
-      "sha256": "2e405856c57997eda4e33b78e4b11e893540a4015f2667259f49778e797c6b94",
+      "sha256": "9cf3512af257412b447f6a1d0d98ba2a863b0eeb4ce32e903b4a1a20c2032881",
       "symbols": [],
       "title": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
     },
@@ -135798,7 +135808,7 @@
       "title": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
     },
     {
-      "bytes": 1311,
+      "bytes": 1364,
       "group": "root",
       "headings": [
         {
@@ -135824,6 +135834,7 @@
       ],
       "keywords": [
         "app",
+        "home_dir",
         "display",
         "out",
         "gui",
@@ -135833,7 +135844,6 @@
         "null",
         "mininet-desktop",
         "kill",
-        "home_dir",
         "lab",
         "exit",
         "echo",
@@ -135850,12 +135860,12 @@
       ],
       "lines": 25,
       "path": "lab/gui/screenshot.sh",
-      "sha256": "634af99458e0f850a490fad3982afa82779b83d534fcb7e919e25cbbe41ee5c3",
+      "sha256": "e8e761f94f1730f6fb1963cbcb7f7acf01fdf5992daee68b1a8650a6a2fb8084",
       "symbols": [],
       "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
     },
     {
-      "bytes": 3967,
+      "bytes": 4398,
       "group": "root",
       "headings": [
         {
@@ -135901,16 +135911,16 @@
         {
           "level": 1,
           "line": 11,
-          "text": "Usage: lab/netlab/outage-drill.sh [path-to-mini]"
+          "text": "Usage: lab/netlab/outage-drill.sh [path-to-mini]   (builds mini-cli if omitted)"
         },
         {
           "level": 1,
-          "line": 23,
+          "line": 30,
           "text": "Inside the private namespaces: a private /run so `ip netns` needs no host files."
         },
         {
           "level": 1,
-          "line": 66,
+          "line": 73,
           "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
         }
       ],
@@ -135921,28 +135931,28 @@
         "exit",
         "dev",
         "sync",
+        "root",
         "run",
         "null",
         "route",
-        "root",
         "host",
         "veth",
         "set",
         "exec",
         "link",
         "listener",
+        "network",
+        "namespaces",
         "default",
         "beta",
         "tester",
         "real",
         "sudo",
-        "inside",
-        "user",
-        "unshare"
+        "inside"
       ],
-      "lines": 76,
+      "lines": 83,
       "path": "lab/netlab/outage-drill.sh",
-      "sha256": "dee6f9d19aa3221725f155518da9e6802dcb52d6cc8edf207f93069d21b2c6ac",
+      "sha256": "6f5d90730d26b086800ef5b46c7fab2122b6bc6a92798afb70a6a7fe773ddb1d",
       "symbols": [],
       "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
     },
