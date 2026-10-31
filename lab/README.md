@@ -23,7 +23,7 @@ Typical agent loop: `lab/doctor.sh` → code → `lab/ci-local.sh --quick` →
 
 ## Trust model
 
-Nothing in the lab needs root or `sudo`. `netlab/outage-drill.sh` runs entirely
+Apart from the one-time `bootstrap.sh` package install, nothing in the lab needs root or `sudo`. `netlab/outage-drill.sh` runs entirely
 inside a throwaway rootless user+mount+network namespace (`unshare -Urmn`);
 "root" there is just you, mapped to uid 0 inside the namespace, with no power
 over the host. The script refuses to run as host root, so a hostile checkout

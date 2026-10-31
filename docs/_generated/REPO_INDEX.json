@@ -135573,7 +135573,7 @@
       "title": "{"
     },
     {
-      "bytes": 2396,
+      "bytes": 2452,
       "group": "root",
       "headings": [
         {
@@ -135606,16 +135606,16 @@
         "agent",
         "script",
         "what",
+        "bootstrap",
         "xvfb",
         "doctor",
         "machine",
         "mirror",
-        "quick",
-        "check"
+        "quick"
       ],
       "lines": 34,
       "path": "lab/README.md",
-      "sha256": "a0f0a0248b4d8e8820acdf9afc0b691713eb9a805e40d29d5c9e66da4fc7f57c",
+      "sha256": "8467bd70db1947cb9a5ddc0a2e0c16e8c213621f93b6122374dd286a60dc99dc",
       "symbols": [],
       "title": "Mininet Lab"
     },
