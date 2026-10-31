@@ -149,10 +149,14 @@ be silently linked merely to manufacture reputation continuity.
 
 ### Beta MINI product/durability work
 
-- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX. *CLI done:*
-  `mini beta account|wallet|transfer|grant-policy|grant|grant-approve|grant-status`
-  (every amount is labelled BETA, provisional, not production MINI). The
-  desktop wallet panel is still to do.
+- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX. *Done:* the
+  `mini beta` CLI (accounts, balances, transfer, grant policy/grant/approve/status)
+  and a desktop **BETA wallet** panel (register account, refresh balances, send)
+  served by new application-core commands. Every surface labels amounts BETA,
+  provisional and not production MINI. *Not done:* the desktop panel's layout has
+  not been exercised on a real Windows display (its input parsing, request
+  building, protocol framing and core handlers are unit-tested), and grant
+  approval is CLI-only for now.
 - [x] Persist/replicate beta grant/transfer events rather than relying only on
   the reference in-memory accounting core. Balances are derived from the
   durable signed-object set (`mini-beta-exec`), so any replica that holds the
