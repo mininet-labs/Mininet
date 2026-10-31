@@ -2,7 +2,7 @@
   "counts": {
     "crates": 93,
     "files": 1255,
-    "headings": 4240,
+    "headings": 4241,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135573,7 +135573,7 @@
       "title": "{"
     },
     {
-      "bytes": 1815,
+      "bytes": 1904,
       "group": "root",
       "headings": [
         {
@@ -135600,17 +135600,17 @@
         "audit",
         "android",
         "windows-test",
+        "runs",
         "network",
         "drill",
         "sudo",
         "netlab",
         "outage-drill",
-        "real",
-        "physical"
+        "real"
       ],
       "lines": 23,
       "path": "lab/README.md",
-      "sha256": "426fb9d33c78e078e401b8b959863ee54c46ca301a7d40860f84586a25469f1e",
+      "sha256": "51ba28dd1322502145ecb3bad02702f5893ff6923e2a50827c00cffe99dfb1aa",
       "symbols": [],
       "title": "Mininet Lab"
     },
@@ -135850,7 +135850,7 @@
       "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
     },
     {
-      "bytes": 3105,
+      "bytes": 3595,
       "group": "root",
       "headings": [
         {
@@ -135880,7 +135880,12 @@
         },
         {
           "level": 1,
-          "line": 48,
+          "line": 12,
+          "text": "Root is needed only for `ip netns`; every worktree binary runs unprivileged."
+        },
+        {
+          "level": 1,
+          "line": 51,
           "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
         }
       ],
@@ -135892,27 +135897,27 @@
         "sync",
         "exit",
         "route",
+        "root",
         "null",
         "veth",
+        "run_uid",
+        "run_gid",
         "default",
         "beta",
         "tester",
         "real",
-        "root",
         "set",
         "add",
         "link",
         "step",
         "exec",
         "connect",
-        "home",
-        "store",
-        "camp",
-        "lab"
+        "setpriv",
+        "reuid"
       ],
-      "lines": 57,
+      "lines": 60,
       "path": "lab/netlab/outage-drill.sh",
-      "sha256": "377c14dd3b847da6c36a256d5fc52184c3a7adc0feda373715172f7ca40ad564",
+      "sha256": "37a0b84c9208234d09813eb4f701cf943ad7b40e29a925bf491278e7c855a664",
       "symbols": [],
       "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
     },

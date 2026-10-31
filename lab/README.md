@@ -10,7 +10,7 @@ crate, protocol, or governance surface changes.
 | Health | `lab/doctor.sh` | Table of what works on this machine. |
 | CI mirror | `lab/ci-local.sh [--quick]` | fmt, workspace clippy, tests, Beta adapters, nav index, decision check — the `check` job. Not CodeQL, deny/audit, Windows, Android. |
 | Windows binaries | `lab/windows-test.sh [-p crate]…` | Runs `x86_64-pc-windows-gnu` tests under **wine**: catches path-prefix / IO-semantics bugs. Wine is not Windows; the `windows-client` CI job stays authoritative. |
-| Network drill | `sudo lab/netlab/outage-drill.sh` | Two network namespaces joined only by a veth, no default route: a Beta campaign replicates over real TCP `mini sync`. Proves no dependence on GitHub/DNS/internet on one machine. **Not** the open Beta item "drill on separate physical machines". |
+| Network drill | `sudo lab/netlab/outage-drill.sh` | Two network namespaces joined only by a veth, no default route (root only for `ip netns`; `mini` itself runs as the invoking `SUDO_UID`, else `nobody`): a Beta campaign replicates over real TCP `mini sync`. Proves no dependence on GitHub/DNS/internet on one machine. **Not** the open Beta item "drill on separate physical machines". |
 | Desktop GUI | `lab/gui/screenshot.sh [out.png] [secs]` | Starts `mininet-desktop` on Xvfb (software GL) and captures a PNG. Proves it launches and renders; not real-display/DPI/vault behaviour. |
 
 Not covered here (needs hardware or a Founder path): real BLE radios and

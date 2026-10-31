@@ -9,7 +9,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MINI="${1:-$ROOT/target/debug/mini}"
 [ -x "$MINI" ] || { echo "build first: cargo build -p mini-cli --bin mini" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || { echo "needs root for ip netns" >&2; exit 1; }
-W="$(mktemp -d)"; A=labop$$; B=labte$$
+# Root is needed only for `ip netns`; every worktree binary runs unprivileged.
+RUN_UID="${SUDO_UID:-65534}"; RUN_GID="${SUDO_GID:-65534}"
+W="$(mktemp -d)"; chmod 755 "$W"; chown "$RUN_UID:$RUN_GID" "$W"
+ A=labop$$; B=labte$$
 cleanup() { ip netns del "$A" 2>/dev/null || true; ip netns del "$B" 2>/dev/null || true; rm -rf "$W"; }
 trap cleanup EXIT
 ip netns add "$A"; ip netns add "$B"
@@ -19,10 +22,10 @@ ip link set "$VA" netns "$A"; ip link set "$VB" netns "$B"
 ip -n "$A" addr add 10.77.0.1/24 dev "$VA"; ip -n "$B" addr add 10.77.0.2/24 dev "$VB"
 for n in "$A:$VA" "$B:$VB"; do ip -n "${n%%:*}" link set lo up; ip -n "${n%%:*}" link set "${n##*:}" up; done
 step() { printf '\n== %s ==\n' "$*"; }
-op() { ip netns exec "$A" "$MINI" --home "$W/op" --store "$W/op-store" "$@"; }
-te() { ip netns exec "$B" "$MINI" --home "$W/te" --store "$W/te-store" "$@"; }
-opj() { ip netns exec "$A" "$MINI" --json --home "$W/op" --store "$W/op-store" "$@"; }
-tej() { ip netns exec "$B" "$MINI" --json --home "$W/te" --store "$W/te-store" "$@"; }
+op() { ip netns exec "$A" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --home "$W/op" --store "$W/op-store" "$@"; }
+te() { ip netns exec "$B" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --home "$W/te" --store "$W/te-store" "$@"; }
+opj() { ip netns exec "$A" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --json --home "$W/op" --store "$W/op-store" "$@"; }
+tej() { ip netns exec "$B" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --json --home "$W/te" --store "$W/te-store" "$@"; }
 
 step "isolation: no route to the outside"
 for ns in "$A" "$B"; do
