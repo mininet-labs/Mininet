@@ -357,8 +357,8 @@ fn a_journaled_but_uncommitted_registration_is_recovered_not_duplicated() {
     let epoch = BetaEpochId::new(EPOCH).unwrap();
     let id = "beta-crash-register";
     // Crash window: the signed registration is journaled but never committed.
-    let (_, next) = core.beta_own_slots(epoch).unwrap();
-    let slot = next.unwrap();
+    let nonce = mini_crypto::random_32().unwrap();
+    let slot = beta_wallet::derive_slot_for_test(&mut core, epoch, nonce);
     let owner = slot.identity.root.did();
     let object = mini_beta_exec::build_account_registration(
         &owner,
@@ -369,12 +369,11 @@ fn a_journaled_but_uncommitted_registration_is_recovered_not_duplicated() {
         1,
     )
     .unwrap();
-    beta_journal::write(
+    beta_journal::write_pending(
         &core.beta_ops,
         id,
         &beta_journal::Record {
             kind: beta_journal::KIND_REGISTER,
-            complete: false,
             digest: beta_wallet::input_digest(b"register", &[epoch.as_bytes()]),
             account: *slot.account.as_bytes(),
             amount: 0,
@@ -400,6 +399,79 @@ fn a_journaled_but_uncommitted_registration_is_recovered_not_duplicated() {
         _ => panic!("unexpected reply"),
     }
     assert_eq!(count_type(&core, mini_beta_exec::BETA_ACCOUNT_TYPE), 1);
+    // The recovered account is owned by this profile.
+    let owned = core.beta_own_slots(epoch).unwrap();
+    assert_eq!(owned.len(), 1);
+    assert_eq!(owned[0].account, slot.account);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn two_devices_restored_from_one_root_never_collide() {
+    let (mut one, root_one) = unlocked("beta-device-one");
+    let (mut two, root_two) = unlocked("beta-device-two");
+    let a = register(&mut one, EPOCH);
+    let b = register(&mut two, EPOCH);
+    assert_ne!(a, b, "random nonce per registration, so accounts differ");
+    // Registrations from both devices land in one store with no conflict.
+    let objects: Vec<_> = two
+        .store
+        .by_type(&ObjectType::Custom(
+            mini_beta_exec::BETA_ACCOUNT_TYPE.to_string(),
+        ))
+        .unwrap()
+        .into_iter()
+        .map(|id| two.store.get(&id).unwrap())
+        .collect();
+    for object in objects {
+        one.store.insert(&object).unwrap();
+    }
+    let campaign = fund(&mut one, a);
+    let snapshot = mini_beta_exec::resolve_snapshot(
+        &one.store,
+        BetaEpochId::new(EPOCH).unwrap(),
+        mini_beta::BetaMiniPolicy::open_beta_default(),
+        &mini_beta_exec::EpochIssuancePolicy::new(
+            BetaEpochId::new(EPOCH).unwrap(),
+            &[ObjectId::parse(&campaign).unwrap()],
+        ),
+    )
+    .unwrap();
+    assert!(snapshot.account_conflicts.is_empty());
+    fs::remove_dir_all(root_one).unwrap();
+    fs::remove_dir_all(root_two).unwrap();
+}
+
+#[test]
+fn derived_identities_publish_kel_carriers_for_verified_sync() {
+    let (mut core, root) = unlocked("beta-kels");
+    let account = register(&mut core, EPOCH);
+    let primary = core.human.clone().unwrap();
+    let carriers = core
+        .store
+        .by_type(&ObjectType::Custom(mini_sync::KEL_CARRIER.to_string()))
+        .unwrap();
+    assert_eq!(carriers.len(), 2, "derived root and device KEL carriers");
+    for id in carriers {
+        assert_ne!(core.store.get(&id).unwrap().author_human, primary);
+    }
+    // A peer that has only the carriers and the registration can verify them.
+    let mut cache = mini_sync::KelCache::new();
+    cache.hydrate_from_store(&core.store).unwrap();
+    for id in core
+        .store
+        .by_type(&ObjectType::Custom(
+            mini_beta_exec::BETA_ACCOUNT_TYPE.to_string(),
+        ))
+        .unwrap()
+    {
+        let object = core.store.get(&id).unwrap();
+        assert!(matches!(
+            mini_sync::Ingest::check(&mut cache, &object),
+            mini_sync::IngestOutcome::Accepted
+        ));
+    }
+    let _ = account;
     fs::remove_dir_all(root).unwrap();
 }
 

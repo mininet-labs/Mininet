@@ -1,13 +1,17 @@
 //! Durable, idempotent record of BETA mutations keyed by operation id.
 //!
 //! A BETA registration or transfer is signed exactly once: the signed object
-//! bytes are written here *before* they are committed to the store, so a retry
-//! after a lost response (or a crash between signing and committing) replays
-//! the identical object instead of signing a second one. Records never hold
-//! keys; the stored input digest rejects reuse of an operation id for
-//! different content.
+//! bytes are written to `pending/` *before* they are committed to the store, so
+//! a retry after a lost response (or a crash between signing and committing)
+//! replays the identical object instead of signing a second one. Once
+//! committed, the pending file is replaced by a compact receipt, so startup
+//! recovery only ever scans genuinely pending work. Registrations also leave an
+//! `accounts/<epoch>/<nonce>` marker, the local list of accounts this profile
+//! owns. Records never hold keys; the stored input digest rejects reuse of an
+//! operation id for different content.
 
 use mini_app_protocol::{ErrorCode, ServiceError};
+use mini_beta_exec::parse_account_registration_object;
 use mini_objects::Object;
 use mini_store::{FsBackend, Store};
 use std::fs;
@@ -15,22 +19,42 @@ use std::path::{Path, PathBuf};
 
 use crate::{hex_encode, storage_error, MAX_SIGNED_OBJECT_BYTES};
 
-const MAGIC: &[u8; 8] = b"MBETAOP1";
-const HEADER_LEN: usize = 8 + 1 + 1 + 32 + 32 + 8 + 8 + 4;
+const PENDING_MAGIC: &[u8; 8] = b"MBETAOP2";
+const RECEIPT_MAGIC: &[u8; 8] = b"MBETARC2";
+const PENDING_HEADER: usize = 8 + 1 + 32 + 32 + 8 + 8 + 4;
+const RECEIPT_FIXED: usize = 8 + 1 + 32 + 32 + 8 + 8 + 2;
+const MAX_OBJECT_ID_LEN: usize = 256;
 const MAX_PENDING_RECORDS: usize = 1024;
+const MAX_ACCOUNT_MARKERS: usize = 256;
 
 pub(crate) const KIND_REGISTER: u8 = 1;
 pub(crate) const KIND_TRANSFER: u8 = 2;
 
+/// A signed object waiting to be committed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Record {
     pub kind: u8,
-    pub complete: bool,
     pub digest: [u8; 32],
     pub account: [u8; 32],
     pub amount: u64,
     pub change: u64,
     pub object: Vec<u8>,
+}
+
+/// The outcome of a committed operation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Receipt {
+    pub kind: u8,
+    pub digest: [u8; 32],
+    pub account: [u8; 32],
+    pub amount: u64,
+    pub change: u64,
+    pub object_id: String,
+}
+
+pub(crate) enum Entry {
+    Done(Receipt),
+    Pending(Record),
 }
 
 fn io(error: impl core::fmt::Display) -> ServiceError {
@@ -41,22 +65,41 @@ fn corrupt() -> ServiceError {
     ServiceError::new(ErrorCode::Storage, "BETA operation journal is corrupt")
 }
 
+fn pending_dir(dir: &Path) -> PathBuf {
+    dir.join("pending")
+}
+fn receipts_dir(dir: &Path) -> PathBuf {
+    dir.join("receipts")
+}
+fn accounts_dir(dir: &Path, epoch: &[u8; 32]) -> PathBuf {
+    dir.join("accounts").join(hex_encode(epoch))
+}
+
 pub(crate) fn open(dir: &Path) -> Result<(), ServiceError> {
-    mini_durable::create_dir_all(dir).map_err(io)
+    for sub in [pending_dir(dir), receipts_dir(dir), dir.join("accounts")] {
+        mini_durable::create_dir_all(&sub).map_err(io)?;
+    }
+    Ok(())
 }
 
-fn path(dir: &Path, operation_id: &str) -> PathBuf {
-    dir.join(format!("{}.beta", hex_encode(operation_id.as_bytes())))
+fn name(operation_id: &str) -> String {
+    hex_encode(operation_id.as_bytes())
 }
 
-fn encode(record: &Record) -> Result<Vec<u8>, ServiceError> {
+fn take32(bytes: &[u8], at: usize) -> [u8; 32] {
+    bytes[at..at + 32].try_into().expect("length checked")
+}
+fn take64(bytes: &[u8], at: usize) -> u64 {
+    u64::from_be_bytes(bytes[at..at + 8].try_into().expect("length checked"))
+}
+
+fn encode_pending(record: &Record) -> Result<Vec<u8>, ServiceError> {
     if record.object.len() > MAX_SIGNED_OBJECT_BYTES {
         return Err(corrupt());
     }
-    let mut out = Vec::with_capacity(HEADER_LEN + record.object.len());
-    out.extend_from_slice(MAGIC);
+    let mut out = Vec::with_capacity(PENDING_HEADER + record.object.len());
+    out.extend_from_slice(PENDING_MAGIC);
     out.push(record.kind);
-    out.push(u8::from(record.complete));
     out.extend_from_slice(&record.digest);
     out.extend_from_slice(&record.account);
     out.extend_from_slice(&record.amount.to_be_bytes());
@@ -66,88 +109,151 @@ fn encode(record: &Record) -> Result<Vec<u8>, ServiceError> {
     Ok(out)
 }
 
-fn decode(bytes: &[u8]) -> Result<Record, ServiceError> {
-    if bytes.len() < HEADER_LEN || &bytes[..8] != MAGIC {
+fn valid_kind(kind: u8) -> bool {
+    kind == KIND_REGISTER || kind == KIND_TRANSFER
+}
+
+fn decode_pending(bytes: &[u8]) -> Result<Record, ServiceError> {
+    if bytes.len() < PENDING_HEADER || &bytes[..8] != PENDING_MAGIC || !valid_kind(bytes[8]) {
         return Err(corrupt());
     }
-    let kind = bytes[8];
-    let complete = match bytes[9] {
-        0 => false,
-        1 => true,
-        _ => return Err(corrupt()),
-    };
-    if kind != KIND_REGISTER && kind != KIND_TRANSFER {
-        return Err(corrupt());
-    }
-    let take32 = |at: usize| -> [u8; 32] { bytes[at..at + 32].try_into().expect("length checked") };
-    let take64 = |at: usize| -> u64 {
-        u64::from_be_bytes(bytes[at..at + 8].try_into().expect("length checked"))
-    };
     let len = u32::from_be_bytes(
-        bytes[HEADER_LEN - 4..HEADER_LEN]
+        bytes[PENDING_HEADER - 4..PENDING_HEADER]
             .try_into()
             .expect("checked"),
     ) as usize;
-    if len > MAX_SIGNED_OBJECT_BYTES || bytes.len() != HEADER_LEN + len {
+    if len > MAX_SIGNED_OBJECT_BYTES || bytes.len() != PENDING_HEADER + len {
         return Err(corrupt());
     }
     Ok(Record {
-        kind,
-        complete,
-        digest: take32(10),
-        account: take32(42),
-        amount: take64(74),
-        change: take64(82),
-        object: bytes[HEADER_LEN..].to_vec(),
+        kind: bytes[8],
+        digest: take32(bytes, 9),
+        account: take32(bytes, 41),
+        amount: take64(bytes, 73),
+        change: take64(bytes, 81),
+        object: bytes[PENDING_HEADER..].to_vec(),
     })
 }
 
-pub(crate) fn read(dir: &Path, operation_id: &str) -> Result<Option<Record>, ServiceError> {
-    match fs::read(path(dir, operation_id)) {
-        Ok(bytes) => decode(&bytes).map(Some),
+fn encode_receipt(receipt: &Receipt) -> Result<Vec<u8>, ServiceError> {
+    if receipt.object_id.len() > MAX_OBJECT_ID_LEN {
+        return Err(corrupt());
+    }
+    let mut out = Vec::with_capacity(RECEIPT_FIXED + receipt.object_id.len());
+    out.extend_from_slice(RECEIPT_MAGIC);
+    out.push(receipt.kind);
+    out.extend_from_slice(&receipt.digest);
+    out.extend_from_slice(&receipt.account);
+    out.extend_from_slice(&receipt.amount.to_be_bytes());
+    out.extend_from_slice(&receipt.change.to_be_bytes());
+    out.extend_from_slice(&(receipt.object_id.len() as u16).to_be_bytes());
+    out.extend_from_slice(receipt.object_id.as_bytes());
+    Ok(out)
+}
+
+fn decode_receipt(bytes: &[u8]) -> Result<Receipt, ServiceError> {
+    if bytes.len() < RECEIPT_FIXED || &bytes[..8] != RECEIPT_MAGIC || !valid_kind(bytes[8]) {
+        return Err(corrupt());
+    }
+    let len = u16::from_be_bytes(
+        bytes[RECEIPT_FIXED - 2..RECEIPT_FIXED]
+            .try_into()
+            .expect("checked"),
+    ) as usize;
+    if len > MAX_OBJECT_ID_LEN || bytes.len() != RECEIPT_FIXED + len {
+        return Err(corrupt());
+    }
+    Ok(Receipt {
+        kind: bytes[8],
+        digest: take32(bytes, 9),
+        account: take32(bytes, 41),
+        amount: take64(bytes, 73),
+        change: take64(bytes, 81),
+        object_id: String::from_utf8(bytes[RECEIPT_FIXED..].to_vec()).map_err(|_| corrupt())?,
+    })
+}
+
+fn read_optional(path: &Path) -> Result<Option<Vec<u8>>, ServiceError> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(io(error)),
     }
 }
 
-pub(crate) fn write(dir: &Path, operation_id: &str, record: &Record) -> Result<(), ServiceError> {
-    mini_durable::atomic_replace(&path(dir, operation_id), &encode(record)?).map_err(io)
+/// The receipt (done) or pending record for `operation_id`, if any.
+pub(crate) fn lookup(dir: &Path, operation_id: &str) -> Result<Option<Entry>, ServiceError> {
+    let file = name(operation_id);
+    if let Some(bytes) = read_optional(&receipts_dir(dir).join(&file))? {
+        return decode_receipt(&bytes).map(|r| Some(Entry::Done(r)));
+    }
+    if let Some(bytes) = read_optional(&pending_dir(dir).join(&file))? {
+        return decode_pending(&bytes).map(|r| Some(Entry::Pending(r)));
+    }
+    Ok(None)
 }
 
-/// Commit a record's exact signed bytes and mark it complete. Idempotent.
+pub(crate) fn write_pending(
+    dir: &Path,
+    operation_id: &str,
+    record: &Record,
+) -> Result<(), ServiceError> {
+    mini_durable::atomic_replace(
+        &pending_dir(dir).join(name(operation_id)),
+        &encode_pending(record)?,
+    )
+    .map_err(io)
+}
+
+/// Commit a record's exact signed bytes, write its receipt (and, for a
+/// registration, the owned-account marker), then drop the pending file.
+/// Idempotent: safe to repeat after a crash at any point.
 pub(crate) fn complete(
     dir: &Path,
     store: &mut Store<FsBackend>,
     operation_id: &str,
     record: &Record,
-) -> Result<Record, ServiceError> {
+) -> Result<Receipt, ServiceError> {
     let object = Object::from_bytes(&record.object).map_err(storage_error)?;
     if object.to_bytes() != record.object {
         return Err(corrupt());
     }
     store.insert(&object).map_err(storage_error)?;
-    let mut done = record.clone();
-    done.complete = true;
-    if !record.complete {
-        write(dir, operation_id, &done)?;
+    if record.kind == KIND_REGISTER {
+        let registration = parse_account_registration_object(&object).map_err(storage_error)?;
+        let folder = accounts_dir(dir, registration.epoch.as_bytes());
+        mini_durable::create_dir_all(&folder).map_err(io)?;
+        mini_durable::atomic_replace(&folder.join(hex_encode(&registration.nonce)), b"1")
+            .map_err(io)?;
     }
-    Ok(done)
+    let receipt = Receipt {
+        kind: record.kind,
+        digest: record.digest,
+        account: record.account,
+        amount: record.amount,
+        change: record.change,
+        object_id: object.id().as_str().to_string(),
+    };
+    let file = name(operation_id);
+    mini_durable::atomic_replace(&receipts_dir(dir).join(&file), &encode_receipt(&receipt)?)
+        .map_err(io)?;
+    match mini_durable::remove_file(&pending_dir(dir).join(&file)) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(io(error)),
+    }
+    Ok(receipt)
 }
 
-/// Commit every pending record (startup recovery and before choosing the next
-/// account index, so a half-finished registration is never raced).
+/// Commit every pending record (startup recovery and before each new
+/// operation). Only the small `pending/` directory is scanned.
 pub(crate) fn commit_pending(dir: &Path, store: &mut Store<FsBackend>) -> Result<(), ServiceError> {
     let mut seen = 0usize;
-    for entry in fs::read_dir(dir).map_err(io)? {
+    for entry in fs::read_dir(pending_dir(dir)).map_err(io)? {
         let entry = entry.map_err(io)?;
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        let Some(hex) = name.strip_suffix(".beta") else {
-            continue;
-        };
-        let bytes = fs::read(entry.path()).map_err(io)?;
-        let record = decode(&bytes)?;
-        if record.complete {
+        let file = entry.file_name();
+        let Some(file) = file.to_str() else { continue };
+        if file.ends_with(".tmp") {
             continue;
         }
         seen += 1;
@@ -157,10 +263,40 @@ pub(crate) fn commit_pending(dir: &Path, store: &mut Store<FsBackend>) -> Result
                 "too many pending BETA operations",
             ));
         }
-        let operation_id = String::from_utf8(unhex(hex)?).map_err(|_| corrupt())?;
+        let record = decode_pending(&fs::read(entry.path()).map_err(io)?)?;
+        let operation_id = String::from_utf8(unhex(file)?).map_err(|_| corrupt())?;
         complete(dir, store, &operation_id, &record)?;
     }
     Ok(())
+}
+
+/// Nonces of the accounts this profile registered in `epoch`.
+pub(crate) fn owned_nonces(dir: &Path, epoch: &[u8; 32]) -> Result<Vec<[u8; 32]>, ServiceError> {
+    let folder = accounts_dir(dir, epoch);
+    let entries = match fs::read_dir(&folder) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(io(error)),
+    };
+    let mut nonces = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(io)?;
+        let file = entry.file_name();
+        let Some(file) = file.to_str() else { continue };
+        if file.ends_with(".tmp") {
+            continue;
+        }
+        if nonces.len() >= MAX_ACCOUNT_MARKERS {
+            return Err(ServiceError::new(
+                ErrorCode::Storage,
+                "too many BETA account markers",
+            ));
+        }
+        let bytes = unhex(file)?;
+        nonces.push(bytes.try_into().map_err(|_| corrupt())?);
+    }
+    nonces.sort();
+    Ok(nonces)
 }
 
 fn unhex(value: &str) -> Result<Vec<u8>, ServiceError> {

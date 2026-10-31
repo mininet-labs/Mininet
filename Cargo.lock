@@ -2708,6 +2708,7 @@ dependencies = [
  "mini-objects",
  "mini-social",
  "mini-store",
+ "mini-sync",
  "mini-transport-security",
  "mini-windows-vault",
 ]

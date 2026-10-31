@@ -15,6 +15,7 @@ use mini_beta_exec::{
     parse_account_registration_object, resolve_snapshot, BetaExecError, BetaOutputRef,
     BetaTransferOutput, EpochIssuancePolicy, BETA_ACCOUNT_TYPE, MAX_TRANSFER_INPUTS,
 };
+use mini_crypto::random_32;
 use mini_crypto::KdfSuite;
 use mini_objects::{ObjectId, ObjectType};
 use mini_windows_vault::SeedPair;
@@ -30,8 +31,11 @@ use crate::{
 const ACCOUNT_IDENTITY_INFO: &[u8] = b"mininet/beta/account-identity/v1";
 
 /// One BETA account's isolated signing identity. It is derived, never stored,
-/// from the unlocked root seed, so the author DID on public BETA objects is
-/// unrelated to the primary Mininet DID and unlinkable without the seed.
+/// from the unlocked root seed and the account's random registration nonce, so
+/// the author DID on public BETA objects is unrelated to the primary Mininet
+/// DID and unlinkable without the seed. A fresh random nonce per registration
+/// also means two devices restored from one seed never share an identity,
+/// account id, or author sequence.
 pub(crate) struct AccountSlot {
     pub(crate) identity: CoreIdentity,
     pub(crate) nonce: [u8; 32],
@@ -41,16 +45,16 @@ pub(crate) struct AccountSlot {
 fn derive_slot(
     root: &SeedPair,
     epoch: BetaEpochId,
-    index: u16,
+    nonce: [u8; 32],
 ) -> Result<AccountSlot, ServiceError> {
-    let mut info = Vec::with_capacity(ACCOUNT_IDENTITY_INFO.len() + 34);
+    let mut info = Vec::with_capacity(ACCOUNT_IDENTITY_INFO.len() + 64);
     info.extend_from_slice(ACCOUNT_IDENTITY_INFO);
     info.extend_from_slice(epoch.as_bytes());
-    info.extend_from_slice(&index.to_be_bytes());
+    info.extend_from_slice(&nonce);
     let mut okm = KdfSuite::HkdfSha256
-        .derive_bytes(None, &root.current, &info, 160)
+        .derive_bytes(None, &root.current, &info, 128)
         .map_err(|_| ServiceError::new(ErrorCode::Identity, "BETA identity derivation failed"))?;
-    let seed = |at: usize| -> [u8; 32] { okm[at..at + 32].try_into().expect("160 bytes") };
+    let seed = |at: usize| -> [u8; 32] { okm[at..at + 32].try_into().expect("128 bytes") };
     let root_seeds = SeedPair {
         current: seed(0),
         next: seed(32),
@@ -59,7 +63,6 @@ fn derive_slot(
         current: seed(64),
         next: seed(96),
     };
-    let nonce = seed(128);
     okm.fill(0);
     let identity = identity_from_seeds(&root_seeds, &device_seeds)?;
     let owner = identity.root.did();
@@ -142,44 +145,48 @@ impl<V: IdentityVault> Core<V> {
         Ok(found)
     }
 
-    /// This identity's registered accounts in `epoch`, in index order, each with
-    /// its derived signing identity, plus the next free slot (if any remain).
+    /// This profile's registered accounts in `epoch` (from its local registration
+    /// receipts), each with its derived signing identity.
     pub(crate) fn beta_own_slots(
         &mut self,
         epoch: BetaEpochId,
-    ) -> Result<(Vec<AccountSlot>, Option<AccountSlot>), ServiceError> {
-        let root = self.vault.load_root()?;
-        let registered: std::collections::HashMap<[u8; 32], did_mini::Did> = self
-            .beta_registrations(epoch)?
-            .into_iter()
-            .map(|(_, owner, account)| (*account.as_bytes(), owner))
-            .collect();
-        let mut owned = Vec::new();
-        for index in 0..MAX_BETA_ACCOUNTS {
-            let slot = derive_slot(&root, epoch, index)?;
-            match registered.get(slot.account.as_bytes()) {
-                Some(owner) if *owner == slot.identity.root.did() => owned.push(slot),
-                _ => return Ok((owned, Some(slot))),
-            }
+    ) -> Result<Vec<AccountSlot>, ServiceError> {
+        let nonces = beta_journal::owned_nonces(&self.beta_ops, epoch.as_bytes())?;
+        if nonces.is_empty() {
+            return Ok(Vec::new());
         }
-        Ok((owned, None))
+        let root = self.vault.load_root()?;
+        nonces
+            .into_iter()
+            .map(|nonce| derive_slot(&root, epoch, nonce))
+            .collect()
     }
 
-    pub(crate) fn beta_reply(record: &Record) -> Result<Reply, ServiceError> {
-        let object = mini_objects::Object::from_bytes(&record.object).map_err(storage_error)?;
-        let id = object.id().as_str().to_string();
-        Ok(if record.kind == KIND_REGISTER {
+    /// Publish the derived identity's KEL carriers so peers can verify its
+    /// objects through ordinary verified sync. Deterministic and idempotent.
+    fn beta_publish_kels(&mut self, slot: &AccountSlot) -> Result<(), ServiceError> {
+        let owner = slot.identity.root.did();
+        for kel in [slot.identity.root.kel(), slot.identity.device.kel()] {
+            let carrier = mini_sync::kel_carrier(&kel, &owner, &slot.identity.device)
+                .map_err(storage_error)?;
+            self.store.insert(&carrier).map_err(storage_error)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn beta_reply_from(receipt: &beta_journal::Receipt) -> Reply {
+        if receipt.kind == KIND_REGISTER {
             Reply::BetaAccount {
-                account: record.account,
-                registration_id: id,
+                account: receipt.account,
+                registration_id: receipt.object_id.clone(),
             }
         } else {
             Reply::BetaTransfer {
-                transfer_id: id,
-                amount_micro: record.amount,
-                change_micro: record.change,
+                transfer_id: receipt.object_id.clone(),
+                amount_micro: receipt.amount,
+                change_micro: receipt.change,
             }
-        })
+        }
     }
 
     /// Replay an existing operation (finishing a half-committed one) or `None`.
@@ -189,15 +196,20 @@ impl<V: IdentityVault> Core<V> {
         kind: u8,
         digest: [u8; 32],
     ) -> Result<Option<Reply>, ServiceError> {
-        let Some(record) = beta_journal::read(&self.beta_ops, operation_id)? else {
-            return Ok(None);
+        let receipt = match beta_journal::lookup(&self.beta_ops, operation_id)? {
+            None => return Ok(None),
+            Some(beta_journal::Entry::Done(receipt)) => receipt,
+            Some(beta_journal::Entry::Pending(record)) => {
+                if record.kind != kind || record.digest != digest {
+                    return Err(bad("operation id was already used with different content"));
+                }
+                beta_journal::complete(&self.beta_ops, &mut self.store, operation_id, &record)?
+            }
         };
-        if record.kind != kind || record.digest != digest {
+        if receipt.kind != kind || receipt.digest != digest {
             return Err(bad("operation id was already used with different content"));
         }
-        let record =
-            beta_journal::complete(&self.beta_ops, &mut self.store, operation_id, &record)?;
-        Self::beta_reply(&record).map(Some)
+        Ok(Some(Self::beta_reply_from(&receipt)))
     }
 
     fn beta_journal_and_commit(
@@ -205,10 +217,10 @@ impl<V: IdentityVault> Core<V> {
         operation_id: &str,
         record: Record,
     ) -> Result<Reply, ServiceError> {
-        beta_journal::write(&self.beta_ops, operation_id, &record)?;
-        let record =
+        beta_journal::write_pending(&self.beta_ops, operation_id, &record)?;
+        let receipt =
             beta_journal::complete(&self.beta_ops, &mut self.store, operation_id, &record)?;
-        Self::beta_reply(&record)
+        Ok(Self::beta_reply_from(&receipt))
     }
 
     pub(crate) fn beta_register_account(
@@ -224,8 +236,12 @@ impl<V: IdentityVault> Core<V> {
         }
         self.ensure_signing_available()?;
         beta_journal::commit_pending(&self.beta_ops, &mut self.store)?;
-        let (_, next) = self.beta_own_slots(epoch)?;
-        let slot = next.ok_or_else(|| bad("BETA account limit reached for this epoch"))?;
+        if self.beta_own_slots(epoch)?.len() >= usize::from(MAX_BETA_ACCOUNTS) {
+            return Err(bad("BETA account limit reached for this epoch"));
+        }
+        let nonce = random_32()
+            .map_err(|_| ServiceError::new(ErrorCode::Internal, "entropy source unavailable"))?;
+        let slot = derive_slot(&self.vault.load_root()?, epoch, nonce)?;
         let owner = slot.identity.root.did();
         let sequence = next_object_sequence(&self.store, Some(&owner))?;
         let object = build_account_registration(
@@ -237,11 +253,11 @@ impl<V: IdentityVault> Core<V> {
             sequence,
         )
         .map_err(exec_error)?;
+        self.beta_publish_kels(&slot)?;
         self.beta_journal_and_commit(
             operation_id,
             Record {
                 kind: KIND_REGISTER,
-                complete: false,
                 digest,
                 account: *slot.account.as_bytes(),
                 amount: 0,
@@ -264,7 +280,7 @@ impl<V: IdentityVault> Core<V> {
                 "create a Mininet root first",
             ));
         }
-        let (owned, _) = self.beta_own_slots(epoch)?;
+        let owned = self.beta_own_slots(epoch)?;
         let mut accounts: Vec<[u8; 32]> = owned.iter().map(|s| *s.account.as_bytes()).collect();
         accounts.sort();
         let snapshot = resolve_snapshot(
@@ -333,7 +349,7 @@ impl<V: IdentityVault> Core<V> {
         }
         self.ensure_signing_available()?;
         beta_journal::commit_pending(&self.beta_ops, &mut self.store)?;
-        let (owned, _) = self.beta_own_slots(epoch)?;
+        let owned = self.beta_own_slots(epoch)?;
         let slot = owned
             .into_iter()
             .find(|slot| slot.account == from)
@@ -411,11 +427,11 @@ impl<V: IdentityVault> Core<V> {
             sequence,
         )
         .map_err(exec_error)?;
+        self.beta_publish_kels(&slot)?;
         self.beta_journal_and_commit(
             operation_id,
             Record {
                 kind: KIND_TRANSFER,
-                complete: false,
                 digest,
                 account: *from.as_bytes(),
                 amount,
@@ -424,4 +440,13 @@ impl<V: IdentityVault> Core<V> {
             },
         )
     }
+}
+
+#[cfg(test)]
+pub(crate) fn derive_slot_for_test<V: IdentityVault>(
+    core: &mut Core<V>,
+    epoch: BetaEpochId,
+    nonce: [u8; 32],
+) -> AccountSlot {
+    derive_slot(&core.vault.load_root().unwrap(), epoch, nonce).unwrap()
 }

@@ -160,8 +160,10 @@ be silently linked merely to manufacture reputation continuity.
   register/transfer carry an operation id and the exact signed object is
   journaled before it is committed, so a lost response never causes a second
   signature; each BETA account is signed by its own identity derived (HKDF, never
-  stored) from the unlocked root seed, so public BETA objects carry no primary
-  DID. *Not yet done:* the `mini beta` CLI still signs BETA objects with the CLI
+  stored) from the unlocked root seed and a random per-account nonce, with its
+  KEL carriers published for verified sync, so public BETA objects carry no primary
+  DID. The list of owned accounts is local state (registration receipts), so a
+  profile restored from the seed alone does not see its old accounts. *Not yet done:* the `mini beta` CLI still signs BETA objects with the CLI
   identity (tracked separately).
 - [x] Persist/replicate beta grant/transfer events rather than relying only on
   the reference in-memory accounting core. Balances are derived from the
@@ -170,7 +172,7 @@ be silently linked merely to manufacture reputation continuity.
   A two-node replication test is still outstanding.
 - [ ] Provide a private fresh claim path for accepted participation without
   binding public GitHub identity to the beta account.
-- [ ] Prove epoch reset/retirement through the actual product surface. *Proven through the CLI by `epoch_rollover_retires_old_value_and_carries_nothing_forward` (balances and accounts do not carry into a new epoch, old accounts cannot act there, history is unchanged); the desktop wallet surface does not exist yet, so the box stays open.*
+- [ ] Prove epoch reset/retirement through the actual product surface. *Proven through the CLI by `epoch_rollover_retires_old_value_and_carries_nothing_forward` (balances and accounts do not carry into a new epoch, old accounts cannot act there, history is unchanged); the desktop BETA wallet now exists, but its epoch rollover has not been exercised through the real desktop UI, so the box stays open.*
 
 ### Forge canonicality
 
