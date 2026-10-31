@@ -584,3 +584,47 @@ fn epoch_rollover_retires_old_value_and_carries_nothing_forward() {
     // The retired epoch is unchanged, so rollover rewrites no history.
     assert_eq!(balance(&w, &w.alice_home, &w.alice_account), 100);
 }
+
+#[test]
+fn beta_objects_are_signed_by_per_account_identities_not_the_primary_did() {
+    let w = world();
+    let store = mini_cli::store::open_store(std::path::Path::new(&w.store)).unwrap();
+    let primary = |home: &str| {
+        mini_cli::identity::load(std::path::Path::new(home))
+            .unwrap()
+            .human_did()
+    };
+    let (alice, bob) = (primary(&w.alice_home), primary(&w.bob_home));
+    let mut seen = 0;
+    for kind in [
+        mini_beta_exec::BETA_ACCOUNT_TYPE,
+        mini_beta_exec::BETA_TRANSFER_TYPE,
+    ] {
+        for id in store
+            .by_type(&ObjectType::Custom(kind.to_string()))
+            .unwrap()
+        {
+            let author = store.get(&id).unwrap().author_human;
+            assert_ne!(author, alice, "primary DID must not sign BETA objects");
+            assert_ne!(author, bob, "primary DID must not sign BETA objects");
+            seen += 1;
+        }
+    }
+    assert!(seen >= 2, "both accounts are registered");
+
+    // A peer holding only the store (carriers + registrations) can verify them.
+    let mut cache = mini_sync::KelCache::new();
+    cache.hydrate_from_store(&store).unwrap();
+    for id in store
+        .by_type(&ObjectType::Custom(
+            mini_beta_exec::BETA_ACCOUNT_TYPE.to_string(),
+        ))
+        .unwrap()
+    {
+        let object = store.get(&id).unwrap();
+        assert!(matches!(
+            mini_sync::Ingest::check(&mut cache, &object),
+            mini_sync::IngestOutcome::Accepted
+        ));
+    }
+}
