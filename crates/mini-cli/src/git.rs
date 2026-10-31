@@ -1023,6 +1023,18 @@ fn import_history(
             mapped.insert(id, resumed.clone());
             continue;
         }
+        // Idempotency guard (#395 item 3): an importer-signed mapping for this
+        // Git commit already exists in the store (published before a crash,
+        // index lost). History checkpoint validation above must have resumed
+        // it; if it did not, fail closed rather than sign a second mapping.
+        // Limit: a crash between native-commit insertion and provenance
+        // insertion still leaves an unreferenced native commit (no mapping
+        // points at it, so no second mapping exists); it is not reused.
+        if recovered.contains_key(&id) {
+            return Err(fail(
+                "signed Git history mapping already exists but was not resumed; refusing a second mapping",
+            ));
+        }
         let parents: Vec<ObjectId> = item
             .parents
             .iter()

@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1260,
     "headings": 4248,
-    "rust_symbols": 14906
+    "rust_symbols": 14922
   },
   "crates": {
     "askama_derive": {
@@ -21432,7 +21432,7 @@
       "title": "use core::fmt;"
     },
     {
-      "bytes": 57929,
+      "bytes": 58667,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21461,9 +21461,9 @@
         "source",
         "read"
       ],
-      "lines": 1478,
+      "lines": 1490,
       "path": "crates/mini-cli/src/git.rs",
-      "sha256": "fd8652b4961f7bae95026f565479cd1bf41d8e06e387e45681b5a40d97b79b95",
+      "sha256": "b010d93b098717f474e940568cdab20ede5a3705b065c84b9ccfceee6c488d5b",
       "symbols": [
         {
           "kind": "const",
@@ -21667,37 +21667,37 @@
         },
         {
           "kind": "fn",
-          "line": 1092,
+          "line": 1104,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 1099,
+          "line": 1111,
           "name": "rewrite_body"
         },
         {
           "kind": "fn",
-          "line": 1155,
+          "line": 1167,
           "name": "write_mirror_objects"
         },
         {
           "kind": "fn",
-          "line": 1254,
+          "line": 1266,
           "name": "verify_native_ancestry"
         },
         {
           "kind": "fn",
-          "line": 1276,
+          "line": 1288,
           "name": "preflight_export"
         },
         {
           "kind": "fn",
-          "line": 1307,
+          "line": 1319,
           "name": "export"
         },
         {
           "kind": "fn",
-          "line": 1387,
+          "line": 1399,
           "name": "dispatch"
         }
       ],
@@ -26255,7 +26255,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 17205,
+      "bytes": 19251,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -26284,9 +26284,9 @@
         "original",
         "store"
       ],
-      "lines": 476,
+      "lines": 525,
       "path": "crates/mini-cli/tests/git_history.rs",
-      "sha256": "0ebcb6d7179dc5cbf9fd01f8bad7071858d9332d4224a3952ea5cb5ce733c9c7",
+      "sha256": "84455a2b41caba8b5b73cbebcaf9b0613ab933e82026a3f1ced016460a7afe81",
       "symbols": [
         {
           "kind": "fn",
@@ -26340,12 +26340,17 @@
         },
         {
           "kind": "fn",
-          "line": 403,
+          "line": 407,
+          "name": "git_history_crash_before_checkpoint_publication_resumes_without_second_mapping"
+        },
+        {
+          "kind": "fn",
+          "line": 452,
           "name": "history_batch_streams_past_the_old_4096_commit_enumeration_cap"
         },
         {
           "kind": "fn",
-          "line": 445,
+          "line": 494,
           "name": "resumed_history_fails_when_a_native_ancestor_was_lost_from_the_store"
         }
       ],
@@ -52339,7 +52344,7 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 38043,
+      "bytes": 42393,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -52368,9 +52373,9 @@
         "least",
         "max_maintainers"
       ],
-      "lines": 1083,
+      "lines": 1203,
       "path": "crates/mini-forge/src/governance.rs",
-      "sha256": "08b67f5756941e5f74ffed6c82b002f8231421570a195dde4b951307099e73c3",
+      "sha256": "c1ca54bc0895b992309cce04f4d97b381de4280f5a370ef1e2f6968ae9a9121d",
       "symbols": [
         {
           "kind": "const",
@@ -52603,25 +52608,75 @@
           "name": "inspect_proposal_with_state"
         },
         {
+          "kind": "const",
+          "line": 1001,
+          "name": "MAX_LISTING_PAGE"
+        },
+        {
+          "kind": "const",
+          "line": 1004,
+          "name": "MAX_LISTING_VALIDATION_BYTES"
+        },
+        {
+          "kind": "struct",
+          "line": 1008,
+          "name": "ListingLimits"
+        },
+        {
+          "kind": "impl",
+          "line": 1019,
+          "name": "Default"
+        },
+        {
           "kind": "fn",
-          "line": 994,
+          "line": 1020,
+          "name": "default"
+        },
+        {
+          "kind": "struct",
+          "line": 1031,
+          "name": "ProposalPage"
+        },
+        {
+          "kind": "struct",
+          "line": 1036,
+          "name": "ListingState"
+        },
+        {
+          "kind": "fn",
+          "line": 1049,
+          "name": "list_proposals_page"
+        },
+        {
+          "kind": "fn",
+          "line": 1077,
+          "name": "sorted_candidates"
+        },
+        {
+          "kind": "fn",
+          "line": 1083,
+          "name": "inspect_candidates"
+        },
+        {
+          "kind": "fn",
+          "line": 1127,
           "name": "list_proposals"
         },
         {
           "kind": "struct",
-          "line": 1026,
+          "line": 1146,
           "name": "ProposalReview"
         },
         {
           "kind": "fn",
-          "line": 1034,
+          "line": 1154,
           "name": "proposal_reviews"
         }
       ],
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 31990,
+      "bytes": 33106,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -52650,9 +52705,9 @@
         "file_type",
         "executable_file_type"
       ],
-      "lines": 859,
+      "lines": 886,
       "path": "crates/mini-forge/src/lib.rs",
-      "sha256": "020b59c9b76d0d25c131b181db056672fc661ec095b022ae734bf5e27feabb06",
+      "sha256": "3b96c354864eb8459a77864a3615a6afe118585d8571577c4862ea02d853d299",
       "symbols": [
         {
           "kind": "mod",
@@ -52756,187 +52811,192 @@
         },
         {
           "kind": "impl",
-          "line": 159,
+          "line": 162,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 163,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 192,
+          "line": 199,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 193,
+          "line": 200,
           "name": "From<StoreError>"
         },
         {
           "kind": "fn",
-          "line": 194,
+          "line": 201,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 198,
+          "line": 205,
           "name": "From<mini_objects::ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 206,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 203,
+          "line": 210,
           "name": "From<mini_media::MediaError>"
         },
         {
           "kind": "fn",
-          "line": 204,
+          "line": 211,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 208,
+          "line": 215,
           "name": "From<did_mini::IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 209,
+          "line": 216,
           "name": "from"
         },
         {
           "kind": "const",
-          "line": 216,
+          "line": 223,
           "name": "MAX_FILENAME_BYTES"
         },
         {
           "kind": "fn",
-          "line": 220,
+          "line": 227,
           "name": "file_name_is_well_formed"
         },
         {
           "kind": "struct",
-          "line": 240,
+          "line": 247,
           "name": "TreeEntry"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 257,
           "name": "put_file"
         },
         {
           "kind": "fn",
-          "line": 264,
+          "line": 271,
           "name": "put_executable_file"
         },
         {
           "kind": "fn",
-          "line": 279,
+          "line": 286,
           "name": "put_tree"
         },
         {
           "kind": "fn",
-          "line": 317,
+          "line": 324,
           "name": "read_tree"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 377,
           "name": "commit"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 404,
           "name": "set_branch"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 429,
           "name": "resolve_branch"
         },
         {
           "kind": "fn",
-          "line": 435,
+          "line": 442,
           "name": "checkout"
         },
         {
           "kind": "fn",
-          "line": 448,
+          "line": 455,
           "name": "checkout_with_modes"
         },
         {
           "kind": "fn",
-          "line": 467,
+          "line": 474,
           "name": "validated_commit_tree"
         },
         {
           "kind": "fn",
-          "line": 492,
+          "line": 499,
           "name": "commit_is_well_formed"
         },
         {
+          "kind": "fn",
+          "line": 506,
+          "name": "commit_validation_cost"
+        },
+        {
           "kind": "struct",
-          "line": 497,
+          "line": 524,
           "name": "Budget"
         },
         {
           "kind": "fn",
-          "line": 503,
+          "line": 530,
           "name": "walk"
         },
         {
           "kind": "fn",
-          "line": 559,
+          "line": 586,
           "name": "release"
         },
         {
           "kind": "fn",
-          "line": 626,
+          "line": 653,
           "name": "attest"
         },
         {
           "kind": "struct",
-          "line": 647,
+          "line": 674,
           "name": "ReleasePolicy"
         },
         {
           "kind": "const",
-          "line": 658,
+          "line": 685,
           "name": "ADOPTION_MIN_ATTESTATIONS"
         },
         {
           "kind": "const",
-          "line": 661,
+          "line": 688,
           "name": "ADOPTION_MIN_TIMELOCK_MS"
         },
         {
           "kind": "impl",
-          "line": 663,
+          "line": 690,
           "name": "ReleasePolicy"
         },
         {
           "kind": "fn",
-          "line": 666,
+          "line": 693,
           "name": "validate_for_adoption"
         },
         {
           "kind": "struct",
-          "line": 678,
+          "line": 705,
           "name": "VerifiedRelease"
         },
         {
           "kind": "fn",
-          "line": 697,
+          "line": 724,
           "name": "verify_release_artifact_only"
         },
         {
           "kind": "fn",
-          "line": 788,
+          "line": 815,
           "name": "verify_governed_release"
         }
       ],
@@ -53752,7 +53812,7 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 42565,
+      "bytes": 46939,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -53781,9 +53841,9 @@
         "maintainer",
         "capabilities"
       ],
-      "lines": 1800,
+      "lines": 1946,
       "path": "crates/mini-forge/tests/governance.rs",
-      "sha256": "d467c1318e285f8fa299f7d52deb68a4eaf77a28f0880775a25c2d31d2439104",
+      "sha256": "4978f890545193a8fa525ddeca0f5e8b7b24d3edc8426aa8f22ade96da599669",
       "symbols": [
         {
           "kind": "fn",
@@ -53957,7 +54017,27 @@
         },
         {
           "kind": "fn",
-          "line": 1747,
+          "line": 1746,
+          "name": "listing_prs"
+        },
+        {
+          "kind": "fn",
+          "line": 1782,
+          "name": "proposal_listing_pages_before_inspection_and_matches_unpaged_listing"
+        },
+        {
+          "kind": "fn",
+          "line": 1833,
+          "name": "proposal_listing_fails_closed_past_total_validation_work_cap"
+        },
+        {
+          "kind": "fn",
+          "line": 1874,
+          "name": "proposal_listing_charges_a_shared_head_once"
+        },
+        {
+          "kind": "fn",
+          "line": 1893,
           "name": "proposal_inspection_rejects_ambiguous_links_and_labels_review_evidence"
         }
       ],
