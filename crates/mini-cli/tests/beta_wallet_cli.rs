@@ -19,10 +19,17 @@ fn describe<S: AsRef<str>>(args: &[S]) -> String {
 }
 
 fn tempdir(tag: &str) -> PathBuf {
+    // Tests run in parallel inside one process; a timestamp alone can collide
+    // (two `world()` calls landing on the same nanosecond share paths and the
+    // second `identity init` then fails), so a process-wide counter makes every
+    // path unique.
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
     let mut p = std::env::temp_dir();
     p.push(format!(
-        "mini-cli-beta-wallet-{tag}-{}-{}",
+        "mini-cli-beta-wallet-{tag}-{}-{}-{}",
         std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
