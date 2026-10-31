@@ -146,6 +146,9 @@ pub enum ForgeError {
     /// The candidate release's version is not strictly greater than the
     /// currently running release's version (`release::check_no_rollback`).
     RollbackRejected,
+    /// A listing exceeded its total inspection work cap and failed closed
+    /// rather than doing unbounded work (see `ListingLimits`).
+    ListingBudgetExceeded,
     /// Store failure.
     Store(StoreError),
     /// Object build failure.
@@ -182,6 +185,10 @@ impl core::fmt::Display for ForgeError {
                     "candidate version is not an upgrade over the running version"
                 )
             }
+            ForgeError::ListingBudgetExceeded => write!(
+                f,
+                "listing exceeded its total inspection work cap; request a smaller page"
+            ),
             ForgeError::Store(e) => write!(f, "store: {e}"),
             ForgeError::Object(e) => write!(f, "object: {e}"),
             ForgeError::Media(e) => write!(f, "media: {e}"),
@@ -491,6 +498,26 @@ fn validated_commit_tree(commit: &Object) -> Result<ObjectId> {
 
 fn commit_is_well_formed<B: Backend>(store: &Store<B>, commit: &Object) -> bool {
     commit.object_type == ObjectType::COMMIT && checkout(store, commit.id()).is_ok()
+}
+
+/// Like [`commit_is_well_formed`], but also reports the content bytes the
+/// validation consumed (even when it fails part-way), so a caller can charge a
+/// cumulative work budget. Returns `(well_formed, bytes_consumed)`.
+fn commit_validation_cost<B: Backend>(store: &Store<B>, commit: &Object) -> (bool, usize) {
+    if commit.object_type != ObjectType::COMMIT {
+        return (false, 0);
+    }
+    let Ok(tree) = validated_commit_tree(commit) else {
+        return (false, 0);
+    };
+    let mut out = Vec::new();
+    let mut budget = Budget {
+        files: MAX_CHECKOUT_FILES,
+        bytes: MAX_CHECKOUT_BYTES,
+        seen: Vec::new(),
+    };
+    let ok = walk(store, &tree, "", 0, &mut out, &mut budget).is_ok();
+    (ok, MAX_CHECKOUT_BYTES - budget.bytes)
 }
 
 /// Work budget for a single checkout (guards fan-out and cycles).
