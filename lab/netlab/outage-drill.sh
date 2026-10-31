@@ -1,33 +1,44 @@
 #!/usr/bin/env bash
-# TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md).
 # Two isolated network namespaces joined only by a veth pair. Neither has a
 # default route or DNS, so GitHub (or anything else) is unreachable by
 # construction. The operator publishes a Beta campaign; the tester discovers
-# it over a real TCP `mini sync` across the veth. Requires root.
-# Usage: sudo lab/netlab/outage-drill.sh [path-to-mini]
+# it over a real TCP `mini sync` across the veth.
+#
+# NO ROOT, NO SUDO: the whole drill runs inside a throwaway rootless user+mount+
+# network namespace (`unshare -Urmn`). "Root" in there is the invoking user
+# mapped to uid 0 and has no power over the host, so a hostile checkout cannot
+# use this script to gain host privileges. Do not run it with sudo.
+# Usage: lab/netlab/outage-drill.sh [path-to-mini]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MINI="${1:-$ROOT/target/debug/mini}"
+if [ "$(id -u)" -eq 0 ] && [ -z "${LAB_NETLAB_INNER:-}" ] && [ -z "${LAB_NETLAB_ALLOW_ROOT:-}" ]; then
+    echo "refusing to run as host root: run as a normal user (no sudo)" >&2; exit 1
+fi
 [ -x "$MINI" ] || { echo "build first: cargo build -p mini-cli --bin mini" >&2; exit 1; }
-[ "$(id -u)" -eq 0 ] || { echo "needs root for ip netns" >&2; exit 1; }
-# Root is needed only for `ip netns`; every worktree binary runs unprivileged.
-RUN_UID="${SUDO_UID:-65534}"; RUN_GID="${SUDO_GID:-65534}"
-W="$(mktemp -d)"; chmod 755 "$W"; chown "$RUN_UID:$RUN_GID" "$W"
- A=labop$$; B=labte$$
+if [ -z "${LAB_NETLAB_INNER:-}" ]; then
+    command -v unshare >/dev/null || { echo "unshare (util-linux) required" >&2; exit 1; }
+    LAB_NETLAB_INNER=1 exec unshare -Urmn "$0" "$MINI"
+fi
+# Inside the private namespaces: a private /run so `ip netns` needs no host files.
+mount -t tmpfs tmpfs /run
+mkdir -p /run/netns
+ip link set lo up
+W="$(mktemp -d)"
+A=labop; B=labte; VA=vA; VB=vB
 LISTENER=""
-cleanup() { [ -z "$LISTENER" ] || { kill "$LISTENER" 2>/dev/null; wait "$LISTENER" 2>/dev/null; } || true; ip netns del "$A" 2>/dev/null || true; ip netns del "$B" 2>/dev/null || true; rm -rf "$W"; }
+cleanup() { [ -z "$LISTENER" ] || { kill "$LISTENER" 2>/dev/null; wait "$LISTENER" 2>/dev/null; } || true; rm -rf "$W"; }
 trap cleanup EXIT
 ip netns add "$A"; ip netns add "$B"
-VA=vA$$; VB=vB$$
 ip link add "$VA" type veth peer name "$VB"
 ip link set "$VA" netns "$A"; ip link set "$VB" netns "$B"
 ip -n "$A" addr add 10.77.0.1/24 dev "$VA"; ip -n "$B" addr add 10.77.0.2/24 dev "$VB"
 for n in "$A:$VA" "$B:$VB"; do ip -n "${n%%:*}" link set lo up; ip -n "${n%%:*}" link set "${n##*:}" up; done
 step() { printf '\n== %s ==\n' "$*"; }
-op() { ip netns exec "$A" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --home "$W/op" --store "$W/op-store" "$@"; }
-te() { ip netns exec "$B" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --home "$W/te" --store "$W/te-store" "$@"; }
-opj() { ip netns exec "$A" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --json --home "$W/op" --store "$W/op-store" "$@"; }
-tej() { ip netns exec "$B" setpriv --reuid="$RUN_UID" --regid="$RUN_GID" --clear-groups --no-new-privs "$MINI" --json --home "$W/te" --store "$W/te-store" "$@"; }
+op() { ip netns exec "$A" "$MINI" --home "$W/op" --store "$W/op-store" "$@"; }
+te() { ip netns exec "$B" "$MINI" --home "$W/te" --store "$W/te-store" "$@"; }
+opj() { ip netns exec "$A" "$MINI" --json --home "$W/op" --store "$W/op-store" "$@"; }
+tej() { ip netns exec "$B" "$MINI" --json --home "$W/te" --store "$W/te-store" "$@"; }
 
 step "isolation: no route to the outside"
 for ns in "$A" "$B"; do

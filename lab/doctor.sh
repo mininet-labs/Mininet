@@ -9,9 +9,9 @@ have cargo && ok "cargo $(cargo --version | cut -d' ' -f2)" || no cargo "run lab
 rustup target list --installed 2>/dev/null | grep -q x86_64-pc-windows-gnu && ok "rust windows-gnu target" || no windows-target "rustup target add x86_64-pc-windows-gnu"
 have x86_64-w64-mingw32-gcc && ok "mingw-w64" || no mingw-w64 "apt install mingw-w64"
 [ -n "${CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER:-}" ] && ok "wine runner ($CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER)" || no wine "apt install wine64"
-if have ip; then
-    if ip netns add labprobe$$ 2>/dev/null; then ip netns del labprobe$$; ok "network namespaces (netlab)"; else no netns "needs root / CAP_SYS_ADMIN"; fi
-else no iproute2 "apt install iproute2"; fi
+if have ip && have unshare; then
+    if unshare -Urmn true 2>/dev/null; then ok "rootless namespaces (netlab, no sudo)"; else no netns "unprivileged user namespaces are disabled here"; fi
+else no iproute2 "apt install iproute2 util-linux"; fi
 have Xvfb && have import && ok "Xvfb + ImageMagick (gui)" || no gui "apt install xvfb imagemagick xdotool"
 have docker && ok docker || no docker "optional (reproducibility jobs)"
 have cargo-deny && ok cargo-deny || no cargo-deny "cargo install --locked cargo-deny"

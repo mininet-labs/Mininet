@@ -2,7 +2,7 @@
   "counts": {
     "crates": 93,
     "files": 1255,
-    "headings": 4243,
+    "headings": 4246,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135573,7 +135573,7 @@
       "title": "{"
     },
     {
-      "bytes": 2410,
+      "bytes": 2396,
       "group": "root",
       "headings": [
         {
@@ -135584,38 +135584,38 @@
         {
           "level": 2,
           "line": 24,
-          "text": "Trust model (read before using `sudo`)"
+          "text": "Trust model"
         }
       ],
       "keywords": [
         "lab",
-        "sudo",
-        "ci-local",
-        "runs",
-        "netlab",
-        "root",
+        "wine",
         "proves",
+        "ci-local",
         "beta",
         "windows",
-        "windows-test",
-        "wine",
+        "network",
+        "netlab",
         "outage-drill",
         "gui",
-        "checkout",
-        "run",
+        "code",
+        "root",
         "trust",
         "model",
-        "read",
-        "using",
         "disposable",
         "agent",
-        "everything",
         "script",
-        "what"
+        "what",
+        "xvfb",
+        "doctor",
+        "machine",
+        "mirror",
+        "quick",
+        "check"
       ],
-      "lines": 32,
+      "lines": 34,
       "path": "lab/README.md",
-      "sha256": "191ece889d082b3aaf64abf2445a7327c5c6e14d0d059cb32aeeb5e523aad705",
+      "sha256": "a0f0a0248b4d8e8820acdf9afc0b691713eb9a805e40d29d5c9e66da4fc7f57c",
       "symbols": [],
       "title": "Mininet Lab"
     },
@@ -135714,7 +135714,7 @@
       "title": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
     },
     {
-      "bytes": 1380,
+      "bytes": 1407,
       "group": "root",
       "headings": [
         {
@@ -135733,7 +135733,6 @@
         "null",
         "target",
         "mingw-w64",
-        "netns",
         "xvfb",
         "docker",
         "python3",
@@ -135747,11 +135746,12 @@
         "read",
         "table",
         "env",
-        "printf"
+        "printf",
+        "rustup"
       ],
       "lines": 20,
       "path": "lab/doctor.sh",
-      "sha256": "cccf664d555919e16b4d18578770ff1e71334afa0cec5b9122b4d69b30bdc9a9",
+      "sha256": "ed1f53a40abcf392ee67a3d4da719010acc5efd4edae5c23679c6cd0d27ab068",
       "symbols": [],
       "title": "Reports which lab capabilities work on THIS machine. Exit 0 always; read the table."
     },
@@ -135855,81 +135855,96 @@
       "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
     },
     {
-      "bytes": 3906,
+      "bytes": 3967,
       "group": "root",
       "headings": [
         {
           "level": 1,
           "line": 2,
-          "text": "TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md)."
-        },
-        {
-          "level": 1,
-          "line": 3,
           "text": "Two isolated network namespaces joined only by a veth pair. Neither has a"
         },
         {
           "level": 1,
-          "line": 4,
+          "line": 3,
           "text": "default route or DNS, so GitHub (or anything else) is unreachable by"
         },
         {
           "level": 1,
-          "line": 5,
+          "line": 4,
           "text": "construction. The operator publishes a Beta campaign; the tester discovers"
         },
         {
           "level": 1,
-          "line": 6,
-          "text": "it over a real TCP `mini sync` across the veth. Requires root."
+          "line": 5,
+          "text": "it over a real TCP `mini sync` across the veth."
         },
         {
           "level": 1,
           "line": 7,
-          "text": "Usage: sudo lab/netlab/outage-drill.sh [path-to-mini]"
+          "text": "NO ROOT, NO SUDO: the whole drill runs inside a throwaway rootless user+mount+"
         },
         {
           "level": 1,
-          "line": 13,
-          "text": "Root is needed only for `ip netns`; every worktree binary runs unprivileged."
+          "line": 8,
+          "text": "network namespace (`unshare -Urmn`). \"Root\" in there is the invoking user"
         },
         {
           "level": 1,
-          "line": 55,
+          "line": 9,
+          "text": "mapped to uid 0 and has no power over the host, so a hostile checkout cannot"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "use this script to gain host privileges. Do not run it with sudo."
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "Usage: lab/netlab/outage-drill.sh [path-to-mini]"
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "Inside the private namespaces: a private /run so `ip netns` needs no host files."
+        },
+        {
+          "level": 1,
+          "line": 66,
           "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
         }
       ],
       "keywords": [
         "netns",
         "echo",
-        "dev",
         "campaign",
-        "root",
         "exit",
-        "null",
+        "dev",
         "sync",
+        "run",
+        "null",
         "route",
+        "root",
+        "host",
         "veth",
-        "run_uid",
-        "run_gid",
+        "set",
+        "exec",
+        "link",
         "listener",
-        "lab",
         "default",
         "beta",
         "tester",
         "real",
-        "set",
-        "add",
-        "link",
-        "step",
-        "exec",
-        "runs"
+        "sudo",
+        "inside",
+        "user",
+        "unshare"
       ],
-      "lines": 65,
+      "lines": 76,
       "path": "lab/netlab/outage-drill.sh",
-      "sha256": "11d98b7c0327ffc61d959bd615d08f6fcad739c2ba29705c31a94ca0afabd593",
+      "sha256": "dee6f9d19aa3221725f155518da9e6802dcb52d6cc8edf207f93069d21b2c6ac",
       "symbols": [],
-      "title": "TRUST: this script runs as root from the checkout; only run it on reviewed code (see lab/README.md)."
+      "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
     },
     {
       "bytes": 682,

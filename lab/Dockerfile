@@ -1,7 +1,8 @@
 # Reproducible lab image. Build from the repo root:
 #   docker build -f lab/Dockerfile -t mininet-lab .
-#   docker run --rm -it --privileged -v "$PWD":/work -w /work mininet-lab lab/doctor.sh
-# --privileged is only needed for lab/netlab (network namespaces).
+#   docker run --rm -it -v "$PWD":/work -w /work mininet-lab lab/doctor.sh
+# Nothing needs --privileged. lab/netlab uses rootless user namespaces, which
+# some container runtimes block (then run it on the host as a normal user).
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive PATH=/root/.cargo/bin:$PATH
 COPY lab/bootstrap.sh /tmp/bootstrap.sh
