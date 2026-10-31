@@ -2694,6 +2694,7 @@ version = "0.0.1"
 name = "mini-app-service"
 version = "0.0.1"
 dependencies = [
+ "blake3",
  "did-mini",
  "image",
  "mini-app-protocol",
