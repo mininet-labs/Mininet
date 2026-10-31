@@ -790,6 +790,7 @@ fn history_checkpoint(
             return Err(fail("history checkpoint has inconsistent parent mapping"));
         }
     }
+    verify_native_ancestry(&store, &native_id)?;
     preflight_export(&store, &roots[0].target)?;
     if missing_index {
         mini_durable::create_dir_all(
@@ -1235,6 +1236,38 @@ fn write_mirror_objects(
     mapped
         .remove(tip)
         .ok_or_else(|| fail("missing exported tip"))
+}
+
+// A resumed checkpoint's own record only binds this one commit's exact
+// bytes/message/parents to a native id; it says nothing about whether that
+// native commit's OWN ancestors are still present. `history_checkpoint`'s
+// preflight starts at the commit's tree, which never follows "parent" links
+// at all, so a store that lost or never received an older native ancestor
+// (a partial restore, or a mapping published and then rolled back) would
+// still report the resumed history as complete. Walk the native parent
+// closure explicitly and confirm every ancestor commit this checkpoint
+// depends on actually exists and is the right object type, deliberately
+// without the git-export size/commit-count budgets `preflight_export` uses
+// for a single bounded export: a resumed import can legitimately cover far
+// more history than one export, and reusing that budget here would make
+// resuming a deep, already-checkpointed import fail outright.
+fn verify_native_ancestry(store: &Store<FsBackend>, native_id: &ObjectId) -> Result<()> {
+    let mut stack = vec![native_id.clone()];
+    let mut seen = BTreeSet::from([native_id.as_str().to_string()]);
+    while let Some(id) = stack.pop() {
+        let commit = store.get(&id).map_err(|e| CliError::Store(e.to_string()))?;
+        if commit.object_type != ObjectType::COMMIT {
+            return Err(fail(
+                "history checkpoint ancestry references a non-commit native object",
+            ));
+        }
+        for link in commit.links.iter().filter(|link| link.rel == "parent") {
+            if seen.insert(link.target.as_str().to_string()) {
+                stack.push(link.target.clone());
+            }
+        }
+    }
+    Ok(())
 }
 
 // Bound the unique native closure before library conversion. The exporter

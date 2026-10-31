@@ -10,6 +10,15 @@
 //! verification problem (SPV proofs, confirmation depth, Monero's own
 //! privacy properties complicating straightforward verification) — see
 //! [`ExternalReceiptOracle`]'s honest limit.
+//!
+//! **Legal status (D-0542):** the external Gate #96 legal review (pending
+//! qualified counsel-of-record signature, `docs/gates/
+//! legal-review-brief.md`) concludes this external-asset-for-MINI issuance
+//! mechanism must be deferred and production-unreachable at genesis — see
+//! `docs/design/treasury-economic-model.md`'s genesis-status note. Nothing
+//! here is wired into any minting or consensus path today, which already
+//! satisfies that requirement; this note exists so it stays that way on
+//! purpose, not by omission, if this module is ever extended.
 
 /// Which external asset a contribution brought in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

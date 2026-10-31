@@ -15,10 +15,10 @@ use std::path::Path;
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_beta::{
-    create_contribution_receipt, create_finding, create_finding_disposition, read_campaign,
-    read_contribution_receipt, read_finding, read_finding_disposition, ClaimTag, ContributionKind,
-    EvidenceClass, FindingSeverity, FindingState, SubmissionTag, BETA_CAMPAIGN_TYPE,
-    BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
+    create_campaign, create_contribution_receipt, create_finding, create_finding_disposition,
+    read_campaign, read_contribution_receipt, read_finding, read_finding_disposition, BetaEpochId,
+    ClaimTag, ContributionKind, EvidenceClass, FindingSeverity, FindingState, SubmissionTag,
+    BETA_CAMPAIGN_TYPE, BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
 };
 use mini_crypto::{random_32, SigningKey};
 use mini_forge::{create_task_brief, create_work_claim};
@@ -34,7 +34,7 @@ use crate::store::open_store;
 
 const CLAIM_DOMAIN: &[u8] = b"mininet/beta/claim-secret/v1";
 
-fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
+pub(crate) fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
     if pos + 1 >= args.len() {
         return None;
@@ -43,7 +43,7 @@ fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     Some(args.remove(pos))
 }
 
-fn extract_flag_multi(args: &mut Vec<String>, flag: &str) -> Vec<String> {
+pub(crate) fn extract_flag_multi(args: &mut Vec<String>, flag: &str) -> Vec<String> {
     let mut values = Vec::new();
     while let Some(value) = extract_flag(args, flag) {
         values.push(value);
@@ -51,7 +51,7 @@ fn extract_flag_multi(args: &mut Vec<String>, flag: &str) -> Vec<String> {
     values
 }
 
-fn extract_bool_flag(args: &mut Vec<String>, flag: &str) -> bool {
+pub(crate) fn extract_bool_flag(args: &mut Vec<String>, flag: &str) -> bool {
     if let Some(pos) = args.iter().position(|value| value == flag) {
         args.remove(pos);
         true
@@ -60,11 +60,15 @@ fn extract_bool_flag(args: &mut Vec<String>, flag: &str) -> bool {
     }
 }
 
-fn required_flag(args: &mut Vec<String>, flag: &str, context: &str) -> Result<String> {
+pub(crate) fn required_flag(args: &mut Vec<String>, flag: &str, context: &str) -> Result<String> {
     extract_flag(args, flag).ok_or_else(|| CliError::Usage(format!("{context}: {flag} required")))
 }
 
-fn required_items(args: &mut Vec<String>, flag: &str, context: &str) -> Result<Vec<String>> {
+pub(crate) fn required_items(
+    args: &mut Vec<String>,
+    flag: &str,
+    context: &str,
+) -> Result<Vec<String>> {
     let values = extract_flag_multi(args, flag);
     if values.is_empty() {
         return Err(CliError::Usage(format!(
@@ -74,7 +78,7 @@ fn required_items(args: &mut Vec<String>, flag: &str, context: &str) -> Result<V
     Ok(values)
 }
 
-fn reject_remaining(args: Vec<String>, context: &str) -> Result<()> {
+pub(crate) fn reject_remaining(args: Vec<String>, context: &str) -> Result<()> {
     if args.is_empty() {
         Ok(())
     } else {
@@ -85,7 +89,7 @@ fn reject_remaining(args: Vec<String>, context: &str) -> Result<()> {
     }
 }
 
-fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
+pub(crate) fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
     if args.is_empty() {
         Err(CliError::Usage(format!("{context}: missing argument")))
     } else {
@@ -93,11 +97,11 @@ fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
     }
 }
 
-fn parse_id(value: &str) -> Result<ObjectId> {
+pub(crate) fn parse_id(value: &str) -> Result<ObjectId> {
     ObjectId::parse(value).map_err(|error| CliError::Object(error.to_string()))
 }
 
-fn beta_err(error: mini_beta::BetaError) -> CliError {
+pub(crate) fn beta_err(error: mini_beta::BetaError) -> CliError {
     CliError::Object(format!("beta: {error}"))
 }
 
@@ -105,7 +109,7 @@ fn forge_err(error: mini_forge::ForgeError) -> CliError {
     CliError::Forge(error.to_string())
 }
 
-fn crypto_err(error: mini_crypto::CryptoError) -> CliError {
+pub(crate) fn crypto_err(error: mini_crypto::CryptoError) -> CliError {
     CliError::Identity(format!("entropy: {error}"))
 }
 
@@ -200,7 +204,22 @@ fn ephemeral_artifact_signer<B: Backend>(store: &mut Store<B>) -> Result<(Contro
     Ok((human, device))
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// Parse exactly 32 bytes of lowercase or uppercase hex (an epoch, account or
+/// nonce) with a precise error naming what was being parsed.
+pub(crate) fn parse_hex32(value: &str, what: &str) -> Result<[u8; 32]> {
+    let value = value.trim();
+    if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(CliError::Usage(format!("{what} must be 64 hex characters")));
+    }
+    let mut out = [0u8; 32];
+    for (index, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&value[index * 2..index * 2 + 2], 16)
+            .map_err(|_| CliError::Usage(format!("{what} must be 64 hex characters")))?;
+    }
+    Ok(out)
+}
+
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes
         .iter()
         .fold(String::with_capacity(bytes.len() * 2), |mut out, byte| {
@@ -291,6 +310,61 @@ pub fn campaign_list(
                 .collect(),
         ),
     ))
+}
+
+/// `beta campaign create <target-id> --epoch <64hex> --title <t> --instructions <t>
+/// --route <r>... --starts-ms <t> --ends-ms <t> --testing-grant <micro>`:
+/// publish a signed Beta campaign on Mininet itself (no GitHub). Whether its
+/// author is an authorized operator is decided by readers, never by creation.
+pub fn campaign_create(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    let context = "beta campaign create";
+    let target = parse_id(&next(&mut args, context)?)?;
+    let epoch = BetaEpochId::new(parse_hex32(
+        &required_flag(&mut args, "--epoch", context)?,
+        "--epoch",
+    )?)
+    .map_err(beta_err)?;
+    let title = required_flag(&mut args, "--title", context)?;
+    let instructions = required_flag(&mut args, "--instructions", context)?;
+    let routes = required_items(&mut args, "--route", context)?;
+    let number = |args: &mut Vec<String>, flag: &str| -> Result<u64> {
+        required_flag(args, flag, context)?
+            .parse()
+            .map_err(|_| CliError::Usage(format!("{context}: {flag} must be an integer")))
+    };
+    let starts_ms = number(&mut args, "--starts-ms")?;
+    let ends_ms = number(&mut args, "--ends-ms")?;
+    let testing_grant = number(&mut args, "--testing-grant")?;
+    reject_remaining(args, context)?;
+    let identity = crate::identity::load_or_init(home)?;
+    let mut store = open_store(store_path)?;
+    let object = create_campaign(
+        &mut store,
+        &identity.human_did(),
+        &identity.device,
+        &target,
+        epoch,
+        &title,
+        &instructions,
+        &routes,
+        starts_ms,
+        ends_ms,
+        testing_grant,
+        sequence::now_ms(),
+        sequence::next(home, store_path)?,
+    )
+    .map_err(beta_err)?;
+    Ok(CommandResult::new(format!(
+        "campaign created: {}\nepoch {}; window {starts_ms}..{ends_ms}; default testing grant {testing_grant} micro-BETA (test value only)",
+        object.id().as_str(),
+        &hex(epoch.as_bytes())[..16]
+    ))
+    .field("campaign_id", JsonValue::str(object.id().as_str()))
+    .field("epoch", JsonValue::str(hex(epoch.as_bytes()))))
 }
 
 pub fn campaign_show(

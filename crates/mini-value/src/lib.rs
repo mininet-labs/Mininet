@@ -59,15 +59,18 @@ mod curve;
 mod error;
 mod fee;
 mod mlsag;
+mod mlsag_v3;
 mod ring;
 mod ring_impl;
 mod stealth;
 mod stealth_impl;
+mod stealth_v3;
 
 pub use bp_range::{RangeProof, IPA_ROUNDS, RANGE_PROOF_BYTES};
 pub use bp_range_v2::{
-    pedersen_commitment_v2, prove_range_v2, public_amount_commitment_v2, verify_balance_v2,
-    verify_range_v2, RangeProofV2, BIT_LENGTH as BIT_LENGTH_V2,
+    pedersen_commitment_v2, prove_range_v2, prove_range_v2_from_bytes, public_amount_commitment_v2,
+    verify_balance_v2, verify_range_v2, RangeProofV2, BIT_LENGTH as BIT_LENGTH_V2,
+    RANGE_PROOF_V2_BYTES,
 };
 pub use confidential::{ConfidentialAmountScheme, NoConfidentialAmount};
 pub use confidential_impl::{
@@ -80,6 +83,10 @@ pub use mlsag::{
     balancing_blinding, reblind, sign_spend, spend_key_image, verify_spend, MlsagSignature,
     SpendWitness, MLSAG_DOMAIN,
 };
+pub use mlsag_v3::{
+    balancing_blinding_v3, reblind_v3, sign_spend_v3, verify_spend_v3, MlsagSignatureV3,
+    KEY_IMAGE_V3_DOMAIN, MLSAG_V3_DOMAIN, RING_SIZE as MLSAG_V3_RING_SIZE,
+};
 pub use ring::{NoRingSignature, RingSignature, RingSignatureScheme};
 pub use ring_impl::MininetRingSignature;
 pub use stealth::{NoStealthAddress, StealthAddressScheme, StealthOutput};
@@ -88,4 +95,7 @@ pub use stealth_impl::{
     one_time_key_is_well_formed, recognizes_tagged_output, recover_shared_secret,
     stealth_address_is_well_formed, view_public_from_secret, MininetStealthAddress, StealthKeypair,
     StealthSharedSecret, ViewTag,
+};
+pub use stealth_v3::{
+    derive_output_v3, derive_spend_scalar_v3, recover_and_verify_v3, STEALTH_OFFSET_V3_DOMAIN,
 };

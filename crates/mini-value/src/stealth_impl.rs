@@ -186,6 +186,14 @@ impl StealthAddressScheme for MininetStealthAddress {
 pub struct StealthSharedSecret([u8; 32]);
 
 impl StealthSharedSecret {
+    /// Wrap an already-computed Diffie-Hellman shared point. `pub(crate)`
+    /// for [`crate::stealth_v3`], which computes the same kind of shared
+    /// point under its own domain-separated offset hash and needs to hand
+    /// it back in the same wrapper type this module already provides.
+    pub(crate) fn from_point(point: RistrettoPoint) -> Self {
+        Self(point.compress().to_bytes())
+    }
+
     /// The compressed shared point. Named to make the "this is not a key"
     /// point unmissable at every call site.
     pub fn as_key_material(&self) -> &[u8; 32] {

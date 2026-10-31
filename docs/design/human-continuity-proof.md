@@ -327,6 +327,15 @@ Narrowly scoped tracks, not "solve proof of humanity":
 - **F — weak-device proving:** benchmark every proposed proof on the
   oldest supported phone and low-cost home hardware.
 
+`docs/research/MN21_PERSONHOOD_VOUCH_GROWTH_CEILING_AND_EXTENSIONS_20260912.md`
+contributes a quantitative growth-ceiling result derived from the Gate #21
+external audit's `PersonhoodPolicyV1` vouch-quota formula, plus concrete
+extension proposals touching Tracks C (VDF-anchored epoch timing),
+D (accumulator-based membership at scale beyond a single Merkle tree), and
+E (a sketched "regret nullifier" mitigation for coercion/rental residual
+risk) — read alongside this design and the audit itself, not a replacement
+for either.
+
 ## Implementation phases
 
 1. Evidence framework: typed `EvidenceStamp`, pairwise pseudonyms,

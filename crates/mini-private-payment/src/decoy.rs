@@ -66,6 +66,15 @@ use crate::error::{PrivatePaymentError, Result};
 /// Domain separator for decoy index derivation.
 pub const DECOY_DOMAIN: &[u8] = b"mininet/mini-private-payment/decoy/v1";
 
+/// Domain separator for the OSPEAD-calibrated (V3) decoy transcript.
+///
+/// Exact string from Gate #72 audit Section 5.4. A new domain rather than
+/// reusing [`DECOY_DOMAIN`] because the two draw from different weight
+/// tables ([`AGE_WEIGHTS`] vs. [`OSPEAD_AGE_WEIGHTS`]) and mixing their
+/// transcripts would let a V1/V3 domain collision reproduce a V1 ring under
+/// V3 entropy, or vice versa.
+pub const DECOY_DOMAIN_V3: &[u8] = b"mininet/private-payment/decoy-seed/v3";
+
 /// Cumulative weights over logarithmic age buckets, newest first.
 ///
 /// Bucket `i` covers outputs whose age (in positions back from the newest)
@@ -181,21 +190,31 @@ impl OutputSet for InMemoryOutputSet {
 /// platform, no floating point, no library-version dependence, and
 /// inspectable by anyone re-deriving a ring from the same inputs.
 struct Draw {
+    domain: &'static [u8],
     entropy: [u8; 32],
     counter: u64,
 }
 
 impl Draw {
     fn new(entropy: &[u8; 32]) -> Self {
+        Self::with_domain(DECOY_DOMAIN, entropy)
+    }
+
+    /// Same counter-mode construction, over a caller-chosen domain.
+    ///
+    /// Used by the V3 sampler so its transcript can never collide with V1's
+    /// even under identical entropy — see [`DECOY_DOMAIN_V3`].
+    fn with_domain(domain: &'static [u8], entropy: &[u8; 32]) -> Self {
         Self {
+            domain,
             entropy: *entropy,
             counter: 0,
         }
     }
 
     fn next_u64(&mut self) -> u64 {
-        let mut transcript = Vec::with_capacity(DECOY_DOMAIN.len() + 40);
-        transcript.extend_from_slice(DECOY_DOMAIN);
+        let mut transcript = Vec::with_capacity(self.domain.len() + 40);
+        transcript.extend_from_slice(self.domain);
         transcript.extend_from_slice(&self.entropy);
         transcript.extend_from_slice(&self.counter.to_be_bytes());
         self.counter += 1;
@@ -248,6 +267,191 @@ fn draw_age_offset(draw: &mut Draw, output_count: usize) -> usize {
     // the bucket simply gets an older-than-intended output; refusing would
     // mean no private payments until the set is large, which is worse.
     (offset as usize).min(output_count.saturating_sub(1))
+}
+
+/// Cumulative weights over logarithmic age buckets, newest first — the
+/// OSPEAD-calibrated replacement for [`AGE_WEIGHTS`] used by V3 claims.
+///
+/// # Provenance
+///
+/// The Gate #72 audit (finding F72-10) specifies the recency skew as a
+/// log-GB2 (generalized beta of the second kind) model fitted by OSPEAD
+/// (Optimal Statistical Privacy-preserving Estimation of Anonymity-set
+/// Distribution) with exact parameters:
+///
+/// - `scale (b) = 20.62`
+/// - `shape1 (a) = 4.462`
+/// - `shape2 (p) = 0.5553`
+/// - `shape3 (q) = 7.957`
+///
+/// The GB2 CDF is `F(x; a, b, p, q) = I_z(p, q)`, the regularized
+/// incomplete beta function, evaluated at `z = w / (1 + w)` where
+/// `w = (x / b)^a`.
+///
+/// # Honest disclosure: the domain of `x` is our inference, not the audit's
+///
+/// The audit gives the four parameters above but does not state what unit
+/// `x` is measured in. This codebase's age buckets are already logarithmic
+/// (bucket `i` spans ages `[2^i - 1, 2^(i+1) - 1)`, see [`AGE_WEIGHTS`]),
+/// which makes "log-GB2" ambiguous between two readings:
+///
+/// 1. `x` = raw age (position offset, up to `2^16`), fit in log-space
+///    internally by OSPEAD. Evaluating the CDF this way saturates almost
+///    immediately (`F(100) ≈ 1.0`), collapsing to a degenerate
+///    all-mass-on-bucket-0 distribution — clearly not what a calibrated
+///    "long tail that never vanishes" model is meant to produce.
+/// 2. `x` = `log2(age)` directly, i.e. the bucket exponent `0..=16` itself
+///    — consistent with "log-GB2" naming the *fitted variable* as the log
+///    of age. Evaluating the CDF this way produces a smooth, well-shaped,
+///    non-degenerate distribution whose support lines up almost exactly
+///    with this codebase's existing 16-bucket structure.
+///
+/// Interpretation 2 is adopted below because it is the only one that
+/// yields a usable distribution; this is a judgment call this codebase is
+/// making, not a value read out of the audit, and it should be revisited
+/// if the audit (or a follow-up from the same reviewers) clarifies units.
+///
+/// # Derivation
+///
+/// `raw[i] = round(1_000_000 * (F(i + 1) - F(i)))` for `i = 0..=14`, and
+/// `raw[15] = round(1_000_000 * (1 - F(15)))` so the tail absorbs all mass
+/// beyond bucket 15 rather than truncating it — preserving the same
+/// "long tail never reaches zero" property [`AGE_WEIGHTS`] documents.
+/// `F` is the regularized incomplete beta function above, computed via
+/// Lentz's continued-fraction method (the standard Numerical Recipes
+/// `betacf`/`betai` algorithm) at derivation time; only the resulting
+/// integers are frozen here; there is no floating point at runtime.
+///
+/// **Frozen**, for the same reason [`AGE_WEIGHTS`] is: changing these
+/// numbers splits the anonymity set between wallets on different versions.
+/// A change is a version bump (V4) and a decision entry, never a tuning
+/// commit.
+pub const OSPEAD_AGE_WEIGHTS: [u32; 16] = [
+    1941, 8869, 18696, 30589, 44009, 58340, 72722, 85949, 96476, 102603, 102862, 96568, 84279,
+    67902, 50209, 77986,
+];
+
+/// Pick one age offset (positions back from the newest) under
+/// [`OSPEAD_AGE_WEIGHTS`]. The V3 counterpart of [`draw_age_offset`].
+fn draw_age_offset_v3(draw: &mut Draw, output_count: usize) -> usize {
+    let total: u64 = OSPEAD_AGE_WEIGHTS.iter().map(|w| u64::from(*w)).sum();
+    let mut target = draw.below(total);
+
+    let mut bucket = OSPEAD_AGE_WEIGHTS.len() - 1;
+    for (index, weight) in OSPEAD_AGE_WEIGHTS.iter().enumerate() {
+        let weight = u64::from(*weight);
+        if target < weight {
+            bucket = index;
+            break;
+        }
+        target -= weight;
+    }
+
+    // Bucket `i` spans ages [2^i - 1, 2^(i+1) - 1), same convention as
+    // draw_age_offset.
+    let low = (1u64 << bucket) - 1;
+    let high = (1u64 << (bucket + 1)) - 1;
+    let span = high - low;
+    let offset = low + draw.below(span);
+
+    (offset as usize).min(output_count.saturating_sub(1))
+}
+
+/// The [`select_ring_indices`] selection, drawing decoy ages from the
+/// OSPEAD-calibrated [`OSPEAD_AGE_WEIGHTS`] table and the
+/// [`DECOY_DOMAIN_V3`] transcript instead of V1's.
+///
+/// Used by `claim_v3::build_v3`. Kept as a separate function rather than a
+/// runtime parameter on [`select_ring_indices`] so V1 rings can never
+/// silently start drawing from a different weight table underneath an
+/// unrelated code change.
+pub fn select_ring_indices_v3(
+    outputs: &impl OutputSet,
+    real_index: usize,
+    ring_size: usize,
+    entropy: &[u8; 32],
+) -> Result<(Vec<usize>, usize)> {
+    if ring_size < crate::MIN_RING_SIZE {
+        return Err(PrivatePaymentError::RingTooSmall {
+            got: ring_size,
+            min: crate::MIN_RING_SIZE,
+        });
+    }
+    if ring_size > crate::MAX_RING_SIZE {
+        return Err(PrivatePaymentError::RingTooLarge {
+            got: ring_size,
+            max: crate::MAX_RING_SIZE,
+        });
+    }
+    let real_key = outputs
+        .key_at(real_index)
+        .ok_or(PrivatePaymentError::RealOutputNotInSet)?;
+    if outputs.len() < ring_size {
+        return Err(PrivatePaymentError::OutputSetTooSmall {
+            got: outputs.len(),
+            need: ring_size,
+        });
+    }
+
+    let newest = outputs.len() - 1;
+    let mut draw = Draw::with_domain(DECOY_DOMAIN_V3, entropy);
+    let mut chosen: Vec<usize> = vec![real_index];
+    let mut keys: Vec<Vec<u8>> = vec![real_key.clone()];
+
+    let mut attempts = 0usize;
+    let max_attempts = ring_size * 64;
+    while chosen.len() < ring_size && attempts < max_attempts {
+        attempts += 1;
+        let offset = draw_age_offset_v3(&mut draw, outputs.len());
+        let index = newest - offset;
+        let Some(key) = outputs.key_at(index) else {
+            continue;
+        };
+        if !keys.contains(&key) {
+            keys.push(key);
+            chosen.push(index);
+        }
+    }
+    while chosen.len() < ring_size {
+        let index = draw.below(outputs.len() as u64) as usize;
+        if let Some(key) = outputs.key_at(index) {
+            if !keys.contains(&key) {
+                keys.push(key);
+                chosen.push(index);
+            }
+        }
+    }
+
+    if chosen.len() != ring_size {
+        return Err(PrivatePaymentError::OutputSetTooSmall {
+            got: chosen.len(),
+            need: ring_size,
+        });
+    }
+
+    chosen.sort_by_key(|index| outputs.key_at(*index).unwrap_or_default());
+    let position = chosen
+        .iter()
+        .position(|index| outputs.key_at(*index).as_ref() == Some(&real_key))
+        .expect("the real index was inserted first and sorting only reorders");
+    Ok((chosen, position))
+}
+
+/// [`select_ring`]'s OSPEAD-calibrated counterpart, returning keys rather
+/// than indices. See [`select_ring_indices_v3`].
+pub fn select_ring_v3(
+    outputs: &impl OutputSet,
+    real_index: usize,
+    ring_size: usize,
+    entropy: &[u8; 32],
+) -> Result<(Vec<Vec<u8>>, usize)> {
+    let (indices, position) = select_ring_indices_v3(outputs, real_index, ring_size, entropy)?;
+    let keys = indices
+        .iter()
+        .map(|index| outputs.key_at(*index))
+        .collect::<Option<Vec<_>>>()
+        .ok_or(PrivatePaymentError::RealOutputNotInSet)?;
+    Ok((keys, position))
 }
 
 /// Build a ring containing the caller's real output plus protocol-chosen
@@ -525,5 +729,105 @@ mod tests {
             "weights must decrease monotonically with age"
         );
         assert_eq!(AGE_WEIGHTS.iter().map(|w| u64::from(*w)).sum::<u64>(), 8891);
+    }
+
+    #[test]
+    fn the_ospead_weight_table_is_frozen() {
+        // Same reasoning as the_age_weight_table_is_frozen: this table is
+        // the V3 anonymity set, and a silent change to it would split V3
+        // wallets from each other the same way changing AGE_WEIGHTS would
+        // split V1 wallets.
+        assert_eq!(OSPEAD_AGE_WEIGHTS.len(), 16);
+        assert_eq!(
+            OSPEAD_AGE_WEIGHTS
+                .iter()
+                .map(|w| u64::from(*w))
+                .sum::<u64>(),
+            1_000_000,
+            "the table encodes a full probability mass function scaled by 1e6"
+        );
+        // Unlike AGE_WEIGHTS the GB2 shape is not monotonic: it rises from
+        // the very newest bucket to a mode around the middle buckets before
+        // decaying, and the final bucket absorbs the long tail rather than
+        // continuing the decay. Pin the derivation instead of a monotonic
+        // shape assumption that would not hold for this table.
+        assert_eq!(OSPEAD_AGE_WEIGHTS[0], 1941);
+        assert_eq!(OSPEAD_AGE_WEIGHTS[10], 102862);
+        assert_eq!(*OSPEAD_AGE_WEIGHTS.last().unwrap(), 77986);
+    }
+
+    #[test]
+    fn the_ospead_real_output_is_always_in_the_ring_at_the_reported_index() {
+        let outputs = set_of(1_000);
+        for real in [0usize, 1, 499, 998, 999] {
+            let (ring, position) = select_ring_v3(&outputs, real, 16, &[7u8; 32]).unwrap();
+            assert_eq!(ring.len(), 16);
+            assert_eq!(ring[position], outputs.key_at(real).unwrap());
+        }
+    }
+
+    #[test]
+    fn the_ospead_same_entropy_reproduces_the_same_ring_exactly() {
+        let outputs = set_of(500);
+        let a = select_ring_v3(&outputs, 42, 16, &[3u8; 32]).unwrap();
+        let b = select_ring_v3(&outputs, 42, 16, &[3u8; 32]).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn the_ospead_different_entropy_produces_different_decoys() {
+        let outputs = set_of(500);
+        let (a, _) = select_ring_v3(&outputs, 42, 16, &[1u8; 32]).unwrap();
+        let (b, _) = select_ring_v3(&outputs, 42, 16, &[2u8; 32]).unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn the_ospead_rings_are_canonical_and_free_of_duplicates() {
+        let outputs = set_of(300);
+        for seed in 0u8..16 {
+            let (ring, _) = select_ring_v3(&outputs, 100, 16, &[seed; 32]).unwrap();
+            assert!(crate::ring_is_canonical(&ring), "seed {seed} not canonical");
+            let mut deduped = ring.clone();
+            deduped.dedup();
+            assert_eq!(deduped.len(), ring.len());
+        }
+    }
+
+    #[test]
+    fn v1_and_v3_domains_never_collide() {
+        // Same entropy, same output set: if the two domains ever produced
+        // the same transcript, a V1 ring would be indistinguishable from a
+        // V3 ring drawn under the "wrong" table, defeating the whole point
+        // of versioning the weight table.
+        let outputs = set_of(500);
+        let (v1, _) = select_ring(&outputs, 42, 16, &[9u8; 32]).unwrap();
+        let (v3, _) = select_ring_v3(&outputs, 42, 16, &[9u8; 32]).unwrap();
+        assert_ne!(v1, v3);
+    }
+
+    #[test]
+    fn the_ospead_distribution_still_reaches_old_outputs() {
+        // Mirrors selection_skews_recent_but_still_reaches_old_outputs: the
+        // long tail in OSPEAD_AGE_WEIGHTS must remain reachable, or a
+        // genuinely old spend would stand out as the only "impossible"
+        // ring member.
+        let outputs = set_of(4_096);
+        let newest = outputs.len() - 1;
+        let mut ancient = 0usize;
+
+        for seed in 0u16..200 {
+            let mut entropy = [0u8; 32];
+            entropy[0..2].copy_from_slice(&seed.to_be_bytes());
+            let (ring, _) = select_ring_v3(&outputs, 2_000, 16, &entropy).unwrap();
+            for member in &ring {
+                let index = u64::from_be_bytes(member[0..8].try_into().unwrap()) as usize;
+                let age = newest - index;
+                if age > 1_000 {
+                    ancient += 1;
+                }
+            }
+        }
+        assert!(ancient > 0, "the tail must be reachable, got {ancient}");
     }
 }

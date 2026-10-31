@@ -12,8 +12,8 @@ use did_mini::Did;
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
 use crate::{
-    beta, build, coordination, git, identity, installer, intake, keystone, pr, provenance, release,
-    remote, repo, resident, seed, service, store, sync,
+    beta, beta_grants, beta_wallet, build, coordination, git, identity, installer, intake,
+    keystone, pr, provenance, release, remote, repo, resident, seed, service, store, sync,
 };
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
@@ -188,6 +188,10 @@ fn dispatch_beta(
             "beta.campaign-list",
             beta::campaign_list(home, store_path, args),
         ),
+        ("campaign", "create") => (
+            "beta.campaign-create",
+            beta::campaign_create(home, store_path, args),
+        ),
         ("campaign", "show") => (
             "beta.campaign-show",
             beta::campaign_show(home, store_path, args),
@@ -234,6 +238,12 @@ fn dispatch_beta(
             beta::contribution_show(home, store_path, args),
         ),
         ("claim", "new") => ("beta.claim-new", beta::claim_new(home, store_path, args)),
+        ("account" | "wallet" | "transfer", _) => {
+            beta_wallet::dispatch(home, store_path, &noun, &sub, args)
+        }
+        ("grant-policy" | "grant" | "grant-approve" | "grant-status", _) => {
+            beta_grants::dispatch(home, store_path, &noun, &sub, args)
+        }
         _ => {
             return Err(CliError::Usage(format!(
                 "unknown `beta` command: {noun:?} {sub:?}"

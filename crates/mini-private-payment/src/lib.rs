@@ -189,11 +189,13 @@
 mod account;
 mod amount;
 mod claim;
+mod claim_v3;
 mod codec;
 mod decoy;
 mod disclosure;
 mod error;
 mod memo;
+mod memo_v3;
 mod nullifier;
 mod reconcile;
 mod scan;
@@ -212,9 +214,16 @@ pub use claim::{
     ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION, MAX_INPUTS, MAX_OUTPUTS,
     MAX_RING_SIZE, MIN_RING_SIZE,
 };
+pub use claim_v3::{
+    build_v3, quote_fee_micro, recover_shared_secret_v3, verify_v3, BuiltOutputV3, ClaimInputV3,
+    ClaimOutputV3, PaymentRequestV3, PrivatePaymentClaimV3, RecipientV3, SpendableOutputV3,
+    VerifiedPrivateClaimV3, CLAIM_V3_MAGIC, CLAIM_V3_VERSION, MAX_CLAIM_V3_BYTES, MAX_INPUTS_V3,
+    MAX_OUTPUTS_V3, RING_SIZE_V3, SUITE_ID_V3,
+};
 pub use codec::MAX_FIELD_BYTES;
 pub use decoy::{
-    select_ring, select_ring_indices, InMemoryOutputSet, OutputSet, AGE_WEIGHTS, DECOY_DOMAIN,
+    select_ring, select_ring_indices, select_ring_indices_v3, select_ring_v3, InMemoryOutputSet,
+    OutputSet, AGE_WEIGHTS, DECOY_DOMAIN, DECOY_DOMAIN_V3, OSPEAD_AGE_WEIGHTS,
 };
 pub use disclosure::{
     audit, verify_disclosure, AcknowledgedIrreversibleDisclosure, VerifiedDisclosure,
@@ -224,6 +233,10 @@ pub use error::{DecodeFailure, PrivatePaymentError, Result};
 pub use memo::{
     PaymentNote, PaymentPurpose, SealedMemo, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES,
     NOTE_OVERHEAD_BYTES,
+};
+pub use memo_v3::{
+    MemoContextV3, SealedMemoV3, MAX_MEMO_V3_BYTES, MEMO_V3_PADDED_BYTES, MEMO_V3_SEALED_BYTES,
+    NOTE_VERSION_V3,
 };
 pub use nullifier::{KeyImageSet, SpendOutcome};
 pub use reconcile::{

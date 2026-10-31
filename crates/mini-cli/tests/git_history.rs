@@ -440,3 +440,36 @@ fn history_batch_streams_past_the_old_4096_commit_enumeration_cap() {
     assert_ne!(field(&first, "commit_id"), field(&second, "commit_id"));
     assert_eq!(checkpoints(&home, "sha1"), 2);
 }
+
+#[test]
+fn resumed_history_fails_when_a_native_ancestor_was_lost_from_the_store() {
+    let temp = tempfile::tempdir().unwrap();
+    let repo = temp.path().join("source");
+    root(&repo, "sha1");
+    let home = temp.path().join("home");
+    let store = temp.path().join("store");
+    let first = run(&home, &store, &["import-history", repo.to_str().unwrap()]).unwrap();
+    let root_native = field(&first, "commit_id").to_string();
+    fs::write(repo.join("second.txt"), "second\n").unwrap();
+    git(&repo, &["add", "second.txt"]);
+    git(&repo, &["commit", "-m", "Second"]);
+    let second = run(&home, &store, &["import-history", repo.to_str().unwrap()]).unwrap();
+    assert_ne!(field(&second, "commit_id"), root_native);
+    // A partial restore: the checkpointed tip survives but its parent does not.
+    let lost = store
+        .join("blobs")
+        .join(&root_native[..2])
+        .join(&root_native);
+    assert!(
+        lost.exists(),
+        "the native root commit is stored at {lost:?}"
+    );
+    fs::remove_file(&lost).unwrap();
+    let error = run(&home, &store, &["import-history", repo.to_str().unwrap()])
+        .expect_err("a resumed import must not report broken ancestry as complete")
+        .to_string();
+    assert!(
+        error.contains("not found") || error.contains("ancestry"),
+        "unexpected error: {error}"
+    );
+}

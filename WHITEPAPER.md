@@ -149,10 +149,13 @@ accidentally let money buy political power (see §2):
   purpose, so a garage full of drives can't out-earn its fair share and
   crowd out someone running a single old phone or one hard drive — see
   Directive 11, "the weakest device matters most."
-- **Bridge and treasury mechanisms** — external liquidity (XRPL for
-  banking-adjacent liquidity, Monero for private liquidity; Bitcoin
-  disabled by default) kept structurally separate from ordinary governance,
-  per D-0073.
+- **Bridge and treasury mechanisms** — a possible future design (D-0073)
+  for optional, non-genesis bridges (XRPL for banking-adjacent liquidity,
+  Monero for private liquidity; Bitcoin disabled by default), kept
+  structurally separate from ordinary governance. No such bridge exists at
+  genesis, Mininet makes no liquidity or redemption promise about it, and
+  any exchange value it might carry is discovered independently by
+  participants, not set by the protocol (D-0542).
 
 Settlement itself follows Directive 5: an offline payment is a **signed
 promise**, never final ownership, until canonical consensus accepts it.

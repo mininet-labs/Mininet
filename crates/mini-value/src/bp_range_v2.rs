@@ -46,6 +46,16 @@ use crate::error::{Result, ValueError};
 /// `[0, 2^BIT_LENGTH)` for — matching [`crate::bp_range::BIT_LENGTH`].
 pub const BIT_LENGTH: usize = 64;
 
+/// Fixed encoded size of a [`RangeProofV2`] at this module's fixed
+/// `BIT_LENGTH`/aggregation-size-1 (Section 9's "expected 64-bit single
+/// proof encoding is 672 bytes"): 4 compressed points (`A`, `S`, `T_1`,
+/// `T_2`) + `2*log2(64)=12` compressed IPA points (`L`/`R`) + 5 scalars
+/// (`t_x`, `t_x_blinding`, `e_blinding`, and the IPA's final `a`/`b`) =
+/// `16*32 + 5*32`. Checked against the real vendored encoding by
+/// [`tests::proof_encoding_is_exactly_672_bytes`] rather than trusted as
+/// arithmetic alone.
+pub const RANGE_PROOF_V2_BYTES: usize = 672;
+
 /// Domain-separating transcript label. Distinct from anything else in
 /// this tree (and from `bp_range`'s own, unrelated transcript, which is a
 /// plain hash chain rather than a Merlin transcript) so a proof made here
@@ -53,8 +63,53 @@ pub const BIT_LENGTH: usize = 64;
 /// protocol's challenge derivation.
 const TRANSCRIPT_LABEL: &[u8] = b"mininet/mini-value/bp-range-v2/v1";
 
+/// The blinding-axis generator ("G_b" in the Gate #72 audit's Section
+/// 8.1 notation): `H2G("mininet/value/pedersen/blinding-generator/v3")`,
+/// the exact domain string that section specifies. `pub(crate)` so
+/// [`crate::mlsag_v3`]'s commitment-difference column can be built over
+/// this exact same axis — the two must agree, or the MLSAG relation
+/// `D = C - C'` on `G_b` never cancels the value term.
+pub(crate) fn blinding_generator_v2() -> RistrettoPoint {
+    crate::curve::hash_to_point(&[b"mininet/value/pedersen/blinding-generator/v3"])
+}
+
+/// The value-axis generator ("H_v" in the same notation):
+/// `H2G("mininet/value/pedersen/value-generator/v3")`.
+pub(crate) fn value_generator_v2() -> RistrettoPoint {
+    crate::curve::hash_to_point(&[b"mininet/value/pedersen/value-generator/v3"])
+}
+
+/// Domain-hashed Pedersen generators, **not** `PedersenGens::default()`.
+///
+/// `bulletproofs::PedersenGens::default()` sets `B` to the raw Ristretto
+/// basepoint and `B_blinding` to a SHA3-512 hash of it — a real,
+/// documented nothing-up-my-sleeve pair, but not an *independent* one for
+/// this protocol: `B` is then the exact same point [`crate::curve::
+/// basepoint`] uses everywhere else in this crate as the signing
+/// generator (one-time keys, stealth addresses, the MLSAG ownership
+/// column). The Gate #72 audit's Section 8.1 requires `H_v != signing
+/// base point G` precisely because sharing a generator between a
+/// commitment's value axis and the key/signature layer breaks the
+/// "nothing up my sleeve, no relation to anything else" property a
+/// Pedersen commitment's hiding proof depends on -- the same reasoning
+/// [`crate::bp_generators`]'s own docs already give for keeping *its*
+/// generators independent of `basepoint()`. Using the library default
+/// unexamined here was a defect in this module's initial version: it
+/// composed the vendored proving/verifying *algorithm* correctly but
+/// inherited a basis the audit itself forbids. `BulletproofGens::new`
+/// derives its own per-bit generator vectors from a fixed internal label
+/// independent of whatever `PedersenGens` is paired with it (the crate's
+/// own docs advertise "pluggable bases" for exactly this reason), so
+/// supplying a custom `PedersenGens` here changes nothing else about the
+/// proof system's soundness.
 fn generators() -> (PedersenGens, BulletproofGens) {
-    (PedersenGens::default(), BulletproofGens::new(BIT_LENGTH, 1))
+    (
+        PedersenGens {
+            B: value_generator_v2(),
+            B_blinding: blinding_generator_v2(),
+        },
+        BulletproofGens::new(BIT_LENGTH, 1),
+    )
 }
 
 /// A Bulletproofs range proof for one value committed elsewhere, produced
@@ -63,6 +118,20 @@ fn generators() -> (PedersenGens, BulletproofGens) {
 pub struct RangeProofV2 {
     inner: InnerRangeProof,
 }
+
+/// The vendored `bulletproofs::RangeProof` has no `PartialEq`/`Eq` of its
+/// own; comparing the canonical encoding is exact (this module's own
+/// `to_bytes`/`from_bytes` round-trip has no lossy step) and lets
+/// `PrivatePaymentClaimV3` (which embeds a `RangeProofV2` per output)
+/// derive `PartialEq`/`Eq` the same way `crate::bp_range::RangeProof`'s
+/// callers already do.
+impl PartialEq for RangeProofV2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_bytes() == other.to_bytes()
+    }
+}
+
+impl Eq for RangeProofV2 {}
 
 impl RangeProofV2 {
     /// Canonical variable-width encoding (fixed for a given `BIT_LENGTH`,
@@ -104,6 +173,20 @@ pub fn prove_range_v2(value: u64, blinding: Scalar) -> Result<([u8; 32], RangePr
     )
     .map_err(|_| ValueError::InvalidInput)?;
     Ok((commitment.to_bytes(), RangeProofV2 { inner: proof }))
+}
+
+/// [`prove_range_v2`] for a caller outside this crate, which cannot name
+/// `curve25519_dalek::Scalar` (this crate does not re-export it — every
+/// other cross-crate entry point here, [`pedersen_commitment_v2`]
+/// included, takes a blinding factor as bytes for the same reason).
+/// `None` on a non-canonical blinding encoding, matching [`canonical_scalar`]'s
+/// contract everywhere else in this crate.
+pub fn prove_range_v2_from_bytes(
+    value: u64,
+    blinding: &[u8],
+) -> Option<Result<([u8; 32], RangeProofV2)>> {
+    let scalar = canonical_scalar(blinding)?;
+    Some(prove_range_v2(value, scalar))
 }
 
 /// Verify `proof` shows `commitment` hides a non-negative, in-bounds
@@ -289,5 +372,35 @@ mod tests {
         let v1 =
             crate::confidential_impl::pedersen_commitment(1_000, &blinding.to_bytes()).unwrap();
         assert_ne!(v1, v2);
+    }
+
+    #[test]
+    /// Gate #72 Section 8.1's own requirement: neither commitment axis may
+    /// be identity, they must differ from each other, and neither may
+    /// coincide with the signing base point `G` -- the exact property
+    /// `PedersenGens::default()` violated (its `B` *is* `G`) before this
+    /// module built its own generators. See [`generators`]'s doc comment.
+    fn generator_independence() {
+        let g_b = blinding_generator_v2();
+        let h_v = value_generator_v2();
+        let g = crate::curve::basepoint();
+        assert_ne!(g_b, RistrettoPoint::identity());
+        assert_ne!(h_v, RistrettoPoint::identity());
+        assert_ne!(g_b, h_v);
+        assert_ne!(g_b, g);
+        assert_ne!(h_v, g, "value axis must not be the signing base point");
+    }
+
+    #[test]
+    fn proof_encoding_is_exactly_672_bytes() {
+        let blinding = crate::curve::random_scalar().unwrap();
+        let (_, proof) = prove_range_v2(1_000, blinding).unwrap();
+        assert_eq!(proof.to_bytes().len(), RANGE_PROOF_V2_BYTES);
+    }
+
+    #[test]
+    fn generators_are_deterministic_across_calls() {
+        assert_eq!(blinding_generator_v2(), blinding_generator_v2());
+        assert_eq!(value_generator_v2(), value_generator_v2());
     }
 }

@@ -344,8 +344,11 @@ so, everywhere, on purpose.
 - a public, installable Beta: the Android shell and LAN/QR pairing foundation
   exist, but two physical devices have not yet completed the full acceptance
   path, and the encrypted keystone/range/reward path is still separate
-- BLE / local-radio transport (needs real phone hardware and Kotlin radio
-  wiring)
+- BLE / local-radio transport: a real Rust multi-hop mesh relay driver
+  (`mini-mesh`) and Kotlin BLE central/peripheral wiring
+  (`BleMeshService.kt`/`BlePeripheralServer.kt`) both now exist and are
+  tested, but two-phone physical-hardware acceptance evidence is still
+  outstanding
 - production deployment of the networked consensus and a live chain (the
   current consensus slices are tested protocol work, not a production network)
 - external cryptography audit — the single largest gate before any real value
@@ -454,7 +457,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0539`
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0542`
    (`D-0513`–`D-0516`: adopting external Gate #28 DTN/satellite and Gate #98
    Wi-Fi bearer design-report architectures on engineering merit (new
    `mini-dtn` crate scaffold, `mini-settlement::PaymentClaimV2`
@@ -466,10 +469,21 @@ to people who will never meet them:
    requirement, requiring real two-device corroboration for Gate #97
    "two-sided" ranging evidence, and giving `mini-mesh` genuine per-link
    locking so one slow peer's send can no longer stall every other link's
-   receive path — are the newest at the time of this edit; the Mininet Node
-   Appliance deployment profile this line previously credited to `D-0439`
-   is `D-0446` — `D-0439` is the identity-bound replica-registration
-   decision),
+   receive path; `D-0517`–`D-0522` and `D-0540`–`D-0541`: Gate #72 (privacy/value layer)
+   remediation — real `frost_ristretto255` FROST signing, a vendored-
+   Bulletproofs range-proof/Pedersen-commitment implementation over a
+   corrected independent generator basis, the `PrivatePaymentV3` wire
+   format with its three-digest scheme, and the audit's OSPEAD log-GB2
+   calibrated decoy distribution — none of it yet wired into any
+   consensus-checked path (Section 11 remains open follow-up); a sixth
+   Codex remediation batch (`D-0519`); and Gate #96's external legal
+   review adopted as engineering-conformance direction — no BTC/XMR/XRP-
+   for-MINI issuance at genesis, no XRPL/Monero genesis liquidity promise
+   (`D-0542`, gate itself NOT closed pending qualified counsel signature)
+   — are the newest at the time of this edit; the Mininet Node Appliance
+   deployment profile this line
+   previously credited to `D-0439` is `D-0446` — `D-0439` is the
+   identity-bound replica-registration decision),
    plus the networking/consensus track's reserved `D-0200`–`D-0206`, the
    privacy/cost-doctrine track's `D-0300`–, and the edge/provider-layer
    track's `D-0400`– — see the log's "Decision-number allocation across

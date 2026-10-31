@@ -8,6 +8,14 @@ mechanism-design/tokenomics specialists** — people who model adversarial
 systems (the Gauntlet/Chaos-Labs style of work other protocols commission),
 not token-launch marketing consultants.
 
+**Update (D-0542):** the external Gate #96 legal review (still pending
+qualified counsel-of-record signature — see `docs/gates/
+legal-review-brief.md`) concludes the treasury-contribution/bridge-issuance
+mechanism this gate calibrates must be deferred and production-unreachable
+at genesis. Calibration work below remains useful for a possible future,
+separately-reviewed reopening of that mechanism; it does not gate anything
+that ships at launch.
+
 **Update (D-0073/D-0074, 2026-07-10):** the founder has since fixed the
 design parameters this gate was originally scoped to help *invent* —
 `docs/design/treasury-economic-model.md` (#47: the XRPL/XMR bridge split,

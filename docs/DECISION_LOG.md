@@ -24213,6 +24213,397 @@ items (D-0517/D-0518's own follow-up lists) are untouched.
 
 **Supersedes / superseded by:** none.
 
+### D-0540 — Gate #72: fix `bp_range_v2`'s generator basis (self-found defect in D-0518); `mini_value::mlsag_v3`/`stealth_v3`; `mini_private_payment::claim_v3`/`memo_v3` — `PrivatePaymentV3` groundwork  ·  *Shipped, additive, not wired into consensus*
+
+**Date:** 2026-09-12 · **Refs:** the full Gate #72 external cryptography
+audit report the founder supplied verbatim this session (`docs/audits/
+source-reports-2026-09-12/Mininet_External_Audit_01_Gate_72_
+Cryptography_FINAL.txt`), Sections 5.1/5.4/6/7/8/9/10; `crates/mini-value/
+src/{bp_range_v2,mlsag_v3,stealth_v3}.rs`; `crates/mini-private-payment/
+src/{claim_v3,memo_v3}.rs`.
+
+**Decision:** two things happened in this batch, and the first is not
+optional to report separately just because it was found while doing the
+second.
+
+**Part A — a real defect in D-0518's `bp_range_v2`, found and fixed before
+building on it.** `bp_range_v2::generators()` used `bulletproofs::
+PedersenGens::default()`, whose documented value-axis generator `B` is
+literally `curve25519_dalek`'s Ristretto basepoint — the exact same point
+`mini_value::curve::basepoint()` uses everywhere else in this crate as the
+signing generator (one-time keys, stealth addresses, the MLSAG ownership
+column). The audit's own Section 8.1 requires `H_v != signing base point
+G` precisely because sharing a generator between a commitment's value axis
+and the key/signature layer breaks the independence a Pedersen
+commitment's hiding property depends on — the identical reasoning
+`bp_generators.rs`'s pre-existing docs already give for keeping *its*
+generators independent of `basepoint()`. D-0518 composed the vendored
+proving/verifying algorithm correctly but inherited a basis the audit
+itself forbids, unexamined. Fixed with two new domain-hashed generators
+(`H2G("mininet/value/pedersen/blinding-generator/v3")`/`H2G("mininet/
+value/pedersen/value-generator/v3")`, Section 8.1's own exact strings),
+supplied to the vendored crate's `PedersenGens` directly — the
+`bulletproofs` crate documents "pluggable bases" for exactly this reason,
+and `BulletproofGens::new` derives its own per-bit generators from a fixed
+internal label independent of whatever `PedersenGens` accompanies it, so
+nothing else about the proof system's soundness changes. `bp_range_v2` was
+never wired into any consensus path (D-0518's own stated status), so this
+had zero live blast radius — but it would have poisoned everything built
+on it, which is exactly what this batch does next.
+
+**Part B — `PrivatePaymentV3` groundwork**, additive over the
+now-corrected basis, following the audit's Sections 6/7/9/10 as closely as
+the exact byte layout given permits:
+
+- `mini_value::mlsag_v3` — the same two-column MLSAG relation as
+  `mini_value::mlsag`, over `bp_range_v2`'s basis instead of
+  `bp_generators`'s, and over the audit's exact Section 7 challenge
+  construction: every challenge link now binds `suite_id`, `network_id`,
+  the claim's own `signing_digest`, the input's index, and the full ring
+  statement (every member's key and commitment), not just an opaque
+  `message` blob — closing F72-03 for this scheme specifically. The
+  key-image base point is likewise domain- and network-separated (Section
+  7.1), unlike the original scheme's bare hash. Ring size is fixed at
+  exactly 16 (Section 7.2) — no caller-selectable size.
+- `mini_value::stealth_v3` — the same CryptoNote-style derivation as
+  `mini_value::stealth_impl`, over Section 6's exact domain-separated
+  offset hash (`suite_id || network_id || A || B || R || shared`) instead
+  of an undomained one, with the specified resample-on-degenerate-output
+  retry loop.
+- `mini_private_payment::memo_v3` — the same sealed-memo construction as
+  `mini_private_payment::memo`, over Section 10.1/10.2's exact 256-byte
+  plaintext layout (adds an explicit version byte) and HKDF/AEAD context
+  (salt bound to the network, info and AAD bound to the memo-context
+  digest, output index, and every public output field).
+- `mini_private_payment::claim_v3` — the `PrivatePaymentV3` wire format
+  (Section 9: fixed header/magic/suite id, no `valid_until_ms`/
+  `last_known_chain`, no caller-selected ring size or decoy entropy, a
+  signed `fee_policy_id` instead of an arbitrary fee bid) and the
+  three-digest scheme (Section 10.3): `memo_context_digest` (before any
+  memo exists), `signing_digest` (adds sealed memos, excludes MLSAG
+  signatures — what each input's signature actually authorizes), and
+  `claim_id` (the complete signed transaction). `claim_id` existing
+  separately from `signing_digest` closes F72-07: `mini_private_payment::
+  claim`'s V2 has only two digests, so a cache/mempool/block keyed by its
+  `transcript_digest` cannot distinguish two differently-signed encodings
+  of the same unsigned transaction — which matters once full claim bytes,
+  not a derived nullifier list, become canonical block data (Section 11,
+  still unimplemented — see Required follow-up).
+
+**Constitutional impact:** none beyond D-0036/D-0037/D-0047/D-0507-D-0519's
+existing status for these two crates — no dependency-edge change, no
+weakened invariant. Nothing here is reachable from any consensus-checked
+or currently-shipping payment path; `mini-private-payment::claim`(V2),
+`mini-bounty`, and `mini-shielded-verify` are untouched and re-verified
+unaffected.
+
+**Implementation status:** shipped. New tests: `mini_value::bp_range_v2`
+gained 2 (generator independence from the signing base point, and a
+`proof_encoding_is_exactly_672_bytes` check backing the new
+`RANGE_PROOF_V2_BYTES` constant rather than trusting the arithmetic that
+derives it) — 15 total, up from 13; `mini_value::mlsag_v3` 12 new tests
+(valid spend, wrong ring size, wrong secret/opening, altered pseudo-
+commitment/signing-digest/network/input-index, same-secret-same-key-image
+across independent signings, distinct keys produce distinct key images,
+identity key image rejected, key image domain/network separation from
+V1); `mini_value::stealth_v3` 7 new tests (shared-secret agreement,
+stranger rejection, spend-scalar opening, unlinkability across payments,
+network-domain-separation rejection, malformed/identity key rejection);
+`mini_private_payment::memo_v3` 8 new tests (open/seal round trip,
+stranger rejection, output-index/network AAD-binding rejection, fixed
+ciphertext size regardless of purpose length, oversized-purpose
+rejection, tamper rejection, wire round trip); `mini_private_payment::
+claim_v3` 9 new tests (balanced build+verify, memo open recovers the
+spendable opening, stranger cannot recover/open, encode/decode round trip
+preserving `claim_id`, tampered pseudo-commitment and range proof both
+correctly rejected — the former by the balance check, matching V2's own
+documented check ordering — wrong network rejected, unbalanced request
+refused at build time, and a real two-input same-output double-spend
+correctly caught by the repeated-key-image check with both individual
+MLSAGs and the balance sum otherwise valid). Full workspace `cargo fmt
+--all`, `cargo clippy --all-targets --all-features --workspace -- -D
+warnings`, and `cargo test --workspace --all-features` are clean except
+the same pre-existing, sandbox-only `wasm32`-target-missing failures every
+entry since D-0071 already records. `mini-value` 146/146,
+`mini-private-payment` 47/47 (lib) plus all existing integration suites
+unchanged, `mini-bounty` 21/21, `mini-shielded-verify` unaffected.
+
+**Failure point:** this closes F72-03 (transcript framing), part of F72-11
+(no caller ring size/decoy entropy — decoy *distribution calibration*,
+F72-10, remains untouched), F72-12 (no wall-clock validity fields), and
+lays the wire-format/digest groundwork F72-05/06/07/08/09 need — it does
+not itself close any of those five, all of which require the Section 11
+consensus integration (canonical claim bytes replacing derived nullifier
+facts, removing the transparent `PaymentClaim` path and the duplicate
+bounty ring signature) this entry deliberately does not attempt. F72-13's
+fee mechanism is a placeholder (`quote_fee_micro`): deterministic and
+self-consistent between builder and verifier, not a calibrated economic
+function — real fee derivation depends on a policy registry that does not
+exist yet, the same "depends on real chain state this crate stays
+decoupled from" reasoning `mini_settlement::claim_v2`'s
+`MAX_VALIDITY_HEIGHT_SPAN` (D-0519) already used for an analogous gap.
+
+**Required follow-up:** the remaining Gate #72 items are, in the project's
+own working order: canonical claim bytes in consensus + derived key
+images (Section 11, F72-05/06/08/09 — requires `mini-shielded-verify`/
+`mini-execution` integration, deliberately not attempted in this batch
+given its consensus-breaking blast radius); removing the transparent
+`PaymentClaim` path and the duplicate bounty ring signature (same Section,
+same reason); the calibrated OSPEAD log-GB2 decoy distribution (F72-10,
+independent of the above); and a real fee-policy registry to replace
+`quote_fee_micro`'s placeholder. None of these were blocked on missing
+source material this time — the full audit text was available throughout
+this batch — the remaining scope is genuinely large, consensus-facing
+engineering, not a documentation gap.
+
+**Supersedes / superseded by:** none. Corrects (does not supersede, since
+no consensus-facing behavior existed to have been wrong about) D-0518's
+`bp_range_v2` generator choice.
+
+### D-0541 — Gate #72: F72-10 calibrated decoy distribution — `mini_private_payment::decoy::OSPEAD_AGE_WEIGHTS`/`select_ring_indices_v3`, wired into `claim_v3::build_v3`  ·  *Shipped, one interpretive judgment call disclosed*
+
+**Date:** 2026-09-12 · **Refs:** the same Gate #72 external audit report as
+D-0517–D-0540 (`docs/audits/source-reports-2026-09-12/
+Mininet_External_Audit_01_Gate_72_Cryptography_FINAL.txt`), finding F72-10,
+Section 5.4; `crates/mini-private-payment/src/decoy.rs`;
+`crates/mini-private-payment/src/claim_v3.rs`.
+
+**Decision:** replace the ad-hoc `AGE_WEIGHTS` recency table with a real
+calibrated model for `PrivatePaymentV3` decoy selection, following the
+audit's exact specification as far as it goes, and disclosing where it
+does not.
+
+F72-10 specifies the decoy age distribution as a log-GB2 (generalized beta
+of the second kind) model with four exact parameters: `scale (b) = 20.62`,
+`shape1 (a) = 4.462`, `shape2 (p) = 0.5553`, `shape3 (q) = 7.957`, whose
+CDF is `F(x; a, b, p, q) = I_z(p, q)` (the regularized incomplete beta
+function) at `z = w / (1 + w)`, `w = (x / b)^a`. That part is unambiguous
+and was computed exactly, via the standard Lentz continued-fraction
+`betacf`/`betai` method (no library dependency, no floating point at
+runtime — see below).
+
+What the audit does not state is the unit of `x`. This codebase's existing
+age buckets are already logarithmic (`AGE_WEIGHTS`: bucket `i` spans ages
+`[2^i - 1, 2^(i+1) - 1)`), which makes "log-GB2" ambiguous between `x` =
+raw age (fit in log-space internally, evaluated here on the raw value) and
+`x` = `log2(age)` directly (the bucket exponent itself). Evaluated the
+first way, the given parameters saturate the CDF almost immediately
+(`F(100) ≈ 1.0`) — a degenerate, all-mass-on-bucket-0 distribution,
+inconsistent with a "long tail that never vanishes" model and therefore
+ruled out empirically rather than assumed. Evaluated the second way, the
+same parameters produce a smooth, non-degenerate distribution whose
+support lines up almost exactly with the existing 16-bucket structure.
+Adopted the second reading on that basis. This is a judgment call this
+codebase is making, not a value read out of the audit, and it is recorded
+as such in `OSPEAD_AGE_WEIGHTS`'s own doc comment so it is not mistaken
+for an unambiguous transcription later — the same "state plainly what is
+inferred vs. given" discipline `bp_range_v2`'s and `claim_v3`'s comments
+already use for their own open questions.
+
+The frozen integer table itself: `raw[i] = round(1_000_000 * (F(i+1) -
+F(i)))` for `i = 0..=14`, and `raw[15] = round(1_000_000 * (1 - F(15)))`
+so the sixteenth bucket absorbs all remaining tail mass rather than
+truncating it. Runtime sampling stays pure-integer counter-mode hashing
+exactly like V1's `Draw`/`draw_age_offset` (`AGE_WEIGHTS`'s own "no
+floating point anywhere" rule, Directive 14's simplicity-is-security
+preference for the smaller mechanism applying equally here) — the beta
+function only ever runs offline, at derivation time, to produce the frozen
+table checked into source.
+
+Implementation, mirroring V1's shape rather than parameterizing it (same
+reasoning as `mlsag_v3` needing its own module instead of a runtime flag
+on `mlsag`: a shared code path risks a V1 caller silently picking up V3's
+table under an unrelated future change):
+
+- `OSPEAD_AGE_WEIGHTS: [u32; 16]` — the frozen table, summing to exactly
+  `1_000_000` (a probability mass function scaled by 1e6, gcd 1).
+- `DECOY_DOMAIN_V3 = b"mininet/private-payment/decoy-seed/v3"` — the
+  audit's own Section 5.4 exact domain string, so a V1/V3 transcript
+  collision under identical entropy can never reproduce one scheme's ring
+  under the other's table (`Draw` generalized to take a domain parameter,
+  `Draw::with_domain`, rather than hard-coding `DECOY_DOMAIN`).
+- `draw_age_offset_v3`/`select_ring_indices_v3`/`select_ring_v3` — V3
+  counterparts of the existing V1 functions, same bucket-then-uniform-
+  within-bucket construction, same canonical-sort-by-key-bytes and
+  bounded-attempts-then-uniform-fallback behavior.
+- `claim_v3::build_v3` now calls `select_ring_indices_v3` instead of V1's
+  `select_ring_indices` — this is the first (and, per D-0540's Required
+  follow-up, previously last-remaining-untouched) piece of F72-10 actually
+  wired into the `PrivatePaymentV3` path.
+
+**Constitutional impact:** none — no dependency-edge change, no weakened
+invariant. `mini-private-payment::decoy`'s existing `select_ring`/
+`select_ring_indices`/`AGE_WEIGHTS` (the V1/V2 path) are untouched and
+re-verified unaffected; only `claim_v3::build_v3`, itself still unreachable
+from any consensus-checked path per D-0540, changes behavior.
+
+**Implementation status:** shipped. `mini_private_payment::decoy` gained 7
+new tests (frozen-table check on `OSPEAD_AGE_WEIGHTS`, real-output-always-
+included, determinism, distinct-entropy produces distinct rings, canonical/
+dedup, V1-and-V3-domains-never-collide-under-identical-entropy, long-tail-
+still-reachable) — 18 total in that module, up from 11. Full workspace
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace
+-- -D warnings`, and `cargo test --workspace --all-features` are clean
+except the same pre-existing, sandbox-only `wasm32`-target-missing
+failures every entry since D-0071 already records. `mini-private-payment`
+54/54 (lib, up from 36) plus all existing integration suites unchanged.
+
+**Failure point:** closes F72-10 for `PrivatePaymentV3`'s own decoy
+selection. Does not touch V1/V2's `AGE_WEIGHTS` (that table remains the
+documented "legible starting shape, not a fitted distribution" it always
+was — no live traffic exists to justify migrating it, and D-0540 already
+established the V1/V2 and V3 paths as deliberately separate). The
+unit-of-`x` interpretation above is an inference, not a certainty; if a
+follow-up from the same audit team clarifies units, this table is a
+version bump (V4) and a new decision entry, never a silent tuning commit.
+
+**Required follow-up:** the remaining Gate #72 items are unchanged from
+D-0540's list minus this one: canonical claim bytes in consensus + derived
+key images and removing the transparent `PaymentClaim`/duplicate bounty
+ring path (Section 11, F72-05/06/08/09, deliberately not attempted here
+given consensus-breaking blast radius), and a real fee-policy registry to
+replace `quote_fee_micro`'s placeholder (F72-13).
+
+**Supersedes / superseded by:** none.
+
+### D-0542 — Gate #96: adopt the external legal review's genesis-launch constraints as engineering direction; defer the BTC/XMR/XRP-for-MINI contribution mechanism and XRPL/XMR genesis liquidity framing (D-0073 amended, gate NOT closed — pending qualified counsel signature)  ·  *Adopted as engineering direction; legal gate remains open*
+
+**Date:** 2026-09-12 · **Refs:** roadmap #96 (closed `not_planned` 2026-07-10,
+before this review existed — founder should revisit that closure), #47
+(the correct current tracking issue for the treasury-contribution/bridge
+mechanism; #23 is unrelated and was a stale cross-reference this entry
+also fixes), `docs/gates/legal-review-brief.md`, `docs/audits/
+source-reports-2026-09-12/Mininet_External_Legal_Review_03_Gate_96_FINAL.txt`
+(findings L96-001 through L96-034, W96-01 through W96-10), D-0073, D-0008,
+Directive 16 / P1 (voice/value wall), Directive 2 / P3 (no owner, no admin
+key).
+
+**Decision:** a full external legal/regulatory review answering
+`docs/gates/legal-review-brief.md`'s open questions was received
+2026-09-11, written as a "counsel-of-record adoption draft" — a finished
+opinion a qualified lawyer can review, amend, and sign, rather than a
+request for a new open-ended research cycle. Its own final section is an
+attestation block (counsel name, bar, jurisdiction, signature, date) that
+is **blank** in the delivered document. Per this project's honesty-over-
+polish rule, that means **Gate #96 is not closed** by this entry, and this
+entry does not claim otherwise — no AI-drafted or founder-read document
+constitutes licensed legal advice or satisfies "engage counsel" from the
+original gate brief.
+
+What this entry does do: adopt the review's engineering-actionable
+conclusions as launch-architecture direction now, on the same reasoning
+D-0513/D-0514 already used for adopting external design-report
+architecture on engineering merit before formal process completed —
+because every one of these conclusions only *narrows* what genesis is
+allowed to do, never widens it, so adopting them early costs nothing and
+adopting them late would mean shipping the wrong thing first. Specifically,
+effective immediately for any genesis/production launch configuration:
+
+- **No external-asset-for-MINI issuance at genesis** (L96-001): the
+  SPEC-07 "verified BTC/XMR deposit → mint MINI at a governed rate"
+  mechanism (D-0073's "Mechanism D," `mini_treasury::rate`/`receipt`) is
+  deferred and production-unreachable. It may remain in source only as
+  dev/test-only, non-production-exposed code, clearly labeled superseded
+  for launch (L96-031) — already true today, since nothing wires
+  `mini_treasury::receipt`/`rate` into any minting or consensus path (see
+  `docs/STATUS.md`); this entry makes that a deliberate constraint going
+  forward, not an incidental gap.
+- **No token sale of any kind, ever, at genesis** (L96-002/003): genesis
+  MINI reaches users only through equal human-share vesting and protocol-
+  native compensation for real network work — both already Mininet's
+  existing constitutional design, not new mechanisms invented here.
+- **No peg, redemption promise, or "backing" framing** for MINI against
+  USD/EUR/BTC/XMR/XRP or any basket (L96-006), and no marketing/price-
+  promotion language — "day-one price," "strengthens/lifts holdings,"
+  "instant liquidity," "buy/acquire extra MINI," return/ROI language,
+  "investment opportunity" (L96-007, W96-01–W96-04).
+- **The XRPL and Monero bridges are optional, post-genesis edge
+  conveniences, never a genesis dependency or liquidity promise**
+  (L96-011): no project-run exchange/broker/onramp/offramp, no official
+  exchange-listing solicitation, no "instant liquidity from day one."
+  Direct XMR contribution/custody is not a genesis service (L96-010).
+- **Mandatory user risk disclosure** or equivalent at any real-value
+  release: MINI is experimental, not equity/debt/a claim on a treasury, no
+  promised price/redemption/yield/liquidity, may lose all value, transfers
+  may be irreversible, no administrator can recover keys or reverse a
+  transfer (L96-029).
+- **No false "legal safe harbor" claims** — no "not a security," "not
+  money transmission," "MiCA exempt everywhere," or "no one can regulate
+  this" (L96-030). Legal classification remains jurisdiction/fact
+  specific; the approved framing is that the protocol is designed to be
+  decentralized, functional and non-custodial, and no project entity
+  offers MINI for sale at genesis.
+- **KYC/sanctions/admin-seizure capability never enters the protocol
+  core** (L96-015, L96-034) — this was already a frozen invariant (P3);
+  the review independently confirms adopting its recommendations requires
+  no invariant change, only removing marketing/mechanism claims that
+  exceeded what the constitution actually allows.
+
+Two documentation corrections the review itself flagged (finding G):
+`docs/gates/legal-review-brief.md` cross-referenced roadmap issue #23 as
+"the contribution mechanism" — #23 is actually the unrelated, already-
+closed "[Phase 3.2] Bootstrap protocol over real transport" issue. The
+correct, still-open tracking issue is #47 ("Treasury contribution,
+XRPL/XMR bridge-liquidity, and reserve-allocation audit"), already named
+correctly in D-0073. Both stale references in the brief are corrected by
+this entry.
+
+**Constitutional impact:** none — no `docs/INVARIANTS.md` row changes, no
+frozen-invariant weakening. The review's own §19 constitutional-alignment
+pass reaches the same conclusion: the voice/value wall (P1) and no-owner/
+no-admin-key rule (P3) are already satisfied by the existing architecture;
+what changes is genesis *mechanism availability and public communication*,
+not any constitutional guarantee. This entry amends D-0073's status (the
+design remains valid engineering thinking for a possible future, non-
+genesis reopening of its contribution mechanism) without weakening
+anything D-0073 established about the voice/value wall applying to that
+layer.
+
+**Implementation status:** documentation and one code-comment update only
+in this batch — `WHITEPAPER.md` §4 (removed "kept structurally separate...
+per D-0073" framing that implied a live genesis mechanism; added the
+no-liquidity-promise disclaimer), `docs/gates/legal-review-brief.md`
+(status header, corrected issue references), `docs/design/
+treasury-economic-model.md` and `docs/gates/economic-simulation-spec.md`
+(genesis-deferral notices), `docs/STATUS.md` (D-0073 status line), and
+`crates/mini-treasury/src/receipt.rs` (doc-comment noting the legal status
+of a module that was already unreachable from production). No code
+behavior changes: `mini_treasury::rate`/`receipt` were never wired into
+any minting or consensus path, so "deferred at genesis" was already this
+crate's actual behavior — this entry makes it a documented, deliberate
+constraint rather than an artifact of incompleteness. Full repo-wide grep
+for the review's specific banned marketing phrases ("day-one price,"
+"XRPL twin," "strengthens"/"lifts... holdings," "instant liquidity") found
+no other occurrences outside the audit source material itself and this
+now-corrected set of files.
+
+**Failure point:** this is a founder-level engineering-conformance
+adoption, not a legal opinion — it cannot itself satisfy "engage counsel"
+from the original gate brief, and roadmap issue #96 should not be treated
+as resolved by this entry. If a real, qualified lawyer's review reaches a
+different conclusion on any point, that review controls and this entry
+gets a superseding decision. Roadmap issue #96 was closed `not_planned` in
+July, before this review existed; that closure is now stale and the
+founder should decide whether to reopen it or track follow-up elsewhere.
+The numeric parameters in `docs/design/treasury-economic-model.md`
+(reserve split, spread, ceilings) remain founder-set starting values,
+unvalidated by simulation or an external mechanism-design specialist,
+exactly as D-0073 already stated — this entry does not change that.
+
+**Required follow-up:** founder engages qualified counsel to review, amend
+if necessary, and sign the delivered report (or commission an independent
+equivalent) before any real-value contribution/treasury mechanism goes
+live; decide on roadmap #96's stale `not_planned` closure; if/when a
+future, separately-reviewed decision reopens external-asset-for-MINI
+issuance, that decision must itself go through this same legal-review
+discipline (L96-032) rather than being treated as a documentation change.
+
+**Supersedes / superseded by:** amends D-0073's genesis-launch status
+(D-0073's design content and its application of the voice/value wall to
+the bridge/treasury layer are not superseded — only the claim, never
+explicit but implied by D-0073's original "structurally separate... per
+D-0073" whitepaper framing, that this mechanism is live or available at
+genesis). Does not supersede D-0008 (XRPL as settlement bridge design).
 ### D-0520 — Windows client packaging and install: `mini-windows-setup` engine, `mininet-setup.exe` wizard, `mini windows`/`mini selftest`, and the client's Diagnostics and Version & install views  ·  *Shipped*
 
 **Date:** 2026-09-13 · **Refs:** `crates/mini-windows-setup/`;

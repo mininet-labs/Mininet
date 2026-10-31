@@ -149,21 +149,27 @@ be silently linked merely to manufacture reputation continuity.
 
 ### Beta MINI product/durability work
 
-- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX.
-- [ ] Persist/replicate beta grant/transfer events rather than relying only on
-  the reference in-memory accounting core.
+- [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX. *CLI done:*
+  `mini beta account|wallet|transfer|grant-policy|grant|grant-approve|grant-status`
+  (every amount is labelled BETA, provisional, not production MINI). The
+  desktop wallet panel is still to do.
+- [x] Persist/replicate beta grant/transfer events rather than relying only on
+  the reference in-memory accounting core. Balances are derived from the
+  durable signed-object set (`mini-beta-exec`), so any replica that holds the
+  objects derives the same provisional snapshot; there is no balance database.
+  A two-node replication test is still outstanding.
 - [ ] Provide a private fresh claim path for accepted participation without
   binding public GitHub identity to the beta account.
 - [ ] Prove epoch reset/retirement through the actual product surface.
 
 ### Forge canonicality
 
-- [ ] Discover a beta campaign without GitHub.
-- [ ] Submit/replicate a finding without a GitHub account/API.
-- [ ] Disposition it and produce a native Forge task.
-- [ ] Claim the task and hand off exact-state review evidence natively.
-- [ ] Record an accepted contribution and Beta MINI grant natively.
-- [ ] Complete that entire loop during a GitHub outage.
+- [x] Discover a beta campaign without GitHub. *(single replica: `beta_native_loop.rs`)*
+- [x] Submit/replicate a finding without a GitHub account/API. *`crates/mini-cli/tests/beta_two_node_loop.rs`: two independent stores connected only by a real TCP `mini sync` replicate the campaign, finding, account, grant and approvals, and derive an identical BETA snapshot digest.*
+- [x] Disposition it and produce a native Forge task. *(single replica: `beta_native_loop.rs`)*
+- [ ] Claim the task and hand off exact-state review evidence natively. *Claiming is covered by `beta_native_loop.rs`; the exact-state review-evidence handoff is not yet part of that test.*
+- [x] Record an accepted contribution and Beta MINI grant natively. *(single replica: `beta_native_loop.rs`)*
+- [ ] Complete that entire loop during a GitHub outage. *The loop's code paths have no GitHub dependency and run in `beta_two_node_loop.rs` over loopback only; a recorded outage drill on separate machines is still to do.*
 - [ ] Make GitHub a mirror/adapter rather than the authority that decides which
   beta/work state is real.
 - [ ] Implement/prove the one-way `forge_canonical = true` transition and the
