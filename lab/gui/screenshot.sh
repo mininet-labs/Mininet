@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Launches mininet-desktop on a virtual X display and saves a screenshot, so a
+# headless agent can see whether the GUI starts and renders. Output: PNG path.
+# Usage: lab/gui/screenshot.sh [out.png] [seconds-to-wait]
+set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/../env.sh"
+cd "$LAB_ROOT"
+OUT="${1:-$LAB_ROOT/target/lab-gui.png}"; WAIT="${2:-6}"
+cargo build -p mini-desktop --bin mininet-desktop
+D=:99; Xvfb $D -screen 0 1280x800x24 >/dev/null 2>&1 & XV=$!
+trap 'kill ${APP:-0} $XV 2>/dev/null || true' EXIT
+sleep 1
+HOME_DIR="$(mktemp -d)"
+DISPLAY=$D MININET_HOME="$HOME_DIR" LIBGL_ALWAYS_SOFTWARE=1 "$LAB_ROOT/target/debug/mininet-desktop" >"$HOME_DIR/app.log" 2>&1 & APP=$!
+sleep "$WAIT"
+kill -0 "$APP" 2>/dev/null || { echo "app exited early:" >&2; tail -20 "$HOME_DIR/app.log" >&2; exit 1; }
+mkdir -p "$(dirname "$OUT")"
+DISPLAY=$D import -window root "$OUT"
+echo "$OUT"

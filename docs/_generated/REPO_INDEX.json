@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1247,
-    "headings": 4219,
+    "files": 1255,
+    "headings": 4239,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135573,6 +135573,402 @@
       "title": "{"
     },
     {
+      "bytes": 1815,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet Lab"
+        }
+      ],
+      "keywords": [
+        "lab",
+        "proves",
+        "ci-local",
+        "beta",
+        "windows",
+        "wine",
+        "agent",
+        "what",
+        "xvfb",
+        "doctor",
+        "machine",
+        "quick",
+        "check",
+        "job",
+        "audit",
+        "android",
+        "windows-test",
+        "network",
+        "drill",
+        "sudo",
+        "netlab",
+        "outage-drill",
+        "real",
+        "physical"
+      ],
+      "lines": 23,
+      "path": "lab/README.md",
+      "sha256": "426fb9d33c78e078e401b8b959863ee54c46ca301a7d40860f84586a25469f1e",
+      "symbols": [],
+      "title": "Mininet Lab"
+    },
+    {
+      "bytes": 1025,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Idempotent. Nothing here touches the repository."
+        }
+      ],
+      "keywords": [
+        "sudo",
+        "lab",
+        "rustup",
+        "dev",
+        "null",
+        "bootstrap",
+        "installs",
+        "everything",
+        "needs",
+        "debian",
+        "ubuntu",
+        "machine",
+        "root",
+        "idempotent",
+        "nothing",
+        "here",
+        "touches",
+        "repository",
+        "env",
+        "apt-get",
+        "install",
+        "curl",
+        "command",
+        "cargo"
+      ],
+      "lines": 22,
+      "path": "lab/bootstrap.sh",
+      "sha256": "32b9d9ab1e40acbc0f9cca54f86e0c449e8e35e80309c6981dc085eed444a2be",
+      "symbols": [],
+      "title": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
+    },
+    {
+      "bytes": 816,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Usage: lab/ci-local.sh [--quick]   (--quick skips the full workspace test run)"
+        }
+      ],
+      "keywords": [
+        "step",
+        "quick",
+        "ci-local",
+        "lab",
+        "check",
+        "cargo",
+        "python3",
+        "tools",
+        "echo",
+        "mirrors",
+        "job",
+        "github",
+        "workflows",
+        "yml",
+        "plus",
+        "cheap",
+        "repo",
+        "gates",
+        "usage",
+        "skips",
+        "full",
+        "workspace",
+        "run",
+        "env"
+      ],
+      "lines": 16,
+      "path": "lab/ci-local.sh",
+      "sha256": "45badf9903639387e6fe55dd35ee29afc45c85d57fa486bf0451c4405bed783e",
+      "symbols": [],
+      "title": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
+    },
+    {
+      "bytes": 1380,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Reports which lab capabilities work on THIS machine. Exit 0 always; read the table."
+        }
+      ],
+      "keywords": [
+        "lab",
+        "cargo",
+        "install",
+        "apt",
+        "cargo-deny",
+        "dev",
+        "null",
+        "target",
+        "mingw-w64",
+        "netns",
+        "xvfb",
+        "docker",
+        "python3",
+        "doctor",
+        "reports",
+        "capabilities",
+        "work",
+        "machine",
+        "exit",
+        "always",
+        "read",
+        "table",
+        "env",
+        "printf"
+      ],
+      "lines": 20,
+      "path": "lab/doctor.sh",
+      "sha256": "cccf664d555919e16b4d18578770ff1e71334afa0cec5b9122b4d69b30bdc9a9",
+      "symbols": [],
+      "title": "Reports which lab capabilities work on THIS machine. Exit 0 always; read the table."
+    },
+    {
+      "bytes": 678,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
+        }
+      ],
+      "keywords": [
+        "export",
+        "lab",
+        "env",
+        "usr",
+        "source",
+        "sets",
+        "variables",
+        "every",
+        "script",
+        "expects",
+        "lab_root",
+        "cargo_incremental",
+        "wineprefix",
+        "winedebug",
+        "winedlloverrides",
+        "wine",
+        "wine64",
+        "bin",
+        "cargo_target_x86_64_pc_windows_gnu_linker",
+        "dirname",
+        "bash_source",
+        "pwd",
+        "keeps",
+        "target"
+      ],
+      "lines": 12,
+      "path": "lab/env.sh",
+      "sha256": "1f9be4788c0c23712db211f57db40fb0573e1db73224f904a4a006c4ecc0dd01",
+      "symbols": [],
+      "title": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
+    },
+    {
+      "bytes": 901,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "headless agent can see whether the GUI starts and renders. Output: PNG path."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Usage: lab/gui/screenshot.sh [out.png] [seconds-to-wait]"
+        }
+      ],
+      "keywords": [
+        "out",
+        "app",
+        "gui",
+        "screenshot",
+        "png",
+        "mininet-desktop",
+        "display",
+        "home_dir",
+        "lab",
+        "lab_root",
+        "dev",
+        "null",
+        "launches",
+        "virtual",
+        "saves",
+        "headless",
+        "agent",
+        "see",
+        "whether",
+        "starts",
+        "renders",
+        "output",
+        "path",
+        "usage"
+      ],
+      "lines": 20,
+      "path": "lab/gui/screenshot.sh",
+      "sha256": "7ff7895c7b4cc215562c62098afc9f4126003bdeb16fe740c58aba2d20fd6b92",
+      "symbols": [],
+      "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
+    },
+    {
+      "bytes": 3068,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Two isolated network namespaces joined only by a veth pair. Neither has a"
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "default route or DNS, so GitHub (or anything else) is unreachable by"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "construction. The operator publishes a Beta campaign; the tester discovers"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "it over a real TCP `mini sync` across the veth. Requires root."
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "Usage: sudo lab/netlab/outage-drill.sh [path-to-mini]"
+        },
+        {
+          "level": 1,
+          "line": 47,
+          "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
+        }
+      ],
+      "keywords": [
+        "netns",
+        "echo",
+        "campaign",
+        "dev",
+        "sync",
+        "exit",
+        "route",
+        "null",
+        "veth",
+        "default",
+        "beta",
+        "tester",
+        "real",
+        "root",
+        "set",
+        "add",
+        "link",
+        "step",
+        "exec",
+        "connect",
+        "home",
+        "store",
+        "camp",
+        "lab"
+      ],
+      "lines": 56,
+      "path": "lab/netlab/outage-drill.sh",
+      "sha256": "38fbeb56e231c3802fba8ab37d109616ef8a2827d0cf5cf9ce1e76d36c0c5331",
+      "symbols": [],
+      "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
+    },
+    {
+      "bytes": 682,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Run crate tests as REAL Windows binaries (x86_64-pc-windows-gnu) under wine."
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Usage: lab/windows-test.sh [-p crate]...   (default: mini-durable mini-app-protocol)"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Wine is not Windows: it catches path/prefix/IO-semantics bugs, but the"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "windows-client CI job on real Windows remains authoritative."
+        }
+      ],
+      "keywords": [
+        "windows",
+        "wine",
+        "lab",
+        "real",
+        "pkgs",
+        "windows-test",
+        "x86_64-pc-windows-gnu",
+        "mini-durable",
+        "mini-app-protocol",
+        "run",
+        "binaries",
+        "usage",
+        "default",
+        "catches",
+        "path",
+        "prefix",
+        "io-semantics",
+        "bugs",
+        "but",
+        "windows-client",
+        "job",
+        "remains",
+        "authoritative",
+        "env"
+      ],
+      "lines": 14,
+      "path": "lab/windows-test.sh",
+      "sha256": "d077a40a2810c6b0bb2ba5ed21f60aeaef0b4858327d2cad21a5a6a17cfd4be3",
+      "symbols": [],
+      "title": "Run crate tests as REAL Windows binaries (x86_64-pc-windows-gnu) under wine."
+    },
+    {
       "bytes": 925,
       "group": "root",
       "headings": [
@@ -141535,6 +141931,14 @@
     "governance/policy.yml",
     "governance/work-claims.json",
     "governance/work-claims.schema.json",
+    "lab/README.md",
+    "lab/bootstrap.sh",
+    "lab/ci-local.sh",
+    "lab/doctor.sh",
+    "lab/env.sh",
+    "lab/gui/screenshot.sh",
+    "lab/netlab/outage-drill.sh",
+    "lab/windows-test.sh",
     "os/grapheneos-overlay/README.md",
     "packaging/windows/README.md",
     "packaging/windows/build-release.sh",
