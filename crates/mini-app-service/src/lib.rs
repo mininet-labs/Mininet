@@ -30,6 +30,8 @@ use mini_app_protocol::{
     MAX_COMMUNITY_NAME_BYTES, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES,
     MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
 };
+mod beta_journal;
+mod beta_wallet;
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
     build_comment, build_community, build_follow, build_membership, build_post, build_profile,
@@ -46,15 +48,15 @@ const EVENT_BACKLOG: usize = 256;
 const JOURNAL_VERSION: u8 = 1;
 const MAX_PENDING_OPERATIONS: usize = 1024;
 const MAX_JOURNAL_RECORD_BYTES: usize = 256 * 1024;
-const MAX_SIGNED_OBJECT_BYTES: usize = 128 * 1024;
+pub(crate) const MAX_SIGNED_OBJECT_BYTES: usize = 128 * 1024;
 const PENDING_MAGIC: &[u8; 8] = b"MINIOP1P";
 const RECEIPT_MAGIC: &[u8; 8] = b"MINIOP1R";
 const SEQUENCE_MAGIC: &[u8; 8] = b"MINISEQ1";
 
 #[derive(Debug)]
-struct CoreIdentity {
-    root: Controller,
-    device: Controller,
+pub(crate) struct CoreIdentity {
+    pub(crate) root: Controller,
+    pub(crate) device: Controller,
 }
 
 /// Seed-envelope provider for the application core.
@@ -124,6 +126,7 @@ pub struct Core<V: IdentityVault> {
     human: Option<Did>,
     next_sequence: u64,
     journal: MutationJournal,
+    beta_ops: PathBuf,
     outbox: outbox::Outbox,
     peers: delivery_peers::PeerBook,
     delivery_policy: delivery_runtime::Policy,
@@ -167,6 +170,9 @@ impl<V: IdentityVault> Core<V> {
         );
         let journal = MutationJournal::open(root.join("app-service"))?;
         journal.recover(&mut store)?;
+        let beta_ops = root.join("app-service/beta-ops");
+        beta_journal::open(&beta_ops)?;
+        beta_journal::commit_pending(&beta_ops, &mut store)?;
         let outbox = outbox::Outbox::open(root.join("app-service/outbox"))?;
         let peers = delivery_peers::PeerBook::open(root.join("app-service/delivery-peers"))?;
         let delivery_policy =
@@ -188,6 +194,7 @@ impl<V: IdentityVault> Core<V> {
             human,
             next_sequence,
             journal,
+            beta_ops,
             outbox,
             peers,
             delivery_policy,
@@ -210,6 +217,28 @@ impl<V: IdentityVault> Core<V> {
             .validate()
             .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
         match command {
+            Command::BetaRegisterAccount {
+                operation_id,
+                epoch,
+            } => self.beta_register_account(&operation_id, epoch),
+            Command::BetaBalances { epoch, campaigns } => self.beta_balances(epoch, &campaigns),
+            Command::BetaTransfer {
+                operation_id,
+                epoch,
+                campaigns,
+                from,
+                to,
+                amount_micro,
+                memo,
+            } => self.beta_transfer(
+                &operation_id,
+                epoch,
+                &campaigns,
+                from,
+                to,
+                amount_micro,
+                &memo,
+            ),
             Command::Status => self.status().map(Reply::Status),
             Command::CreateRoot => {
                 self.create_root()?;
@@ -1343,7 +1372,7 @@ fn root_from_seeds(seeds: &SeedPair) -> Result<Controller, ServiceError> {
         .map_err(|error| ServiceError::new(ErrorCode::Identity, error.to_string()))
 }
 
-fn identity_from_seeds(
+pub(crate) fn identity_from_seeds(
     root_seeds: &SeedPair,
     device_seeds: &SeedPair,
 ) -> Result<CoreIdentity, ServiceError> {
@@ -1359,7 +1388,7 @@ fn identity_from_seeds(
     Ok(CoreIdentity { root, device })
 }
 
-fn next_object_sequence<B: Backend>(
+pub(crate) fn next_object_sequence<B: Backend>(
     store: &Store<B>,
     author: Option<&Did>,
 ) -> Result<u64, ServiceError> {
@@ -1381,14 +1410,14 @@ fn next_object_sequence<B: Backend>(
     })
 }
 
-fn now_ms() -> u64 {
+pub(crate) fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0)
 }
 
-fn validate_operation(operation_id: &str) -> Result<(), ServiceError> {
+pub(crate) fn validate_operation(operation_id: &str) -> Result<(), ServiceError> {
     if operation_id.is_empty() || operation_id.len() > MAX_OPERATION_ID_BYTES {
         return Err(ServiceError::new(
             ErrorCode::BadRequest,
@@ -2237,7 +2266,7 @@ fn read_bounded(path: &Path) -> Result<Vec<u8>, ServiceError> {
     })
 }
 
-fn hex_encode(bytes: &[u8]) -> String {
+pub(crate) fn hex_encode(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
@@ -2697,6 +2726,8 @@ impl<'a> JournalDecoder<'a> {
 mod tests {
     use super::*;
     use mini_app_protocol::{FeedScope, Reply};
+
+    mod beta_wallet_tests;
 
     #[derive(Debug, Clone)]
     struct MemoryVault {

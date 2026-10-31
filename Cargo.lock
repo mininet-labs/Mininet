@@ -2694,16 +2694,21 @@ version = "0.0.1"
 name = "mini-app-service"
 version = "0.0.1"
 dependencies = [
+ "blake3",
  "did-mini",
  "image",
  "mini-app-protocol",
  "mini-bearer",
+ "mini-beta",
+ "mini-beta-exec",
+ "mini-beta-grants",
  "mini-crypto",
  "mini-durable",
  "mini-media",
  "mini-objects",
  "mini-social",
  "mini-store",
+ "mini-sync",
  "mini-transport-security",
  "mini-windows-vault",
 ]
