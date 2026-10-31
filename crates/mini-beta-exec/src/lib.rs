@@ -35,7 +35,8 @@ pub const BETA_TRANSFER_TYPE: &str = "mininet.beta/transfer/v1";
 const ACCOUNT_DOMAIN: &[u8] = b"mininet/beta/account/v1";
 const SNAPSHOT_DOMAIN: &[u8] = b"mininet/beta/snapshot/v1";
 const PAYLOAD_VERSION: u8 = 1;
-const MAX_TRANSFER_INPUTS: usize = 64;
+/// Most inputs one transfer may spend.
+pub const MAX_TRANSFER_INPUTS: usize = 64;
 const MAX_TRANSFER_OUTPUTS: usize = 64;
 const MAX_MEMO_BYTES: usize = 512;
 const MAX_OBJECT_ID_BYTES: usize = 256;

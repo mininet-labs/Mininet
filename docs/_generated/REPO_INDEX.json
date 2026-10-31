@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1250,
     "headings": 4219,
-    "rust_symbols": 14867
+    "rust_symbols": 14866
   },
   "crates": {
     "askama_derive": {
@@ -7558,7 +7558,7 @@
       ],
       "lines": 3252,
       "path": "crates/mini-app-protocol/src/lib.rs",
-      "sha256": "72a1b8a3310efc9a0019a2eb6e367f9c903af98cf8bb6de9eb5852760165ea86",
+      "sha256": "c2afdef88c8730741049aa885d7a9bac54d4d61a6a7688f9b1932fcde45ed082",
       "symbols": [
         {
           "kind": "const",
@@ -8430,77 +8430,72 @@
       "title": "[package]"
     },
     {
-      "bytes": 9317,
+      "bytes": 9594,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
         "epoch",
         "serviceerror",
         "self",
-        "beta",
         "account",
+        "beta",
         "betaexecerror",
         "new",
         "map_err",
         "bad",
-        "store",
         "result",
+        "human",
+        "store",
         "object",
         "errorcode",
-        "human",
+        "owner",
         "campaigns",
         "error",
         "betaepochid",
         "registration",
         "exec_error",
         "epoch_id",
+        "beta_registrations",
         "reply",
-        "betaaccountid",
-        "bytes",
-        "vec"
+        "betaaccountid"
       ],
-      "lines": 260,
+      "lines": 266,
       "path": "crates/mini-app-service/src/beta_wallet.rs",
-      "sha256": "779907de766853ee06fee37629d756ff924ca1f936c1adb6d606b820f7f865d6",
+      "sha256": "94c5e491b58a5fd0253201786e6e9b95911d6952b46b277bc856720dd3d97abb",
       "symbols": [
         {
-          "kind": "const",
-          "line": 23,
-          "name": "MAX_TRANSFER_INPUTS"
-        },
-        {
           "kind": "fn",
-          "line": 25,
+          "line": 23,
           "name": "bad"
         },
         {
           "kind": "fn",
-          "line": 29,
+          "line": 27,
           "name": "exec_error"
         },
         {
           "kind": "fn",
-          "line": 42,
+          "line": 40,
           "name": "epoch_id"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 44,
           "name": "account_id"
         },
         {
           "kind": "fn",
-          "line": 50,
+          "line": 48,
           "name": "issuance_policy"
         },
         {
           "kind": "impl",
-          "line": 61,
+          "line": 59,
           "name": "Core<V>"
         },
         {
           "kind": "fn",
-          "line": 63,
+          "line": 61,
           "name": "beta_registrations"
         }
       ],
@@ -13411,7 +13406,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 35047,
+      "bytes": 35091,
       "group": "crate:mini-beta-exec",
       "headings": [],
       "keywords": [
@@ -13422,8 +13417,8 @@
         "const",
         "object",
         "account",
-        "value",
         "transfer",
+        "value",
         "result",
         "fmt",
         "derive",
@@ -13434,15 +13429,15 @@
         "storeerror",
         "objecterror",
         "durable",
+        "one",
         "output",
         "store",
         "clone",
-        "partialeq",
-        "struct"
+        "u64"
       ],
-      "lines": 1003,
+      "lines": 1004,
       "path": "crates/mini-beta-exec/src/lib.rs",
-      "sha256": "aa4e38e756695deaa8f03f4bee594f22cd9627ddd5139abe0c044570f632dc77",
+      "sha256": "9d6c29d3a2939948af692a535906209458131e49ecd52290659eff3ec76495ed",
       "symbols": [
         {
           "kind": "const",
@@ -13471,312 +13466,312 @@
         },
         {
           "kind": "const",
-          "line": 38,
+          "line": 39,
           "name": "MAX_TRANSFER_INPUTS"
         },
         {
           "kind": "const",
-          "line": 39,
+          "line": 40,
           "name": "MAX_TRANSFER_OUTPUTS"
         },
         {
           "kind": "const",
-          "line": 40,
+          "line": 41,
           "name": "MAX_MEMO_BYTES"
         },
         {
           "kind": "const",
-          "line": 41,
+          "line": 42,
           "name": "MAX_OBJECT_ID_BYTES"
         },
         {
           "kind": "type",
-          "line": 44,
+          "line": 45,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 49,
+          "line": 50,
           "name": "BetaExecError"
         },
         {
           "kind": "impl",
-          "line": 63,
+          "line": 64,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 65,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 81,
+          "line": 82,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 83,
+          "line": 84,
           "name": "From<GrantAcceptanceError>"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 85,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 88,
+          "line": 89,
           "name": "From<BetaError>"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 90,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 93,
+          "line": 94,
           "name": "From<StoreError>"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 95,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 98,
+          "line": 99,
           "name": "From<ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 99,
+          "line": 100,
           "name": "from"
         },
         {
           "kind": "struct",
-          "line": 106,
+          "line": 107,
           "name": "BetaAccountRegistration"
         },
         {
           "kind": "struct",
-          "line": 119,
+          "line": 120,
           "name": "BetaOutputRef"
         },
         {
           "kind": "struct",
-          "line": 126,
+          "line": 127,
           "name": "BetaTransferOutput"
         },
         {
           "kind": "struct",
-          "line": 133,
+          "line": 134,
           "name": "BetaTransfer"
         },
         {
           "kind": "struct",
-          "line": 147,
+          "line": 148,
           "name": "ResolvedOutput"
         },
         {
           "kind": "struct",
-          "line": 156,
+          "line": 157,
           "name": "AccountBalance"
         },
         {
           "kind": "struct",
-          "line": 163,
+          "line": 164,
           "name": "BetaSnapshot"
         },
         {
           "kind": "impl",
-          "line": 175,
+          "line": 176,
           "name": "BetaSnapshot"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 177,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 186,
+          "line": 187,
           "name": "is_provisional"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 193,
           "name": "derive_account_id"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 209,
           "name": "create_account_registration"
         },
         {
           "kind": "fn",
-          "line": 236,
+          "line": 237,
           "name": "parse_account_registration_object"
         },
         {
           "kind": "fn",
-          "line": 264,
+          "line": 265,
           "name": "read_account_registration"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 276,
           "name": "create_transfer"
         },
         {
           "kind": "fn",
-          "line": 311,
+          "line": 312,
           "name": "parse_transfer_object"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 360,
           "name": "read_transfer"
         },
         {
           "kind": "struct",
-          "line": 364,
+          "line": 365,
           "name": "OutputValue"
         },
         {
           "kind": "struct",
-          "line": 370,
+          "line": 371,
           "name": "GrantCandidate"
         },
         {
           "kind": "enum",
-          "line": 375,
+          "line": 376,
           "name": "VisitState"
         },
         {
           "kind": "struct",
-          "line": 385,
+          "line": 386,
           "name": "EpochIssuancePolicy"
         },
         {
           "kind": "impl",
-          "line": 389,
+          "line": 390,
           "name": "EpochIssuancePolicy"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 391,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 400,
+          "line": 401,
           "name": "resolve_snapshot"
         },
         {
           "kind": "fn",
-          "line": 571,
+          "line": 572,
           "name": "resolve_registrations"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 604,
           "name": "resolve_grant_outputs"
         },
         {
           "kind": "fn",
-          "line": 705,
+          "line": 706,
           "name": "candidate_approval_ids"
         },
         {
           "kind": "fn",
-          "line": 737,
+          "line": 738,
           "name": "grant_within_limits"
         },
         {
           "kind": "fn",
-          "line": 744,
+          "line": 745,
           "name": "transfer_epoch"
         },
         {
           "kind": "fn",
-          "line": 759,
+          "line": 760,
           "name": "resolve_economic_graph"
         },
         {
           "kind": "fn",
-          "line": 809,
+          "line": 810,
           "name": "economic_valid"
         },
         {
           "kind": "fn",
-          "line": 863,
+          "line": 864,
           "name": "snapshot_digest"
         },
         {
           "kind": "fn",
-          "line": 895,
+          "line": 896,
           "name": "output_order"
         },
         {
           "kind": "fn",
-          "line": 903,
+          "line": 904,
           "name": "validate_transfer_shape"
         },
         {
           "kind": "fn",
-          "line": 924,
+          "line": 925,
           "name": "ensure_type_no_links"
         },
         {
           "kind": "fn",
-          "line": 931,
+          "line": 932,
           "name": "public_payload"
         },
         {
           "kind": "fn",
-          "line": 938,
+          "line": 939,
           "name": "put_u16"
         },
         {
           "kind": "fn",
-          "line": 941,
+          "line": 942,
           "name": "put_u64"
         },
         {
           "kind": "fn",
-          "line": 944,
+          "line": 945,
           "name": "put_str"
         },
         {
           "kind": "fn",
-          "line": 952,
+          "line": 953,
           "name": "take_u8"
         },
         {
           "kind": "fn",
-          "line": 957,
+          "line": 958,
           "name": "take_u16"
         },
         {
           "kind": "fn",
-          "line": 965,
+          "line": 966,
           "name": "take_u64"
         },
         {
           "kind": "fn",
-          "line": 973,
+          "line": 974,
           "name": "take_32"
         },
         {
           "kind": "fn",
-          "line": 979,
+          "line": 980,
           "name": "take_str"
         },
         {
           "kind": "fn",
-          "line": 987,
+          "line": 988,
           "name": "take_str_allow_empty"
         }
       ],
@@ -37295,38 +37290,38 @@
       "title": "use mini_app_protocol::{"
     },
     {
-      "bytes": 13476,
+      "bytes": 14521,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "string",
         "value",
         "epoch",
-        "self",
+        "request",
         "format",
         "panel",
         "str",
-        "request",
         "memo",
         "return",
         "err",
         "ids",
         "is_empty",
         "whole",
+        "self",
         "beta",
         "u64",
         "amount",
-        "bytes",
         "result",
         "fraction",
         "micro",
         "micro_per_beta",
         "balances",
-        "what"
+        "what",
+        "campaigns"
       ],
-      "lines": 398,
+      "lines": 422,
       "path": "crates/mini-desktop/src/beta_wallet.rs",
-      "sha256": "377d636e420bdd82af98a52033960ae901ac2a7f531722364e695f75cbd8b297",
+      "sha256": "0b5e9a0089543e74e9cdd2a0d889d5e01b7b9151c9d706a4383ec547a3d30df8",
       "symbols": [
         {
           "kind": "const",
@@ -37340,37 +37335,37 @@
         },
         {
           "kind": "impl",
-          "line": 130,
+          "line": 133,
           "name": "Panel"
         },
         {
           "kind": "mod",
-          "line": 281,
+          "line": 305,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 284,
+          "line": 308,
           "name": "panel"
         },
         {
           "kind": "fn",
-          "line": 297,
+          "line": 321,
           "name": "amounts_are_exact_decimal_micro_units_without_floats"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 350,
           "name": "ids_and_campaigns_are_validated_and_deduplicated"
         },
         {
           "kind": "fn",
-          "line": 350,
+          "line": 374,
           "name": "requests_are_built_only_from_valid_input"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 405,
           "name": "replies_update_state_and_never_hide_conflicts"
         }
       ],

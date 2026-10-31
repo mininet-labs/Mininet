@@ -503,7 +503,7 @@ impl Request {
     }
 }
 
-pub const MAX_BETA_CAMPAIGNS: usize = 16;
+pub const MAX_BETA_CAMPAIGNS: usize = 64;
 pub const MAX_BETA_ACCOUNTS: u16 = 64;
 pub const MAX_BETA_MEMO_BYTES: usize = 256;
 

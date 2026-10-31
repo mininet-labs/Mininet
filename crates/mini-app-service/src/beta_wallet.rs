@@ -13,14 +13,12 @@ use mini_beta::{BetaAccountId, BetaEpochId, BetaMiniPolicy};
 use mini_beta_exec::{
     create_account_registration, create_transfer, derive_account_id,
     parse_account_registration_object, resolve_snapshot, BetaExecError, BetaOutputRef,
-    BetaTransferOutput, EpochIssuancePolicy, BETA_ACCOUNT_TYPE,
+    BetaTransferOutput, EpochIssuancePolicy, BETA_ACCOUNT_TYPE, MAX_TRANSFER_INPUTS,
 };
 use mini_crypto::random_32;
 use mini_objects::{ObjectId, ObjectType};
 
 use crate::{now_ms, storage_error, Core, IdentityVault};
-
-const MAX_TRANSFER_INPUTS: usize = 256;
 
 fn bad(message: &str) -> ServiceError {
     ServiceError::new(ErrorCode::BadRequest, message)
@@ -87,8 +85,16 @@ impl<V: IdentityVault> Core<V> {
         self.ensure_signing_available()?;
         let nonce = random_32()
             .map_err(|_| ServiceError::new(ErrorCode::Internal, "entropy source unavailable"))?;
-        let sequence = self.reserve_sequence()?;
         let human = self.signing_identity()?.0.clone();
+        let owned = self
+            .beta_registrations(epoch)?
+            .iter()
+            .filter(|(_, owner, _)| *owner == human)
+            .count();
+        if owned >= usize::from(MAX_BETA_ACCOUNTS) {
+            return Err(bad("BETA account limit reached for this epoch"));
+        }
+        let sequence = self.reserve_sequence()?;
         let account = derive_account_id(epoch, &human, nonce).map_err(exec_error)?;
         let object = create_account_registration(
             &mut self.store,

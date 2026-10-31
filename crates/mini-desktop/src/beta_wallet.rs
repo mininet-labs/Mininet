@@ -42,6 +42,9 @@ pub(crate) struct Panel {
     amount: String,
     memo: String,
     balances: Option<BetaBalancesView>,
+    /// Explicit per-action signing confirmation; reset after every signed request.
+    confirm: bool,
+    balances_for: (String, String),
     status: String,
 }
 
@@ -178,6 +181,7 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
         } else {
             "Balances refreshed (provisional).".into()
         };
+        self.balances_for = (self.epoch.clone(), self.campaigns.clone());
         self.balances = Some(view);
     }
 
@@ -197,17 +201,26 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
         theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new(DISCLAIMER).strong());
             ui.add_space(6.0);
-            ui.label("Epoch (64 hex)");
-            ui.text_edit_singleline(&mut self.epoch);
-            ui.label("Authorized campaign IDs (one per line): the only source of issuance this view trusts");
-            ui.add(
-                egui::TextEdit::multiline(&mut self.campaigns)
-                    .desired_rows(2)
-                    .desired_width(f32::INFINITY),
+            ui.add_enabled_ui(!busy, |ui| {
+                ui.label("Epoch (64 hex)");
+                ui.text_edit_singleline(&mut self.epoch);
+                ui.label("Authorized campaign IDs (one per line): the only source of issuance this view trusts");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.campaigns)
+                        .desired_rows(2)
+                        .desired_width(f32::INFINITY),
+                );
+            });
+            ui.checkbox(
+                &mut self.confirm,
+                "I confirm signing this BETA object with my unlocked identity",
             );
             ui.horizontal(|ui| {
                 if ui
-                    .add_enabled(!busy, theme::secondary_button("Register a new BETA account"))
+                    .add_enabled(
+                        !busy && self.confirm,
+                        theme::secondary_button("Register a new BETA account"),
+                    )
                     .clicked()
                 {
                     request = Some(self.register_request());
@@ -221,6 +234,12 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
             });
         });
         ui.add_space(8.0);
+        // A cached view belongs to the inputs it was fetched with.
+        if self.balances.is_some()
+            && self.balances_for != (self.epoch.clone(), self.campaigns.clone())
+        {
+            self.balances = None;
+        }
         if let Some(view) = &self.balances {
             theme::card_frame().show(ui, |ui| {
                 ui.label(egui::RichText::new("Your BETA accounts (provisional)").strong());
@@ -242,16 +261,18 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
         }
         theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Send BETA").strong());
-            ui.label("From account (64 hex)");
-            ui.text_edit_singleline(&mut self.from);
-            ui.label("To account (64 hex)");
-            ui.text_edit_singleline(&mut self.to);
-            ui.label("Amount (BETA, up to 6 decimals)");
-            ui.text_edit_singleline(&mut self.amount);
-            ui.label("Memo");
-            ui.text_edit_singleline(&mut self.memo);
+            ui.add_enabled_ui(!busy, |ui| {
+                ui.label("From account (64 hex)");
+                ui.text_edit_singleline(&mut self.from);
+                ui.label("To account (64 hex)");
+                ui.text_edit_singleline(&mut self.to);
+                ui.label("Amount (BETA, up to 6 decimals)");
+                ui.text_edit_singleline(&mut self.amount);
+                ui.label("Memo");
+                ui.text_edit_singleline(&mut self.memo);
+            });
             if ui
-                .add_enabled(!busy, theme::primary_button("Send BETA"))
+                .add_enabled(!busy && self.confirm, theme::primary_button("Send BETA"))
                 .clicked()
             {
                 request = Some(self.transfer_request());
@@ -259,6 +280,9 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
         });
         match request {
             Some(Ok(request)) => {
+                if matches!(request, Request::Register { .. } | Request::Transfer { .. }) {
+                    self.confirm = false;
+                }
                 self.status.clear();
                 Some(request)
             }
