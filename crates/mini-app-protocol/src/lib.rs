@@ -379,6 +379,22 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("comment text"));
                 }
             }
+            Command::BetaRegisterAccount { .. } => {}
+            Command::BetaBalances { campaigns, .. } => validate_beta_campaigns(campaigns)?,
+            Command::BetaTransfer {
+                campaigns,
+                amount_micro,
+                memo,
+                ..
+            } => {
+                validate_beta_campaigns(campaigns)?;
+                if *amount_micro == 0 {
+                    return Err(ProtocolError::LimitExceeded("beta transfer amount"));
+                }
+                if memo.len() > MAX_BETA_MEMO_BYTES || memo.trim().is_empty() {
+                    return Err(ProtocolError::LimitExceeded("beta transfer memo"));
+                }
+            }
             Command::SetLike {
                 operation_id,
                 target_id,
@@ -487,8 +503,50 @@ impl Request {
     }
 }
 
+pub const MAX_BETA_CAMPAIGNS: usize = 16;
+pub const MAX_BETA_ACCOUNTS: u16 = 64;
+pub const MAX_BETA_MEMO_BYTES: usize = 256;
+
+/// One opaque BETA account balance, in integer micro-BETA test units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BetaAccountBalance {
+    pub account: [u8; 32],
+    pub amount_micro: u64,
+}
+
+/// Provisional, resettable BETA test-value state derived from the replicated
+/// signed-object set. Never production MINI; carries no authority.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BetaBalancesView {
+    pub epoch: [u8; 32],
+    pub accounts: Vec<BetaAccountBalance>,
+    pub total_issued_micro: u64,
+    pub conflicts: u32,
+    pub snapshot_digest: [u8; 32],
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    /// Register a fresh opaque BETA account for this identity in `epoch`.
+    BetaRegisterAccount {
+        epoch: [u8; 32],
+    },
+    /// Derive balances of this identity's accounts. `campaigns` is the explicit
+    /// issuance trust anchor; the store is never scanned for it.
+    BetaBalances {
+        epoch: [u8; 32],
+        campaigns: Vec<String>,
+    },
+    /// Move BETA between two registered accounts; the sender must be owned by
+    /// this identity.
+    BetaTransfer {
+        epoch: [u8; 32],
+        campaigns: Vec<String>,
+        from: [u8; 32],
+        to: [u8; 32],
+        amount_micro: u64,
+        memo: String,
+    },
     PublishMediaPost {
         operation_id: String,
         media_id: String,
@@ -634,6 +692,16 @@ pub enum ResponseBody {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reply {
+    BetaAccount {
+        account: [u8; 32],
+        registration_id: String,
+    },
+    BetaBalances(BetaBalancesView),
+    BetaTransfer {
+        transfer_id: String,
+        amount_micro: u64,
+        change_micro: u64,
+    },
     PublicDeliveryObject(DeliveryObjectView),
     Ack,
     Status(AccountStatus),
@@ -958,6 +1026,31 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.string(parent_id, MAX_OBJECT_ID_BYTES)?;
             encoder.string(text, MAX_COMMENT_BYTES)?;
         }
+        Command::BetaRegisterAccount { epoch } => {
+            encoder.u8(40);
+            encoder.byte_string(epoch, 32)?;
+        }
+        Command::BetaBalances { epoch, campaigns } => {
+            encoder.u8(41);
+            encoder.byte_string(epoch, 32)?;
+            encode_campaigns(encoder, campaigns)?;
+        }
+        Command::BetaTransfer {
+            epoch,
+            campaigns,
+            from,
+            to,
+            amount_micro,
+            memo,
+        } => {
+            encoder.u8(42);
+            encoder.byte_string(epoch, 32)?;
+            encode_campaigns(encoder, campaigns)?;
+            encoder.byte_string(from, 32)?;
+            encoder.byte_string(to, 32)?;
+            encoder.u64(*amount_micro);
+            encoder.string(memo, MAX_BETA_MEMO_BYTES)?;
+        }
         Command::SetLike {
             operation_id,
             target_id,
@@ -1155,6 +1248,21 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             parent_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
             text: decoder.string(MAX_COMMENT_BYTES)?,
         }),
+        40 => Ok(Command::BetaRegisterAccount {
+            epoch: array32(decoder.byte_string(32)?, "beta epoch")?,
+        }),
+        41 => Ok(Command::BetaBalances {
+            epoch: array32(decoder.byte_string(32)?, "beta epoch")?,
+            campaigns: decode_campaigns(decoder)?,
+        }),
+        42 => Ok(Command::BetaTransfer {
+            epoch: array32(decoder.byte_string(32)?, "beta epoch")?,
+            campaigns: decode_campaigns(decoder)?,
+            from: array32(decoder.byte_string(32)?, "beta sender")?,
+            to: array32(decoder.byte_string(32)?, "beta recipient")?,
+            amount_micro: decoder.u64()?,
+            memo: decoder.string(MAX_BETA_MEMO_BYTES)?,
+        }),
         25 => Ok(Command::SetLike {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             target_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
@@ -1224,6 +1332,44 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
         }),
         tag => Err(ProtocolError::Decode(format!("unknown command tag {tag}"))),
     }
+}
+
+fn validate_beta_campaigns(campaigns: &[String]) -> Result<(), ProtocolError> {
+    if campaigns.is_empty() || campaigns.len() > MAX_BETA_CAMPAIGNS {
+        return Err(ProtocolError::LimitExceeded("beta campaign count"));
+    }
+    if campaigns
+        .iter()
+        .any(|id| id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES)
+    {
+        return Err(ProtocolError::LimitExceeded("beta campaign ID"));
+    }
+    Ok(())
+}
+
+fn array32(bytes: Vec<u8>, what: &'static str) -> Result<[u8; 32], ProtocolError> {
+    bytes
+        .try_into()
+        .map_err(|_| ProtocolError::Decode(format!("{what} must be 32 bytes")))
+}
+
+fn encode_campaigns(encoder: &mut Encoder, campaigns: &[String]) -> Result<(), ProtocolError> {
+    validate_beta_campaigns(campaigns)?;
+    encoder.u8(campaigns.len() as u8);
+    for id in campaigns {
+        encoder.string(id, MAX_OBJECT_ID_BYTES)?;
+    }
+    Ok(())
+}
+
+fn decode_campaigns(decoder: &mut Decoder<'_>) -> Result<Vec<String>, ProtocolError> {
+    let count = usize::from(decoder.u8()?);
+    if count == 0 || count > MAX_BETA_CAMPAIGNS {
+        return Err(ProtocolError::LimitExceeded("beta campaign count"));
+    }
+    (0..count)
+        .map(|_| decoder.string(MAX_OBJECT_ID_BYTES))
+        .collect()
 }
 
 fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolError> {
@@ -1319,6 +1465,39 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
                 encoder.bool(peer.enabled);
             }
         }
+        Reply::BetaAccount {
+            account,
+            registration_id,
+        } => {
+            encoder.u8(40);
+            encoder.byte_string(account, 32)?;
+            encoder.string(registration_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Reply::BetaBalances(view) => {
+            encoder.u8(41);
+            if view.accounts.len() > usize::from(MAX_BETA_ACCOUNTS) {
+                return Err(ProtocolError::LimitExceeded("beta account count"));
+            }
+            encoder.byte_string(&view.epoch, 32)?;
+            encoder.u16(view.accounts.len() as u16);
+            for entry in &view.accounts {
+                encoder.byte_string(&entry.account, 32)?;
+                encoder.u64(entry.amount_micro);
+            }
+            encoder.u64(view.total_issued_micro);
+            encoder.u32(view.conflicts);
+            encoder.byte_string(&view.snapshot_digest, 32)?;
+        }
+        Reply::BetaTransfer {
+            transfer_id,
+            amount_micro,
+            change_micro,
+        } => {
+            encoder.u8(42);
+            encoder.string(transfer_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u64(*amount_micro);
+            encoder.u64(*change_micro);
+        }
         Reply::DeliveryRuntime(view) => {
             encoder.u8(10);
             encoder.bool(view.enabled);
@@ -1401,6 +1580,36 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
             }
             Ok(Reply::Deliveries(deliveries))
         }
+        40 => Ok(Reply::BetaAccount {
+            account: array32(decoder.byte_string(32)?, "beta account")?,
+            registration_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        41 => {
+            let epoch = array32(decoder.byte_string(32)?, "beta epoch")?;
+            let count = decoder.u16()?;
+            if count > MAX_BETA_ACCOUNTS {
+                return Err(ProtocolError::LimitExceeded("beta account count"));
+            }
+            let mut accounts = Vec::with_capacity(usize::from(count));
+            for _ in 0..count {
+                accounts.push(BetaAccountBalance {
+                    account: array32(decoder.byte_string(32)?, "beta account")?,
+                    amount_micro: decoder.u64()?,
+                });
+            }
+            Ok(Reply::BetaBalances(BetaBalancesView {
+                epoch,
+                accounts,
+                total_issued_micro: decoder.u64()?,
+                conflicts: decoder.u32()?,
+                snapshot_digest: array32(decoder.byte_string(32)?, "beta digest")?,
+            }))
+        }
+        42 => Ok(Reply::BetaTransfer {
+            transfer_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            amount_micro: decoder.u64()?,
+            change_micro: decoder.u64()?,
+        }),
         8 => Ok(Reply::DeliveryIdentity(DeliveryIdentity {
             root_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
             device_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
@@ -2130,6 +2339,99 @@ mod tests {
             read_response(&mut bytes.as_slice()).unwrap().unwrap(),
             response
         );
+    }
+
+    #[test]
+    fn beta_wallet_commands_and_replies_round_trip_with_bounded_fields() {
+        let campaigns = vec!["zcampaign".to_string()];
+        for command in [
+            Command::BetaRegisterAccount { epoch: [7; 32] },
+            Command::BetaBalances {
+                epoch: [7; 32],
+                campaigns: campaigns.clone(),
+            },
+            Command::BetaTransfer {
+                epoch: [7; 32],
+                campaigns: campaigns.clone(),
+                from: [1; 32],
+                to: [2; 32],
+                amount_micro: 30,
+                memo: "lunch".to_string(),
+            },
+        ] {
+            let request = Request::new(5, command);
+            let mut bytes = Vec::new();
+            write_request(&mut bytes, &request).unwrap();
+            assert_eq!(
+                read_request(&mut bytes.as_slice()).unwrap().unwrap(),
+                request
+            );
+        }
+        for reply in [
+            Reply::BetaAccount {
+                account: [3; 32],
+                registration_id: "zreg".to_string(),
+            },
+            Reply::BetaBalances(BetaBalancesView {
+                epoch: [7; 32],
+                accounts: vec![BetaAccountBalance {
+                    account: [3; 32],
+                    amount_micro: 100,
+                }],
+                total_issued_micro: 100,
+                conflicts: 0,
+                snapshot_digest: [9; 32],
+            }),
+            Reply::BetaTransfer {
+                transfer_id: "ztransfer".to_string(),
+                amount_micro: 30,
+                change_micro: 70,
+            },
+        ] {
+            let response = Response::ok(6, reply);
+            let mut bytes = Vec::new();
+            write_response(&mut bytes, &response).unwrap();
+            assert_eq!(
+                read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+                response
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_or_oversized_beta_requests_are_rejected_before_dispatch() {
+        let transfer = |campaigns: Vec<String>, amount: u64, memo: &str| {
+            Request::new(
+                1,
+                Command::BetaTransfer {
+                    epoch: [7; 32],
+                    campaigns,
+                    from: [1; 32],
+                    to: [2; 32],
+                    amount_micro: amount,
+                    memo: memo.to_string(),
+                },
+            )
+        };
+        let one = vec!["zcampaign".to_string()];
+        let mut sink = Vec::new();
+        for bad in [
+            transfer(Vec::new(), 1, "m"),
+            transfer(vec!["c".to_string(); MAX_BETA_CAMPAIGNS + 1], 1, "m"),
+            transfer(vec![String::new()], 1, "m"),
+            transfer(one.clone(), 0, "m"),
+            transfer(one.clone(), 1, "   "),
+            transfer(one.clone(), 1, &"m".repeat(MAX_BETA_MEMO_BYTES + 1)),
+        ] {
+            sink.clear();
+            assert!(write_request(&mut sink, &bad).is_err(), "{bad:?}");
+        }
+        // A hand-built wire frame with a wrong-length epoch is refused on decode.
+        let mut encoder = Encoder::new();
+        encoder.u8(40);
+        encoder.byte_string(&[1u8; 31], 32).unwrap();
+        let mut decoder = Decoder::new(&encoder.bytes);
+        assert!(decode_command(&mut decoder).is_err());
     }
 
     #[test]
