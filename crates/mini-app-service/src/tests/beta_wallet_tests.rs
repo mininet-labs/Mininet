@@ -21,8 +21,20 @@ fn unlocked(tag: &str) -> (Core<MemoryVault>, PathBuf) {
     (core, root)
 }
 
+fn op() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    format!("beta-test-{}", NEXT.fetch_add(1, Ordering::Relaxed))
+}
+
 fn register(core: &mut Core<MemoryVault>, epoch: [u8; 32]) -> [u8; 32] {
-    match core.handle(Command::BetaRegisterAccount { epoch }).unwrap() {
+    match core
+        .handle(Command::BetaRegisterAccount {
+            operation_id: op(),
+            epoch,
+        })
+        .unwrap()
+    {
         Reply::BetaAccount { account, .. } => account,
         _ => panic!("unexpected reply"),
     }
@@ -133,7 +145,19 @@ fn transfer(
     to: [u8; 32],
     amount: u64,
 ) -> Result<Reply, ServiceError> {
+    transfer_op(core, &op(), campaign, from, to, amount)
+}
+
+fn transfer_op(
+    core: &mut Core<MemoryVault>,
+    operation_id: &str,
+    campaign: &str,
+    from: [u8; 32],
+    to: [u8; 32],
+    amount: u64,
+) -> Result<Reply, ServiceError> {
     core.handle(Command::BetaTransfer {
+        operation_id: operation_id.to_string(),
         epoch: EPOCH,
         campaigns: vec![campaign.to_string()],
         from,
@@ -245,7 +269,10 @@ fn bad_transfers_are_refused_and_change_nothing() {
     let locked = transfer(&mut core, &campaign, alice, bob, 1).unwrap_err();
     assert_eq!(locked.code, ErrorCode::IdentityLocked);
     let locked_register = core
-        .handle(Command::BetaRegisterAccount { epoch: EPOCH })
+        .handle(Command::BetaRegisterAccount {
+            operation_id: op(),
+            epoch: EPOCH,
+        })
         .unwrap_err();
     assert_eq!(locked_register.code, ErrorCode::IdentityLocked);
     assert_eq!(count(&core), 0);
@@ -264,5 +291,146 @@ fn a_different_epoch_carries_nothing() {
     assert_eq!(view.accounts.len(), 1);
     assert_eq!(amount_of(&view, fresh), 0);
     assert_eq!(view.total_issued_micro, 0);
+    fs::remove_dir_all(root).unwrap();
+}
+
+fn count_type(core: &Core<MemoryVault>, kind: &str) -> usize {
+    core.store
+        .by_type(&ObjectType::Custom(kind.to_string()))
+        .unwrap()
+        .len()
+}
+
+#[test]
+fn register_retry_with_the_same_operation_id_returns_the_same_account() {
+    let (mut core, root) = unlocked("beta-register-retry");
+    let id = "beta-retry-register";
+    let first = core
+        .handle(Command::BetaRegisterAccount {
+            operation_id: id.into(),
+            epoch: EPOCH,
+        })
+        .unwrap();
+    let again = core
+        .handle(Command::BetaRegisterAccount {
+            operation_id: id.into(),
+            epoch: EPOCH,
+        })
+        .unwrap();
+    assert_eq!(first, again);
+    assert_eq!(count_type(&core, mini_beta_exec::BETA_ACCOUNT_TYPE), 1);
+    // Same id for different content is refused, never silently replayed.
+    let other_epoch = core
+        .handle(Command::BetaRegisterAccount {
+            operation_id: id.into(),
+            epoch: [8; 32],
+        })
+        .unwrap_err();
+    assert_eq!(other_epoch.code, ErrorCode::BadRequest);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn transfer_retry_never_signs_a_second_transfer() {
+    let (mut core, root) = unlocked("beta-transfer-retry");
+    let alice = register(&mut core, EPOCH);
+    let bob = foreign_account(&mut core, EPOCH);
+    let campaign = fund(&mut core, alice);
+    let first = transfer_op(&mut core, "beta-retry-transfer", &campaign, alice, bob, 30).unwrap();
+    let again = transfer_op(&mut core, "beta-retry-transfer", &campaign, alice, bob, 30).unwrap();
+    assert_eq!(first, again);
+    assert_eq!(count_type(&core, mini_beta_exec::BETA_TRANSFER_TYPE), 1);
+    assert_eq!(amount_of(&balances(&mut core, EPOCH, &campaign), alice), 70);
+    // Reusing the id for a different amount is an error, not a second spend.
+    let changed =
+        transfer_op(&mut core, "beta-retry-transfer", &campaign, alice, bob, 31).unwrap_err();
+    assert_eq!(changed.code, ErrorCode::BadRequest);
+    assert_eq!(count_type(&core, mini_beta_exec::BETA_TRANSFER_TYPE), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_journaled_but_uncommitted_registration_is_recovered_not_duplicated() {
+    let root = temp_root("beta-crash");
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    core.handle(Command::UnlockIdentity).unwrap();
+    let epoch = BetaEpochId::new(EPOCH).unwrap();
+    let id = "beta-crash-register";
+    // Crash window: the signed registration is journaled but never committed.
+    let (_, next) = core.beta_own_slots(epoch).unwrap();
+    let slot = next.unwrap();
+    let owner = slot.identity.root.did();
+    let object = mini_beta_exec::build_account_registration(
+        &owner,
+        &slot.identity.device,
+        epoch,
+        slot.nonce,
+        10,
+        1,
+    )
+    .unwrap();
+    beta_journal::write(
+        &core.beta_ops,
+        id,
+        &beta_journal::Record {
+            kind: beta_journal::KIND_REGISTER,
+            complete: false,
+            digest: beta_wallet::input_digest(b"register", &[epoch.as_bytes()]),
+            account: *slot.account.as_bytes(),
+            amount: 0,
+            change: 0,
+            object: object.to_bytes(),
+        },
+    )
+    .unwrap();
+    assert_eq!(count_type(&core, mini_beta_exec::BETA_ACCOUNT_TYPE), 0);
+    drop(core);
+    // Reopening commits the journaled object; the retry then replays it.
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    assert_eq!(count_type(&core, mini_beta_exec::BETA_ACCOUNT_TYPE), 1);
+    core.handle(Command::UnlockIdentity).unwrap();
+    let reply = core
+        .handle(Command::BetaRegisterAccount {
+            operation_id: id.into(),
+            epoch: EPOCH,
+        })
+        .unwrap();
+    match reply {
+        Reply::BetaAccount { account, .. } => assert_eq!(account, *slot.account.as_bytes()),
+        _ => panic!("unexpected reply"),
+    }
+    assert_eq!(count_type(&core, mini_beta_exec::BETA_ACCOUNT_TYPE), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn beta_objects_are_not_signed_by_the_primary_identity() {
+    let (mut core, root) = unlocked("beta-isolation");
+    let primary = core.human.clone().unwrap();
+    let alice = register(&mut core, EPOCH);
+    let bob = foreign_account(&mut core, EPOCH);
+    let campaign = fund(&mut core, alice);
+    transfer(&mut core, &campaign, alice, bob, 10).unwrap();
+    let mut authors = Vec::new();
+    for kind in [
+        mini_beta_exec::BETA_ACCOUNT_TYPE,
+        mini_beta_exec::BETA_TRANSFER_TYPE,
+    ] {
+        for id in core
+            .store
+            .by_type(&ObjectType::Custom(kind.to_string()))
+            .unwrap()
+        {
+            let object = core.store.get(&id).unwrap();
+            assert_ne!(object.author_human, primary, "primary DID must not appear");
+            authors.push(object.author_human);
+        }
+    }
+    assert!(authors.len() >= 3);
+    // Two accounts of the same identity do not share an author either.
+    let second = register(&mut core, EPOCH);
+    assert_ne!(alice, second);
+    let view = balances(&mut core, EPOCH, &campaign);
+    assert_eq!(view.accounts.len(), 2);
     fs::remove_dir_all(root).unwrap();
 }

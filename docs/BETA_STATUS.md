@@ -156,7 +156,13 @@ be silently linked merely to manufacture reputation continuity.
   provisional and not production MINI. *Not done:* the desktop panel's layout has
   not been exercised on a real Windows display (its input parsing, request
   building, protocol framing and core handlers are unit-tested), and grant
-  approval is CLI-only for now.
+  approval is CLI-only for now. The desktop path is retry-safe and unlinkable:
+  register/transfer carry an operation id and the exact signed object is
+  journaled before it is committed, so a lost response never causes a second
+  signature; each BETA account is signed by its own identity derived (HKDF, never
+  stored) from the unlocked root seed, so public BETA objects carry no primary
+  DID. *Not yet done:* the `mini beta` CLI still signs BETA objects with the CLI
+  identity (tracked separately).
 - [x] Persist/replicate beta grant/transfer events rather than relying only on
   the reference in-memory accounting core. Balances are derived from the
   durable signed-object set (`mini-beta-exec`), so any replica that holds the

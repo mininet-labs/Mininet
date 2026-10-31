@@ -379,14 +379,18 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("comment text"));
                 }
             }
-            Command::BetaRegisterAccount { .. } => {}
+            Command::BetaRegisterAccount { operation_id, .. } => {
+                validate_operation_id(operation_id)?
+            }
             Command::BetaBalances { campaigns, .. } => validate_beta_campaigns(campaigns)?,
             Command::BetaTransfer {
+                operation_id,
                 campaigns,
                 amount_micro,
                 memo,
                 ..
             } => {
+                validate_operation_id(operation_id)?;
                 validate_beta_campaigns(campaigns)?;
                 if *amount_micro == 0 {
                     return Err(ProtocolError::LimitExceeded("beta transfer amount"));
@@ -527,8 +531,10 @@ pub struct BetaBalancesView {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    /// Register a fresh opaque BETA account for this identity in `epoch`.
+    /// Register the next opaque BETA account for this identity in `epoch`.
+    /// Retrying with the same `operation_id` returns the same account.
     BetaRegisterAccount {
+        operation_id: String,
         epoch: [u8; 32],
     },
     /// Derive balances of this identity's accounts. `campaigns` is the explicit
@@ -538,8 +544,10 @@ pub enum Command {
         campaigns: Vec<String>,
     },
     /// Move BETA between two registered accounts; the sender must be owned by
-    /// this identity.
+    /// this identity. Retrying with the same `operation_id` never signs a
+    /// second transfer.
     BetaTransfer {
+        operation_id: String,
         epoch: [u8; 32],
         campaigns: Vec<String>,
         from: [u8; 32],
@@ -1026,8 +1034,12 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.string(parent_id, MAX_OBJECT_ID_BYTES)?;
             encoder.string(text, MAX_COMMENT_BYTES)?;
         }
-        Command::BetaRegisterAccount { epoch } => {
+        Command::BetaRegisterAccount {
+            operation_id,
+            epoch,
+        } => {
             encoder.u8(40);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
             encoder.byte_string(epoch, 32)?;
         }
         Command::BetaBalances { epoch, campaigns } => {
@@ -1036,6 +1048,7 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encode_campaigns(encoder, campaigns)?;
         }
         Command::BetaTransfer {
+            operation_id,
             epoch,
             campaigns,
             from,
@@ -1044,6 +1057,7 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             memo,
         } => {
             encoder.u8(42);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
             encoder.byte_string(epoch, 32)?;
             encode_campaigns(encoder, campaigns)?;
             encoder.byte_string(from, 32)?;
@@ -1249,6 +1263,7 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             text: decoder.string(MAX_COMMENT_BYTES)?,
         }),
         40 => Ok(Command::BetaRegisterAccount {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             epoch: array32(decoder.byte_string(32)?, "beta epoch")?,
         }),
         41 => Ok(Command::BetaBalances {
@@ -1256,6 +1271,7 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             campaigns: decode_campaigns(decoder)?,
         }),
         42 => Ok(Command::BetaTransfer {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             epoch: array32(decoder.byte_string(32)?, "beta epoch")?,
             campaigns: decode_campaigns(decoder)?,
             from: array32(decoder.byte_string(32)?, "beta sender")?,
@@ -2345,12 +2361,16 @@ mod tests {
     fn beta_wallet_commands_and_replies_round_trip_with_bounded_fields() {
         let campaigns = vec!["zcampaign".to_string()];
         for command in [
-            Command::BetaRegisterAccount { epoch: [7; 32] },
+            Command::BetaRegisterAccount {
+                operation_id: "op-1".to_string(),
+                epoch: [7; 32],
+            },
             Command::BetaBalances {
                 epoch: [7; 32],
                 campaigns: campaigns.clone(),
             },
             Command::BetaTransfer {
+                operation_id: "op-2".to_string(),
                 epoch: [7; 32],
                 campaigns: campaigns.clone(),
                 from: [1; 32],
@@ -2404,6 +2424,7 @@ mod tests {
             Request::new(
                 1,
                 Command::BetaTransfer {
+                    operation_id: "op-3".to_string(),
                     epoch: [7; 32],
                     campaigns,
                     from: [1; 32],

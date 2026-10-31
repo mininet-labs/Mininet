@@ -17,6 +17,7 @@ Balances are provisional and every epoch starts again from zero.";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Request {
     Register {
+        operation_id: String,
         epoch: [u8; 32],
     },
     Balances {
@@ -24,6 +25,7 @@ pub(crate) enum Request {
         campaigns: Vec<String>,
     },
     Transfer {
+        operation_id: String,
         epoch: [u8; 32],
         campaigns: Vec<String>,
         from: [u8; 32],
@@ -42,6 +44,11 @@ pub(crate) struct Panel {
     amount: String,
     memo: String,
     balances: Option<BetaBalancesView>,
+    /// Retry identity of an unfinished request: reused while the same request
+    /// is retried so the core can replay it instead of signing twice, and
+    /// dropped once the core answers.
+    register_op: Option<([u8; 32], String)>,
+    transfer_op: Option<(Request, String)>,
     /// Explicit per-action signing confirmation; reset after every signed request.
     confirm: bool,
     balances_for: (String, String),
@@ -132,9 +139,19 @@ pub(crate) fn format_beta(micro: u64) -> String {
 
 impl Panel {
     /// Validate the inputs into a core request without sending anything.
-    pub(crate) fn register_request(&self) -> Result<Request, String> {
+    pub(crate) fn register_request(&mut self) -> Result<Request, String> {
+        let epoch = parse_hex32(&self.epoch, "epoch")?;
+        let operation_id = match &self.register_op {
+            Some((saved, id)) if *saved == epoch => id.clone(),
+            _ => {
+                let id = crate::app_service::operation_id("beta-register");
+                self.register_op = Some((epoch, id.clone()));
+                id
+            }
+        };
         Ok(Request::Register {
-            epoch: parse_hex32(&self.epoch, "epoch")?,
+            operation_id,
+            epoch,
         })
     }
 
@@ -145,7 +162,7 @@ impl Panel {
         })
     }
 
-    pub(crate) fn transfer_request(&self) -> Result<Request, String> {
+    pub(crate) fn transfer_request(&mut self) -> Result<Request, String> {
         let memo = self.memo.trim();
         if memo.is_empty() || memo.len() > MAX_BETA_MEMO_BYTES {
             return Err(format!("memo must be 1-{MAX_BETA_MEMO_BYTES} bytes"));
@@ -155,17 +172,34 @@ impl Panel {
         if from == to {
             return Err("sender and recipient must differ".into());
         }
-        Ok(Request::Transfer {
+        let mut request = Request::Transfer {
+            operation_id: String::new(),
             epoch: parse_hex32(&self.epoch, "epoch")?,
             campaigns: parse_campaigns(&self.campaigns)?,
             from,
             to,
             amount_micro: parse_amount_micro(&self.amount)?,
             memo: memo.to_string(),
-        })
+        };
+        let operation_id = match &self.transfer_op {
+            Some((saved, id)) if *saved == request => id.clone(),
+            _ => {
+                let id = crate::app_service::operation_id("beta-transfer");
+                self.transfer_op = Some((request.clone(), id.clone()));
+                id
+            }
+        };
+        if let Request::Transfer {
+            operation_id: slot, ..
+        } = &mut request
+        {
+            *slot = operation_id;
+        }
+        Ok(request)
     }
 
     pub(crate) fn on_account(&mut self, account: &[u8; 32]) {
+        self.register_op = None;
         self.from = hex(account);
         self.status = "Registered a fresh BETA account (shown as the sender). Share its \
 id to receive BETA; nothing is credited until a threshold-accepted grant or a transfer."
@@ -186,6 +220,7 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
     }
 
     pub(crate) fn on_transfer(&mut self, amount_micro: u64, change_micro: u64) {
+        self.transfer_op = None;
         self.status = format!(
             "Sent {} (change {}). The transfer is provisional until peers agree; refresh to see it.",
             format_beta(amount_micro),
@@ -372,7 +407,7 @@ mod tests {
 
     #[test]
     fn requests_are_built_only_from_valid_input() {
-        let p = panel();
+        let mut p = panel();
         assert!(matches!(p.register_request(), Ok(Request::Register { .. })));
         match p.transfer_request().unwrap() {
             Request::Transfer {
@@ -399,6 +434,40 @@ mod tests {
         let mut big_memo = panel();
         big_memo.memo = "m".repeat(MAX_BETA_MEMO_BYTES + 1);
         assert!(big_memo.transfer_request().is_err());
+    }
+
+    #[test]
+    fn a_retried_request_reuses_its_operation_id_until_the_core_answers() {
+        let id = |r: Request| match r {
+            Request::Register { operation_id, .. } | Request::Transfer { operation_id, .. } => {
+                operation_id
+            }
+            other => panic!("unexpected {other:?}"),
+        };
+        let mut p = panel();
+        let first = id(p.register_request().unwrap());
+        assert_eq!(first, id(p.register_request().unwrap()), "retry reuses id");
+        p.on_account(&[9; 32]);
+        assert_ne!(
+            first,
+            id(p.register_request().unwrap()),
+            "next account is new"
+        );
+
+        let mut p = panel();
+        let t1 = id(p.transfer_request().unwrap());
+        assert_eq!(t1, id(p.transfer_request().unwrap()), "retry reuses id");
+        p.amount = "0.6".into();
+        let changed = id(p.transfer_request().unwrap());
+        assert_ne!(t1, changed, "different content gets a new id");
+        p.on_transfer(600_000, 0);
+        p.amount = "0.6".into();
+        p.memo = "lunch".into();
+        assert_ne!(
+            changed,
+            id(p.transfer_request().unwrap()),
+            "answered id is not reused"
+        );
     }
 
     #[test]

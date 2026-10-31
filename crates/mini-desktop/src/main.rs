@@ -3513,15 +3513,22 @@ No tracking. No forced updates.",
     /// while the identity is locked.
     fn start_beta_wallet(&mut self, request: beta_wallet::Request) {
         let (action, command) = match request {
-            beta_wallet::Request::Register { epoch } => (
+            beta_wallet::Request::Register {
+                operation_id,
+                epoch,
+            } => (
                 CoreAction::BetaRegisterAccount,
-                AppCommand::BetaRegisterAccount { epoch },
+                AppCommand::BetaRegisterAccount {
+                    operation_id,
+                    epoch,
+                },
             ),
             beta_wallet::Request::Balances { epoch, campaigns } => (
                 CoreAction::BetaBalances,
                 AppCommand::BetaBalances { epoch, campaigns },
             ),
             beta_wallet::Request::Transfer {
+                operation_id,
                 epoch,
                 campaigns,
                 from,
@@ -3531,6 +3538,7 @@ No tracking. No forced updates.",
             } => (
                 CoreAction::BetaTransfer,
                 AppCommand::BetaTransfer {
+                    operation_id,
                     epoch,
                     campaigns,
                     from,

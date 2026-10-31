@@ -25,6 +25,7 @@ mini-bearer = { path = "../mini-bearer" }
 mini-beta = { path = "../mini-beta" }
 mini-beta-exec = { path = "../mini-beta-exec" }
 mini-crypto = { path = "../mini-crypto" }
+blake3 = "1"
 mini-transport-security = { path = "../mini-transport-security" }
 mini-media = { path = "../mini-media" }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }

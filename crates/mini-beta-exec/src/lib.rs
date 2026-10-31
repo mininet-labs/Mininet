@@ -215,6 +215,28 @@ pub fn create_account_registration<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let object = build_account_registration(
+        owner_human,
+        owner_device,
+        epoch,
+        nonce,
+        timestamp_ms,
+        sequence,
+    )?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build and sign one account registration without storing it, so a caller can
+/// journal the exact signed bytes before committing them.
+pub fn build_account_registration(
+    owner_human: &Did,
+    owner_device: &Controller,
+    epoch: BetaEpochId,
+    nonce: [u8; 32],
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if nonce == [0; 32] {
         return Err(BetaExecError::InvalidAccount);
     }
@@ -228,7 +250,6 @@ pub fn create_account_registration<B: Backend>(
         .sequence(sequence)
         .payload(Payload::Public(payload))
         .sign(owner_human, owner_device)?;
-    store.insert(&object)?;
     Ok(object)
 }
 
@@ -285,6 +306,35 @@ pub fn create_transfer<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let object = build_transfer(
+        owner_human,
+        owner_device,
+        epoch,
+        sender,
+        inputs,
+        outputs,
+        memo,
+        timestamp_ms,
+        sequence,
+    )?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build and sign one transfer without storing it (see
+/// [`build_account_registration`]).
+#[allow(clippy::too_many_arguments)]
+pub fn build_transfer(
+    owner_human: &Did,
+    owner_device: &Controller,
+    epoch: BetaEpochId,
+    sender: BetaAccountId,
+    inputs: &[BetaOutputRef],
+    outputs: &[BetaTransferOutput],
+    memo: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     validate_transfer_shape(inputs, outputs, memo)?;
     let mut payload = vec![PAYLOAD_VERSION];
     payload.extend_from_slice(epoch.as_bytes());
@@ -305,7 +355,6 @@ pub fn create_transfer<B: Backend>(
         .sequence(sequence)
         .payload(Payload::Public(payload))
         .sign(owner_human, owner_device)?;
-    store.insert(&object)?;
     Ok(object)
 }
 
