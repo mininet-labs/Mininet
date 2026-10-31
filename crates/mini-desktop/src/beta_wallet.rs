@@ -4,7 +4,9 @@
 //! state derived from the replicated signed-object set by the application
 //! core; this panel holds no keys and signs nothing itself.
 use eframe::egui;
-use mini_app_protocol::{BetaBalancesView, MAX_BETA_CAMPAIGNS, MAX_BETA_MEMO_BYTES};
+use mini_app_protocol::{
+    BetaBalancesView, MAX_BETA_CAMPAIGNS, MAX_BETA_MEMO_BYTES, MAX_OBJECT_ID_BYTES,
+};
 
 use crate::theme;
 
@@ -33,6 +35,15 @@ pub(crate) enum Request {
         amount_micro: u64,
         memo: String,
     },
+    /// Approve one grant, signed by the primary identity (policy members are
+    /// public DIDs by design, unlike the per-account BETA identities).
+    GrantApprove {
+        operation_id: String,
+        policy_id: String,
+        grant_id: String,
+    },
+    /// Read-only approval count for one grant.
+    GrantStatus { policy_id: String, grant_id: String },
 }
 
 #[derive(Default)]
@@ -49,6 +60,9 @@ pub(crate) struct Panel {
     /// dropped once the core answers.
     register_op: Option<([u8; 32], String)>,
     transfer_op: Option<(Request, String)>,
+    grant_policy: String,
+    grant_id: String,
+    approve_op: Option<(Request, String)>,
     /// Explicit per-action signing confirmation; reset after every signed request.
     confirm: bool,
     balances_for: (String, String),
@@ -198,6 +212,85 @@ impl Panel {
         Ok(request)
     }
 
+    fn grant_ids(&self) -> Result<(String, String), String> {
+        let check = |value: &str, what: &str| {
+            let value = value.trim();
+            if value.is_empty() || value.len() > MAX_OBJECT_ID_BYTES {
+                Err(format!("enter the {what}"))
+            } else {
+                Ok(value.to_string())
+            }
+        };
+        Ok((
+            check(&self.grant_policy, "grant policy ID")?,
+            check(&self.grant_id, "grant ID")?,
+        ))
+    }
+
+    pub(crate) fn grant_approve_request(&mut self) -> Result<Request, String> {
+        let (policy_id, grant_id) = self.grant_ids()?;
+        let mut request = Request::GrantApprove {
+            operation_id: String::new(),
+            policy_id,
+            grant_id,
+        };
+        let operation_id = match &self.approve_op {
+            Some((saved, id)) if *saved == request => id.clone(),
+            _ => {
+                let id = crate::app_service::operation_id("beta-grant-approve");
+                self.approve_op = Some((request.clone(), id.clone()));
+                id
+            }
+        };
+        if let Request::GrantApprove {
+            operation_id: slot, ..
+        } = &mut request
+        {
+            *slot = operation_id;
+        }
+        Ok(request)
+    }
+
+    pub(crate) fn grant_status_request(&self) -> Result<Request, String> {
+        let (policy_id, grant_id) = self.grant_ids()?;
+        Ok(Request::GrantStatus {
+            policy_id,
+            grant_id,
+        })
+    }
+
+    pub(crate) fn on_grant_approval(&mut self) {
+        self.approve_op = None;
+        self.status = "Approval signed with your primary identity (grant policy members are \
+public DIDs by design) and saved locally. Exchange with peers to share it; check the \
+status to see the count. Test value only."
+            .into();
+    }
+
+    pub(crate) fn on_grant_status(
+        &mut self,
+        accepted: bool,
+        counted: u16,
+        threshold: u16,
+        equivocations: u16,
+    ) {
+        let mut text = if accepted {
+            format!("Grant ACCEPTED: {counted} distinct approvals (threshold {threshold}).")
+        } else {
+            format!("Grant NOT accepted: {counted} of {threshold} distinct approvals.")
+        };
+        if equivocations > 0 {
+            text.push_str(&format!(
+                " Warning: {equivocations} authorizer equivocation(s) detected."
+            ));
+        }
+        text.push_str(
+            " Test value only; an accepted grant is evidence, not a conversion, and this \
+view counts only the approvals present in this device's store.",
+        );
+        self.status = text;
+    }
+
     pub(crate) fn on_account(&mut self, account: &[u8; 32]) {
         self.register_op = None;
         self.from = hex(account);
@@ -313,9 +406,46 @@ id to receive BETA; nothing is credited until a threshold-accepted grant or a tr
                 request = Some(self.transfer_request());
             }
         });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new("Approve a grant").strong());
+            ui.label(
+                "Signs with your primary identity, which must be a member of the grant \
+policy (members are public identities). Test value only; an accepted grant is evidence, \
+not a conversion.",
+            );
+            ui.add_enabled_ui(!busy, |ui| {
+                ui.label("Grant policy ID");
+                ui.text_edit_singleline(&mut self.grant_policy);
+                ui.label("Grant ID");
+                ui.text_edit_singleline(&mut self.grant_id);
+            });
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(
+                        !busy && self.confirm,
+                        theme::secondary_button("Approve this grant"),
+                    )
+                    .clicked()
+                {
+                    request = Some(self.grant_approve_request());
+                }
+                if ui
+                    .add_enabled(!busy, theme::secondary_button("Check grant status"))
+                    .clicked()
+                {
+                    request = Some(self.grant_status_request());
+                }
+            });
+        });
         match request {
             Some(Ok(request)) => {
-                if matches!(request, Request::Register { .. } | Request::Transfer { .. }) {
+                if matches!(
+                    request,
+                    Request::Register { .. }
+                        | Request::Transfer { .. }
+                        | Request::GrantApprove { .. }
+                ) {
                     self.confirm = false;
                 }
                 self.status.clear();
@@ -468,6 +598,58 @@ mod tests {
             id(p.transfer_request().unwrap()),
             "answered id is not reused"
         );
+    }
+
+    #[test]
+    fn grant_requests_need_both_ids_and_reuse_their_operation_id_until_answered() {
+        let id = |r: Request| match r {
+            Request::GrantApprove { operation_id, .. } => operation_id,
+            other => panic!("unexpected {other:?}"),
+        };
+        let mut p = panel();
+        assert!(p.grant_approve_request().is_err());
+        assert!(p.grant_status_request().is_err());
+        p.grant_policy = " zpolicy ".into();
+        assert!(p.grant_approve_request().is_err(), "grant id still empty");
+        p.grant_id = "zgrant".into();
+        match p.grant_status_request().unwrap() {
+            Request::GrantStatus {
+                policy_id,
+                grant_id,
+            } => assert_eq!(
+                (policy_id.as_str(), grant_id.as_str()),
+                ("zpolicy", "zgrant")
+            ),
+            other => panic!("unexpected {other:?}"),
+        }
+        let first = id(p.grant_approve_request().unwrap());
+        assert_eq!(
+            first,
+            id(p.grant_approve_request().unwrap()),
+            "retry reuses id"
+        );
+        p.grant_id = "zother".into();
+        let changed = id(p.grant_approve_request().unwrap());
+        assert_ne!(first, changed, "different grant gets a new id");
+        p.on_grant_approval();
+        assert_ne!(
+            changed,
+            id(p.grant_approve_request().unwrap()),
+            "answered id is not reused"
+        );
+        p.grant_id = "g".repeat(MAX_OBJECT_ID_BYTES + 1);
+        assert!(p.grant_approve_request().is_err(), "oversized id refused");
+    }
+
+    #[test]
+    fn grant_status_text_is_honest_and_flags_equivocation() {
+        let mut p = panel();
+        p.on_grant_status(false, 1, 2, 0);
+        assert!(p.status.contains("NOT accepted") && p.status.contains("1 of 2"));
+        assert!(p.status.contains("not a conversion"));
+        assert!(!p.status.contains("equivocation"));
+        p.on_grant_status(true, 2, 2, 1);
+        assert!(p.status.contains("ACCEPTED") && p.status.contains("equivocation"));
     }
 
     #[test]
