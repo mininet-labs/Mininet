@@ -210,6 +210,13 @@ impl<V: IdentityVault> Core<V> {
             .validate()
             .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
         match command {
+            // Wired by the BETA wallet service slice; until then it fails closed.
+            Command::BetaRegisterAccount { .. }
+            | Command::BetaBalances { .. }
+            | Command::BetaTransfer { .. } => Err(ServiceError::new(
+                ErrorCode::Internal,
+                "BETA wallet is not implemented in this service build",
+            )),
             Command::Status => self.status().map(Reply::Status),
             Command::CreateRoot => {
                 self.create_root()?;
