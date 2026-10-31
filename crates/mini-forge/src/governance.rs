@@ -910,7 +910,7 @@ fn inspect_proposal_with_state<B: Backend>(
     oracle: &dyn IdentityOracle,
     id: &ObjectId,
     resolved: Option<(&ObjectId, &ProjectState)>,
-    well_formed_cache: Option<&mut std::collections::HashMap<ObjectId, bool>>,
+    listing: Option<&mut ListingState>,
 ) -> Result<ProposalView> {
     let pr = store.get(id)?;
     if pr.object_type != ObjectType::Custom(PR_TYPE.to_string()) || !author_verified(oracle, &pr) {
@@ -936,13 +936,21 @@ fn inspect_proposal_with_state<B: Backend>(
         return Err(ForgeError::BadObject);
     }
     // Full tree validation can cost up to the checkout limits. Many proposals
-    // may reference one stored head, so a listing validates each head once.
-    let well_formed = match well_formed_cache {
-        Some(cache) => match cache.get(&head) {
+    // may reference one stored head, so a listing validates each head once and
+    // charges the bytes it consumed against the listing's total work cap.
+    let well_formed = match listing {
+        Some(state) => match state.heads.get(&head) {
             Some(known) => *known,
             None => {
-                let checked = crate::commit_is_well_formed(store, &commit);
-                cache.insert(head.clone(), checked);
+                if state.spent_bytes >= state.max_bytes {
+                    return Err(ForgeError::ListingBudgetExceeded);
+                }
+                let (checked, cost) = crate::commit_validation_cost(store, &commit);
+                state.spent_bytes = state.spent_bytes.saturating_add(cost);
+                if state.spent_bytes > state.max_bytes {
+                    return Err(ForgeError::ListingBudgetExceeded);
+                }
+                state.heads.insert(head.clone(), checked);
                 checked
             }
         },
@@ -989,34 +997,146 @@ fn inspect_proposal_with_state<B: Backend>(
     })
 }
 
+/// Maximum proposals returned by one listing page (and by [`list_proposals`]).
+pub const MAX_LISTING_PAGE: usize = 1024;
+/// Default total tree-validation bytes one listing may consume across all
+/// distinct proposal heads (each head may cost up to `MAX_CHECKOUT_BYTES`).
+pub const MAX_LISTING_VALIDATION_BYTES: usize = 1024 * 1024 * 1024;
+
+/// Bounds for one [`list_proposals_page`] call.
+#[derive(Debug, Clone, Copy)]
+pub struct ListingLimits {
+    /// Index into the id-sorted candidate objects linking to the project
+    /// (candidates are paged BEFORE inspection; non-proposals count as slots).
+    pub offset: usize,
+    /// Candidates inspected in this page; at most [`MAX_LISTING_PAGE`].
+    pub page_size: usize,
+    /// Total tree-validation bytes this page may consume; exceeding it fails
+    /// closed with `ForgeError::ListingBudgetExceeded`.
+    pub max_validation_bytes: usize,
+}
+
+impl Default for ListingLimits {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            page_size: MAX_LISTING_PAGE,
+            max_validation_bytes: MAX_LISTING_VALIDATION_BYTES,
+        }
+    }
+}
+
+/// One page of proposals plus where to continue (`None` when exhausted).
+#[derive(Debug, Clone)]
+pub struct ProposalPage {
+    pub proposals: Vec<ProposalView>,
+    pub next_offset: Option<usize>,
+}
+
+struct ListingState {
+    heads: std::collections::HashMap<ObjectId, bool>,
+    spent_bytes: usize,
+    max_bytes: usize,
+}
+
+/// Deterministic, bounded page of locally available verified proposals.
+/// Candidates are sorted by id and sliced BEFORE any inspection, and the
+/// tree-validation work for the whole page is capped; exceeding the cap fails
+/// closed rather than returning a silently truncated page. Limits: the cap
+/// counts content bytes walked during head validation (each distinct head once),
+/// not signature verification, quorum or store-read overhead, and
+/// `linking_to` still enumerates candidate ids (not objects) for the project.
+pub fn list_proposals_page<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    project: &ObjectId,
+    limits: ListingLimits,
+) -> Result<ProposalPage> {
+    if limits.page_size == 0 || limits.page_size > MAX_LISTING_PAGE {
+        return Err(ForgeError::FieldTooLarge);
+    }
+    let candidates = sorted_candidates(store, project)?;
+    let end = limits
+        .offset
+        .saturating_add(limits.page_size)
+        .min(candidates.len());
+    let start = limits.offset.min(end);
+    let proposals = inspect_candidates(
+        store,
+        oracle,
+        project,
+        &candidates[start..end],
+        limits.max_validation_bytes,
+    )?;
+    Ok(ProposalPage {
+        proposals,
+        next_offset: (end < candidates.len()).then_some(end),
+    })
+}
+
+fn sorted_candidates<B: Backend>(store: &Store<B>, project: &ObjectId) -> Result<Vec<ObjectId>> {
+    let mut candidates = store.linking_to(project)?;
+    candidates.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    Ok(candidates)
+}
+
+fn inspect_candidates<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    project: &ObjectId,
+    candidates: &[ObjectId],
+    max_validation_bytes: usize,
+) -> Result<Vec<ProposalView>> {
+    let state = resolve_project(store, oracle, project)?;
+    let mut listing = ListingState {
+        heads: std::collections::HashMap::new(),
+        spent_bytes: 0,
+        max_bytes: max_validation_bytes,
+    };
+    let mut proposals = Vec::new();
+    for id in candidates {
+        match inspect_proposal_with_state(
+            store,
+            oracle,
+            id,
+            Some((project, &state)),
+            Some(&mut listing),
+        ) {
+            Ok(view) if &view.project == project => {
+                if proposals.len() >= MAX_LISTING_PAGE {
+                    return Err(ForgeError::FieldTooLarge);
+                }
+                proposals.push(view);
+            }
+            Err(ForgeError::ListingBudgetExceeded) => {
+                return Err(ForgeError::ListingBudgetExceeded)
+            }
+            _ => {}
+        }
+    }
+    Ok(proposals)
+}
+
 /// Deterministic listing of locally available verified proposals. Invalid or
 /// unknown-identity objects are never presented as reviewable proposals.
+/// Bounded: at most [`MAX_LISTING_PAGE`] proposals and the default
+/// validation-byte cap across all heads; exceeding either returns an error
+/// (never a truncated list). Use [`list_proposals_page`] for larger projects.
+/// Limit: this unpaged form still inspects every candidate object linking to
+/// the project (including governance entries) before the caps can trip.
 pub fn list_proposals<B: Backend>(
     store: &Store<B>,
     oracle: &dyn IdentityOracle,
     project: &ObjectId,
 ) -> Result<Vec<ProposalView>> {
-    let state = resolve_project(store, oracle, project)?;
-    let mut proposals = Vec::new();
-    let mut well_formed_heads = std::collections::HashMap::new();
-    for id in store.linking_to(project)? {
-        if let Ok(view) = inspect_proposal_with_state(
-            store,
-            oracle,
-            &id,
-            Some((project, &state)),
-            Some(&mut well_formed_heads),
-        ) {
-            if &view.project == project {
-                if proposals.len() >= 1024 {
-                    return Err(ForgeError::FieldTooLarge);
-                }
-                proposals.push(view);
-            }
-        }
-    }
-    proposals.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
-    Ok(proposals)
+    let candidates = sorted_candidates(store, project)?;
+    inspect_candidates(
+        store,
+        oracle,
+        project,
+        &candidates,
+        MAX_LISTING_VALIDATION_BYTES,
+    )
 }
 
 /// Verified review evidence. `eligible_approval` means this verdict satisfies
