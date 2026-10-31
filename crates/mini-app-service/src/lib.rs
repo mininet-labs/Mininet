@@ -30,6 +30,7 @@ use mini_app_protocol::{
     MAX_COMMUNITY_NAME_BYTES, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES, MAX_OPERATION_ID_BYTES,
     MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
 };
+mod beta_wallet;
 use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
     build_comment, build_community, build_follow, build_membership, build_post, build_profile,
@@ -210,13 +211,16 @@ impl<V: IdentityVault> Core<V> {
             .validate()
             .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
         match command {
-            // Wired by the BETA wallet service slice; until then it fails closed.
-            Command::BetaRegisterAccount { .. }
-            | Command::BetaBalances { .. }
-            | Command::BetaTransfer { .. } => Err(ServiceError::new(
-                ErrorCode::Internal,
-                "BETA wallet is not implemented in this service build",
-            )),
+            Command::BetaRegisterAccount { epoch } => self.beta_register_account(epoch),
+            Command::BetaBalances { epoch, campaigns } => self.beta_balances(epoch, &campaigns),
+            Command::BetaTransfer {
+                epoch,
+                campaigns,
+                from,
+                to,
+                amount_micro,
+                memo,
+            } => self.beta_transfer(epoch, &campaigns, from, to, amount_micro, &memo),
             Command::Status => self.status().map(Reply::Status),
             Command::CreateRoot => {
                 self.create_root()?;
@@ -2704,6 +2708,8 @@ impl<'a> JournalDecoder<'a> {
 mod tests {
     use super::*;
     use mini_app_protocol::{FeedScope, Reply};
+
+    mod beta_wallet_tests;
 
     #[derive(Debug, Clone)]
     struct MemoryVault {

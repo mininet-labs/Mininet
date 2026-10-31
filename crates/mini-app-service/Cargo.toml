@@ -22,7 +22,12 @@ mini-social = { path = "../mini-social" }
 mini-store = { path = "../mini-store" }
 mini-windows-vault = { path = "../mini-windows-vault" }
 mini-bearer = { path = "../mini-bearer" }
+mini-beta = { path = "../mini-beta" }
+mini-beta-exec = { path = "../mini-beta-exec" }
 mini-crypto = { path = "../mini-crypto" }
 mini-transport-security = { path = "../mini-transport-security" }
 mini-media = { path = "../mini-media" }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
+
+[dev-dependencies]
+mini-beta-grants = { path = "../mini-beta-grants" }
