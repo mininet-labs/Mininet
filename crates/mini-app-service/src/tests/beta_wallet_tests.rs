@@ -506,3 +506,48 @@ fn beta_objects_are_not_signed_by_the_primary_identity() {
     assert_eq!(view.accounts.len(), 2);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn epoch_rollover_through_the_application_core_retires_old_value() {
+    let (mut core, root) = unlocked("beta-rollover");
+    let old = register(&mut core, EPOCH);
+    let campaign = fund(&mut core, old);
+    assert_eq!(amount_of(&balances(&mut core, EPOCH, &campaign), old), 100);
+
+    // A new epoch starts from zero: no carried accounts, no carried value.
+    let next_epoch = [8u8; 32];
+    let view = balances(&mut core, next_epoch, &campaign);
+    assert!(view.accounts.is_empty(), "accounts do not carry over");
+    assert_eq!(view.total_issued_micro, 0, "issuance does not carry over");
+
+    // The old account cannot act in the new epoch, and cannot be a recipient.
+    let fresh = register(&mut core, next_epoch);
+    let refused = core
+        .handle(Command::BetaTransfer {
+            operation_id: op(),
+            epoch: next_epoch,
+            campaigns: vec![campaign.clone()],
+            from: old,
+            to: fresh,
+            amount_micro: 1,
+            memo: "carry".into(),
+        })
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::BadRequest);
+    let to_old = core
+        .handle(Command::BetaTransfer {
+            operation_id: op(),
+            epoch: next_epoch,
+            campaigns: vec![campaign.clone()],
+            from: fresh,
+            to: old,
+            amount_micro: 1,
+            memo: "carry".into(),
+        })
+        .unwrap_err();
+    assert_eq!(to_old.code, ErrorCode::BadRequest);
+
+    // The old epoch's history is untouched.
+    assert_eq!(amount_of(&balances(&mut core, EPOCH, &campaign), old), 100);
+    fs::remove_dir_all(root).unwrap();
+}
