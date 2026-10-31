@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1260,
     "headings": 4248,
-    "rust_symbols": 14922
+    "rust_symbols": 14926
   },
   "crates": {
     "askama_derive": {
@@ -95408,38 +95408,38 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 33781,
+      "bytes": 37852,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
         "usize",
-        "bearer",
         "const",
         "ids",
+        "bearer",
         "vec",
-        "store",
         "carriers",
         "pull",
+        "store",
         "msg",
-        "result",
-        "chan",
-        "ingestreport",
+        "one",
         "default",
         "channel",
+        "result",
         "received",
-        "one",
+        "session",
         "peer",
         "clone",
         "objects",
+        "chan",
         "string",
         "buckets",
-        "pull_byte_budget",
-        "syncrole",
-        "buf"
+        "ingestreport",
+        "buf",
+        "pull_byte_budget"
       ],
-      "lines": 911,
+      "lines": 1017,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "b0b43aba8fd53244d4788486f428d8537ba89879921a7ed101ebb526061b1820",
+      "sha256": "bb941f11b69e1b4a5f48e39189116dade63ab6f32a47ec8b10fa9eff70c1806a",
       "symbols": [
         {
           "kind": "const",
@@ -95478,147 +95478,167 @@
         },
         {
           "kind": "const",
-          "line": 22,
+          "line": 26,
+          "name": "PAGED_MAX_OFFER_IDS"
+        },
+        {
+          "kind": "const",
+          "line": 27,
           "name": "PAGED_PULL_BYTES"
         },
         {
           "kind": "const",
-          "line": 25,
+          "line": 30,
           "name": "MAX_RETRIEVAL_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 26,
+          "line": 31,
           "name": "RETRIEVAL_BYTE_BUDGET"
         },
         {
           "kind": "enum",
-          "line": 30,
+          "line": 35,
           "name": "SyncRole"
         },
         {
           "kind": "struct",
-          "line": 39,
+          "line": 44,
           "name": "IngestReport"
         },
         {
           "kind": "impl",
-          "line": 58,
+          "line": 63,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 59,
+          "line": 64,
           "name": "default"
         },
         {
           "kind": "struct",
-          "line": 74,
+          "line": 79,
           "name": "RetrievalReport"
         },
         {
           "kind": "fn",
-          "line": 83,
+          "line": 88,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 94,
           "name": "recv"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 100,
           "name": "sorted_ids"
         },
         {
           "kind": "fn",
-          "line": 105,
+          "line": 110,
           "name": "digest_of"
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 120,
           "name": "bucket_of"
         },
         {
           "kind": "fn",
-          "line": 119,
+          "line": 124,
           "name": "bucket_digests"
         },
         {
           "kind": "fn",
-          "line": 138,
+          "line": 143,
           "name": "sync_bidirectional"
         },
         {
           "kind": "fn",
-          "line": 155,
+          "line": 160,
           "name": "sync_bidirectional_paged"
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 180,
+          "name": "bound_offer"
+        },
+        {
+          "kind": "fn",
+          "line": 207,
           "name": "sync_mode"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 247,
           "name": "pull"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 399,
           "name": "ingest_objects"
         },
         {
           "kind": "fn",
-          "line": 429,
+          "line": 485,
           "name": "serve_pull"
         },
         {
           "kind": "fn",
-          "line": 436,
+          "line": 500,
           "name": "serve_pull_mode"
         },
         {
           "kind": "fn",
-          "line": 566,
+          "line": 637,
           "name": "request_retrieval"
         },
         {
           "kind": "fn",
-          "line": 634,
+          "line": 705,
           "name": "receive_retrieval_request"
         },
         {
           "kind": "fn",
-          "line": 655,
+          "line": 726,
           "name": "serve_retrieval"
         },
         {
           "kind": "fn",
-          "line": 705,
+          "line": 776,
           "name": "has_duplicate_strings"
         },
         {
           "kind": "mod",
-          "line": 713,
+          "line": 784,
           "name": "paged_tests"
         },
         {
           "kind": "fn",
-          "line": 719,
+          "line": 790,
+          "name": "bound_offer_keeps_small_offers_untouched_and_carriers_first_when_truncating"
+        },
+        {
+          "kind": "fn",
+          "line": 808,
+          "name": "bound_offer_rotates_so_repeated_sessions_cover_the_whole_store"
+        },
+        {
+          "kind": "fn",
+          "line": 825,
           "name": "paged_offer_rejects_duplicate_ids_across_pages"
         },
         {
           "kind": "fn",
-          "line": 768,
+          "line": 874,
           "name": "paged_inventory_skips_more_than_65536_already_present_ids"
         },
         {
           "kind": "fn",
-          "line": 829,
+          "line": 935,
           "name": "paged_windows_persist_verified_progress_and_resume_to_completion"
         }
       ],
