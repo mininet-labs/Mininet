@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 mod app_service;
+mod beta_wallet;
 mod catalog;
 mod connectivity;
 mod conversation_state;
@@ -86,6 +87,7 @@ enum View {
     System,
     ResidentAI,
     SeedNetwork,
+    BetaWallet,
     Diagnostics,
     Updates,
     Privacy,
@@ -156,6 +158,9 @@ enum CoreAction {
         name: String,
         nearby: Option<(String, Instant)>,
     },
+    BetaRegisterAccount,
+    BetaBalances,
+    BetaTransfer,
 }
 
 impl std::fmt::Debug for CoreAction {
@@ -177,6 +182,9 @@ impl std::fmt::Debug for CoreAction {
             Self::SetMembership { .. } => "SetMembership",
             Self::SetLike { .. } => "SetLike",
             Self::SetFollow { .. } => "SetFollow",
+            Self::BetaRegisterAccount => "BetaRegisterAccount",
+            Self::BetaBalances => "BetaBalances",
+            Self::BetaTransfer => "BetaTransfer",
         })
     }
 }
@@ -262,6 +270,7 @@ struct MininetApp {
     workspace: Option<Workspace>,
     resident: resident::Panel,
     seed_panel: seed_panel::Panel,
+    beta_wallet: beta_wallet::Panel,
     app_service: Option<app_service::Client>,
     public_delivery: public_delivery::PublicDeliveryPanel,
     app_status: Option<AccountStatus>,
@@ -1508,6 +1517,7 @@ impl Default for MininetApp {
         Self {
             resident: resident::Panel::default(),
             seed_panel: seed_panel::Panel::default(),
+            beta_wallet: beta_wallet::Panel::default(),
             workspace,
             app_service,
             public_delivery: public_delivery::PublicDeliveryPanel::default(),
@@ -1923,6 +1933,12 @@ impl eframe::App for MininetApp {
                             View::Earnings => self.earnings(ui),
                             View::System => self.system(ui),
                             View::SeedNetwork => self.seed_panel.ui(ui),
+                            View::BetaWallet => {
+                                let busy = self.app_action.is_some();
+                                if let Some(request) = self.beta_wallet.ui(ui, busy) {
+                                    self.start_beta_wallet(request);
+                                }
+                            }
                             View::ResidentAI => self.resident.ui(ui, &resident::config_home()),
                             View::Diagnostics => self.diagnostics(ui),
                             View::Updates => self.updates(ui),
@@ -2499,6 +2515,25 @@ impl MininetApp {
                 self.notice =
                     "Comment saved through the application core. Exchange with peers to share it."
                         .into();
+            }
+            (CoreAction::BetaRegisterAccount, Ok(AppReply::BetaAccount { account, .. })) => {
+                self.beta_wallet.on_account(&account);
+                self.notice = "Registered a fresh BETA test account.".into();
+            }
+            (CoreAction::BetaBalances, Ok(AppReply::BetaBalances(view))) => {
+                self.beta_wallet.on_balances(view);
+                self.notice = "BETA balances refreshed (provisional test value).".into();
+            }
+            (
+                CoreAction::BetaTransfer,
+                Ok(AppReply::BetaTransfer {
+                    amount_micro,
+                    change_micro,
+                    ..
+                }),
+            ) => {
+                self.beta_wallet.on_transfer(amount_micro, change_micro);
+                self.notice = "BETA transfer signed through the application core.".into();
             }
             (action, Ok(_)) => {
                 self.app_status = None;
@@ -3215,6 +3250,7 @@ impl MininetApp {
                 self.nav_button(ui, View::Library, "📋", "Library");
                 self.nav_button(ui, View::Earnings, "💰", "Earnings");
                 self.nav_button(ui, View::SeedNetwork, "◈", "Seed network");
+                self.nav_button(ui, View::BetaWallet, "Ⓑ", "BETA wallet");
                 self.nav_button(ui, View::ResidentAI, "✦", "Resident AI");
                 self.nav_button(ui, View::System, "🖥", "System & storage");
                 ui.add_space(12.0);
@@ -3468,6 +3504,41 @@ No tracking. No forced updates.",
                 text: text.into(),
             },
         );
+    }
+
+    /// Send a validated BETA wallet request to the application core. The panel
+    /// holds no keys; signing happens only inside the core, which also refuses
+    /// while the identity is locked.
+    fn start_beta_wallet(&mut self, request: beta_wallet::Request) {
+        let (action, command) = match request {
+            beta_wallet::Request::Register { epoch } => (
+                CoreAction::BetaRegisterAccount,
+                AppCommand::BetaRegisterAccount { epoch },
+            ),
+            beta_wallet::Request::Balances { epoch, campaigns } => (
+                CoreAction::BetaBalances,
+                AppCommand::BetaBalances { epoch, campaigns },
+            ),
+            beta_wallet::Request::Transfer {
+                epoch,
+                campaigns,
+                from,
+                to,
+                amount_micro,
+                memo,
+            } => (
+                CoreAction::BetaTransfer,
+                AppCommand::BetaTransfer {
+                    epoch,
+                    campaigns,
+                    from,
+                    to,
+                    amount_micro,
+                    memo,
+                },
+            ),
+        };
+        self.start_core_action(action, command);
     }
 
     fn set_like_via_core(&mut self, target: &mini_objects::ObjectId, active: bool) {
@@ -4947,6 +5018,7 @@ No tracking. No forced updates.",
     fn header(&self, ui: &mut egui::Ui) {
         let (title, subtitle) = match self.view {
             View::SeedNetwork => ("Seed network", "Owner-controlled public collections, verified search and explicit peer hosting."),
+            View::BetaWallet => ("BETA wallet", "Resettable Beta MINI test value: not production money, no conversion, no governance weight."),
             View::ResidentAI => ("Resident AI", "Owner-controlled local assistance. Preview the context you choose to share."),
             View::Onboarding => (
                 "Welcome to Mininet",
