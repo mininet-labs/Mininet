@@ -6,7 +6,7 @@ SUDO=""; [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 export DEBIAN_FRONTEND=noninteractive
 $SUDO apt-get update -qq
 $SUDO apt-get install -y --no-install-recommends \
-    build-essential pkg-config cmake git curl ca-certificates python3 python3-venv \
+    build-essential pkg-config libssl-dev cmake git curl ca-certificates python3 python3-venv \
     iproute2 netcat-openbsd \
     mingw-w64 wine64 \
     xvfb imagemagick xdotool x11-utils libgl1 libegl1 libxkbcommon0 libxkbcommon-x11-0 libwayland-client0 libxcursor1 libxi6 libxrandr2

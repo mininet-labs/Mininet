@@ -13,10 +13,11 @@ W="$(mktemp -d)"; A=labop$$; B=labte$$
 cleanup() { ip netns del "$A" 2>/dev/null || true; ip netns del "$B" 2>/dev/null || true; rm -rf "$W"; }
 trap cleanup EXIT
 ip netns add "$A"; ip netns add "$B"
-ip link add vA type veth peer name vB
-ip link set vA netns "$A"; ip link set vB netns "$B"
-ip -n "$A" addr add 10.77.0.1/24 dev vA; ip -n "$B" addr add 10.77.0.2/24 dev vB
-for n in "$A:vA" "$B:vB"; do ip -n "${n%%:*}" link set lo up; ip -n "${n%%:*}" link set "${n##*:}" up; done
+VA=vA$$; VB=vB$$
+ip link add "$VA" type veth peer name "$VB"
+ip link set "$VA" netns "$A"; ip link set "$VB" netns "$B"
+ip -n "$A" addr add 10.77.0.1/24 dev "$VA"; ip -n "$B" addr add 10.77.0.2/24 dev "$VB"
+for n in "$A:$VA" "$B:$VB"; do ip -n "${n%%:*}" link set lo up; ip -n "${n%%:*}" link set "${n##*:}" up; done
 step() { printf '\n== %s ==\n' "$*"; }
 op() { ip netns exec "$A" "$MINI" --home "$W/op" --store "$W/op-store" "$@"; }
 te() { ip netns exec "$B" "$MINI" --home "$W/te" --store "$W/te-store" "$@"; }

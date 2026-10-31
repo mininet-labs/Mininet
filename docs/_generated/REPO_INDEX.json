@@ -2,7 +2,7 @@
   "counts": {
     "crates": 93,
     "files": 1255,
-    "headings": 4239,
+    "headings": 4240,
     "rust_symbols": 14822
   },
   "crates": {
@@ -135615,7 +135615,7 @@
       "title": "Mininet Lab"
     },
     {
-      "bytes": 1025,
+      "bytes": 1036,
       "group": "root",
       "headings": [
         {
@@ -135657,12 +135657,12 @@
       ],
       "lines": 22,
       "path": "lab/bootstrap.sh",
-      "sha256": "32b9d9ab1e40acbc0f9cca54f86e0c449e8e35e80309c6981dc085eed444a2be",
+      "sha256": "ed29e3618b0c91a22a350663e7c1bab220079714f3015777cb6a73ac5512b471",
       "symbols": [],
       "title": "Installs everything the lab needs on a Debian/Ubuntu machine (root or sudo)."
     },
     {
-      "bytes": 816,
+      "bytes": 1116,
       "group": "root",
       "headings": [
         {
@@ -135678,14 +135678,19 @@
       ],
       "keywords": [
         "step",
+        "venv",
         "quick",
         "ci-local",
+        "bin",
+        "tools",
         "lab",
         "check",
         "cargo",
+        "python",
         "python3",
-        "tools",
         "echo",
+        "origin",
+        "main",
         "mirrors",
         "job",
         "github",
@@ -135695,16 +135700,11 @@
         "cheap",
         "repo",
         "gates",
-        "usage",
-        "skips",
-        "full",
-        "workspace",
-        "run",
-        "env"
+        "usage"
       ],
-      "lines": 16,
+      "lines": 23,
       "path": "lab/ci-local.sh",
-      "sha256": "45badf9903639387e6fe55dd35ee29afc45c85d57fa486bf0451c4405bed783e",
+      "sha256": "4a584abee9883fa42fcc571ab2abd88cfb5c99f26e8f526658730c7daf5ae07a",
       "symbols": [],
       "title": "Mirrors the `check` job of .github/workflows/ci.yml plus the cheap repo gates."
     },
@@ -135793,7 +135793,7 @@
       "title": "Source me: `. lab/env.sh`. Sets the variables every lab script expects."
     },
     {
-      "bytes": 901,
+      "bytes": 1135,
       "group": "root",
       "headings": [
         {
@@ -135810,21 +135810,29 @@
           "level": 1,
           "line": 4,
           "text": "Usage: lab/gui/screenshot.sh [out.png] [seconds-to-wait]"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "Pick a free display and verify our own server owns it."
         }
       ],
       "keywords": [
+        "display",
         "out",
         "app",
         "gui",
         "screenshot",
         "png",
         "mininet-desktop",
-        "display",
+        "dev",
+        "null",
         "home_dir",
         "lab",
         "lab_root",
-        "dev",
-        "null",
+        "kill",
+        "exit",
+        "echo",
         "launches",
         "virtual",
         "saves",
@@ -135833,19 +135841,16 @@
         "see",
         "whether",
         "starts",
-        "renders",
-        "output",
-        "path",
-        "usage"
+        "renders"
       ],
-      "lines": 20,
+      "lines": 23,
       "path": "lab/gui/screenshot.sh",
-      "sha256": "7ff7895c7b4cc215562c62098afc9f4126003bdeb16fe740c58aba2d20fd6b92",
+      "sha256": "8b65dd3e92baee3e31ba287bf5dda060bd1388c6a9c24b39300ef20e30305441",
       "symbols": [],
       "title": "Launches mininet-desktop on a virtual X display and saves a screenshot, so a"
     },
     {
-      "bytes": 3068,
+      "bytes": 3105,
       "group": "root",
       "headings": [
         {
@@ -135875,7 +135880,7 @@
         },
         {
           "level": 1,
-          "line": 47,
+          "line": 48,
           "text": "`sync listen` serves exactly one connection, so never probe the port: retry the real connect."
         }
       ],
@@ -135905,9 +135910,9 @@
         "camp",
         "lab"
       ],
-      "lines": 56,
+      "lines": 57,
       "path": "lab/netlab/outage-drill.sh",
-      "sha256": "38fbeb56e231c3802fba8ab37d109616ef8a2827d0cf5cf9ce1e76d36c0c5331",
+      "sha256": "377c14dd3b847da6c36a256d5fc52184c3a7adc0feda373715172f7ca40ad564",
       "symbols": [],
       "title": "Two isolated network namespaces joined only by a veth pair. Neither has a"
     },
