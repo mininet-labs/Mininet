@@ -399,18 +399,6 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("beta transfer memo"));
                 }
             }
-            Command::BetaGrantApprove {
-                operation_id,
-                policy_id,
-                grant_id,
-            } => {
-                validate_operation_id(operation_id)?;
-                validate_beta_grant_ids(policy_id, grant_id)?;
-            }
-            Command::BetaGrantStatus {
-                policy_id,
-                grant_id,
-            } => validate_beta_grant_ids(policy_id, grant_id)?,
             Command::SetLike {
                 operation_id,
                 target_id,
@@ -523,15 +511,6 @@ pub const MAX_BETA_CAMPAIGNS: usize = 64;
 pub const MAX_BETA_ACCOUNTS: u16 = 64;
 pub const MAX_BETA_MEMO_BYTES: usize = 256;
 
-fn validate_beta_grant_ids(policy_id: &str, grant_id: &str) -> Result<(), ProtocolError> {
-    for id in [policy_id, grant_id] {
-        if id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES {
-            return Err(ProtocolError::LimitExceeded("beta grant object id"));
-        }
-    }
-    Ok(())
-}
-
 /// One opaque BETA account balance, in integer micro-BETA test units.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BetaAccountBalance {
@@ -575,19 +554,6 @@ pub enum Command {
         to: [u8; 32],
         amount_micro: u64,
         memo: String,
-    },
-    /// Approve one exact grant under one grant policy, signed by this
-    /// identity's PRIMARY DID (policy members are public DIDs). Retrying with
-    /// the same `operation_id` never signs a second approval.
-    BetaGrantApprove {
-        operation_id: String,
-        policy_id: String,
-        grant_id: String,
-    },
-    /// Read-only: count the distinct policy-member approvals for a grant.
-    BetaGrantStatus {
-        policy_id: String,
-        grant_id: String,
     },
     PublishMediaPost {
         operation_id: String,
@@ -743,16 +709,6 @@ pub enum Reply {
         transfer_id: String,
         amount_micro: u64,
         change_micro: u64,
-    },
-    BetaGrantApproval {
-        approval_id: String,
-    },
-    /// Evidence only: an accepted grant is not a conversion or issuance.
-    BetaGrantStatus {
-        accepted: bool,
-        approvals_counted: u16,
-        threshold: u16,
-        equivocations: u16,
     },
     PublicDeliveryObject(DeliveryObjectView),
     Ack,
@@ -1109,24 +1065,6 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.u64(*amount_micro);
             encoder.string(memo, MAX_BETA_MEMO_BYTES)?;
         }
-        Command::BetaGrantApprove {
-            operation_id,
-            policy_id,
-            grant_id,
-        } => {
-            encoder.u8(43);
-            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
-            encoder.string(policy_id, MAX_OBJECT_ID_BYTES)?;
-            encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
-        }
-        Command::BetaGrantStatus {
-            policy_id,
-            grant_id,
-        } => {
-            encoder.u8(44);
-            encoder.string(policy_id, MAX_OBJECT_ID_BYTES)?;
-            encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
-        }
         Command::SetLike {
             operation_id,
             target_id,
@@ -1340,15 +1278,6 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             to: array32(decoder.byte_string(32)?, "beta recipient")?,
             amount_micro: decoder.u64()?,
             memo: decoder.string(MAX_BETA_MEMO_BYTES)?,
-        }),
-        43 => Ok(Command::BetaGrantApprove {
-            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
-            policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
-            grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
-        }),
-        44 => Ok(Command::BetaGrantStatus {
-            policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
-            grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
         }),
         25 => Ok(Command::SetLike {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
@@ -1585,22 +1514,6 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
             encoder.u64(*amount_micro);
             encoder.u64(*change_micro);
         }
-        Reply::BetaGrantApproval { approval_id } => {
-            encoder.u8(43);
-            encoder.string(approval_id, MAX_OBJECT_ID_BYTES)?;
-        }
-        Reply::BetaGrantStatus {
-            accepted,
-            approvals_counted,
-            threshold,
-            equivocations,
-        } => {
-            encoder.u8(44);
-            encoder.bool(*accepted);
-            encoder.u16(*approvals_counted);
-            encoder.u16(*threshold);
-            encoder.u16(*equivocations);
-        }
         Reply::DeliveryRuntime(view) => {
             encoder.u8(10);
             encoder.bool(view.enabled);
@@ -1712,15 +1625,6 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
             transfer_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
             amount_micro: decoder.u64()?,
             change_micro: decoder.u64()?,
-        }),
-        43 => Ok(Reply::BetaGrantApproval {
-            approval_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
-        }),
-        44 => Ok(Reply::BetaGrantStatus {
-            accepted: decoder.bool()?,
-            approvals_counted: decoder.u16()?,
-            threshold: decoder.u16()?,
-            equivocations: decoder.u16()?,
         }),
         8 => Ok(Reply::DeliveryIdentity(DeliveryIdentity {
             root_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
@@ -2474,15 +2378,6 @@ mod tests {
                 amount_micro: 30,
                 memo: "lunch".to_string(),
             },
-            Command::BetaGrantApprove {
-                operation_id: "op-4".to_string(),
-                policy_id: "zpolicy".to_string(),
-                grant_id: "zgrant".to_string(),
-            },
-            Command::BetaGrantStatus {
-                policy_id: "zpolicy".to_string(),
-                grant_id: "zgrant".to_string(),
-            },
         ] {
             let request = Request::new(5, command);
             let mut bytes = Vec::new();
@@ -2511,15 +2406,6 @@ mod tests {
                 transfer_id: "ztransfer".to_string(),
                 amount_micro: 30,
                 change_micro: 70,
-            },
-            Reply::BetaGrantApproval {
-                approval_id: "zapproval".to_string(),
-            },
-            Reply::BetaGrantStatus {
-                accepted: true,
-                approvals_counted: 2,
-                threshold: 2,
-                equivocations: 1,
             },
         ] {
             let response = Response::ok(6, reply);
@@ -2567,61 +2453,6 @@ mod tests {
         encoder.byte_string(&[1u8; 31], 32).unwrap();
         let mut decoder = Decoder::new(&encoder.bytes);
         assert!(decode_command(&mut decoder).is_err());
-    }
-
-    #[test]
-    fn malformed_beta_grant_requests_are_rejected_before_dispatch() {
-        let long = "g".repeat(MAX_OBJECT_ID_BYTES + 1);
-        let max = "g".repeat(MAX_OBJECT_ID_BYTES);
-        let approve = |op: &str, policy: &str, grant: &str| {
-            Request::new(
-                1,
-                Command::BetaGrantApprove {
-                    operation_id: op.to_string(),
-                    policy_id: policy.to_string(),
-                    grant_id: grant.to_string(),
-                },
-            )
-        };
-        let status = |policy: &str, grant: &str| {
-            Request::new(
-                1,
-                Command::BetaGrantStatus {
-                    policy_id: policy.to_string(),
-                    grant_id: grant.to_string(),
-                },
-            )
-        };
-        let mut sink = Vec::new();
-        for bad in [
-            approve("", "p", "g"),
-            approve("op", "", "g"),
-            approve("op", "p", ""),
-            approve("op", &long, "g"),
-            approve("op", "p", &long),
-            status("", "g"),
-            status("p", ""),
-            status(&long, "g"),
-            status("p", &long),
-        ] {
-            sink.clear();
-            assert!(write_request(&mut sink, &bad).is_err(), "{bad:?}");
-        }
-        sink.clear();
-        write_request(&mut sink, &approve("op", &max, &max)).unwrap();
-        // A hand-built frame with an oversized grant id is refused on decode.
-        let mut encoder = Encoder::new();
-        encoder.u8(44);
-        encoder.string("p", MAX_OBJECT_ID_BYTES).unwrap();
-        encoder.u32(long.len() as u32);
-        encoder.bytes.extend_from_slice(long.as_bytes());
-        assert!(decode_command(&mut Decoder::new(&encoder.bytes)).is_err());
-        // A truncated status reply is refused on decode.
-        let mut reply = Encoder::new();
-        reply.u8(44);
-        reply.bool(true);
-        reply.u16(1);
-        assert!(decode_reply(&mut Decoder::new(&reply.bytes)).is_err());
     }
 
     #[test]

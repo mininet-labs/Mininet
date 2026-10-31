@@ -277,31 +277,6 @@ pub fn create_grant_approval<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
-    let object = build_grant_approval(
-        store,
-        authorizer_human,
-        authorizer_device,
-        policy_id,
-        grant_id,
-        timestamp_ms,
-        sequence,
-    )?;
-    store.insert(&object)?;
-    Ok(object)
-}
-
-/// Build and sign one exact-grant approval WITHOUT storing it, so a caller
-/// that needs write-ahead journaling can persist the exact signed bytes before
-/// committing. Applies every check `create_grant_approval` applies.
-pub fn build_grant_approval<B: Backend>(
-    store: &Store<B>,
-    authorizer_human: &Did,
-    authorizer_device: &Controller,
-    policy_id: &ObjectId,
-    grant_id: &ObjectId,
-    timestamp_ms: u64,
-    sequence: u64,
-) -> Result<Object> {
     let policy = validate_policy(store, policy_id)?;
     let grant = validate_grant_against_policy(store, &policy, grant_id)?;
     if !policy
@@ -318,15 +293,15 @@ pub fn build_grant_approval<B: Backend>(
         return Err(GrantAcceptanceError::InvalidApproval);
     }
 
-    Ok(
-        ObjectBuilder::new(ObjectType::Custom(BETA_GRANT_APPROVAL_TYPE.to_string()))
-            .timestamp_ms(timestamp_ms)
-            .sequence(sequence)
-            .payload(Payload::Public(vec![PAYLOAD_VERSION]))
-            .link("policy", policy_id.clone())
-            .link("grant", grant_id.clone())
-            .sign(authorizer_human, authorizer_device)?,
-    )
+    let object = ObjectBuilder::new(ObjectType::Custom(BETA_GRANT_APPROVAL_TYPE.to_string()))
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(vec![PAYLOAD_VERSION]))
+        .link("policy", policy_id.clone())
+        .link("grant", grant_id.clone())
+        .sign(authorizer_human, authorizer_device)?;
+    store.insert(&object)?;
+    Ok(object)
 }
 
 /// Strictly parse a policy object without consulting its linked campaign.
