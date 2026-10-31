@@ -8430,13 +8430,13 @@
       "title": "[package]"
     },
     {
-      "bytes": 10752,
+      "bytes": 10719,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
-        "out",
         "bytes",
         "record",
+        "out",
         "receipt",
         "extend_from_slice",
         "object",
@@ -8445,23 +8445,23 @@
         "serviceerror",
         "const",
         "pending_header",
+        "path",
         "usize",
         "kind",
         "corrupt",
         "digest",
-        "path",
         "u64",
         "pending",
         "account",
-        "amount",
-        "change",
         "vec",
-        "join",
-        "to_be_bytes"
+        "pending_magic",
+        "take32",
+        "take64",
+        "operation"
       ],
-      "lines": 310,
+      "lines": 312,
       "path": "crates/mini-app-service/src/beta_journal.rs",
-      "sha256": "aead9dc0a16beeac7ee1398870a17f522b30be8d86fe650210d745bf294d9783",
+      "sha256": "275a22adcc1de70d3ebcc2ec5c8e68ba3a23cfc07938c9ad5cf2cc608a4d2fba",
       "symbols": [
         {
           "kind": "const",
@@ -8520,57 +8520,57 @@
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 76,
           "name": "accounts_dir"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 87,
           "name": "name"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 91,
           "name": "take32"
         },
         {
           "kind": "fn",
-          "line": 92,
+          "line": 94,
           "name": "take64"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 98,
           "name": "encode_pending"
         },
         {
           "kind": "fn",
-          "line": 112,
+          "line": 114,
           "name": "valid_kind"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 118,
           "name": "decode_pending"
         },
         {
           "kind": "fn",
-          "line": 138,
+          "line": 140,
           "name": "encode_receipt"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 156,
           "name": "decode_receipt"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 178,
           "name": "read_optional"
         },
         {
           "kind": "fn",
-          "line": 302,
+          "line": 304,
           "name": "unhex"
         }
       ],

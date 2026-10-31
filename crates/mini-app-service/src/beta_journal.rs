@@ -6,7 +6,7 @@
 //! replays the identical object instead of signing a second one. Once
 //! committed, the pending file is replaced by a compact receipt, so startup
 //! recovery only ever scans genuinely pending work. Registrations also leave an
-//! `accounts/<epoch>/<nonce>` marker, the local list of accounts this profile
+//! `accounts/<nonce>` marker (its content is the epoch), the local list of accounts this profile
 //! owns. Records never hold keys; the stored input digest rejects reuse of an
 //! operation id for different content.
 
@@ -71,12 +71,14 @@ fn pending_dir(dir: &Path) -> PathBuf {
 fn receipts_dir(dir: &Path) -> PathBuf {
     dir.join("receipts")
 }
-fn accounts_dir(dir: &Path, epoch: &[u8; 32]) -> PathBuf {
-    dir.join("accounts").join(hex_encode(epoch))
+/// Flat on purpose: every extra 64-hex path component costs Windows' 260-char
+/// path budget. Each marker is named by its nonce and holds its epoch.
+fn accounts_dir(dir: &Path) -> PathBuf {
+    dir.join("accounts")
 }
 
 pub(crate) fn open(dir: &Path) -> Result<(), ServiceError> {
-    for sub in [pending_dir(dir), receipts_dir(dir), dir.join("accounts")] {
+    for sub in [pending_dir(dir), receipts_dir(dir), accounts_dir(dir)] {
         mini_durable::create_dir_all(&sub).map_err(io)?;
     }
     Ok(())
@@ -221,10 +223,11 @@ pub(crate) fn complete(
     store.insert(&object).map_err(storage_error)?;
     if record.kind == KIND_REGISTER {
         let registration = parse_account_registration_object(&object).map_err(storage_error)?;
-        let folder = accounts_dir(dir, registration.epoch.as_bytes());
-        mini_durable::create_dir_all(&folder).map_err(io)?;
-        mini_durable::atomic_replace(&folder.join(hex_encode(&registration.nonce)), b"1")
-            .map_err(io)?;
+        mini_durable::atomic_replace(
+            &accounts_dir(dir).join(hex_encode(&registration.nonce)),
+            registration.epoch.as_bytes(),
+        )
+        .map_err(io)?;
     }
     let receipt = Receipt {
         kind: record.kind,
@@ -272,28 +275,27 @@ pub(crate) fn commit_pending(dir: &Path, store: &mut Store<FsBackend>) -> Result
 
 /// Nonces of the accounts this profile registered in `epoch`.
 pub(crate) fn owned_nonces(dir: &Path, epoch: &[u8; 32]) -> Result<Vec<[u8; 32]>, ServiceError> {
-    let folder = accounts_dir(dir, epoch);
-    let entries = match fs::read_dir(&folder) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => return Err(io(error)),
-    };
     let mut nonces = Vec::new();
-    for entry in entries {
+    let mut seen = 0usize;
+    for entry in fs::read_dir(accounts_dir(dir)).map_err(io)? {
         let entry = entry.map_err(io)?;
         let file = entry.file_name();
         let Some(file) = file.to_str() else { continue };
         if file.ends_with(".tmp") {
             continue;
         }
-        if nonces.len() >= MAX_ACCOUNT_MARKERS {
+        seen += 1;
+        if seen > MAX_ACCOUNT_MARKERS {
             return Err(ServiceError::new(
                 ErrorCode::Storage,
                 "too many BETA account markers",
             ));
         }
-        let bytes = unhex(file)?;
-        nonces.push(bytes.try_into().map_err(|_| corrupt())?);
+        if fs::read(entry.path()).map_err(io)? != epoch {
+            continue;
+        }
+        let nonce: [u8; 32] = unhex(file)?.try_into().map_err(|_| corrupt())?;
+        nonces.push(nonce);
     }
     nonces.sort();
     Ok(nonces)
