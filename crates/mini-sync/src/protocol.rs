@@ -19,6 +19,11 @@ const PULL_KEL_CARRIER_BUDGET: usize = 512;
 const MAX_WANT_ROUNDS: usize = 1024;
 const PAGED_MAX_IDS: usize = 65_536;
 const PAGED_MAX_ID_BYTES: usize = 8 * 1024 * 1024;
+/// Hard ceiling on inventory IDs one paged session will transmit. Already-held
+/// IDs are exempt from the receiver's work window, so without this a nearly
+/// synchronized huge store could retransmit its whole inventory every session
+/// and hit the session deadline.
+const PAGED_MAX_OFFER_IDS: usize = 16 * PAGED_MAX_IDS;
 const PAGED_PULL_BYTES: usize = 64 * 1024 * 1024;
 /// A targeted release retrieval is one bounded exchange, not a general
 /// replication session. The selector in `mini-forge` uses the same ceiling.
@@ -162,6 +167,43 @@ pub fn sync_bidirectional_paged<B: Backend>(
     sync_mode(bearer, chan, store, cache, role, true, PAGED_PULL_BYTES)
 }
 
+/// Bound a paged inventory offer to `cap` IDs.
+///
+/// KEL carriers always come first (identity must precede content windows).
+/// When the rest does not fit, a window of `cap` IDs is taken starting at a
+/// pseudo-random position (`seed`) and wrapping, so repeated sessions cover the
+/// whole store without per-peer state; the second value reports truncation so
+/// the session finishes as incomplete rather than silently dropping IDs.
+///
+/// Honest limit: coverage of a store larger than `cap` is probabilistic across
+/// sessions, not a deterministic cursor.
+fn bound_offer(
+    offered: Vec<String>,
+    carriers: &std::collections::BTreeSet<&str>,
+    cap: usize,
+    seed: u64,
+) -> (Vec<String>, bool) {
+    if offered.len() <= cap {
+        return (offered, false);
+    }
+    let (mut bounded, rest): (Vec<String>, Vec<String>) = offered
+        .into_iter()
+        .partition(|id| carriers.contains(id.as_str()));
+    bounded.truncate(cap);
+    let room = cap - bounded.len();
+    if room > 0 && !rest.is_empty() {
+        let start = (seed % rest.len() as u64) as usize;
+        bounded.extend(
+            rest.iter()
+                .cycle()
+                .skip(start)
+                .take(room.min(rest.len()))
+                .cloned(),
+        );
+    }
+    (bounded, true)
+}
+
 fn sync_mode<B: Backend>(
     bearer: &mut dyn Bearer,
     chan: &mut Channel,
@@ -174,11 +216,25 @@ fn sync_mode<B: Backend>(
     match role {
         SyncRole::Initiator => {
             let mut report = pull(bearer, chan, store, cache, paged, window_bytes)?;
-            report.complete &= serve_pull_mode(bearer, chan, store, paged, window_bytes)?;
+            report.complete &= serve_pull_mode(
+                bearer,
+                chan,
+                store,
+                paged,
+                window_bytes,
+                PAGED_MAX_OFFER_IDS,
+            )?;
             Ok(report)
         }
         SyncRole::Responder => {
-            let sent_complete = serve_pull_mode(bearer, chan, store, paged, window_bytes)?;
+            let sent_complete = serve_pull_mode(
+                bearer,
+                chan,
+                store,
+                paged,
+                window_bytes,
+                PAGED_MAX_OFFER_IDS,
+            )?;
             let mut report = pull(bearer, chan, store, cache, paged, window_bytes)?;
             report.complete &= sent_complete;
             Ok(report)
@@ -431,7 +487,15 @@ pub fn serve_pull<B: Backend>(
     chan: &mut Channel,
     store: &mut Store<B>,
 ) -> Result<()> {
-    serve_pull_mode(bearer, chan, store, false, PULL_BYTE_BUDGET).map(|_| ())
+    serve_pull_mode(
+        bearer,
+        chan,
+        store,
+        false,
+        PULL_BYTE_BUDGET,
+        PAGED_MAX_OFFER_IDS,
+    )
+    .map(|_| ())
 }
 fn serve_pull_mode<B: Backend>(
     bearer: &mut dyn Bearer,
@@ -439,6 +503,7 @@ fn serve_pull_mode<B: Backend>(
     store: &mut Store<B>,
     paged: bool,
     window_bytes: usize,
+    offer_cap: usize,
 ) -> Result<bool> {
     let my_ids = sorted_ids(store)?;
     let client_root = match recv(bearer, chan)? {
@@ -468,12 +533,18 @@ fn serve_pull_mode<B: Backend>(
         let carriers: std::collections::BTreeSet<&str> =
             carrier_ids.iter().map(ObjectId::as_str).collect();
         offered.sort_by_key(|id| !carriers.contains(id.as_str()));
+        let seed = mini_crypto::random_32()
+            .map(|bytes| u64::from_be_bytes(bytes[..8].try_into().expect("8 bytes")))
+            .unwrap_or(0);
+        let (bounded, truncated) = bound_offer(offered, &carriers, offer_cap, seed);
+        offered = bounded;
+        inventory_complete = !truncated;
         for (index, page) in offered.chunks(WANT_BATCH).enumerate() {
             send(bearer, chan, &Msg::Ids(page.to_vec()))?;
             match recv(bearer, chan)? {
                 Msg::InventoryMore(true) => {}
                 Msg::InventoryMore(false) => {
-                    inventory_complete = (index + 1) * WANT_BATCH >= offered.len();
+                    inventory_complete &= (index + 1) * WANT_BATCH >= offered.len();
                     break;
                 }
                 _ => return Err(SyncError::Protocol),
@@ -714,6 +785,41 @@ mod paged_tests {
     use super::*;
     use mini_bearer::{pair, Initiator, Responder};
     use mini_store::MemoryBackend;
+
+    #[test]
+    fn bound_offer_keeps_small_offers_untouched_and_carriers_first_when_truncating() {
+        let ids: Vec<String> = (0..20).map(|n| format!("id{n:02}")).collect();
+        let carriers: std::collections::BTreeSet<&str> = ["id03", "id07"].into_iter().collect();
+        // Fits: unchanged, not truncated.
+        let (same, truncated) = bound_offer(ids.clone(), &carriers, 20, 5);
+        assert_eq!(same, ids);
+        assert!(!truncated);
+        // Does not fit: exactly `cap` IDs, carriers always included and first,
+        // no duplicates, and the session is reported incomplete.
+        let (bounded, truncated) = bound_offer(ids.clone(), &carriers, 8, 5);
+        assert!(truncated);
+        assert_eq!(bounded.len(), 8);
+        assert_eq!(&bounded[..2], &["id03", "id07"]);
+        let unique: std::collections::BTreeSet<_> = bounded.iter().collect();
+        assert_eq!(unique.len(), 8);
+    }
+
+    #[test]
+    fn bound_offer_rotates_so_repeated_sessions_cover_the_whole_store() {
+        let ids: Vec<String> = (0..100).map(|n| format!("id{n:03}")).collect();
+        let none = std::collections::BTreeSet::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for seed in 0..10u64 {
+            let (bounded, truncated) = bound_offer(ids.clone(), &none, 10, seed * 10);
+            assert!(truncated && bounded.len() == 10);
+            seen.extend(bounded);
+        }
+        assert_eq!(seen.len(), 100, "every ID is reachable across sessions");
+        // Wrap-around near the end still yields a full window.
+        let (wrapped, _) = bound_offer(ids.clone(), &none, 10, 95);
+        assert_eq!(wrapped.len(), 10);
+        assert!(wrapped.contains(&"id099".to_string()) && wrapped.contains(&"id004".to_string()));
+    }
 
     #[test]
     fn paged_offer_rejects_duplicate_ids_across_pages() {
