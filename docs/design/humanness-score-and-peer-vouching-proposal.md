@@ -117,3 +117,19 @@ Starting schedule: early panel 7 / 4 confirmations, minimum 30, 10 vouches per e
 ## Audit band (founder refinement, 2026-11-02)
 
 Peer audit triggers only for accounts whose score falls in `[minimum - audit_band, minimum)` that epoch. Early stage: minimum 30, band 10 (audit 20-29). Mature (epoch >= 1000): minimum 45, band 5 (audit 40-44) — a narrower window is stricter, and the schedule refuses a mature band wider than the early one. `AuditCase::open` rejects any score outside the band, so reviewers cannot be spammed by cheap low-score accounts. The consequence is that the score itself must be hard to inflate (closed signal set, seed-anchored vouching required, degree and per-epoch vouch caps, presence evidence); that is the real Sybil defence and is still unsolved, so the band must not be widened to compensate.
+
+## Adversarial simulation findings (graph signal only)
+
+`crates/mini-uniqueness/tests/adversarial_sim.rs` (deterministic; 300 honest roots, 10 seeds, 8 vouches each; 400 densely connected sybils; each colluding mature credential spends the early-stage quota of 10 vouches on the cluster; "pass" = trust at least half the honest median):
+
+| colluding mature credentials | attack edges | sybils passing | best sybil vs honest median |
+|---|---|---|---|
+| 0 | 0 | 0 / 400 | 0% |
+| 1 | 10 | 0 / 400 | 3% |
+| 6 | 60 | 0 / 400 | 10% |
+| 24 | 240 | 0 / 400 | 29% |
+| 60 | 600 | 383 / 400 | 77% |
+| 100 | 1000 | 400 / 400 | 147% |
+| 200 | 2000 | 400 / 400 | 297% |
+
+Reading: collected trust scales with attack edges (colluders x quota), so the quota and degree cap are the real levers, and one, six or even 24 colluders do not lift a cluster — but there is a cliff once attack edges approach the cluster's size (here 600 edges for 400 sybils, with colluders at 20% of a small honest network). The graph signal alone therefore does not stop a large collusion; presence evidence, minimum age, distinct live sources, the audit band, and the economics must carry that case. Not modelled yet: paid real-human witnesses, forged devices, active proximity relays, stolen credentials, larger honest networks, and the second and third signals.

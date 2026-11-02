@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1268,
-    "headings": 4257,
-    "rust_symbols": 15192
+    "files": 1269,
+    "headings": 4258,
+    "rust_symbols": 15207
   },
   "crates": {
     "askama_derive": {
@@ -103018,6 +103018,118 @@
       "title": "use did_mini::{Controller, Did, IndexedSig};"
     },
     {
+      "bytes": 6166,
+      "group": "crate:mini-uniqueness",
+      "headings": [],
+      "keywords": [
+        "honest",
+        "sybils",
+        "usize",
+        "did",
+        "colluders",
+        "seeds",
+        "quota",
+        "lcg",
+        "edge",
+        "collect",
+        "const",
+        "u64",
+        "attack_edges",
+        "next",
+        "outcome",
+        "sybil",
+        "trust",
+        "median",
+        "passing_sybils",
+        "vec",
+        "map",
+        "iter",
+        "cluster",
+        "one"
+      ],
+      "lines": 172,
+      "path": "crates/mini-uniqueness/tests/adversarial_sim.rs",
+      "sha256": "d61a4b18ea42567e2a5582140adf0f55dc147e5697d46eec2332f183a3fb4f27",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 19,
+          "name": "HONEST"
+        },
+        {
+          "kind": "const",
+          "line": 20,
+          "name": "SEEDS"
+        },
+        {
+          "kind": "const",
+          "line": 21,
+          "name": "SYBILS"
+        },
+        {
+          "kind": "const",
+          "line": 22,
+          "name": "HONEST_VOUCHES"
+        },
+        {
+          "kind": "const",
+          "line": 25,
+          "name": "QUOTA"
+        },
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "DEGREE_CAP"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
+          "name": "did"
+        },
+        {
+          "kind": "struct",
+          "line": 34,
+          "name": "Lcg"
+        },
+        {
+          "kind": "impl",
+          "line": 35,
+          "name": "Lcg"
+        },
+        {
+          "kind": "fn",
+          "line": 36,
+          "name": "next"
+        },
+        {
+          "kind": "fn",
+          "line": 45,
+          "name": "edge"
+        },
+        {
+          "kind": "struct",
+          "line": 56,
+          "name": "Outcome"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "few_colluding_mature_credentials_cannot_lift_a_sybil_cluster"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "mass_collusion_is_a_documented_limit_of_the_graph_signal_alone"
+        }
+      ],
+      "title": "use did_mini::{Controller, Did};"
+    },
+    {
       "bytes": 7467,
       "group": "crate:mini-uniqueness",
       "headings": [],
@@ -123277,7 +123389,7 @@
       "title": "Reusable offline allowances and private account settlement"
     },
     {
-      "bytes": 9124,
+      "bytes": 10453,
       "group": "docs",
       "headings": [
         {
@@ -123329,6 +123441,11 @@
           "level": 2,
           "line": 117,
           "text": "Audit band (founder refinement, 2026-11-02)"
+        },
+        {
+          "level": 2,
+          "line": 121,
+          "text": "Adversarial simulation findings (graph signal only)"
         }
       ],
       "keywords": [
@@ -123357,9 +123474,9 @@
         "implemented",
         "first"
       ],
-      "lines": 120,
+      "lines": 136,
       "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
-      "sha256": "b5d7c5e7b816f9fe3d41271f8aa83bb2eb2363136f3ed6a8410ce4b27096de81",
+      "sha256": "c46b973dc1c2839ee979bb369da1583a82f80cad33e23d6130c4e929302b144c",
       "symbols": [],
       "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },
