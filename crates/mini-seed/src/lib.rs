@@ -26,6 +26,12 @@ use std::path::{Component, Path, PathBuf};
 pub const MAX_OBJECT_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_POOL_BYTES: u64 = 1024 * 1024 * 1024;
 pub const MAX_POOL_OBJECTS: usize = 4096;
+/// Most object bytes one inventory request may newly read and hash. Objects
+/// verified earlier (and unchanged since) cost one `stat`, so a request is
+/// O(objects) metadata work plus at most this much hashing; a larger unverified
+/// backlog is verified across repeated requests instead of in one scan.
+pub const INVENTORY_VERIFY_BUDGET: u64 = 128 * 1024 * 1024;
+const VERIFIED_CACHE: &str = "verified.json";
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
 const DAY_MS: u64 = 86_400_000;
 
@@ -118,6 +124,13 @@ fn id_valid(id: &str) -> Result<()> {
         return Err(SeedError("invalid seed object id".into()));
     }
     Ok(())
+}
+fn mtime_ns(meta: &fs::Metadata) -> u128 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
 }
 fn read_bounded(path: &Path, max: u64) -> Result<Vec<u8>> {
     plain_path(path)?;
@@ -316,10 +329,15 @@ impl Pool {
                 .file_name()
                 .into_string()
                 .map_err(|_| SeedError("untrusted pool metadata filename".into()))?;
-            if matches!(name.as_str(), "manifest.json" | "pool.lock" | "objects") {
+            if matches!(
+                name.as_str(),
+                "manifest.json" | "pool.lock" | "objects" | VERIFIED_CACHE
+            ) {
                 continue;
             }
-            if !is_temp(&name, "manifest.json") || !fs::symlink_metadata(entry.path())?.is_file() {
+            if !(is_temp(&name, "manifest.json") || is_temp(&name, VERIFIED_CACHE))
+                || !fs::symlink_metadata(entry.path())?.is_file()
+            {
                 return Err(SeedError("untrusted pool metadata entry".into()));
             }
             removals.push(entry.path());
@@ -537,18 +555,82 @@ impl Pool {
         let state = self.load()?;
         Ok(state.leases.into_values().collect())
     }
+    /// Active leases whose stored bytes are verified against their ids.
+    ///
+    /// Verification is incremental: an object whose id, length and
+    /// modification time match an earlier successful verification is not
+    /// re-read. A request newly hashes at most [`INVENTORY_VERIFY_BUDGET`]
+    /// bytes; if more unverified bytes remain it records the progress it made
+    /// and fails closed so the caller retries, rather than letting one small
+    /// request force an unbounded scan of the pool.
+    ///
+    /// Honest limit: the cache trusts file length and modification time. A
+    /// writer who can alter a pool file while preserving both is already
+    /// outside the local storage boundary stated in the crate docs, and
+    /// `read`/`lease` always re-verify the exact bytes they serve.
     pub fn inventory(&self, now_ms: u64) -> Result<Vec<Lease>> {
+        self.inventory_with_budget(now_ms, INVENTORY_VERIFY_BUDGET)
+    }
+    fn inventory_with_budget(&self, now_ms: u64, budget: u64) -> Result<Vec<Lease>> {
         let _lock = self.lock()?;
         let state = self.load()?;
+        let mut cache = self.load_verified();
+        let mut changed = false;
+        let mut hashed = 0u64;
         let mut leases = Vec::new();
+        let mut incomplete = false;
         for lease in state.leases.values().filter(|l| l.expires_at_ms > now_ms) {
-            validate_object(
-                &read_bounded(&self.root.join("objects").join(&lease.id), MAX_OBJECT_BYTES)?,
-                &lease.id,
-            )?;
+            let path = self.root.join("objects").join(&lease.id);
+            plain_path(&path)?;
+            let meta = fs::symlink_metadata(&path)?;
+            if !meta.is_file() || meta.len() > MAX_OBJECT_BYTES {
+                return Err(SeedError(
+                    "pool file is not regular or exceeds its size bound".into(),
+                ));
+            }
+            let stamp = (meta.len(), mtime_ns(&meta));
+            if cache.get(&lease.id) == Some(&stamp) {
+                leases.push(lease.clone());
+                continue;
+            }
+            if hashed.saturating_add(meta.len()) > budget {
+                incomplete = true;
+                continue;
+            }
+            validate_object(&read_bounded(&path, MAX_OBJECT_BYTES)?, &lease.id)?;
+            hashed += meta.len();
+            cache.insert(lease.id.clone(), stamp);
+            changed = true;
             leases.push(lease.clone());
         }
+        cache.retain(|id, _| state.leases.contains_key(id));
+        if changed {
+            self.save_verified(&cache)?;
+        }
+        if incomplete {
+            return Err(SeedError(
+                "inventory verification budget reached; retry to continue".into(),
+            ));
+        }
         Ok(leases)
+    }
+    fn load_verified(&self) -> BTreeMap<String, (u64, u128)> {
+        // A missing, oversized or corrupt cache only means "re-verify"; it can
+        // never make an unverified object look verified.
+        read_bounded(&self.root.join(VERIFIED_CACHE), MAX_MANIFEST_BYTES)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .filter(|map: &BTreeMap<String, (u64, u128)>| map.len() <= MAX_POOL_OBJECTS)
+            .unwrap_or_default()
+    }
+    fn save_verified(&self, cache: &BTreeMap<String, (u64, u128)>) -> Result<()> {
+        let bytes = serde_json::to_vec(cache)?;
+        if bytes.len() as u64 > MAX_MANIFEST_BYTES {
+            return Ok(());
+        }
+        plain_path(&self.root.join(VERIFIED_CACHE))?;
+        mini_durable::atomic_replace(&self.root.join(VERIFIED_CACHE), &bytes)?;
+        Ok(())
     }
     /// Read a bounded set of exact public objects with one manifest load and
     /// pool lock. Validate the entire selection and aggregate size before any
@@ -970,5 +1052,50 @@ mod tests {
         )
         .unwrap();
         assert!(pool.status().is_err());
+    }
+
+    #[test]
+    fn inventory_verifies_incrementally_under_a_per_request_budget() {
+        let dir = std::env::temp_dir().join(format!(
+            "mini-seed-inventory-budget-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let pool = Pool::open(&dir).unwrap();
+        pool.configure(MAX_POOL_BYTES).unwrap();
+        let objects: Vec<Object> = (0..3u8).map(|n| object(&[n; 2048])).collect();
+        let mut size = 0;
+        for o in &objects {
+            let lease = pool.admit(o, 30, 0).unwrap();
+            size = lease.bytes;
+        }
+        // Budget for exactly one new object per request: the first requests make
+        // durable progress and fail closed; the pool converges to a full answer.
+        assert!(pool.inventory_with_budget(0, size).is_err());
+        assert!(pool.inventory_with_budget(0, size).is_err());
+        assert_eq!(pool.inventory_with_budget(0, size).unwrap().len(), 3);
+        // Once verified, a request needs no new hashing at all (budget zero).
+        assert_eq!(pool.inventory_with_budget(0, 0).unwrap().len(), 3);
+        // A change after verification is noticed and fails closed again.
+        let victim = objects[0].id().as_str().to_string();
+        let path = dir.join("objects").join(&victim);
+        let mut bytes = fs::read(&path).unwrap();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 1;
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        fs::write(&path, bytes).unwrap();
+        assert!(pool
+            .inventory_with_budget(0, INVENTORY_VERIFY_BUDGET)
+            .is_err());
+        // A corrupt or deleted cache only forces re-verification; it never
+        // makes an object look verified.
+        fs::write(dir.join(VERIFIED_CACHE), b"not json").unwrap();
+        assert!(pool
+            .inventory_with_budget(0, INVENTORY_VERIFY_BUDGET)
+            .is_err());
+        fs::remove_dir_all(dir).unwrap();
     }
 }
