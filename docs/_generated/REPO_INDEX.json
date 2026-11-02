@@ -2,8 +2,8 @@
   "counts": {
     "crates": 93,
     "files": 1261,
-    "headings": 4248,
-    "rust_symbols": 15007
+    "headings": 4249,
+    "rust_symbols": 15018
   },
   "crates": {
     "askama_derive": {
@@ -21610,7 +21610,7 @@
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 6113,
+      "bytes": 7362,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21639,9 +21639,9 @@
         "counter",
         "failure"
       ],
-      "lines": 142,
+      "lines": 173,
       "path": "crates/mini-cli/src/error.rs",
-      "sha256": "ac5d6e309343490303e108101a2bb6365bae8efb4c54c273fdf6d01cf61a9197",
+      "sha256": "150eaa83e8024b6d79ae864596b0cf0723656e631b0b0e5f2be4cdcb2ff8d23f",
       "symbols": [
         {
           "kind": "enum",
@@ -21677,6 +21677,16 @@
           "kind": "type",
           "line": 141,
           "name": "Result"
+        },
+        {
+          "kind": "mod",
+          "line": 161,
+          "name": "disk_hint_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "disk_full_errors_get_plain_guidance_and_others_do_not"
         }
       ],
       "title": "use core::fmt;"
@@ -23814,7 +23824,7 @@
       "title": "use std::fs::{File, OpenOptions};"
     },
     {
-      "bytes": 45098,
+      "bytes": 51450,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -23828,24 +23838,24 @@
         "string",
         "return",
         "price",
+        "const",
         "usize",
         "std",
-        "const",
         "vec",
         "key",
         "max",
         "frame",
         "channel",
         "tcpbearer",
-        "serde",
+        "str",
         "len",
         "limit",
         "aad",
         "max_record"
       ],
-      "lines": 1191,
+      "lines": 1366,
       "path": "crates/mini-cli/src/seed.rs",
-      "sha256": "0b2b73376939103daf38267964ee38411b8fa7b44d5525137b49276b134449b7",
+      "sha256": "fa063f5354bb70b3a5f5d03d6d0e6050838f96b72737c063f0db8d8d2078d651",
       "symbols": [
         {
           "kind": "mod",
@@ -23888,268 +23898,313 @@
           "name": "MAX_EVIDENCE_PER_PEER"
         },
         {
-          "kind": "fn",
+          "kind": "const",
           "line": 26,
+          "name": "ARCHIVE_DIR"
+        },
+        {
+          "kind": "const",
+          "line": 27,
+          "name": "REPLAY_INDEX"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
           "name": "err"
         },
         {
           "kind": "fn",
-          "line": 29,
+          "line": 33,
           "name": "now"
         },
         {
           "kind": "fn",
-          "line": 32,
+          "line": 36,
           "name": "pool"
         },
         {
           "kind": "fn",
-          "line": 35,
+          "line": 39,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 45,
+          "line": 49,
           "name": "need"
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 52,
           "name": "done"
         },
         {
           "kind": "fn",
-          "line": 55,
+          "line": 59,
           "name": "number"
         },
         {
           "kind": "fn",
-          "line": 58,
+          "line": 62,
           "name": "read_file"
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 78,
           "name": "safe_dir"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 88,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 95,
           "name": "send_bytes"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 99,
           "name": "receive_bytes"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 110,
           "name": "recv"
         },
         {
           "kind": "struct",
-          "line": 111,
+          "line": 115,
           "name": "Price"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 120,
           "name": "price"
         },
         {
           "kind": "fn",
-          "line": 123,
+          "line": 127,
           "name": "cost"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 133,
           "name": "default_fetch_bytes"
         },
         {
           "kind": "fn",
-          "line": 132,
+          "line": 136,
           "name": "default_fetch_window"
         },
         {
           "kind": "enum",
-          "line": 137,
+          "line": 141,
           "name": "Request"
         },
         {
           "kind": "struct",
-          "line": 164,
+          "line": 168,
           "name": "Offer"
         },
         {
           "kind": "struct",
-          "line": 173,
+          "line": 177,
           "name": "Sig"
         },
         {
           "kind": "fn",
-          "line": 178,
+          "line": 182,
           "name": "encode_sigs"
         },
         {
           "kind": "fn",
-          "line": 187,
+          "line": 191,
           "name": "decode_sigs"
         },
         {
           "kind": "struct",
-          "line": 206,
+          "line": 210,
           "name": "Evidence"
         },
         {
           "kind": "impl",
-          "line": 222,
+          "line": 226,
           "name": "Evidence"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 227,
           "name": "fields"
         },
         {
           "kind": "fn",
-          "line": 236,
+          "line": 240,
           "name": "verify"
         },
         {
           "kind": "fn",
-          "line": 287,
+          "line": 291,
           "name": "is_evidence_temp"
         },
         {
           "kind": "fn",
-          "line": 301,
+          "line": 305,
           "name": "records"
         },
         {
           "kind": "fn",
-          "line": 324,
+          "line": 330,
+          "name": "archived_records"
+        },
+        {
+          "kind": "fn",
+          "line": 346,
           "name": "peer_evidence_count"
         },
         {
           "kind": "fn",
-          "line": 329,
-          "name": "check_peer_evidence_quota"
+          "line": 355,
+          "name": "make_room"
         },
         {
-          "kind": "fn",
-          "line": 335,
-          "name": "save_evidence"
+          "kind": "struct",
+          "line": 413,
+          "name": "ReplayKey"
         },
         {
-          "kind": "fn",
-          "line": 375,
-          "name": "check_payment"
-        },
-        {
-          "kind": "fn",
-          "line": 401,
-          "name": "reserve_payment"
+          "kind": "impl",
+          "line": 420,
+          "name": "ReplayKey"
         },
         {
           "kind": "fn",
           "line": 421,
+          "name": "from"
+        },
+        {
+          "kind": "fn",
+          "line": 433,
+          "name": "archived_replay"
+        },
+        {
+          "kind": "fn",
+          "line": 459,
+          "name": "find_record"
+        },
+        {
+          "kind": "fn",
+          "line": 473,
+          "name": "save_evidence"
+        },
+        {
+          "kind": "fn",
+          "line": 517,
+          "name": "check_payment"
+        },
+        {
+          "kind": "fn",
+          "line": 543,
+          "name": "reserve_payment"
+        },
+        {
+          "kind": "fn",
+          "line": 563,
           "name": "offer"
         },
         {
           "kind": "struct",
-          "line": 572,
+          "line": 713,
           "name": "Session"
         },
         {
           "kind": "fn",
-          "line": 577,
+          "line": 718,
           "name": "connect"
         },
         {
           "kind": "fn",
-          "line": 585,
+          "line": 726,
           "name": "remaining"
         },
         {
           "kind": "fn",
-          "line": 591,
+          "line": 732,
           "name": "connect_until"
         },
         {
           "kind": "fn",
-          "line": 638,
+          "line": 779,
           "name": "ingest"
         },
         {
           "kind": "struct",
-          "line": 652,
+          "line": 793,
           "name": "DeliveryAck"
         },
         {
           "kind": "struct",
-          "line": 656,
+          "line": 797,
           "name": "FetchOptions"
         },
         {
           "kind": "fn",
-          "line": 664,
+          "line": 805,
           "name": "fetch"
         },
         {
           "kind": "fn",
-          "line": 787,
+          "line": 928,
           "name": "decode_hex"
         },
         {
           "kind": "fn",
-          "line": 796,
+          "line": 937,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 1096,
+          "line": 1235,
           "name": "render"
         },
         {
           "kind": "fn",
-          "line": 1104,
+          "line": 1243,
           "name": "remote_inventory"
         },
         {
           "kind": "struct",
-          "line": 1107,
+          "line": 1246,
           "name": "Page"
         },
         {
           "kind": "mod",
-          "line": 1139,
+          "line": 1278,
           "name": "evidence_temp_tests"
         },
         {
           "kind": "fn",
-          "line": 1143,
+          "line": 1282,
           "name": "only_atomic_replace_temporaries_are_reclaimable"
         },
         {
           "kind": "mod",
-          "line": 1162,
+          "line": 1301,
           "name": "peer_quota_tests"
         },
         {
           "kind": "fn",
-          "line": 1165,
+          "line": 1304,
           "name": "ev"
         },
         {
           "kind": "fn",
-          "line": 1185,
+          "line": 1324,
+          "name": "full_journal_archives_oldest_automatically_and_keeps_replay_protection"
+        },
+        {
+          "kind": "fn",
+          "line": 1360,
           "name": "one_peer_cannot_consume_another_peers_evidence_quota"
         }
       ],
@@ -111402,7 +111457,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 12936,
+      "bytes": 13796,
       "group": "docs",
       "headings": [
         {
@@ -111484,6 +111539,11 @@
           "level": 2,
           "line": 244,
           "text": "Overall readiness statement"
+        },
+        {
+          "level": 2,
+          "line": 253,
+          "text": "Automatic housekeeping (no engineer needed)"
         }
       ],
       "keywords": [
@@ -111512,9 +111572,9 @@
         "target",
         "what"
       ],
-      "lines": 252,
+      "lines": 266,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "95cd607c23c58f1497c5bdd8ab828f54da528978a7d64db4c3f21619b829d436",
+      "sha256": "9fc4dece4eb2aafb11d47a1e47e8d781665f072cf81288d2f2d24ac51c7311f0",
       "symbols": [],
       "title": "Open Beta status"
     },
