@@ -163,6 +163,8 @@ enum CoreAction {
     BetaTransfer,
     BetaGrantApprove,
     BetaGrantStatus,
+    BetaGrantPolicyCreate,
+    BetaGrantCreate,
 }
 
 impl std::fmt::Debug for CoreAction {
@@ -189,6 +191,8 @@ impl std::fmt::Debug for CoreAction {
             Self::BetaTransfer => "BetaTransfer",
             Self::BetaGrantApprove => "BetaGrantApprove",
             Self::BetaGrantStatus => "BetaGrantStatus",
+            Self::BetaGrantPolicyCreate => "BetaGrantPolicyCreate",
+            Self::BetaGrantCreate => "BetaGrantCreate",
         })
     }
 }
@@ -2547,6 +2551,20 @@ impl MininetApp {
                 self.notice = "BETA grant approval signed through the application core.".into();
             }
             (
+                CoreAction::BetaGrantPolicyCreate,
+                Ok(AppReply::BetaGrantPolicyCreated { policy_id }),
+            ) => {
+                self.beta_wallet.on_policy_created(&policy_id);
+                self.reload_workspace();
+                self.notice = "BETA grant policy signed through the application core.".into();
+            }
+            (CoreAction::BetaGrantCreate, Ok(AppReply::BetaGrantCreated { grant_id })) => {
+                self.beta_wallet.on_grant_created(&grant_id);
+                self.reload_workspace();
+                self.notice =
+                    "BETA grant authorization signed through the application core.".into();
+            }
+            (
                 CoreAction::BetaGrantStatus,
                 Ok(AppReply::BetaGrantStatus {
                     accepted,
@@ -3583,6 +3601,52 @@ No tracking. No forced updates.",
                     operation_id,
                     policy_id,
                     grant_id,
+                },
+            ),
+            beta_wallet::Request::PolicyCreate {
+                operation_id,
+                campaign_id,
+                members,
+                testing_threshold,
+                participation_threshold,
+                testing_amount,
+                reward_bands,
+                valid_from_ms,
+                valid_until_ms,
+            } => (
+                CoreAction::BetaGrantPolicyCreate,
+                AppCommand::BetaGrantPolicyCreate {
+                    operation_id,
+                    campaign_id,
+                    members,
+                    testing_threshold,
+                    participation_threshold,
+                    testing_amount,
+                    reward_bands,
+                    valid_from_ms,
+                    valid_until_ms,
+                },
+            ),
+            beta_wallet::Request::GrantCreate {
+                operation_id,
+                campaign_id,
+                epoch,
+                account,
+                class,
+                contribution_id,
+                amount,
+                memo,
+            } => (
+                CoreAction::BetaGrantCreate,
+                AppCommand::BetaGrantCreate {
+                    operation_id,
+                    campaign_id,
+                    epoch,
+                    account,
+                    class,
+                    contribution_id,
+                    amount,
+                    memo,
                 },
             ),
             beta_wallet::Request::GrantStatus {

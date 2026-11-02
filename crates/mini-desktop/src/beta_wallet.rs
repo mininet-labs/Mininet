@@ -5,7 +5,8 @@
 //! core; this panel holds no keys and signs nothing itself.
 use eframe::egui;
 use mini_app_protocol::{
-    BetaBalancesView, MAX_BETA_CAMPAIGNS, MAX_BETA_MEMO_BYTES, MAX_OBJECT_ID_BYTES,
+    BetaBalancesView, BetaGrantClass, MAX_BETA_CAMPAIGNS, MAX_BETA_GRANT_MEMBERS,
+    MAX_BETA_MEMO_BYTES, MAX_BETA_REWARD_BANDS, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES,
 };
 
 use crate::theme;
@@ -44,6 +45,30 @@ pub(crate) enum Request {
     },
     /// Read-only approval count for one grant.
     GrantStatus { policy_id: String, grant_id: String },
+    /// Create a grant policy, signed by the primary identity (the campaign
+    /// author and the members are public DIDs by design).
+    PolicyCreate {
+        operation_id: String,
+        campaign_id: String,
+        members: Vec<String>,
+        testing_threshold: u16,
+        participation_threshold: u16,
+        testing_amount: u64,
+        reward_bands: Vec<u64>,
+        valid_from_ms: u64,
+        valid_until_ms: u64,
+    },
+    /// Create a grant authorization, signed by the primary identity.
+    GrantCreate {
+        operation_id: String,
+        campaign_id: String,
+        epoch: [u8; 32],
+        account: [u8; 32],
+        class: BetaGrantClass,
+        contribution_id: Option<String>,
+        amount: u64,
+        memo: String,
+    },
 }
 
 #[derive(Default)]
@@ -63,6 +88,22 @@ pub(crate) struct Panel {
     grant_policy: String,
     grant_id: String,
     approve_op: Option<(Request, String)>,
+    policy_campaign: String,
+    policy_members: String,
+    policy_testing_threshold: String,
+    policy_participation_threshold: String,
+    policy_testing_amount: String,
+    policy_bands: String,
+    policy_valid_from: String,
+    policy_valid_until: String,
+    policy_op: Option<(Request, String)>,
+    create_campaign: String,
+    create_account: String,
+    create_participation: bool,
+    create_contribution: String,
+    create_amount: String,
+    create_memo: String,
+    create_op: Option<(Request, String)>,
     /// Explicit per-action signing confirmation; reset after every signed request.
     confirm: bool,
     balances_for: (String, String),
@@ -105,6 +146,46 @@ pub(crate) fn parse_campaigns(value: &str) -> Result<Vec<String>, String> {
         return Err(format!("at most {MAX_BETA_CAMPAIGNS} campaign IDs"));
     }
     Ok(ids)
+}
+
+/// One member DID per line: public identities by design. Rejects malformed
+/// DIDs and duplicates.
+pub(crate) fn parse_members(value: &str) -> Result<Vec<String>, String> {
+    let mut members: Vec<String> = Vec::new();
+    for line in value.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        if line.len() > MAX_DID_BYTES || did_mini::Did::parse(line).is_err() {
+            return Err("a member is not a valid identity (DID)".into());
+        }
+        if members.iter().any(|existing| existing == line) {
+            return Err("duplicate member".into());
+        }
+        members.push(line.to_string());
+    }
+    if members.len() < 2 {
+        return Err("enter at least two member identities (one per line)".into());
+    }
+    if members.len() > MAX_BETA_GRANT_MEMBERS {
+        return Err(format!("at most {MAX_BETA_GRANT_MEMBERS} members"));
+    }
+    Ok(members)
+}
+
+/// One participation reward band per line in BETA, strictly increasing.
+pub(crate) fn parse_bands(value: &str) -> Result<Vec<u64>, String> {
+    let mut bands: Vec<u64> = Vec::new();
+    for line in value.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        bands.push(parse_amount_micro(line)?);
+    }
+    if bands.is_empty() {
+        return Err("enter at least one reward band (one per line)".into());
+    }
+    if bands.len() > MAX_BETA_REWARD_BANDS {
+        return Err(format!("at most {MAX_BETA_REWARD_BANDS} reward bands"));
+    }
+    if bands.windows(2).any(|w| w[0] >= w[1]) {
+        return Err("reward bands must be strictly increasing".into());
+    }
+    Ok(bands)
 }
 
 /// Decimal BETA ("12", "0.5", "3.000001") to integer micro-units. No floats.
@@ -210,6 +291,152 @@ impl Panel {
             *slot = operation_id;
         }
         Ok(request)
+    }
+
+    /// Fill a suggested validity window: starts in two minutes (a policy's
+    /// own timestamp may not be later than its start, and grants may not
+    /// predate it) and lasts 30 days. Absolute values, so retries are stable.
+    pub(crate) fn suggest_window(&mut self, now_ms: u64) {
+        self.policy_valid_from = (now_ms + 120_000).to_string();
+        self.policy_valid_until = (now_ms + 30 * 24 * 3_600_000).to_string();
+    }
+
+    pub(crate) fn policy_create_request(&mut self) -> Result<Request, String> {
+        let campaign_id = self.policy_campaign.trim();
+        if campaign_id.is_empty() || campaign_id.len() > MAX_OBJECT_ID_BYTES {
+            return Err("enter the campaign ID".into());
+        }
+        let members = parse_members(&self.policy_members)?;
+        let parse_threshold = |value: &str, what: &str| -> Result<u16, String> {
+            value
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| format!("{what} must be a whole number"))
+        };
+        let testing_threshold =
+            parse_threshold(&self.policy_testing_threshold, "testing threshold")?;
+        let participation_threshold = parse_threshold(
+            &self.policy_participation_threshold,
+            "participation threshold",
+        )?;
+        if testing_threshold < 2 {
+            return Err("testing threshold must be at least 2".into());
+        }
+        if participation_threshold < testing_threshold {
+            return Err("participation threshold must be at least the testing threshold".into());
+        }
+        if usize::from(participation_threshold) > members.len() {
+            return Err("thresholds cannot exceed the number of members".into());
+        }
+        let testing_amount = parse_amount_micro(&self.policy_testing_amount)?;
+        let reward_bands = parse_bands(&self.policy_bands)?;
+        let parse_ms = |value: &str, what: &str| -> Result<u64, String> {
+            value
+                .trim()
+                .parse::<u64>()
+                .map_err(|_| format!("{what} must be unix milliseconds"))
+        };
+        let valid_from_ms = parse_ms(&self.policy_valid_from, "valid-from")?;
+        let valid_until_ms = parse_ms(&self.policy_valid_until, "valid-until")?;
+        if valid_from_ms >= valid_until_ms {
+            return Err("valid-from must be before valid-until".into());
+        }
+        let mut request = Request::PolicyCreate {
+            operation_id: String::new(),
+            campaign_id: campaign_id.to_string(),
+            members,
+            testing_threshold,
+            participation_threshold,
+            testing_amount,
+            reward_bands,
+            valid_from_ms,
+            valid_until_ms,
+        };
+        let operation_id = match &self.policy_op {
+            Some((saved, id)) if *saved == request => id.clone(),
+            _ => {
+                let id = crate::app_service::operation_id("beta-policy");
+                self.policy_op = Some((request.clone(), id.clone()));
+                id
+            }
+        };
+        if let Request::PolicyCreate {
+            operation_id: slot, ..
+        } = &mut request
+        {
+            *slot = operation_id;
+        }
+        Ok(request)
+    }
+
+    pub(crate) fn grant_create_request(&mut self) -> Result<Request, String> {
+        let campaign_id = self.create_campaign.trim();
+        if campaign_id.is_empty() || campaign_id.len() > MAX_OBJECT_ID_BYTES {
+            return Err("enter the campaign ID".into());
+        }
+        let contribution = self.create_contribution.trim();
+        let (class, contribution_id) = if self.create_participation {
+            if contribution.is_empty() || contribution.len() > MAX_OBJECT_ID_BYTES {
+                return Err("a participation grant needs a contribution ID".into());
+            }
+            (
+                BetaGrantClass::Participation,
+                Some(contribution.to_string()),
+            )
+        } else {
+            if !contribution.is_empty() {
+                return Err("a testing grant takes no contribution ID".into());
+            }
+            (BetaGrantClass::Testing, None)
+        };
+        let memo = self.create_memo.trim();
+        if memo.is_empty() || memo.len() > MAX_BETA_MEMO_BYTES {
+            return Err(format!("memo must be 1-{MAX_BETA_MEMO_BYTES} bytes"));
+        }
+        let mut request = Request::GrantCreate {
+            operation_id: String::new(),
+            campaign_id: campaign_id.to_string(),
+            epoch: parse_hex32(&self.epoch, "epoch")?,
+            account: parse_hex32(&self.create_account, "recipient account")?,
+            class,
+            contribution_id,
+            amount: parse_amount_micro(&self.create_amount)?,
+            memo: memo.to_string(),
+        };
+        let operation_id = match &self.create_op {
+            Some((saved, id)) if *saved == request => id.clone(),
+            _ => {
+                let id = crate::app_service::operation_id("beta-grant");
+                self.create_op = Some((request.clone(), id.clone()));
+                id
+            }
+        };
+        if let Request::GrantCreate {
+            operation_id: slot, ..
+        } = &mut request
+        {
+            *slot = operation_id;
+        }
+        Ok(request)
+    }
+
+    pub(crate) fn on_policy_created(&mut self, policy_id: &str) {
+        self.policy_op = None;
+        self.grant_policy = policy_id.to_string();
+        self.status = format!(
+            "Grant policy created and saved locally (also filled in above): {policy_id}. It was \
+signed with your primary identity; the campaign author and the members are public identities. \
+Members approve grants under it. Test value only."
+        );
+    }
+
+    pub(crate) fn on_grant_created(&mut self, grant_id: &str) {
+        self.create_op = None;
+        self.grant_id = grant_id.to_string();
+        self.status = format!(
+            "Grant authorization created and saved locally (also filled in above): {grant_id}. \
+It has no effect until the policy threshold of members approve it. Test value only."
+        );
     }
 
     fn grant_ids(&self) -> Result<(String, String), String> {
@@ -445,6 +672,92 @@ not a conversion.",
                 }
             });
         });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new("Create grant policy").strong());
+            ui.label(
+                "Signs with your primary identity, which must be the campaign's author. The \
+author and every member are public identities by design. Amounts are BETA test value only. \
+The window start must not be earlier than the moment of creation; grants can only be made \
+once it has started.",
+            );
+            ui.add_enabled_ui(!busy, |ui| {
+                ui.label("Campaign ID");
+                ui.text_edit_singleline(&mut self.policy_campaign);
+                ui.label("Members (one DID per line, at least two)");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.policy_members)
+                        .desired_rows(3)
+                        .desired_width(f32::INFINITY),
+                );
+                ui.label("Testing threshold (distinct approvers, at least 2)");
+                ui.text_edit_singleline(&mut self.policy_testing_threshold);
+                ui.label("Participation threshold (at least the testing threshold)");
+                ui.text_edit_singleline(&mut self.policy_participation_threshold);
+                ui.label("Testing grant amount (BETA)");
+                ui.text_edit_singleline(&mut self.policy_testing_amount);
+                ui.label("Participation reward bands (BETA, one per line, increasing)");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.policy_bands)
+                        .desired_rows(2)
+                        .desired_width(f32::INFINITY),
+                );
+                ui.label("Valid from (unix ms)");
+                ui.text_edit_singleline(&mut self.policy_valid_from);
+                ui.label("Valid until (unix ms)");
+                ui.text_edit_singleline(&mut self.policy_valid_until);
+            });
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(!busy, theme::secondary_button("Suggest a 30-day window"))
+                    .clicked()
+                {
+                    self.suggest_window(crate::now_ms());
+                }
+                if ui
+                    .add_enabled(
+                        !busy && self.confirm,
+                        theme::secondary_button("Create grant policy"),
+                    )
+                    .clicked()
+                {
+                    request = Some(self.policy_create_request());
+                }
+            });
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new("Create grant").strong());
+            ui.label(
+                "Signs with your primary identity. The epoch is the one entered above. The \
+grant is test value only and has no effect until the policy threshold of members approve it.",
+            );
+            ui.add_enabled_ui(!busy, |ui| {
+                ui.label("Campaign ID");
+                ui.text_edit_singleline(&mut self.create_campaign);
+                ui.label("Recipient account (64 hex, must be registered)");
+                ui.text_edit_singleline(&mut self.create_account);
+                ui.checkbox(
+                    &mut self.create_participation,
+                    "Participation grant (otherwise a testing grant)",
+                );
+                ui.label("Contribution ID (participation grants only)");
+                ui.text_edit_singleline(&mut self.create_contribution);
+                ui.label("Amount (BETA, up to 6 decimals)");
+                ui.text_edit_singleline(&mut self.create_amount);
+                ui.label("Memo");
+                ui.text_edit_singleline(&mut self.create_memo);
+            });
+            if ui
+                .add_enabled(
+                    !busy && self.confirm,
+                    theme::secondary_button("Create grant authorization"),
+                )
+                .clicked()
+            {
+                request = Some(self.grant_create_request());
+            }
+        });
         match request {
             Some(Ok(request)) => {
                 if matches!(
@@ -452,6 +765,8 @@ not a conversion.",
                     Request::Register { .. }
                         | Request::Transfer { .. }
                         | Request::GrantApprove { .. }
+                        | Request::PolicyCreate { .. }
+                        | Request::GrantCreate { .. }
                 ) {
                     self.confirm = false;
                 }
@@ -669,6 +984,147 @@ mod tests {
         );
         p.grant_id = "g".repeat(MAX_OBJECT_ID_BYTES + 1);
         assert!(p.grant_approve_request().is_err(), "oversized id refused");
+    }
+
+    fn did(seed: u8) -> String {
+        did_mini::Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32])
+            .unwrap()
+            .did()
+            .as_str()
+            .to_string()
+    }
+
+    fn policy_panel() -> Panel {
+        let mut p = panel();
+        p.policy_campaign = "zcampaign".into();
+        p.policy_members = format!("{}\n{}\n{}\n", did(1), did(3), did(5));
+        p.policy_testing_threshold = "2".into();
+        p.policy_participation_threshold = "3".into();
+        p.policy_testing_amount = "0.0001".into();
+        p.policy_bands = "0.00005\n0.0001".into();
+        p.policy_valid_from = "1000".into();
+        p.policy_valid_until = "2000".into();
+        p
+    }
+
+    fn policy_id(r: Request) -> String {
+        match r {
+            Request::PolicyCreate { operation_id, .. } => operation_id,
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn policy_requests_validate_inputs_and_reuse_their_operation_id_until_answered() {
+        let mut p = policy_panel();
+        match p.policy_create_request().unwrap() {
+            Request::PolicyCreate {
+                members,
+                testing_amount,
+                reward_bands,
+                testing_threshold,
+                participation_threshold,
+                ..
+            } => {
+                assert_eq!(members.len(), 3);
+                assert_eq!(testing_amount, 100);
+                assert_eq!(reward_bands, vec![50, 100]);
+                assert_eq!((testing_threshold, participation_threshold), (2, 3));
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        let first = policy_id(p.policy_create_request().unwrap());
+        assert_eq!(first, policy_id(p.policy_create_request().unwrap()));
+        p.policy_valid_until = "3000".into();
+        let changed = policy_id(p.policy_create_request().unwrap());
+        assert_ne!(first, changed, "different content gets a new id");
+        p.on_policy_created("zpolicy");
+        assert_eq!(p.grant_policy, "zpolicy");
+        assert_ne!(changed, policy_id(p.policy_create_request().unwrap()));
+
+        let bad = |edit: &dyn Fn(&mut Panel)| {
+            let mut p = policy_panel();
+            edit(&mut p);
+            assert!(p.policy_create_request().is_err());
+        };
+        bad(&|p| p.policy_campaign.clear());
+        bad(&|p| p.policy_members = format!("{}\nnot-a-did\n{}", did(1), did(3)));
+        bad(&|p| p.policy_members = format!("{}\n{}\n{}", did(1), did(1), did(3)));
+        bad(&|p| p.policy_members = did(1));
+        bad(&|p| p.policy_testing_threshold = "1".into());
+        bad(&|p| p.policy_participation_threshold = "4".into());
+        bad(&|p| {
+            p.policy_testing_threshold = "3".into();
+            p.policy_participation_threshold = "2".into();
+        });
+        bad(&|p| p.policy_testing_threshold = "x".into());
+        bad(&|p| p.policy_testing_amount = "0".into());
+        bad(&|p| p.policy_bands.clear());
+        bad(&|p| p.policy_bands = "0.0002\n0.0001".into());
+        bad(&|p| p.policy_bands = "0.0001\n0.0001".into());
+        bad(&|p| p.policy_valid_from = "2000".into());
+        bad(&|p| p.policy_valid_until = "soon".into());
+    }
+
+    #[test]
+    fn suggested_window_is_absolute_and_stable_across_retries() {
+        let mut p = policy_panel();
+        p.suggest_window(1_000_000);
+        assert_eq!(p.policy_valid_from, "1120000");
+        let first = policy_id(p.policy_create_request().unwrap());
+        assert_eq!(first, policy_id(p.policy_create_request().unwrap()));
+    }
+
+    #[test]
+    fn grant_creation_requests_validate_inputs_and_reuse_their_operation_id() {
+        let id = |r: Request| match r {
+            Request::GrantCreate { operation_id, .. } => operation_id,
+            other => panic!("unexpected {other:?}"),
+        };
+        let mut p = panel();
+        p.create_campaign = "zcampaign".into();
+        p.create_account = "03".repeat(32);
+        p.create_amount = "0.0001".into();
+        p.create_memo = "testing balance".into();
+        match p.grant_create_request().unwrap() {
+            Request::GrantCreate {
+                class,
+                contribution_id,
+                amount,
+                ..
+            } => {
+                assert_eq!(class, BetaGrantClass::Testing);
+                assert_eq!(contribution_id, None);
+                assert_eq!(amount, 100);
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        let first = id(p.grant_create_request().unwrap());
+        assert_eq!(first, id(p.grant_create_request().unwrap()));
+        p.create_amount = "0.0002".into();
+        let changed = id(p.grant_create_request().unwrap());
+        assert_ne!(first, changed);
+        p.on_grant_created("zgrant");
+        assert_eq!(p.grant_id, "zgrant");
+        assert_ne!(changed, id(p.grant_create_request().unwrap()));
+
+        let bad = |edit: &dyn Fn(&mut Panel)| {
+            let mut p = panel();
+            p.create_campaign = "zcampaign".into();
+            p.create_account = "03".repeat(32);
+            p.create_amount = "0.0001".into();
+            p.create_memo = "m".into();
+            edit(&mut p);
+            assert!(p.grant_create_request().is_err());
+        };
+        bad(&|p| p.create_campaign.clear());
+        bad(&|p| p.create_account = "zz".repeat(32));
+        bad(&|p| p.create_account = "00".repeat(32));
+        bad(&|p| p.epoch = "bad".into());
+        bad(&|p| p.create_amount = "0".into());
+        bad(&|p| p.create_memo = "  ".into());
+        bad(&|p| p.create_contribution = "zcontribution".into());
+        bad(&|p| p.create_participation = true);
     }
 
     #[test]

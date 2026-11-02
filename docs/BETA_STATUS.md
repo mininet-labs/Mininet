@@ -152,12 +152,19 @@ be silently linked merely to manufacture reputation continuity.
 - [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX. *Done:* the
   `mini beta` CLI (accounts, balances, transfer, grant policy/grant/approve/status)
   and a desktop **BETA wallet** panel (register account, refresh balances, send,
-  approve a grant, check grant status) served by new application-core commands. Every surface labels amounts BETA,
+  create a grant policy, create a grant, approve a grant, check grant status) served by new application-core commands. Every surface labels amounts BETA,
   provisional and not production MINI. *Not done:* the desktop panel's layout has
   not been exercised on a real Windows display (its input parsing, request
   building, protocol framing and core handlers are unit-tested). Grant
-  creation and policy creation remain CLI-only; the desktop panel only
-  approves and checks status. Grant approval is signed by the user's PRIMARY
+  policy creation and grant creation are now also in the desktop panel (same
+  checks as the CLI, via non-inserting `build_*` library twins so the exact
+  signed object is journaled before commit; retry-safe like approval). They
+  are signed by the PRIMARY identity, which must be the campaign's author, so
+  the author and every policy member appear as public DIDs. The policy's
+  start must be no earlier than its creation moment and grants can only be
+  made once the window has started (the panel offers an absolute suggested
+  window). Not done: this creation UI has likewise not been exercised on a real
+  display. Grant approval is signed by the user's PRIMARY
   identity, not a per-account one, because policy members are public DIDs by
   design, so an approval publicly links that DID to the approved grant. Grant
   status counts only approvals present in the local store (found by scanning
