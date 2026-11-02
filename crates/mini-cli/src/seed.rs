@@ -23,8 +23,12 @@ const MAX_RECORDS: usize = 4096;
 /// Evidence records one remote identity root may occupy, so a single
 /// allowlisted peer cannot fill the shared journal and starve the others.
 const MAX_EVIDENCE_PER_PEER: usize = 256;
+const ARCHIVE_DIR: &str = "seed-evidence-archive";
+const REPLAY_INDEX: &str = "replay.jsonl";
 fn err(e: impl std::fmt::Display) -> CliError {
-    CliError::Usage(format!("seed: {e}"))
+    let text = e.to_string();
+    let hint = crate::error::disk_full_hint(&text);
+    CliError::Usage(format!("seed: {text}{hint}"))
 }
 fn now() -> u64 {
     crate::sequence::now_ms()
@@ -321,16 +325,150 @@ fn records(home: &Path) -> Result<Vec<Evidence>> {
     }
     Ok(records)
 }
+/// Archived receipts, for read-only listing (earnings); never part of the
+/// hot-path replay check, which uses the compact index instead.
+fn archived_records(home: &Path) -> Result<Vec<Evidence>> {
+    let dir = home.join(ARCHIVE_DIR);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    safe_dir(&dir)?;
+    let mut out = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(err)? {
+        let entry = entry.map_err(err)?;
+        if !entry.file_name().to_string_lossy().ends_with(".json") {
+            continue;
+        }
+        out.push(serde_json::from_slice(&read_file(&entry.path(), MAX_RECORD)?).map_err(err)?);
+    }
+    Ok(out)
+}
 fn peer_evidence_count(all: &[Evidence], root: &str) -> usize {
     all.iter()
         .filter(|r| r.witness_root == root || r.host_root == root)
         .count()
 }
-fn check_peer_evidence_quota(home: &Path, root: &str) -> Result<()> {
-    if peer_evidence_count(&records(home)?, root) >= MAX_EVIDENCE_PER_PEER {
-        return Err(err("peer evidence quota reached; archive explicitly"));
+/// Nothing is ever deleted and nobody has to run a command: when the journal
+/// (or one peer's share of it) is nearly full, the oldest records move to
+/// `seed-evidence-archive/` and their replay keys go to an append-only index so
+/// receipt-replay protection survives archiving. Caller holds the journal lock.
+fn make_room(home: &Path, all: &mut Vec<Evidence>, roots: &[&str], own: &str) -> Result<()> {
+    let hot = home.join("seed-evidence");
+    let arch = home.join(ARCHIVE_DIR);
+    let over_global = all.len() >= MAX_RECORDS * 3 / 4;
+    let over_peer = |all: &[Evidence], r: &str| {
+        r != own && peer_evidence_count(all, r) >= MAX_EVIDENCE_PER_PEER * 3 / 4
+    };
+    if !over_global && !roots.iter().any(|r| over_peer(all, r)) {
+        return Ok(());
     }
+    safe_dir(&arch)?;
+    let mut order: Vec<usize> = (0..all.len()).collect();
+    order.sort_by_key(|&i| all[i].at_ms);
+    let mut moved = std::collections::HashSet::new();
+    let mut index = Vec::new();
+    for &i in &order {
+        let e = &all[i];
+        let global_left = all.len() - moved.len();
+        let needed = global_left > MAX_RECORDS / 2
+            || roots.iter().any(|r| {
+                *r != own
+                    && (e.host_root == *r || e.witness_root == *r)
+                    && all
+                        .iter()
+                        .enumerate()
+                        .filter(|(j, x)| {
+                            !moved.contains(j) && (x.host_root == *r || x.witness_root == *r)
+                        })
+                        .count()
+                        > MAX_EVIDENCE_PER_PEER / 2
+            });
+        if !needed {
+            continue;
+        }
+        let name = format!("{}.json", e.id);
+        fs::rename(hot.join(&name), arch.join(&name)).map_err(err)?;
+        index.push(serde_json::to_string(&ReplayKey::from(e)).map_err(err)?);
+        moved.insert(i);
+    }
+    if !index.is_empty() {
+        let mut f = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(arch.join(REPLAY_INDEX))
+            .map_err(err)?;
+        f.write_all((index.join("\n") + "\n").as_bytes())
+            .and_then(|_| f.sync_all())
+            .map_err(err)?;
+    }
+    let mut i = 0;
+    all.retain(|_| {
+        let keep = !moved.contains(&i);
+        i += 1;
+        keep
+    });
     Ok(())
+}
+#[derive(Serialize, Deserialize)]
+struct ReplayKey {
+    id: String,
+    hd: String,
+    hn: [u8; 32],
+    wd: String,
+    wn: [u8; 32],
+}
+impl ReplayKey {
+    fn from(e: &Evidence) -> Self {
+        ReplayKey {
+            id: e.id.clone(),
+            hd: e.host_device.clone(),
+            hn: e.host_nonce,
+            wd: e.witness_device.clone(),
+            wn: e.witness_nonce,
+        }
+    }
+}
+/// Streams the archive's replay index; true if `e` collides with an archived
+/// receipt by id or by either party's nonce.
+fn archived_replay(home: &Path, e: &Evidence) -> Result<bool> {
+    use std::io::{BufRead, BufReader};
+    let path = home.join(ARCHIVE_DIR).join(REPLAY_INDEX);
+    let f = match File::open(&path) {
+        Ok(f) => f,
+        Err(x) if x.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(x) => return Err(err(x)),
+    };
+    for line in BufReader::new(f).lines() {
+        let line = line.map_err(err)?;
+        if line.is_empty() {
+            continue;
+        }
+        let k: ReplayKey = serde_json::from_str(&line).map_err(err)?;
+        if k.id == e.id
+            || (k.hd == e.host_device && k.hn == e.host_nonce)
+            || (k.wd == e.witness_device && k.wn == e.witness_nonce)
+            || (k.hd == e.witness_device && k.hn == e.witness_nonce)
+            || (k.wd == e.host_device && k.wn == e.host_nonce)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+/// Reads one receipt from the journal or its archive by id.
+fn find_record(home: &Path, id: &str) -> Result<Option<Evidence>> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Ok(None);
+    }
+    for d in ["seed-evidence", ARCHIVE_DIR] {
+        let p = home.join(d).join(format!("{id}.json"));
+        match read_file(&p, MAX_RECORD) {
+            Ok(b) => return Ok(Some(serde_json::from_slice(&b).map_err(err)?)),
+            Err(_) if !p.exists() => continue,
+            Err(x) => return Err(x),
+        }
+    }
+    Ok(None)
 }
 fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
     e.verify(home)?;
@@ -350,7 +488,17 @@ fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
             }
         }
     }
-    let all = records(home)?;
+    let mut all = records(home)?;
+    let own = crate::identity::load(home)?.human_did().to_string();
+    make_room(
+        home,
+        &mut all,
+        &[e.host_root.as_str(), e.witness_root.as_str()],
+        &own,
+    )?;
+    if archived_replay(home, e)? {
+        return Err(err("receipt replay"));
+    }
     if all.iter().any(|old| {
         old.id == e.id
             || (old.host_device == e.host_device && old.host_nonce == e.host_nonce)
@@ -362,12 +510,6 @@ fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
     }
     if all.len() >= MAX_RECORDS {
         return Err(err("evidence journal full"));
-    }
-    let own = crate::identity::load(home)?.human_did().to_string();
-    for root in [&e.host_root, &e.witness_root] {
-        if *root != own && peer_evidence_count(&all, root) >= MAX_EVIDENCE_PER_PEER {
-            return Err(err("peer evidence quota reached; archive explicitly"));
-        }
     }
     let bytes = serde_json::to_vec(e).map_err(err)?;
     mini_durable::atomic_replace(&dir.join(format!("{}.json", e.id)), &bytes).map_err(err)
@@ -485,7 +627,6 @@ pub(crate) fn serve_stream(
             if peer == identity.human_did() {
                 return Err(err("self-serving cannot produce reward evidence"));
             }
-            check_peer_evidence_quota(home, &peer.to_string())?;
             let o = offer(home, &id)?;
             if max_bytes == 0 || max_bytes > MAX_OBJECT as u64 || o.bytes > max_bytes {
                 return Err(err("object exceeds receiver byte window"));
@@ -1063,7 +1204,8 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
         }
         "earnings" => {
             done(&args)?;
-            let all = records(home)?;
+            let mut all = records(home)?;
+            all.extend(archived_records(home)?);
             let identity = crate::identity::load(home)?;
             let items:Vec<_>=all.iter().filter(|e|e.host_root==identity.human_did().as_str()).map(|e|json!({"receipt_id":e.id,"object_id":e.content_id,"bytes":e.bytes,"payment_state":if e.payment.is_some(){"AcceptedLocal"}else{"NoPayment"},"payment_final":false})).collect();
             json!({"deliveries":items,"finalized_micro":null,"canonical_status_checked":false,"note":"Signed promises are not balances. Submit exported claims through canonical settlement; this journal never finalizes money."})
@@ -1072,11 +1214,8 @@ pub fn dispatch(home: &Path, store: &Path, mut args: Vec<String>, as_json: bool)
             let id = need(&mut args, "--receipt")?;
             let output = need(&mut args, "--output")?;
             done(&args)?;
-            let all = records(home)?;
-            let e = all
-                .iter()
-                .find(|e| e.id == id)
-                .ok_or_else(|| err("receipt missing"))?;
+            let e = find_record(home, &id)?.ok_or_else(|| err("receipt missing"))?;
+            let e = &e;
             let bytes = e
                 .payment
                 .as_ref()
@@ -1179,6 +1318,42 @@ mod peer_quota_tests {
             witness_sig: vec![],
             payment: None,
         }
+    }
+
+    #[test]
+    fn full_journal_archives_oldest_automatically_and_keeps_replay_protection() {
+        let n = 8;
+        let home = std::env::temp_dir().join(format!("mini-seed-arch-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&home);
+        fs::create_dir_all(home.join("seed-evidence")).unwrap();
+        let mut all: Vec<Evidence> = (0..MAX_RECORDS)
+            .map(|i| {
+                let mut e = ev("me", "a");
+                e.id = format!("{i:08x}");
+                e.at_ms = i as u64;
+                e.host_nonce = [1; 32];
+                e.host_device = format!("d{i}");
+                fs::write(
+                    home.join("seed-evidence").join(format!("{}.json", e.id)),
+                    b"{}",
+                )
+                .unwrap();
+                e
+            })
+            .collect();
+        make_room(&home, &mut all, &["a"], "me").unwrap();
+        assert!(all.len() <= MAX_RECORDS / 2);
+        assert!(all.iter().all(|e| e.at_ms >= (MAX_RECORDS / 2) as u64 - n));
+        let mut again = ev("me", "a");
+        again.id = format!("{:08x}", 0);
+        assert!(archived_replay(&home, &again).unwrap());
+        let mut fresh = ev("me", "a");
+        fresh.id = "ffffffff".into();
+        fresh.host_device = "unique".into();
+        fresh.witness_device = "unique-w".into();
+        fresh.witness_nonce = [9; 32];
+        assert!(!archived_replay(&home, &fresh).unwrap());
+        let _ = fs::remove_dir_all(&home);
     }
 
     #[test]

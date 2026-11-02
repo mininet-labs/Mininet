@@ -249,3 +249,17 @@ to the final phase now.
 **Production / Go-Live: NO.** Physical acceptance, durable/user-facing Beta MINI,
 Forge-independent operation, the one-way Forge-canonical handoff, and the
 remaining substantive safety gates still have to be proven.
+
+## Automatic housekeeping (no engineer needed)
+
+- **Evidence journal:** when the seed evidence journal (or one peer's share of it)
+  reaches 75% of its bound, the oldest receipts move automatically to
+  `seed-evidence-archive/`. Nothing is deleted. Replay protection survives
+  archiving via an append-only `replay.jsonl` index; `earnings` and
+  `payment-export` read the archive too. There is no "archive explicitly" step.
+- **Disk full:** I/O errors that mean "out of space" now say, in plain language,
+  to free space and retry; writes are atomic so nothing is lost.
+- **Not yet automatic:** the other durable stores (BETA operation journals,
+  KEL/object stores, seed pool eviction) still fail closed when full without
+  self-cleaning; proactive free-space checks need a platform statvfs and are not
+  built. The archive itself grows until the disk does.
