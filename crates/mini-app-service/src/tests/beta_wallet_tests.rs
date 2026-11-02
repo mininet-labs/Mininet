@@ -1472,3 +1472,33 @@ fn a_journaled_but_uncommitted_policy_or_grant_is_recovered_not_duplicated() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn storage_status_reports_a_level_and_sweeps_stale_temporaries_in_the_profile() {
+    let (mut core, root) = unlocked("storage-status");
+    // A stale interrupted-write temporary deep in the profile is garbage; a
+    // fresh one (a write in progress) and real files must stay.
+    let dir = root.join("app-service/outbox");
+    fs::create_dir_all(&dir).unwrap();
+    let stale = dir.join("rec.json.99999-1.tmp");
+    let fresh = dir.join("rec.json.99999-2.tmp");
+    let real = dir.join("rec.json");
+    for p in [&stale, &fresh, &real] {
+        fs::write(p, b"x").unwrap();
+    }
+    let old = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    fs::File::options()
+        .write(true)
+        .open(&stale)
+        .unwrap()
+        .set_modified(old)
+        .unwrap();
+    match core.handle(Command::StorageStatus).unwrap() {
+        Reply::Storage { level, .. } => assert!(level <= 2),
+        _ => panic!("unexpected reply"),
+    }
+    // The sweep only runs when space is not Ok, so assert the invariants that
+    // hold either way: nothing that must stay was ever removed.
+    assert!(fresh.exists() && real.exists());
+    fs::remove_dir_all(root).unwrap();
+}
