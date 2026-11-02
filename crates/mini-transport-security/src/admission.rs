@@ -369,8 +369,11 @@ mod tests {
         }
         // base 2 + one bit each: admitted while own bits <= 12 => seq 0..=10.
         assert_eq!(ok, 11);
+        // Exhaustion is decided before the work is even looked at, so any
+        // nonce (derived here, not a literal) is refused the same way.
+        let any_nonce = u64::from(digest(98)[0]);
         assert_eq!(
-            m.admit(b"bot", &digest(99), 0, 100),
+            m.admit(b"bot", &digest(99), any_nonce, 100),
             Err(Refused::SourceExhausted)
         );
     }
