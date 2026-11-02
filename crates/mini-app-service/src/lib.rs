@@ -14,6 +14,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod cache_policy;
 mod delivery_interrupt;
 pub use delivery_interrupt::{DeliveryInterrupt, DeliveryStopGuard};
 mod delivery_peers;
@@ -122,6 +123,10 @@ impl IdentityVault for WindowsIdentityVault {
 pub struct Core<V: IdentityVault> {
     /// Profile directory; used for free-space checks and safe housekeeping.
     root: PathBuf,
+    /// How long other people's re-fetchable cached content is kept.
+    cache_retention: cache_policy::Retention,
+    /// Bytes the most recent automatic cache pass freed.
+    cache_freed_bytes: u64,
     store: Store<FsBackend>,
     vault: V,
     identity: Option<CoreIdentity>,
@@ -192,6 +197,8 @@ impl<V: IdentityVault> Core<V> {
         let next_sequence = journal.ensure_sequence_floor(store_next)?;
 
         Ok(Self {
+            cache_retention: cache_policy::load(&root),
+            cache_freed_bytes: 0,
             root,
             store,
             vault,
@@ -294,8 +301,36 @@ impl<V: IdentityVault> Core<V> {
                 policy_id,
                 grant_id,
             } => self.beta_grant_status(&policy_id, &grant_id),
+            Command::CacheRetentionGet => Ok(Reply::CacheRetention {
+                value: self.cache_retention.to_u8(),
+                freed_kib: self.cache_freed_bytes / 1024,
+            }),
+            Command::CacheRetentionSet { value } => {
+                let retention = cache_policy::Retention::from_u8(value).ok_or_else(|| {
+                    ServiceError::new(ErrorCode::BadRequest, "cache retention must be 0..=3")
+                })?;
+                cache_policy::save(&self.root, retention)?;
+                self.cache_retention = retention;
+                Ok(Reply::CacheRetention {
+                    value,
+                    freed_kib: self.cache_freed_bytes / 1024,
+                })
+            }
             Command::StorageStatus => {
                 let report = mini_durable::space::housekeep(&self.root);
+                if let Some(owner) = self.human.clone() {
+                    let freed = cache_policy::evict_expired(
+                        &mut self.store,
+                        &owner,
+                        self.cache_retention,
+                        report.after,
+                        now_ms(),
+                    );
+                    if freed > 0 {
+                        self.cache_freed_bytes = freed;
+                        self.emit(ServiceEventKind::FeedChanged);
+                    }
+                }
                 Ok(Reply::Storage {
                     level: match report.after {
                         mini_durable::space::SpaceLevel::Ok => 0,
@@ -2795,6 +2830,7 @@ mod tests {
     use mini_app_protocol::{FeedScope, Reply};
 
     mod beta_wallet_tests;
+    mod cache_policy_tests;
 
     #[derive(Debug, Clone)]
     struct MemoryVault {

@@ -530,7 +530,15 @@ impl Request {
             | Command::DeliveryPeers
             | Command::SetDeliveryEnabled { .. }
             | Command::StopDeliveryListener => {}
+            Command::CacheRetentionSet { value } => {
+                if *value > 3 {
+                    return Err(ProtocolError::InvalidRequest(
+                        "cache retention must be 0..=3".into(),
+                    ));
+                }
+            }
             Command::StorageStatus
+            | Command::CacheRetentionGet
             | Command::Status
             | Command::CreateRoot
             | Command::UnlockIdentity
@@ -696,6 +704,13 @@ pub enum Command {
     /// Free-space level of the device holding the profile. The core also runs
     /// its safe automatic clean-ups before answering.
     StorageStatus,
+    /// Read how long other people's re-fetchable cached content is kept.
+    CacheRetentionGet,
+    /// Set the retention: 0 = short (7 days), 1 = standard (30 days),
+    /// 2 = long (180 days), 3 = never delete automatically.
+    CacheRetentionSet {
+        value: u8,
+    },
     BetaGrantCreate {
         operation_id: String,
         campaign_id: String,
@@ -875,6 +890,12 @@ pub enum Reply {
     Storage {
         level: u8,
         free_mib: u64,
+        freed_kib: u64,
+    },
+    /// Current cache retention (see [`Command::CacheRetentionSet`]) and how
+    /// much cached content the last automatic pass removed.
+    CacheRetention {
+        value: u8,
         freed_kib: u64,
     },
     /// Evidence only: an accepted grant is not a conversion or issuance.
@@ -1100,6 +1121,11 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
     match command {
         Command::Status => encoder.u8(0),
         Command::StorageStatus => encoder.u8(47),
+        Command::CacheRetentionGet => encoder.u8(48),
+        Command::CacheRetentionSet { value } => {
+            encoder.u8(49);
+            encoder.u8(*value);
+        }
         Command::CreateRoot => encoder.u8(1),
         Command::UnlockIdentity => encoder.u8(2),
         Command::LockIdentity => encoder.u8(3),
@@ -1412,6 +1438,14 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
     match decoder.u8()? {
         0 => Ok(Command::Status),
         47 => Ok(Command::StorageStatus),
+        48 => Ok(Command::CacheRetentionGet),
+        49 => {
+            let value = decoder.u8()?;
+            if value > 3 {
+                return Err(ProtocolError::Decode("cache retention out of range".into()));
+            }
+            Ok(Command::CacheRetentionSet { value })
+        }
         1 => Ok(Command::CreateRoot),
         2 => Ok(Command::UnlockIdentity),
         3 => Ok(Command::LockIdentity),
@@ -1828,6 +1862,11 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
             encoder.u8(46);
             encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
         }
+        Reply::CacheRetention { value, freed_kib } => {
+            encoder.u8(48);
+            encoder.u8(*value);
+            encoder.u64(*freed_kib);
+        }
         Reply::Storage {
             level,
             free_mib,
@@ -1971,6 +2010,16 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
         46 => Ok(Reply::BetaGrantCreated {
             grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
         }),
+        48 => {
+            let value = decoder.u8()?;
+            if value > 3 {
+                return Err(ProtocolError::Decode("cache retention out of range".into()));
+            }
+            Ok(Reply::CacheRetention {
+                value,
+                freed_kib: decoder.u64()?,
+            })
+        }
         47 => {
             let level = decoder.u8()?;
             if level > 2 {
@@ -2868,6 +2917,8 @@ mod tests {
                 grant_id: "zgrant".to_string(),
             },
             Command::StorageStatus,
+            Command::CacheRetentionGet,
+            Command::CacheRetentionSet { value: 3 },
             policy_create(),
             Command::BetaGrantCreate {
                 operation_id: "op-6".to_string(),
@@ -2937,6 +2988,10 @@ mod tests {
                 level: 1,
                 free_mib: 120,
                 freed_kib: 4096,
+            },
+            Reply::CacheRetention {
+                value: 1,
+                freed_kib: 2048,
             },
         ] {
             let response = Response::ok(6, reply);

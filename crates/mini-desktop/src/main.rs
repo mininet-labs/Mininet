@@ -289,6 +289,10 @@ struct MininetApp {
     storage: Option<(u8, u64)>,
     storage_rx: Option<Receiver<Result<AppReply, String>>>,
     storage_due: Instant,
+    /// How long other people's cached content is kept: 0 short, 1 standard,
+    /// 2 long, 3 never delete. `None` until the core has answered.
+    cache_retention: Option<u8>,
+    retention_rx: Option<Receiver<Result<AppReply, String>>>,
     app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
     app_events_rx: Option<Receiver<Result<AppReply, String>>>,
     app_events_due: Instant,
@@ -1540,6 +1544,8 @@ impl Default for MininetApp {
             storage: None,
             storage_rx: None,
             storage_due: Instant::now(),
+            cache_retention: None,
+            retention_rx: None,
             app_action: None,
             app_events_rx: None,
             app_events_due: Instant::now(),
@@ -2044,6 +2050,24 @@ impl MininetApp {
     /// runs its safe clean-ups first, so a `Low` answer means space is still
     /// short after Mininet freed what it safely could.
     fn poll_storage(&mut self) {
+        if let Some(receiver) = self.retention_rx.as_ref() {
+            match receiver.try_recv() {
+                Ok(result) => {
+                    self.retention_rx = None;
+                    if let Ok(AppReply::CacheRetention { value, .. }) = result {
+                        self.cache_retention = Some(value);
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+                Err(mpsc::TryRecvError::Disconnected) => self.retention_rx = None,
+            }
+        } else if self.cache_retention.is_none() {
+            if let Some(client) = self.app_service.as_ref() {
+                if let Ok(receiver) = client.request(AppCommand::CacheRetentionGet) {
+                    self.retention_rx = Some(receiver);
+                }
+            }
+        }
         if let Some(receiver) = self.storage_rx.as_ref() {
             match receiver.try_recv() {
                 Ok(result) => {
@@ -8674,7 +8698,52 @@ No tracking. No forced updates.",
         ui.label("Media playback is designed to work from local chunks first. External catalog adapters are opt-in and never become update or identity authorities.");
     }
 
+    /// Storage card: current headroom and the owner's cache-retention choice.
+    fn storage_card(&mut self, ui: &mut egui::Ui) {
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new("Storage").strong());
+            match self.storage {
+                Some((level, free_mib)) if level >= 1 => {
+                    ui.label(storage_warning_text(level, free_mib));
+                }
+                Some((_, free_mib)) if free_mib > 0 => {
+                    ui.label(format!("{free_mib} MB free on this device."));
+                }
+                _ => {}
+            }
+            ui.label(
+                "Other people's posts and media are kept here only as a re-fetchable cache. \
+                 Mininet removes old cache automatically to save space (sooner if the device \
+                 runs low). Your own content, pinned items and private data are never removed.",
+            );
+            let current = self.cache_retention.unwrap_or(1);
+            let mut chosen = current;
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Keep cached content for");
+                egui::ComboBox::from_id_salt("cache-retention")
+                    .selected_text(retention_label(current))
+                    .show_ui(ui, |ui| {
+                        for value in 0..=3u8 {
+                            ui.selectable_value(&mut chosen, value, retention_label(value));
+                        }
+                    });
+            });
+            if chosen != current && self.retention_rx.is_none() {
+                if let Some(client) = self.app_service.as_ref() {
+                    if let Ok(receiver) =
+                        client.request(AppCommand::CacheRetentionSet { value: chosen })
+                    {
+                        self.cache_retention = Some(chosen);
+                        self.retention_rx = Some(receiver);
+                    }
+                }
+            }
+        });
+        ui.add_space(10.0);
+    }
+
     fn system(&mut self, ui: &mut egui::Ui) {
+        self.storage_card(ui);
         let Some(workspace) = self.workspace.as_ref() else {
             ui.colored_label(egui::Color32::YELLOW, "Local workspace unavailable.");
             return;
@@ -10307,8 +10376,27 @@ fn storage_warning_text(level: u8, free_mib: u64) -> String {
     }
 }
 
+fn retention_label(value: u8) -> &'static str {
+    match value {
+        0 => "7 days",
+        1 => "30 days (default)",
+        2 => "6 months",
+        _ => "Never delete (I will manage space myself)",
+    }
+}
+
 #[cfg(test)]
 mod storage_banner_tests {
+    use super::retention_label;
+
+    #[test]
+    fn every_retention_choice_has_a_plain_label() {
+        for value in 0..=3u8 {
+            assert!(!retention_label(value).is_empty());
+        }
+        assert!(retention_label(3).contains("Never"));
+    }
+
     use super::storage_warning_text;
 
     #[test]

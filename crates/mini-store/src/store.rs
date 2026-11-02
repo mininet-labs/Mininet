@@ -60,6 +60,15 @@ pub enum HeadState {
     Stale,
 }
 
+/// What one [`Store::evict_cached`] call removed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct EvictReport {
+    /// Objects removed.
+    pub objects: usize,
+    /// Blob bytes freed.
+    pub bytes: u64,
+}
+
 /// A content-addressed object store over any [`Backend`].
 #[derive(Debug)]
 pub struct Store<B: Backend> {
@@ -121,6 +130,92 @@ impl<B: Backend> Store<B> {
             }
             None => Err(StoreError::NotFound),
         }
+    }
+
+    /// When this device first saw `id` (ms), if recorded. Used only to age
+    /// re-fetchable cache; it says nothing about authorship or validity.
+    pub fn first_seen_ms(&self, id: &ObjectId) -> Result<Option<u64>> {
+        match self.backend.get_meta(&format!("seen/{}", id.as_str()))? {
+            Some(bytes) => {
+                let raw: [u8; 8] = bytes
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| StoreError::Corrupt)?;
+                Ok(Some(u64::from_be_bytes(raw)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Record `now_ms` as first-seen time unless one exists; returns the
+    /// recorded value. Objects stored before this existed start aging from
+    /// their first observation, never from an author-claimed timestamp.
+    pub fn note_first_seen(&mut self, id: &ObjectId, now_ms: u64) -> Result<u64> {
+        if let Some(existing) = self.first_seen_ms(id)? {
+            return Ok(existing);
+        }
+        self.backend
+            .put_meta(&format!("seen/{}", id.as_str()), &now_ms.to_be_bytes())?;
+        Ok(now_ms)
+    }
+
+    /// Remove re-fetchable cache objects and every index row that names them.
+    ///
+    /// All-or-nothing validation first: each id must be present, in the
+    /// default [`crate::CacheTier::EphemeralCache`] tier (pinned, seeded,
+    /// committed and private content is never evictable), not encrypted, and
+    /// no object *outside this set* may link to it (so a retained reply never
+    /// loses its parent). Deletion order keeps a crash harmless: the enumeration
+    /// row goes first, the blob last, so a partial failure can only leave an
+    /// orphan, never an indexed object with no content. Authorship/type/age
+    /// policy belongs to the caller; this method only enforces the invariants
+    /// that keep the store consistent.
+    pub fn evict_cached(&mut self, ids: &[ObjectId]) -> Result<EvictReport> {
+        let set: std::collections::BTreeSet<&str> = ids.iter().map(ObjectId::as_str).collect();
+        let mut objects = Vec::new();
+        for id in ids {
+            let object = match self.get(id) {
+                Ok(object) => object,
+                Err(StoreError::NotFound) => continue,
+                Err(e) => return Err(e),
+            };
+            if self.cache_tier(id)? != crate::CacheTier::EphemeralCache
+                || matches!(object.payload, Payload::Encrypted(_))
+            {
+                return Err(StoreError::NotEvictable);
+            }
+            for linker in self.linking_to(id)? {
+                if !set.contains(linker.as_str()) {
+                    return Err(StoreError::NotEvictable);
+                }
+            }
+            objects.push(object);
+        }
+        let mut report = EvictReport::default();
+        for object in &objects {
+            let id = object.id().as_str();
+            let len = self.backend.get_blob(id)?.map_or(0, |b| b.len() as u64);
+            self.backend.delete_meta(&format!("idx/id/{id}"))?;
+            self.backend
+                .delete_meta(&format!("idx/author/{}/{id}", object.author_human.scid()))?;
+            self.backend
+                .delete_meta(&format!("idx/type/{}/{id}", type_key(&object.object_type)))?;
+            for link in &object.links {
+                self.backend
+                    .delete_meta(&format!("idx/link/{}/{id}", link.target.as_str()))?;
+            }
+            self.backend
+                .delete_meta(&format!("idx/time/{}/{id}", time_key(object.timestamp_ms)))?;
+            self.backend.delete_meta(&format!("cache/{id}"))?;
+            self.backend.delete_meta(&format!("seen/{id}"))?;
+            self.backend.delete_blob(id)?;
+            report.objects += 1;
+            report.bytes += len;
+        }
+        if report.objects > 0 {
+            self.backend.finish_deletions()?;
+        }
+        Ok(report)
     }
 
     /// Whether an object is present.
