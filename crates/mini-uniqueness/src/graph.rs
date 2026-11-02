@@ -69,6 +69,26 @@ impl VouchGraph {
             .insert(verdict.a_root.clone());
     }
 
+    /// Record a verified vouch only if neither side would exceed `max_degree`
+    /// distinct vouches. Returns whether the edge is now present. Capping
+    /// degree raises the cost of a farm pumping one root with many cheap
+    /// vouches and bounds how much trust any one root can fan out. Re-adding
+    /// an existing edge is idempotent and always allowed.
+    pub fn add_verdict_capped(&mut self, verdict: &VouchVerdict, max_degree: usize) -> bool {
+        let exists = self
+            .edges
+            .get(&verdict.a_root)
+            .is_some_and(|n| n.contains(&verdict.b_root));
+        if !exists
+            && (self.degree(&verdict.a_root) >= max_degree
+                || self.degree(&verdict.b_root) >= max_degree)
+        {
+            return false;
+        }
+        self.add_verdict(verdict);
+        true
+    }
+
     /// How many distinct identity roots have vouched for `node`.
     pub fn degree(&self, node: &Did) -> usize {
         self.edges.get(node).map(HashSet::len).unwrap_or(0)
@@ -87,6 +107,37 @@ impl VouchGraph {
     /// Total distinct identity roots in the graph.
     pub fn node_count(&self) -> usize {
         self.edges.len()
+    }
+}
+
+/// Per-epoch cap on how many new vouches one identity root may form, so a
+/// farm cannot mint a dense web of vouches quickly. Pure bookkeeping; the
+/// caller picks the cap from the stage in force and the epoch from consensus.
+#[derive(Debug, Default)]
+pub struct VouchQuota {
+    used: HashMap<(Did, u64), u32>,
+}
+
+impl VouchQuota {
+    /// An empty quota ledger.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Spend one vouch for `root` in `epoch` if under `cap`; both parties of a
+    /// vouch should be charged (call once per side). Returns whether allowed.
+    pub fn try_spend(&mut self, root: &Did, epoch: u64, cap: u32) -> bool {
+        let used = self.used.entry((root.clone(), epoch)).or_insert(0);
+        if *used >= cap {
+            return false;
+        }
+        *used += 1;
+        true
+    }
+
+    /// Drop bookkeeping for epochs before `epoch`.
+    pub fn forget_before(&mut self, epoch: u64) {
+        self.used.retain(|(_, e), _| *e >= epoch);
     }
 }
 
@@ -155,6 +206,33 @@ mod tests {
             b_root: b.clone(),
             at_ms: 0,
         }
+    }
+
+    #[test]
+    fn vouch_quota_is_per_root_per_epoch() {
+        let (a, b) = (did(1), did(2));
+        let mut q = VouchQuota::new();
+        assert!(q.try_spend(&a, 5, 2));
+        assert!(q.try_spend(&a, 5, 2));
+        assert!(!q.try_spend(&a, 5, 2));
+        assert!(q.try_spend(&b, 5, 2));
+        assert!(q.try_spend(&a, 6, 2));
+        q.forget_before(6);
+        assert!(q.try_spend(&a, 5, 2));
+    }
+
+    #[test]
+    fn degree_cap_blocks_new_edges_but_allows_idempotent_readds() {
+        let hub = did(1);
+        let (a, b, c) = (did(2), did(3), did(4));
+        let mut graph = VouchGraph::new();
+        assert!(graph.add_verdict_capped(&verdict(&hub, &a), 2));
+        assert!(graph.add_verdict_capped(&verdict(&hub, &b), 2));
+        assert!(!graph.add_verdict_capped(&verdict(&hub, &c), 2));
+        assert_eq!(graph.degree(&hub), 2);
+        assert_eq!(graph.degree(&c), 0);
+        assert!(graph.add_verdict_capped(&verdict(&a, &hub), 2));
+        assert_eq!(graph.degree(&hub), 2);
     }
 
     #[test]

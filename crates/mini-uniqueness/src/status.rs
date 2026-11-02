@@ -110,6 +110,21 @@ impl TrustWeights {
         }
     }
 
+    /// The closed signal set of the published personhood policy (INV-18-03):
+    /// only physical presence and the seed-anchored vouching graph carry
+    /// weight. Behavioral entropy (unimplemented) and every `External` tag
+    /// weigh zero, so they neither raise nor dilute the fused score.
+    pub fn closed_set(presence: u32, vouching: u32) -> Self {
+        let mut weights = HashMap::new();
+        weights.insert(SignalSource::PhysicalPresence, presence.min(100));
+        weights.insert(SignalSource::VouchingGraph, vouching.min(100));
+        weights.insert(SignalSource::BehavioralEntropy, 0);
+        TrustWeights {
+            weights,
+            default_external_weight: 0,
+        }
+    }
+
     /// This source's current trust weight.
     pub fn weight_for(&self, source: SignalSource) -> u32 {
         if let Some(w) = self.weights.get(&source) {
