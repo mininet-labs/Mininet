@@ -70,6 +70,7 @@ mod seed;
 mod selftest;
 mod sequence;
 mod service;
+mod storage;
 pub mod store;
 mod sync;
 mod windows;

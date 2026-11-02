@@ -11,3 +11,7 @@ publish = false
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
+[dependencies]
+# Free-space query only (statvfs / GetDiskFreeSpaceEx); already a mini-cli dependency.
+fs4 = { version = "1.1.0", features = ["sync"] }
