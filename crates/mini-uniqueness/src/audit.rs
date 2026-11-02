@@ -469,6 +469,11 @@ mod tests {
     use super::*;
     use did_mini::Controller;
 
+    /// Deterministic test bytes derived by a real hash, not a literal array
+    /// (repo convention; avoids hard-coded cryptographic values).
+    fn tb(n: u8) -> [u8; 32] {
+        mini_crypto::hash::blake3_256(&[n])
+    }
     fn did(n: u8) -> Did {
         Controller::incept_single_from_seeds(&[n; 32], &[n.wrapping_add(100); 32])
             .unwrap()
@@ -526,14 +531,14 @@ mod tests {
         let all = roots(30);
         let subject = all[0].clone();
         let excluded: HashSet<Did> = all[1..4].iter().cloned().collect();
-        let a = select_panel(&all, &subject, &excluded, [7; 32], 7).unwrap();
-        let b = select_panel(&all, &subject, &excluded, [7; 32], 7).unwrap();
-        let c = select_panel(&all, &subject, &excluded, [8; 32], 7).unwrap();
+        let a = select_panel(&all, &subject, &excluded, tb(7), 7).unwrap();
+        let b = select_panel(&all, &subject, &excluded, tb(7), 7).unwrap();
+        let c = select_panel(&all, &subject, &excluded, tb(8), 7).unwrap();
         assert_eq!(a, b);
         assert_ne!(a, c);
         assert!(!a.contains(&subject) && a.iter().all(|r| !excluded.contains(r)));
         assert_eq!(
-            select_panel(&all[..6], &subject, &excluded, [7; 32], 7),
+            select_panel(&all[..6], &subject, &excluded, tb(7), 7),
             Err(AuditError::NotEnoughReviewers)
         );
     }
@@ -552,7 +557,7 @@ mod tests {
         let subject = all[0].clone();
         let params = sched().stage_at(epoch).audit;
         let panel =
-            select_panel(&all, &subject, &HashSet::new(), [1; 32], params.panel_size).unwrap();
+            select_panel(&all, &subject, &HashSet::new(), tb(1), params.panel_size).unwrap();
         let case = AuditCase::open(CaseSpec {
             subject: &subject,
             action: GatedAction::Vote,
@@ -560,7 +565,7 @@ mod tests {
             params,
             summary: summary(),
             panel: panel.clone(),
-            salt: [5; 32],
+            salt: tb(5),
             score: 27,
             gate: gate(),
         })
@@ -653,7 +658,7 @@ mod tests {
         let subject = all[0].clone();
         let params = sched().stage_at(10).audit;
         let panel =
-            select_panel(&all, &subject, &HashSet::new(), [1; 32], params.panel_size).unwrap();
+            select_panel(&all, &subject, &HashSet::new(), tb(1), params.panel_size).unwrap();
         for score in [0u8, 19, 30, 90] {
             let r = AuditCase::open(CaseSpec {
                 subject: &subject,
@@ -662,7 +667,7 @@ mod tests {
                 params,
                 summary: summary(),
                 panel: panel.clone(),
-                salt: [5; 32],
+                salt: tb(5),
                 score,
                 gate: gate(),
             });
