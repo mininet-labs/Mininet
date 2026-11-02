@@ -283,6 +283,12 @@ struct MininetApp {
     public_delivery: public_delivery::PublicDeliveryPanel,
     app_status: Option<AccountStatus>,
     app_status_rx: Option<Receiver<Result<AppReply, String>>>,
+    /// Device storage headroom from the application core: (level, free MiB).
+    /// Level 1 = low, 2 = critical; refreshed about once a minute. The core
+    /// frees what is safely regenerable before each answer.
+    storage: Option<(u8, u64)>,
+    storage_rx: Option<Receiver<Result<AppReply, String>>>,
+    storage_due: Instant,
     app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
     app_events_rx: Option<Receiver<Result<AppReply, String>>>,
     app_events_due: Instant,
@@ -1531,6 +1537,9 @@ impl Default for MininetApp {
             public_delivery: public_delivery::PublicDeliveryPanel::default(),
             app_status: None,
             app_status_rx,
+            storage: None,
+            storage_rx: None,
+            storage_due: Instant::now(),
             app_action: None,
             app_events_rx: None,
             app_events_due: Instant::now(),
@@ -1815,6 +1824,7 @@ impl eframe::App for MininetApp {
             self.apply_launch_policy();
         }
         self.poll_app_service();
+        self.poll_storage();
         self.poll_profile_photo();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
@@ -1870,6 +1880,13 @@ impl eframe::App for MininetApp {
                     {
                         self.retry_application_core();
                     }
+                });
+            });
+        }
+        if let Some((level, free_mib)) = self.storage.filter(|(level, _)| *level >= 1) {
+            egui::TopBottomPanel::top("storage-warning").show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(storage_warning_text(level, free_mib));
                 });
             });
         }
@@ -2021,6 +2038,42 @@ impl MininetApp {
         self.app_last_event_id = None;
         self.request_core_status();
         self.notice = "Checking application core status. Review and unlock before signing.".into();
+    }
+
+    /// Ask the core for device storage headroom about once a minute. The core
+    /// runs its safe clean-ups first, so a `Low` answer means space is still
+    /// short after Mininet freed what it safely could.
+    fn poll_storage(&mut self) {
+        if let Some(receiver) = self.storage_rx.as_ref() {
+            match receiver.try_recv() {
+                Ok(result) => {
+                    self.storage_rx = None;
+                    self.storage_due = Instant::now() + Duration::from_secs(60);
+                    if let Ok(AppReply::Storage {
+                        level, free_mib, ..
+                    }) = result
+                    {
+                        self.storage = Some((level, free_mib));
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.storage_rx = None;
+                    self.storage_due = Instant::now() + Duration::from_secs(60);
+                }
+            }
+            return;
+        }
+        if Instant::now() < self.storage_due {
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            return;
+        };
+        match client.request(AppCommand::StorageStatus) {
+            Ok(receiver) => self.storage_rx = Some(receiver),
+            Err(_) => self.storage_due = Instant::now() + Duration::from_secs(60),
+        }
     }
 
     fn request_core_status(&mut self) {
@@ -10229,5 +10282,41 @@ mod follow_runtime_tests {
             fresh_follow_endpoint(intent.clone(), now + Duration::from_secs(11), true).is_none()
         );
         assert!(fresh_follow_endpoint(intent, now, false).is_none());
+    }
+}
+
+/// Plain-language storage banner text; never blames the user and says what
+/// Mininet already did.
+fn storage_warning_text(level: u8, free_mib: u64) -> String {
+    let free = if free_mib == 0 {
+        String::new()
+    } else {
+        format!(" ({free_mib} MB free)")
+    };
+    if level >= 2 {
+        format!(
+            "This device is almost out of storage{free}. Mininet has already freed what it safely \
+             can and is pausing large saves to protect your data. Free some space (empty the \
+             trash, remove unused apps or downloads) and it will resume automatically."
+        )
+    } else {
+        format!(
+            "This device is running low on storage{free}. Mininet is freeing what it safely can \
+             on its own; removing unused apps or downloads will keep everything working smoothly."
+        )
+    }
+}
+
+#[cfg(test)]
+mod storage_banner_tests {
+    use super::storage_warning_text;
+
+    #[test]
+    fn banner_text_is_plain_and_scales_with_severity() {
+        let low = storage_warning_text(1, 180);
+        let critical = storage_warning_text(2, 0);
+        assert!(low.contains("running low") && low.contains("180 MB free"));
+        assert!(critical.contains("almost out") && critical.contains("resume automatically"));
+        assert!(!critical.contains("MB free"), "no figure when unknown");
     }
 }

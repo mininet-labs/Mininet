@@ -283,3 +283,11 @@ remaining substantive safety gates still have to be proven.
 
 - The handshake gate now lives in `mini-transport-security::AdmissionGate` (generic over any bearer; one wire format). It covers `mini service run`, `mini sync listen --repeat` (with the `sync connect` client solving challenges) and the desktop delivery listener in `mini-app-service` (a per-service shared meter; the delivery sender solves challenges, bounded by its 5 s session deadline, so a heavily throttled sender simply retries later through the outbox).
 - Still uncovered: single-accept one-shot servers (`sync serve-release`, the build worker) where a gate cannot help, and relay/DHT listeners. The delivery-listener gate has no dedicated integration test yet beyond the shared gate tests.
+
+## Storage warnings and automatic space-saving
+
+- **Housekeeping framework** (`mini_durable::space`): `housekeep(dir)` checks free space once and, only when the device is `Low` (< 256 MiB) or `Critical` (< 8 MiB), runs the built-in sweep of interrupted-write temporaries (now recursive, four levels deep, never following symlinks, ignoring files newer than ten minutes) plus any registered housekeepers, then reports the level before/after and the bytes recovered. Housekeepers run at safe points where no durable-state lock is held; inline reclaimers still run inside writes.
+- **Registered today:** the CLI's seed housekeeper (expired seed leases; at `Critical`, the rebuildable inventory-verification cache). `mini` runs housekeeping at the start of every command; `mini storage status` reports the level.
+- **App core:** new `StorageStatus` command / `Storage { level, free_mib, freed_kib }` reply. The core runs housekeeping on its profile directory before answering.
+- **Desktop:** asks about once a minute and shows a plain-language banner at `Low`/`Critical` that says what Mininet already did and what to remove; no banner when space is fine.
+- **Not done:** Android has no storage UI yet (its Kotlin shell does not use the app protocol). The big consumers — the object store, media blobs and the delivery outbox — have **no safe eviction path yet**: the store is append-only with no delete API, and the outbox's idempotency check needs the stored object bytes, so nothing there is auto-deleted. Evicting `EphemeralCache`-tier content needs a store design decision first.

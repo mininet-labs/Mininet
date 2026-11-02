@@ -47,6 +47,71 @@ fn registry() -> &'static Mutex<Vec<Reclaimer>> {
     R.get_or_init(|| Mutex::new(vec![sweep_stale_temporaries as Reclaimer]))
 }
 
+/// A housekeeper frees *regenerable* data under `dir` at a safe point (the
+/// caller holds no durable-state locks, unlike reclaimers that run inside a
+/// write). It is told the current level so it can do more when the device is
+/// `Critical`. Housekeepers may take locks and do real work; they must still
+/// delete only regenerable or unambiguously garbage data.
+pub type Housekeeper = fn(dir: &Path, level: SpaceLevel);
+
+fn housekeepers() -> &'static Mutex<Vec<Housekeeper>> {
+    static H: OnceLock<Mutex<Vec<Housekeeper>>> = OnceLock::new();
+    H.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+/// Register a housekeeper (idempotent per function pointer).
+pub fn register_housekeeper(h: Housekeeper) {
+    if let Ok(mut v) = housekeepers().lock() {
+        if !v.iter().any(|x| *x as usize == h as usize) {
+            v.push(h);
+        }
+    }
+}
+
+/// Outcome of one [`housekeep`] pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HousekeepReport {
+    /// Level before cleaning.
+    pub before: SpaceLevel,
+    /// Level after cleaning.
+    pub after: SpaceLevel,
+    /// Free bytes after cleaning, when the platform reports it.
+    pub available: Option<u64>,
+    /// Best-effort bytes recovered (free-space delta, never negative).
+    pub freed_bytes: u64,
+}
+
+/// Run every registered housekeeper (and the built-in stale-temporary sweep)
+/// when the volume holding `dir` is not `Ok`. Cheap when space is fine: one
+/// free-space query. Call it at startup and on a timer from the host.
+pub fn housekeep(dir: &Path) -> HousekeepReport {
+    let before = level(dir);
+    let start = available(dir);
+    if before == SpaceLevel::Ok {
+        return HousekeepReport {
+            before,
+            after: before,
+            available: start,
+            freed_bytes: 0,
+        };
+    }
+    sweep_stale_temporaries(dir);
+    let hs: Vec<Housekeeper> = housekeepers().lock().map(|v| v.clone()).unwrap_or_default();
+    for h in hs {
+        h(dir, before);
+    }
+    let end = available(dir);
+    HousekeepReport {
+        before,
+        after: level(dir),
+        available: end,
+        freed_bytes: match (start, end) {
+            (Some(a), Some(b)) => b.saturating_sub(a),
+            _ => 0,
+        },
+    }
+}
+
 /// Register a safe reclaimer (idempotent per function pointer). Features call
 /// this once at startup, e.g. to drop a rebuildable cache.
 pub fn register_reclaimer(r: Reclaimer) {
@@ -128,22 +193,37 @@ pub fn ensure_space(path: &Path, needed: u64) -> io::Result<()> {
 /// Built-in reclaimer: delete interrupted atomic-write temporaries
 /// (`<name>.<pid>-<seq>.tmp`) older than ten minutes in `dir`.
 fn sweep_stale_temporaries(dir: &Path) -> u64 {
+    sweep_tree(dir, 0)
+}
+
+/// Same sweep, descending at most four levels (durable writers keep their
+/// temporaries beside their own files, e.g. `app-service/outbox`). Symlinks
+/// are never followed.
+fn sweep_tree(dir: &Path, depth: u8) -> u64 {
     let mut freed = 0;
     let Ok(entries) = std::fs::read_dir(dir) else {
         return 0;
     };
     for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if !is_atomic_temp(&name) {
+        let Ok(meta) = std::fs::symlink_metadata(entry.path()) else {
+            continue;
+        };
+        if meta.is_dir() {
+            if depth < 4 {
+                freed += sweep_tree(&entry.path(), depth + 1);
+            }
             continue;
         }
-        let Ok(meta) = entry.metadata() else { continue };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !meta.is_file() || !is_atomic_temp(&name) {
+            continue;
+        }
         let old = meta
             .modified()
             .ok()
             .and_then(|m| SystemTime::now().duration_since(m).ok())
             .is_some_and(|age| age >= STALE_TEMP_AGE);
-        if meta.is_file() && old && std::fs::remove_file(entry.path()).is_ok() {
+        if old && std::fs::remove_file(entry.path()).is_ok() {
             freed += meta.len();
         }
     }
@@ -218,6 +298,30 @@ mod tests {
     }
 
     #[test]
+    fn housekeepers_run_only_when_space_is_not_ok_and_registration_is_idempotent() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static RUNS: AtomicUsize = AtomicUsize::new(0);
+        fn counting(_: &Path, _: SpaceLevel) {
+            RUNS.fetch_add(1, Ordering::SeqCst);
+        }
+        register_housekeeper(counting);
+        register_housekeeper(counting);
+        let dir = std::env::temp_dir();
+        let report = housekeep(&dir);
+        if report.before == SpaceLevel::Ok {
+            assert_eq!(RUNS.load(Ordering::SeqCst), 0, "no work when space is fine");
+            assert_eq!(report.freed_bytes, 0);
+        }
+        let n = housekeepers()
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|x| **x as usize == counting as Housekeeper as usize)
+            .count();
+        assert_eq!(n, 1);
+    }
+
+    #[test]
     fn stale_temporaries_are_swept_but_fresh_ones_and_real_files_are_kept() {
         let dir = std::env::temp_dir().join(format!("mini-space-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -228,6 +332,19 @@ mod tests {
         std::fs::write(&real, b"x").unwrap();
         assert_eq!(sweep_stale_temporaries(&dir), 0, "fresh temp is kept");
         assert!(fresh.exists() && real.exists());
+        // Nested temporaries are found; only the old one is removed.
+        let nested = dir.join("a/b");
+        std::fs::create_dir_all(&nested).unwrap();
+        let old_tmp = nested.join("x.json.7-7.tmp");
+        std::fs::write(&old_tmp, b"yy").unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&old_tmp)
+            .unwrap()
+            .set_modified(SystemTime::now() - Duration::from_secs(3600))
+            .unwrap();
+        assert_eq!(sweep_stale_temporaries(&dir), 2);
+        assert!(!old_tmp.exists() && fresh.exists() && real.exists());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

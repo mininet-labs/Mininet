@@ -120,6 +120,8 @@ impl IdentityVault for WindowsIdentityVault {
 /// final single-writer guarantee arrives when those paths move behind IPC.
 #[derive(Debug)]
 pub struct Core<V: IdentityVault> {
+    /// Profile directory; used for free-space checks and safe housekeeping.
+    root: PathBuf,
     store: Store<FsBackend>,
     vault: V,
     identity: Option<CoreIdentity>,
@@ -190,6 +192,7 @@ impl<V: IdentityVault> Core<V> {
         let next_sequence = journal.ensure_sequence_floor(store_next)?;
 
         Ok(Self {
+            root,
             store,
             vault,
             identity: None,
@@ -291,6 +294,18 @@ impl<V: IdentityVault> Core<V> {
                 policy_id,
                 grant_id,
             } => self.beta_grant_status(&policy_id, &grant_id),
+            Command::StorageStatus => {
+                let report = mini_durable::space::housekeep(&self.root);
+                Ok(Reply::Storage {
+                    level: match report.after {
+                        mini_durable::space::SpaceLevel::Ok => 0,
+                        mini_durable::space::SpaceLevel::Low => 1,
+                        mini_durable::space::SpaceLevel::Critical => 2,
+                    },
+                    free_mib: report.available.map_or(0, |bytes| bytes / (1024 * 1024)),
+                    freed_kib: report.freed_bytes / 1024,
+                })
+            }
             Command::Status => self.status().map(Reply::Status),
             Command::CreateRoot => {
                 self.create_root()?;

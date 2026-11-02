@@ -530,7 +530,8 @@ impl Request {
             | Command::DeliveryPeers
             | Command::SetDeliveryEnabled { .. }
             | Command::StopDeliveryListener => {}
-            Command::Status
+            Command::StorageStatus
+            | Command::Status
             | Command::CreateRoot
             | Command::UnlockIdentity
             | Command::LockIdentity
@@ -692,6 +693,9 @@ pub enum Command {
     /// Create a grant authorization for a registered account, signed by this
     /// identity's PRIMARY DID. It has no effect until a policy threshold of
     /// members approves it. Test value only.
+    /// Free-space level of the device holding the profile. The core also runs
+    /// its safe automatic clean-ups before answering.
+    StorageStatus,
     BetaGrantCreate {
         operation_id: String,
         campaign_id: String,
@@ -865,6 +869,13 @@ pub enum Reply {
     },
     BetaGrantCreated {
         grant_id: String,
+    },
+    /// Device storage headroom: `level` 0 = ok, 1 = low (warn), 2 = critical
+    /// (large writes paused). `free_mib` is 0 when the platform cannot report.
+    Storage {
+        level: u8,
+        free_mib: u64,
+        freed_kib: u64,
     },
     /// Evidence only: an accepted grant is not a conversion or issuance.
     BetaGrantStatus {
@@ -1088,6 +1099,7 @@ fn decode_profile_details(
 fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), ProtocolError> {
     match command {
         Command::Status => encoder.u8(0),
+        Command::StorageStatus => encoder.u8(47),
         Command::CreateRoot => encoder.u8(1),
         Command::UnlockIdentity => encoder.u8(2),
         Command::LockIdentity => encoder.u8(3),
@@ -1399,6 +1411,7 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
 fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
     match decoder.u8()? {
         0 => Ok(Command::Status),
+        47 => Ok(Command::StorageStatus),
         1 => Ok(Command::CreateRoot),
         2 => Ok(Command::UnlockIdentity),
         3 => Ok(Command::LockIdentity),
@@ -1815,6 +1828,16 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
             encoder.u8(46);
             encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
         }
+        Reply::Storage {
+            level,
+            free_mib,
+            freed_kib,
+        } => {
+            encoder.u8(47);
+            encoder.u8(*level);
+            encoder.u64(*free_mib);
+            encoder.u64(*freed_kib);
+        }
         Reply::BetaGrantStatus {
             accepted,
             approvals_counted,
@@ -1948,6 +1971,17 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
         46 => Ok(Reply::BetaGrantCreated {
             grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
         }),
+        47 => {
+            let level = decoder.u8()?;
+            if level > 2 {
+                return Err(ProtocolError::Decode("storage level out of range".into()));
+            }
+            Ok(Reply::Storage {
+                level,
+                free_mib: decoder.u64()?,
+                freed_kib: decoder.u64()?,
+            })
+        }
         44 => Ok(Reply::BetaGrantStatus {
             accepted: decoder.bool()?,
             approvals_counted: decoder.u16()?,
@@ -2833,6 +2867,7 @@ mod tests {
                 policy_id: "zpolicy".to_string(),
                 grant_id: "zgrant".to_string(),
             },
+            Command::StorageStatus,
             policy_create(),
             Command::BetaGrantCreate {
                 operation_id: "op-6".to_string(),
@@ -2897,6 +2932,11 @@ mod tests {
             },
             Reply::BetaGrantCreated {
                 grant_id: "zgrant".to_string(),
+            },
+            Reply::Storage {
+                level: 1,
+                free_mib: 120,
+                freed_kib: 4096,
             },
         ] {
             let response = Response::ok(6, reply);

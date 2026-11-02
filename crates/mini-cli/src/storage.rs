@@ -7,20 +7,28 @@
 use mini_durable::space::{self, SpaceLevel};
 use std::path::Path;
 
-/// Free what is safely regenerable when space is short; warn the user.
-pub(crate) fn housekeeping(home: &Path, now_ms: u64) {
-    let level = space::level(home);
-    if level == SpaceLevel::Ok {
+/// Seed-pool housekeeper: expired leases and (when critical) the rebuildable
+/// inventory-verification cache. Runs at a safe point, so it may take the pool
+/// lock.
+fn seed_housekeeper(home: &Path, level: SpaceLevel) {
+    let pool = home.join("seed-pool");
+    if !pool.is_dir() {
         return;
     }
-    let pool = home.join("seed-pool");
-    if pool.is_dir() {
-        if let Ok(p) = mini_seed::Pool::open(&pool) {
-            let _ = p.prune(now_ms);
-        }
-        if level == SpaceLevel::Critical {
-            let _ = std::fs::remove_file(pool.join("verified.json"));
-        }
+    if let Ok(p) = mini_seed::Pool::open(&pool) {
+        let _ = p.prune(crate::sequence::now_ms());
+    }
+    if level == SpaceLevel::Critical {
+        let _ = std::fs::remove_file(pool.join("verified.json"));
+    }
+}
+
+/// Free what is safely regenerable when space is short; warn the user.
+pub(crate) fn housekeeping(home: &Path, _now_ms: u64) {
+    space::register_housekeeper(seed_housekeeper);
+    let report = space::housekeep(home);
+    if report.before == SpaceLevel::Ok {
+        return;
     }
     if let Some(w) = space::warning(home) {
         eprintln!("warning: {w}");
