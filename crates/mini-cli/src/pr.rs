@@ -557,14 +557,37 @@ fn proposal_json(v: &mini_forge::ProposalView) -> JsonValue {
     ])
 }
 
-pub fn list_prs(home: &Path, store_path: &Path, project_ref: &str) -> Result<CommandResult> {
+/// `pr list <project> [--offset N] [--page-size N]`. Without either flag the
+/// whole bounded listing is returned (as before). With either flag the listing
+/// is paged BEFORE inspection and the result carries `next_offset` so a caller
+/// can continue; a project too large for one listing fails closed with a clear
+/// error instead of doing unbounded work.
+pub fn list_prs(
+    home: &Path,
+    store_path: &Path,
+    project_ref: &str,
+    offset: Option<usize>,
+    page_size: Option<usize>,
+) -> Result<CommandResult> {
     let identity = crate::identity::load(home)?;
     let store = open_store(store_path)?;
     let oracle = build_oracle(home, &identity)?;
     let project = project_alias::resolve(home, project_ref)?;
-    let views = mini_forge::list_proposals(&store, &oracle, &project)
-        .map_err(|e| CliError::Forge(e.to_string()))?;
-    let human = views
+    let (views, next_offset) = if offset.is_none() && page_size.is_none() {
+        let views = mini_forge::list_proposals(&store, &oracle, &project)
+            .map_err(|e| CliError::Forge(e.to_string()))?;
+        (views, None)
+    } else {
+        let limits = mini_forge::ListingLimits {
+            offset: offset.unwrap_or(0),
+            page_size: page_size.unwrap_or(mini_forge::MAX_LISTING_PAGE),
+            ..mini_forge::ListingLimits::default()
+        };
+        let page = mini_forge::list_proposals_page(&store, &oracle, &project, limits)
+            .map_err(|e| CliError::Forge(e.to_string()))?;
+        (page.proposals, page.next_offset)
+    };
+    let mut human = views
         .iter()
         .map(|v| {
             format!(
@@ -578,10 +601,21 @@ pub fn list_prs(home: &Path, store_path: &Path, project_ref: &str) -> Result<Com
             )
         })
         .collect::<String>();
-    Ok(CommandResult::new(human).field(
-        "proposals",
-        JsonValue::Array(views.iter().map(proposal_json).collect()),
-    ))
+    if let Some(next) = next_offset {
+        human.push_str(&format!("more: continue with --offset {next}\n"));
+    }
+    Ok(CommandResult::new(human)
+        .field(
+            "proposals",
+            JsonValue::Array(views.iter().map(proposal_json).collect()),
+        )
+        .field(
+            "next_offset",
+            match next_offset {
+                Some(next) => JsonValue::num(next as u64),
+                None => JsonValue::Null,
+            },
+        ))
 }
 
 pub fn show_pr(home: &Path, store_path: &Path, pr_ref: &str) -> Result<CommandResult> {
