@@ -116,6 +116,14 @@ fn evictable_type(kind: &ObjectType) -> bool {
         || *kind == ObjectType::Custom(mini_media::CHUNK_TYPE.to_string())
 }
 
+/// Eviction markers older than this lapse (about a year); the object may then
+/// be downloaded again and will age out afresh.
+pub(crate) const MARKER_LIFETIME_MS: u64 = 365 * DAY_MS;
+/// Markers examined or removed per pruning call.
+pub(crate) const MARKER_PRUNE_LIMIT: usize = 2_000;
+/// Minimum gap between marker-pruning passes (listing markers reads them all).
+pub(crate) const MARKER_PRUNE_EVERY_MS: u64 = 6 * 3_600_000;
+
 /// One pass: remove expired cache under the effective retention. Returns the
 /// bytes freed. Errors from individual objects are skipped, never fatal.
 pub(crate) fn evict_expired(
@@ -198,5 +206,8 @@ pub(crate) fn evict_expired(
     if ids.is_empty() {
         return 0;
     }
-    store.evict_cached(&ids).map(|r| r.bytes).unwrap_or(0)
+    store
+        .evict_cached(&ids, now_ms)
+        .map(|r| r.bytes)
+        .unwrap_or(0)
 }

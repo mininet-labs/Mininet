@@ -145,3 +145,12 @@ Same model, now asking how many colluding mature credentials an attacker must bu
 | 600 honest roots, 10 vouches per credential | 56 |
 
 The stricter mature quota raises the price by about 60% and a doubled honest network by about 17%, so the per-epoch quota is a stronger lever than network size alone. The number to price against is the attacker's cost per witness versus the value of the human-exclusive power the cluster would unlock. Still not modelled: active proximity relays and forged devices (they attack the presence signal, not the graph), and the other signals.
+
+### Forged or relayed presence (simulator, policy v2)
+
+Presence evidence can be forged (attacker devices attesting each other) or relayed (an active proximity relay). Model: every sybil carries perfect presence; vouching strength is the cluster's seed-anchored trust relative to the honest median.
+
+- Plain weighted average (policy v1): one colluding credential already let 10 of 400 sybils pass the gate, and six let all 400 pass — perfect presence made any trace of graph trust enough.
+- Policy v2: no live vouching evidence → score capped below the audit window (a presence-only farm, however large, never reaches audit); presence may lift the score at most 15 points above the vouching strength. Result with forged presence: 0 colluders → 0 pass; 1 → 0; 6 → 0 pass (57 reach audit); 24 → 395 of 400 pass.
+
+Reading: v2 closes the cheap attacks (forged presence alone, or with one to six colluding credentials) but 24 colluding mature credentials still lift a forged-presence cluster over the *current* minimum, because the starting minimum (30) corresponds to only 15% of the honest median vouching strength. The minimum and the vouch quotas are the levers; the starting numbers should be raised (or the pass test should require vouching strength directly) before any gated action carries real value. Note also that the earlier "24 colluders do not lift a cluster" result used the stricter 50%-of-median graph criterion, not the policy gate. Hardware-backed ranging for presence remains the real fix for forged presence.

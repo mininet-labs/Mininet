@@ -46,14 +46,14 @@ fn exercise<B: Backend>(mut store: Store<B>) {
 
     // `a` has a retained reply outside the set: refused, nothing removed.
     assert_eq!(
-        store.evict_cached(&[a.id().clone()]),
+        store.evict_cached(&[a.id().clone()], 1_000),
         Err(StoreError::NotEvictable)
     );
     assert!(store.contains(a.id()).unwrap());
 
     // Evicting the reply and its parent together is allowed.
     let report = store
-        .evict_cached(&[a.id().clone(), c.id().clone()])
+        .evict_cached(&[a.id().clone(), c.id().clone()], 1_000)
         .unwrap();
     assert_eq!(report.objects, 2);
     assert!(report.bytes > 0);
@@ -76,7 +76,7 @@ fn exercise<B: Backend>(mut store: Store<B>) {
         .set_cache_tier(b.id(), CacheTier::PinnedByOwner)
         .unwrap();
     assert_eq!(
-        store.evict_cached(&[b.id().clone()]),
+        store.evict_cached(&[b.id().clone()], 1_000),
         Err(StoreError::NotEvictable)
     );
     let secret = ObjectBuilder::new(ObjectType::POST)
@@ -86,9 +86,29 @@ fn exercise<B: Backend>(mut store: Store<B>) {
         .unwrap();
     store.insert(&secret).unwrap();
     assert_eq!(
-        store.evict_cached(&[secret.id().clone()]),
+        store.evict_cached(&[secret.id().clone()], 1_000),
         Err(StoreError::NotEvictable)
     );
+
+    // Evicted objects leave a marker: sync will not want them again until the
+    // marker lapses or is forgotten, but they are not "present".
+    assert!(store.was_evicted(a.id()).unwrap() && !store.wants(a.id()).unwrap());
+    assert!(
+        store.wants(b.id()).is_ok() && !store.wants(b.id()).unwrap(),
+        "held objects are not wanted"
+    );
+    assert_eq!(
+        store.prune_eviction_markers(1_500, 1_000, 10).unwrap(),
+        0,
+        "too young"
+    );
+    assert_eq!(store.prune_eviction_markers(2_500, 1_000, 10).unwrap(), 2);
+    assert!(
+        store.wants(a.id()).unwrap(),
+        "after the marker lapses it can be fetched again"
+    );
+    store.evict_cached(&[a.id().clone()], 3_000).ok(); // already absent: no-op
+    store.forget_eviction(a.id()).unwrap();
 
     // Re-fetching an evicted object simply stores it again.
     store.insert(&a).unwrap();

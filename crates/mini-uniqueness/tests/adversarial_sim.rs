@@ -13,7 +13,10 @@
 //! sufficient. Findings here are limits to report, not promises.
 
 use did_mini::{Controller, Did};
-use mini_uniqueness::{recommended_iterations, trust_scores, VouchGraph, VouchVerdict};
+use mini_uniqueness::{
+    recommended_iterations, trust_scores, GateOutcome, HumanRecord, PersonhoodPolicy,
+    SignalEvidence, SignalSource, VouchGraph, VouchVerdict,
+};
 use std::collections::HashSet;
 
 const HONEST: usize = 300;
@@ -54,6 +57,8 @@ fn edge(g: &mut VouchGraph, a: &Did, b: &Did) -> bool {
 }
 
 struct Outcome {
+    /// Each sybil's vouching strength 0..=100 (trust relative to the honest median).
+    strengths: Vec<u32>,
     colluders: usize,
     attack_edges: usize,
     passing_sybils: usize,
@@ -121,7 +126,12 @@ fn run_with(colluders: usize, honest_n: usize, quota: usize) -> Outcome {
         .iter()
         .map(|d| trust.get(d).copied().unwrap_or(0))
         .collect();
+    let strengths = sybil_t
+        .iter()
+        .map(|t| (*t * 100 / median).min(100) as u32)
+        .collect();
     Outcome {
+        strengths,
         colluders,
         attack_edges,
         passing_sybils: sybil_t.iter().filter(|t| **t * 2 >= median).count(),
@@ -201,4 +211,68 @@ fn price_of_a_cluster_rises_with_a_stricter_quota_and_a_larger_honest_network() 
     // and a larger honest network cannot either.
     assert!(mature >= early, "mature {mature} < early {early}");
     assert!(larger >= early, "larger {larger} < early {early}");
+}
+
+fn record(vouch: Option<u32>, presence: u32) -> HumanRecord {
+    let mut r = HumanRecord::new();
+    r.record(SignalEvidence {
+        source: SignalSource::PhysicalPresence,
+        strength: presence,
+        recorded_at_ms: 1_000,
+    });
+    if let Some(v) = vouch {
+        r.record(SignalEvidence {
+            source: SignalSource::VouchingGraph,
+            strength: v,
+            recorded_at_ms: 1_000,
+        });
+    }
+    r
+}
+
+#[test]
+fn a_farm_with_forged_or_relayed_presence_but_no_graph_trust_never_even_reaches_audit() {
+    // Forged devices attesting each other, or an active proximity relay, can
+    // make presence evidence look perfect. Without live vouching evidence the
+    // policy caps the score below the audit window, however many identities
+    // the farm mints.
+    let policy = PersonhoodPolicy::starting_point();
+    for _ in 0..1_000 {
+        let score = policy.score(&record(None, 100), 2_000);
+        assert_eq!(policy.gate().evaluate(score), GateOutcome::Insufficient);
+    }
+}
+
+#[test]
+fn forged_presence_cannot_turn_a_trace_of_graph_trust_into_a_pass() {
+    // Colluding mature credentials give the cluster some vouching strength;
+    // the attacker also forges perfect presence for every sybil. The policy
+    // lets presence lift a score only PRESENCE_LIFT points above the vouching
+    // strength, so a small amount of graph trust no longer passes.
+    let policy = PersonhoodPolicy::starting_point();
+    let mut table = Vec::new();
+    for k in [0usize, 1, 6, 24] {
+        let o = run(k);
+        let count = |want: GateOutcome| {
+            o.strengths
+                .iter()
+                .filter(|v| {
+                    let score = policy.score(&record(Some(**v), 100), 2_000);
+                    policy.gate().evaluate(score) == want
+                })
+                .count()
+        };
+        let (pass, audit) = (count(GateOutcome::Pass), count(GateOutcome::NeedsAudit));
+        table.push((k, pass, audit));
+        println!(
+            "forged presence + {k:>2} colluders: {pass} pass, {audit} reach audit, of {SYBILS}"
+        );
+    }
+    // No graph trust: nothing passes. One and six colluders (the audit
+    // research's bar) cannot pass a single sybil even with perfect presence.
+    assert_eq!(table[0].1, 0);
+    assert_eq!(table[1].1, 0);
+    assert_eq!(table[2].1, 0);
+    // More collusion never helps the defender.
+    assert!(table.windows(2).all(|w| w[1].1 >= w[0].1));
 }

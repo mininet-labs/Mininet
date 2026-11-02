@@ -282,7 +282,7 @@ fn pull<B: Backend>(
                         let oid = ObjectId::parse(&id)?;
                         // Keep only missing IDs. Already-held inventory never
                         // consumes the next session's bounded work window.
-                        if !store.contains(&oid)? {
+                        if store.wants(&oid)? {
                             id_bytes = id_bytes
                                 .checked_add(id.len())
                                 .ok_or(SyncError::LimitExceeded)?;
@@ -317,7 +317,7 @@ fn pull<B: Backend>(
     let mut wants: Vec<String> = Vec::new();
     for id in offered {
         let oid = ObjectId::parse(&id)?;
-        if !store.contains(&oid)? {
+        if store.wants(&oid)? {
             wants.push(id);
         }
     }

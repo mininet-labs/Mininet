@@ -127,6 +127,8 @@ pub struct Core<V: IdentityVault> {
     cache_retention: cache_policy::Retention,
     /// Bytes the most recent automatic cache pass freed.
     cache_freed_bytes: u64,
+    /// When eviction markers were last pruned (they are listed in full).
+    last_marker_prune_ms: u64,
     store: Store<FsBackend>,
     vault: V,
     identity: Option<CoreIdentity>,
@@ -199,6 +201,7 @@ impl<V: IdentityVault> Core<V> {
         Ok(Self {
             cache_retention: cache_policy::load(&root),
             cache_freed_bytes: 0,
+            last_marker_prune_ms: 0,
             root,
             store,
             vault,
@@ -329,6 +332,17 @@ impl<V: IdentityVault> Core<V> {
                     if freed > 0 {
                         self.cache_freed_bytes = freed;
                         self.emit(ServiceEventKind::FeedChanged);
+                    }
+                    let now = now_ms();
+                    if now.saturating_sub(self.last_marker_prune_ms)
+                        >= cache_policy::MARKER_PRUNE_EVERY_MS
+                    {
+                        self.last_marker_prune_ms = now;
+                        let _ = self.store.prune_eviction_markers(
+                            now,
+                            cache_policy::MARKER_LIFETIME_MS,
+                            cache_policy::MARKER_PRUNE_LIMIT,
+                        );
                     }
                 }
                 Ok(Reply::Storage {

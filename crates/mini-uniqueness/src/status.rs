@@ -286,6 +286,25 @@ impl HumanRecord {
             .collect()
     }
 
+    /// `source`'s newest evidence strength after decay (0..=100), or 0 when it
+    /// has none.
+    pub fn decayed_strength(&self, source: SignalSource, decay: &DecayPolicy, now_ms: u64) -> u32 {
+        self.latest_per_source()
+            .into_iter()
+            .find(|(s, _)| *s == source)
+            .map(|(_, e)| {
+                let age = now_ms.saturating_sub(e.recorded_at_ms);
+                (u64::from(e.strength.min(100)) * u64::from(decay.weight_percent(age)) / 100) as u32
+            })
+            .unwrap_or(0)
+    }
+
+    /// Whether `source` currently contributes non-zero (not fully decayed)
+    /// evidence at `now_ms`.
+    pub fn is_live(&self, source: SignalSource, decay: &DecayPolicy, now_ms: u64) -> bool {
+        self.live_sources(decay, now_ms).contains(&source)
+    }
+
     /// This record's currently-supported [`HumanStatus`].
     pub fn status(
         &self,

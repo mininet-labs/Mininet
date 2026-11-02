@@ -94,6 +94,46 @@ impl IdentityOracle for KelDirectory {
     }
 }
 
+/// An opt-in personhood/eligibility gate for any quorum or decision built on an
+/// [`IdentityOracle`]: it vouches only for identity roots (and the devices
+/// delegated by them) that `eligible` accepts, so an object authored by any
+/// other root fails [`author_verified`] and simply does not count — the same
+/// "unknown author is rejected" posture as above.
+///
+/// This adds **no weight**: it can only remove roots from the set that counts,
+/// never count one twice or more. It is not used anywhere by default (existing
+/// behaviour is unchanged until a caller wraps its oracle), and it does not
+/// depend on any personhood or value crate — the caller supplies `eligible`
+/// (e.g. built from `mini-uniqueness`' published policy and audit results), so
+/// the voice/value wall is untouched. Counting still means identity roots, not
+/// proven humans.
+pub struct EligibleOnly<'a, F: Fn(&Did) -> bool> {
+    inner: &'a dyn IdentityOracle,
+    eligible: F,
+}
+
+impl<F: Fn(&Did) -> bool> std::fmt::Debug for EligibleOnly<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("EligibleOnly")
+    }
+}
+
+impl<'a, F: Fn(&Did) -> bool> EligibleOnly<'a, F> {
+    /// Wrap `inner`; `eligible` is asked about identity *roots*.
+    pub fn new(inner: &'a dyn IdentityOracle, eligible: F) -> Self {
+        EligibleOnly { inner, eligible }
+    }
+}
+
+impl<F: Fn(&Did) -> bool> IdentityOracle for EligibleOnly<'_, F> {
+    fn kel(&self, did: &Did) -> Option<&Kel> {
+        let kel = self.inner.kel(did)?;
+        // A device KEL is judged by the root that delegated it.
+        let root = kel.delegator().unwrap_or_else(|| did.clone());
+        (self.eligible)(&root).then_some(kel)
+    }
+}
+
 /// Whether `obj`'s author is vouched for by the oracle AND `obj` re-passes full
 /// provenance (delegated, unrevoked, capability-scoped) right now.
 pub(crate) fn author_verified(oracle: &dyn IdentityOracle, obj: &Object) -> bool {
@@ -174,6 +214,33 @@ mod tests {
             .payload(Payload::Public(b"anchor".to_vec()))
             .sign(human, device)
             .unwrap()
+    }
+
+    #[test]
+    fn an_ineligible_root_and_its_devices_stop_counting_but_others_are_unaffected() {
+        let (alice, alice_dev) = human(5);
+        let (bob, bob_dev) = human(6);
+        let mut oracle = KelDirectory::new();
+        for k in [alice.kel(), alice_dev.kel(), bob.kel(), bob_dev.kel()] {
+            oracle.insert(k);
+        }
+        let by_alice = an_object(&alice.did(), &alice_dev);
+        let by_bob = an_object(&bob.did(), &bob_dev);
+        assert!(author_verified(&oracle, &by_alice) && author_verified(&oracle, &by_bob));
+
+        let alice_root = alice.did();
+        let gated = EligibleOnly::new(&oracle, |root| *root != alice_root);
+        assert!(
+            !author_verified(&gated, &by_alice),
+            "ineligible root is dropped"
+        );
+        assert!(
+            author_verified(&gated, &by_bob),
+            "eligible root still counts"
+        );
+        // The gate only ever removes: allowing everyone changes nothing.
+        let open = EligibleOnly::new(&oracle, |_| true);
+        assert!(author_verified(&open, &by_alice) && author_verified(&open, &by_bob));
     }
 
     #[test]

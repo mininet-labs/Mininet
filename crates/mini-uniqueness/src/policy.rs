@@ -29,8 +29,17 @@
 use crate::confidence::DecayPolicy;
 use crate::status::{HumanRecord, SignalSource, TrustWeights};
 
-/// Policy wire/format version, bumped on any change to the encoding.
-pub const POLICY_FORMAT_VERSION: u8 = 1;
+/// Policy wire/format version, bumped on any change to the encoding *or to the
+/// scoring rule* (version 2 added the presence-lift ceiling), so a published
+/// policy digest always names the rule that produced a score.
+pub const POLICY_FORMAT_VERSION: u8 = 2;
+
+/// Most points physical-presence evidence may add above the seed-anchored
+/// vouching strength. Presence can be forged or relayed (the adversarial
+/// simulator shows perfectly forged presence turns almost any trace of graph
+/// trust into a pass under a plain weighted average), so it may only
+/// corroborate the graph, never carry the score.
+pub const PRESENCE_LIFT: u32 = 15;
 
 /// A published personhood policy. Construct with [`PersonhoodPolicy::new`],
 /// which validates it; the digest identifies exactly these parameters.
@@ -162,7 +171,22 @@ impl PersonhoodPolicy {
             full_credit_window_ms: self.full_credit_window_ms,
             zero_after_ms: self.zero_after_ms,
         };
-        record.score(&weights, &decay, now_ms).min(100) as u8
+        let raw = record.score(&weights, &decay, now_ms).min(100) as u8;
+        // The seed-anchored vouching graph is the one signal anchored outside
+        // an attacker's own devices (issue #18): presence evidence can be
+        // forged or relayed, so without *live* vouching evidence the score is
+        // capped below the audit window and can never reach a pass or an
+        // audit. Presence corroborates; it cannot stand alone.
+        if record.is_live(SignalSource::VouchingGraph, &decay, now_ms) {
+            let vouch = record.decayed_strength(SignalSource::VouchingGraph, &decay, now_ms);
+            raw.min((vouch + PRESENCE_LIFT).min(100) as u8)
+        } else {
+            raw.min(
+                self.audit_minimum
+                    .saturating_sub(self.audit_band)
+                    .saturating_sub(1),
+            )
+        }
     }
 
     /// The audit gate this policy defines.
@@ -301,6 +325,26 @@ mod tests {
         padded.record(ev(SignalSource::BehavioralEntropy, 100, 1_000));
         assert_eq!(p.score(&base, 2_000), p.score(&padded, 2_000));
         assert!(!PersonhoodPolicy::counts(SignalSource::External(7)));
+    }
+
+    #[test]
+    fn forged_presence_without_live_vouching_never_reaches_the_audit_window() {
+        let p = PersonhoodPolicy::starting_point();
+        let mut presence_only = HumanRecord::new();
+        presence_only.record(ev(SignalSource::PhysicalPresence, 100, 0));
+        let score = p.score(&presence_only, 10);
+        assert!(score < p.audit_minimum - p.audit_band, "score {score}");
+        assert_eq!(p.gate().evaluate(score), GateOutcome::Insufficient);
+        // Old vouching evidence that has fully decayed does not count either.
+        let mut stale = presence_only.clone();
+        stale.record(ev(SignalSource::VouchingGraph, 100, 0));
+        let far = p.zero_after_ms + 1;
+        stale.record(ev(SignalSource::PhysicalPresence, 100, far));
+        assert!(p.score(&stale, far) < p.audit_minimum - p.audit_band);
+        // With live vouching the same presence can pass.
+        let mut both = presence_only;
+        both.record(ev(SignalSource::VouchingGraph, 60, 5));
+        assert_eq!(p.gate().evaluate(p.score(&both, 10)), GateOutcome::Pass);
     }
 
     #[test]

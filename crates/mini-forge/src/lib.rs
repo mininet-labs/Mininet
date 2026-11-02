@@ -71,7 +71,7 @@ pub use git_import::{
     GitImportProvenance, ImportedCommit, GIT_IMPORT_PROVENANCE_TYPE, MAX_IMPORT_COMMITS,
 };
 pub use governance::*;
-pub use oracle::{author_assurance, IdentityOracle, KelDirectory};
+pub use oracle::{author_assurance, EligibleOnly, IdentityOracle, KelDirectory};
 pub use release::{
     check_no_rollback, detect_equivocation, detect_equivocation_strict, list_releases,
     list_releases_strict, release_version, Equivocation, Version, MAX_VERSION_COMPONENTS,
