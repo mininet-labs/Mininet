@@ -110,6 +110,37 @@ impl VouchGraph {
     }
 }
 
+/// Per-epoch cap on how many new vouches one identity root may form, so a
+/// farm cannot mint a dense web of vouches quickly. Pure bookkeeping; the
+/// caller picks the cap from the stage in force and the epoch from consensus.
+#[derive(Debug, Default)]
+pub struct VouchQuota {
+    used: HashMap<(Did, u64), u32>,
+}
+
+impl VouchQuota {
+    /// An empty quota ledger.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Spend one vouch for `root` in `epoch` if under `cap`; both parties of a
+    /// vouch should be charged (call once per side). Returns whether allowed.
+    pub fn try_spend(&mut self, root: &Did, epoch: u64, cap: u32) -> bool {
+        let used = self.used.entry((root.clone(), epoch)).or_insert(0);
+        if *used >= cap {
+            return false;
+        }
+        *used += 1;
+        true
+    }
+
+    /// Drop bookkeeping for epochs before `epoch`.
+    pub fn forget_before(&mut self, epoch: u64) {
+        self.used.retain(|(_, e), _| *e >= epoch);
+    }
+}
+
 /// A reasonable default iteration count for a graph of `node_count` nodes,
 /// following SybilRank's O(log n) guidance. Callers may always supply their
 /// own — this is a starting point, not a frozen parameter.
@@ -175,6 +206,19 @@ mod tests {
             b_root: b.clone(),
             at_ms: 0,
         }
+    }
+
+    #[test]
+    fn vouch_quota_is_per_root_per_epoch() {
+        let (a, b) = (did(1), did(2));
+        let mut q = VouchQuota::new();
+        assert!(q.try_spend(&a, 5, 2));
+        assert!(q.try_spend(&a, 5, 2));
+        assert!(!q.try_spend(&a, 5, 2));
+        assert!(q.try_spend(&b, 5, 2));
+        assert!(q.try_spend(&a, 6, 2));
+        q.forget_before(6);
+        assert!(q.try_spend(&a, 5, 2));
     }
 
     #[test]

@@ -101,4 +101,15 @@ SPEC-02 lands. Say "identity root", not "one human, one vote".
 - `bounded_threshold` + `ThresholdBounds`: floor, ceiling and per-change step for the minimum; the one-human-one-vote and timelock live in governance.
 - `VouchGraph::add_verdict_capped`: degree cap (collusion cost). Vouches are mutual by construction, i.e. reciprocal.
 
-Not built: wiring the gate into voting or monthly-payment paths, the governance vote/timelock for the minimum, appeal/audit process, per-epoch vouch quotas, the nullifier/blinded-handle route (2(b)), and any external cryptographic review.
+- `audit` module (founder decision 2026-11-02: peer review of anonymous activity + panel vote, stricter after epoch 1000): `PolicySchedule` (early/mature stages; `new` refuses any mature stage that is looser), `select_panel` (public reproducible sortition excluding the subject and the subject's vouchers), `ActivitySummary` (bucketed aggregates only), `AuditCase` (opaque handle, one vote per panelist, strict-majority clear, denial/expiry), `EligibilityLedger` (a settled audit counts only in its own epoch; a passing score is never blocked; no outcome removes anyone from the network).
+- `governor` module: `ThresholdGovernor` — one equal vote per gate-eligible identity root, timelock, participation floor, strict majority, frozen `ThresholdBounds`.
+- `VouchQuota`: per-root per-epoch vouch cap (stage-dependent; stricter after epoch 1000).
+
+Starting schedule: early panel 7 / 4 confirmations, minimum 30, 10 vouches per epoch, degree cap 150; mature (epoch >= 1000) panel 11 / 8, minimum 45, 5 vouches per epoch, degree cap 100. These are governance parameters, not frozen law.
+
+## Not built (and why)
+
+- **Wiring into voting and payments.** No "monthly payment" feature exists in the tree yet (`mini-airdrop` only snapshots eligibility). Putting the gate into `mini-forge` quorum counting changes frozen-invariant behavior (P1, P2) and needs its own design and decision; the pure types above are what that wiring will call.
+- Reviewer vote authentication/transport, and sourcing the sortition seed from finalized chain state.
+- The blinded-handle/nullifier route (2(b)) and its external cryptographic review; bank/app linking stays blocked (INV-18-02/03).
+- Honest limits unchanged: identity roots, not proven humans.

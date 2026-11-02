@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1263,
-    "headings": 4251,
-    "rust_symbols": 15039
+    "files": 1265,
+    "headings": 4252,
+    "rust_symbols": 15120
   },
   "crates": {
     "askama_derive": {
@@ -101031,6 +101031,308 @@
       "title": "mini-uniqueness"
     },
     {
+      "bytes": 20673,
+      "group": "crate:mini-uniqueness",
+      "headings": [],
+      "keywords": [
+        "audit",
+        "epoch",
+        "stage",
+        "policy",
+        "panel_size",
+        "self",
+        "mature",
+        "u64",
+        "mature_from_epoch",
+        "one",
+        "early",
+        "auditparams",
+        "panel",
+        "approve_at_least",
+        "policyschedule",
+        "identity",
+        "vouches_per_epoch",
+        "mature_policy",
+        "valid",
+        "new",
+        "starting_point",
+        "auditcase",
+        "vote",
+        "personhoodpolicy"
+      ],
+      "lines": 607,
+      "path": "crates/mini-uniqueness/src/audit.rs",
+      "sha256": "41d9dbdafdf5bfaa9feabf9243def5006cb104f6a2f65e23f2a5d6f4823dcad1",
+      "symbols": [
+        {
+          "kind": "type",
+          "line": 32,
+          "name": "Epoch"
+        },
+        {
+          "kind": "const",
+          "line": 36,
+          "name": "MATURE_FROM_EPOCH"
+        },
+        {
+          "kind": "enum",
+          "line": 40,
+          "name": "GatedAction"
+        },
+        {
+          "kind": "struct",
+          "line": 49,
+          "name": "AuditParams"
+        },
+        {
+          "kind": "impl",
+          "line": 58,
+          "name": "AuditParams"
+        },
+        {
+          "kind": "fn",
+          "line": 59,
+          "name": "valid"
+        },
+        {
+          "kind": "struct",
+          "line": 69,
+          "name": "Stage"
+        },
+        {
+          "kind": "struct",
+          "line": 80,
+          "name": "PolicySchedule"
+        },
+        {
+          "kind": "impl",
+          "line": 86,
+          "name": "PolicySchedule"
+        },
+        {
+          "kind": "fn",
+          "line": 90,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "starting_point"
+        },
+        {
+          "kind": "fn",
+          "line": 142,
+          "name": "stage_at"
+        },
+        {
+          "kind": "enum",
+          "line": 153,
+          "name": "AuditError"
+        },
+        {
+          "kind": "impl",
+          "line": 164,
+          "name": "std::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 174,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "struct",
+          "line": 178,
+          "name": "ActivitySummary"
+        },
+        {
+          "kind": "impl",
+          "line": 189,
+          "name": "ActivitySummary"
+        },
+        {
+          "kind": "fn",
+          "line": 191,
+          "name": "bucketed"
+        },
+        {
+          "kind": "enum",
+          "line": 208,
+          "name": "Verdict"
+        },
+        {
+          "kind": "fn",
+          "line": 218,
+          "name": "select_panel"
+        },
+        {
+          "kind": "enum",
+          "line": 250,
+          "name": "AuditOutcome"
+        },
+        {
+          "kind": "struct",
+          "line": 263,
+          "name": "AuditCase"
+        },
+        {
+          "kind": "impl",
+          "line": 273,
+          "name": "AuditCase"
+        },
+        {
+          "kind": "fn",
+          "line": 277,
+          "name": "open"
+        },
+        {
+          "kind": "fn",
+          "line": 306,
+          "name": "handle"
+        },
+        {
+          "kind": "fn",
+          "line": 310,
+          "name": "action"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 318,
+          "name": "summary"
+        },
+        {
+          "kind": "fn",
+          "line": 322,
+          "name": "panel"
+        },
+        {
+          "kind": "fn",
+          "line": 327,
+          "name": "cast"
+        },
+        {
+          "kind": "fn",
+          "line": 347,
+          "name": "outcome"
+        },
+        {
+          "kind": "enum",
+          "line": 368,
+          "name": "Eligibility"
+        },
+        {
+          "kind": "struct",
+          "line": 379,
+          "name": "EligibilityLedger"
+        },
+        {
+          "kind": "impl",
+          "line": 383,
+          "name": "EligibilityLedger"
+        },
+        {
+          "kind": "fn",
+          "line": 385,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 390,
+          "name": "record"
+        },
+        {
+          "kind": "fn",
+          "line": 406,
+          "name": "check"
+        },
+        {
+          "kind": "mod",
+          "line": 426,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 430,
+          "name": "did"
+        },
+        {
+          "kind": "fn",
+          "line": 435,
+          "name": "roots"
+        },
+        {
+          "kind": "fn",
+          "line": 438,
+          "name": "sched"
+        },
+        {
+          "kind": "fn",
+          "line": 441,
+          "name": "summary"
+        },
+        {
+          "kind": "fn",
+          "line": 446,
+          "name": "schedule_is_stricter_after_epoch_1000_and_refuses_loosening"
+        },
+        {
+          "kind": "fn",
+          "line": 466,
+          "name": "audit_params_require_a_strict_majority"
+        },
+        {
+          "kind": "fn",
+          "line": 476,
+          "name": "panel_is_reproducible_excludes_subject_and_vouchers_and_needs_enough"
+        },
+        {
+          "kind": "fn",
+          "line": 493,
+          "name": "summary_exposes_only_buckets"
+        },
+        {
+          "kind": "fn",
+          "line": 501,
+          "name": "open_case"
+        },
+        {
+          "kind": "fn",
+          "line": 521,
+          "name": "majority_confirmation_clears_and_only_for_that_epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 544,
+          "name": "denial_lapses_next_epoch_and_never_excludes"
+        },
+        {
+          "kind": "fn",
+          "line": 568,
+          "name": "votes_are_one_per_panelist_and_panel_only_and_close_on_expiry"
+        },
+        {
+          "kind": "fn",
+          "line": 589,
+          "name": "mature_stage_needs_more_confirmations"
+        },
+        {
+          "kind": "fn",
+          "line": 600,
+          "name": "case_handle_hides_the_subject_but_is_stable"
+        }
+      ],
+      "title": "use crate::policy::{PersonhoodPolicy, PolicyError};"
+    },
+    {
       "bytes": 9547,
       "group": "crate:mini-uniqueness",
       "headings": [],
@@ -101255,38 +101557,175 @@
       "title": "use did_mini::IdentityError;"
     },
     {
-      "bytes": 10947,
+      "bytes": 7426,
+      "group": "crate:mini-uniqueness",
+      "headings": [],
+      "keywords": [
+        "governorerror",
+        "self",
+        "pending",
+        "current",
+        "proposal",
+        "did",
+        "epoch",
+        "voter",
+        "proposed",
+        "yes",
+        "std",
+        "fmt",
+        "bounds",
+        "minimum",
+        "result",
+        "finalized",
+        "thresholdgovernor",
+        "new",
+        "hashset",
+        "clone",
+        "already",
+        "open",
+        "eligible",
+        "write_str"
+      ],
+      "lines": 235,
+      "path": "crates/mini-uniqueness/src/governor.rs",
+      "sha256": "23b82e6be687734f1ba3fc3eef42fd076292455cf9ee655abd20556337b6ace9",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 15,
+          "name": "GovernorError"
+        },
+        {
+          "kind": "impl",
+          "line": 30,
+          "name": "std::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 31,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 42,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "enum",
+          "line": 46,
+          "name": "Finalized"
+        },
+        {
+          "kind": "struct",
+          "line": 54,
+          "name": "Pending"
+        },
+        {
+          "kind": "struct",
+          "line": 63,
+          "name": "ThresholdGovernor"
+        },
+        {
+          "kind": "impl",
+          "line": 71,
+          "name": "ThresholdGovernor"
+        },
+        {
+          "kind": "fn",
+          "line": 73,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 93,
+          "name": "current"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "propose"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "vote"
+        },
+        {
+          "kind": "fn",
+          "line": 128,
+          "name": "finalize"
+        },
+        {
+          "kind": "mod",
+          "line": 147,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 151,
+          "name": "did"
+        },
+        {
+          "kind": "fn",
+          "line": 156,
+          "name": "gov"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
+          "name": "majority_with_quorum_applies_only_after_the_timelock"
+        },
+        {
+          "kind": "fn",
+          "line": 184,
+          "name": "no_quorum_or_no_majority_leaves_the_minimum_unchanged"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "votes_are_equal_one_per_root_and_gate_eligible_only"
+        },
+        {
+          "kind": "fn",
+          "line": 217,
+          "name": "proposals_respect_bounds_and_one_at_a_time"
+        }
+      ],
+      "title": "use crate::audit::Epoch;"
+    },
+    {
+      "bytes": 12354,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
         "self",
         "verdict",
         "edges",
-        "graph",
         "did",
-        "node",
-        "trust",
-        "node_count",
-        "identity",
+        "graph",
         "one",
+        "identity",
         "vouch",
+        "node",
         "how",
+        "new",
+        "trust",
+        "vouches",
         "degree",
         "edge",
         "roots",
+        "many",
+        "root",
         "vouchgraph",
+        "vouchquota",
         "verified",
         "vouchverdict",
-        "vouches",
-        "many",
-        "a_root",
-        "clone",
-        "b_root",
-        "max_degree"
+        "default",
+        "a_root"
       ],
-      "lines": 288,
+      "lines": 332,
       "path": "crates/mini-uniqueness/src/graph.rs",
-      "sha256": "396a4171d99d2b51b9360a81e31d02cdbb2a806641fffe57e634471fb742b457",
+      "sha256": "db96d962896aa1734078061af6eecd5749287f740de3900f239ae3720a592762",
       "symbols": [
         {
           "kind": "const",
@@ -101339,65 +101778,95 @@
           "name": "node_count"
         },
         {
+          "kind": "struct",
+          "line": 117,
+          "name": "VouchQuota"
+        },
+        {
+          "kind": "impl",
+          "line": 121,
+          "name": "VouchQuota"
+        },
+        {
           "kind": "fn",
-          "line": 116,
+          "line": 123,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "try_spend"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "forget_before"
+        },
+        {
+          "kind": "fn",
+          "line": 147,
           "name": "recommended_iterations"
         },
         {
           "kind": "fn",
-          "line": 133,
+          "line": 164,
           "name": "trust_scores"
         },
         {
           "kind": "mod",
-          "line": 161,
+          "line": 192,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 196,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 203,
           "name": "verdict"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 212,
+          "name": "vouch_quota_is_per_root_per_epoch"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
           "name": "degree_cap_blocks_new_edges_but_allows_idempotent_readds"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 239,
           "name": "add_verdict_creates_an_undirected_edge"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 252,
           "name": "degree_of_unknown_node_is_zero"
         },
         {
           "kind": "fn",
-          "line": 214,
+          "line": 258,
           "name": "trust_propagates_outward_from_seed_along_a_chain"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 281,
           "name": "a_sybil_cluster_with_one_bridge_edge_scores_far_below_the_honest_region"
         },
         {
           "kind": "fn",
-          "line": 282,
+          "line": 326,
           "name": "recommended_iterations_grows_with_graph_size"
         }
       ],
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3698,
+      "bytes": 4012,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -101408,7 +101877,9 @@
         "vouch",
         "verify",
         "signals",
+        "audit",
         "error",
+        "governor",
         "policy",
         "point",
         "sybil",
@@ -101422,51 +101893,59 @@
         "founding",
         "d-0035",
         "resistance",
-        "per",
-        "system",
-        "fuses"
+        "per"
       ],
-      "lines": 73,
+      "lines": 80,
       "path": "crates/mini-uniqueness/src/lib.rs",
-      "sha256": "77d89c610b87888b890601a32e9aba754fc97b2ff0f0fafb322b345722d7e5c0",
+      "sha256": "4c3a92a1f445e8a6087312c699d2edf2d22fe2e3c4c5db1c4099a11df2fb0de6",
       "symbols": [
         {
           "kind": "mod",
           "line": 50,
-          "name": "confidence"
+          "name": "audit"
         },
         {
           "kind": "mod",
           "line": 51,
-          "name": "error"
+          "name": "confidence"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "graph"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "policy"
+          "name": "governor"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "status"
+          "name": "graph"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "verify"
+          "name": "policy"
         },
         {
           "kind": "mod",
           "line": 56,
+          "name": "status"
+        },
+        {
+          "kind": "mod",
+          "line": 57,
+          "name": "verify"
+        },
+        {
+          "kind": "mod",
+          "line": 58,
           "name": "vouch"
         }
       ],
-      "title": "mod confidence;"
+      "title": "mod audit;"
     },
     {
       "bytes": 12479,
@@ -122306,7 +122785,7 @@
       "title": "Reusable offline allowances and private account settlement"
     },
     {
-      "bytes": 6587,
+      "bytes": 8074,
       "group": "docs",
       "headings": [
         {
@@ -122348,6 +122827,11 @@
           "level": 2,
           "line": 97,
           "text": "Implemented (first primitives, `mini-uniqueness`)"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "Not built (and why)"
         }
       ],
       "keywords": [
@@ -122371,14 +122855,14 @@
         "voting",
         "tree",
         "already",
+        "built",
         "row",
         "implemented",
-        "first",
-        "chat"
+        "first"
       ],
-      "lines": 105,
+      "lines": 116,
       "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
-      "sha256": "b29244f25bc8043de07694f1a47372f983a2deae85e02e095bcdc8da6578a44d",
+      "sha256": "6c30b91cda6c5cb601cab02a2f7439c1cefe928247d14e9e88505df0f998c3c4",
       "symbols": [],
       "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },
