@@ -58,8 +58,9 @@ mod verify;
 mod vouch;
 
 pub use audit::{
-    select_panel, ActivitySummary, AuditCase, AuditError, AuditOutcome, AuditParams, Eligibility,
-    EligibilityLedger, Epoch, GatedAction, PolicySchedule, Stage, Verdict, MATURE_FROM_EPOCH,
+    select_panel, ActivitySummary, AuditCase, AuditError, AuditOutcome, AuditParams, CaseSpec,
+    Eligibility, EligibilityLedger, Epoch, GatedAction, PolicySchedule, Stage, Verdict,
+    MATURE_FROM_EPOCH,
 };
 pub use confidence::{
     fuse_confidence, BehavioralEntropySource, ConfidenceInputs, ConfidenceWeights, DecayPolicy,

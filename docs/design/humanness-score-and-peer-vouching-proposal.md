@@ -97,7 +97,7 @@ SPEC-02 lands. Say "identity root", not "one human, one vote".
 ## Implemented (first primitives, `mini-uniqueness`)
 
 - `PersonhoodPolicy`: versioned, content-addressed (BLAKE3 over canonical bytes) published policy; closed signal set (physical presence + seed-anchored vouching; `External`/behavioral weigh zero); `score(record, now)` 0..=100; validation refuses zero weights (a farm could otherwise saturate the score).
-- `AuditGate` / `GateOutcome::{Pass, NeedsAudit}`: no exclusion variant exists.
+- `AuditGate` / `GateOutcome::{Pass, NeedsAudit, Insufficient}`: **audit only for scores just below the minimum** (inside `audit_band`, founder 2026-11-02: the score should be confident enough that clearly-low accounts need no peer time). Below the band an identity is simply not yet eligible for gated actions (no audit, re-evaluated each epoch); nobody is excluded from the network.
 - `bounded_threshold` + `ThresholdBounds`: floor, ceiling and per-change step for the minimum; the one-human-one-vote and timelock live in governance.
 - `VouchGraph::add_verdict_capped`: degree cap (collusion cost). Vouches are mutual by construction, i.e. reciprocal.
 
@@ -113,3 +113,7 @@ Starting schedule: early panel 7 / 4 confirmations, minimum 30, 10 vouches per e
 - Reviewer vote authentication/transport, and sourcing the sortition seed from finalized chain state.
 - The blinded-handle/nullifier route (2(b)) and its external cryptographic review; bank/app linking stays blocked (INV-18-02/03).
 - Honest limits unchanged: identity roots, not proven humans.
+
+## Audit band (founder refinement, 2026-11-02)
+
+Peer audit triggers only for accounts whose score falls in `[minimum - audit_band, minimum)` that epoch. Early stage: minimum 30, band 10 (audit 20-29). Mature (epoch >= 1000): minimum 45, band 5 (audit 40-44) — a narrower window is stricter, and the schedule refuses a mature band wider than the early one. `AuditCase::open` rejects any score outside the band, so reviewers cannot be spammed by cheap low-score accounts. The consequence is that the score itself must be hard to inflate (closed signal set, seed-anchored vouching required, degree and per-epoch vouch caps, presence evidence); that is the real Sybil defence and is still unsolved, so the band must not be widened to compensate.

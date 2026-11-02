@@ -50,6 +50,11 @@ pub struct PersonhoodPolicy {
     pub audit_minimum: u8,
     /// Maximum distinct vouches any one identity root may hold.
     pub max_vouch_degree: u32,
+    /// Width of the audit window just below the minimum: only scores in
+    /// `[audit_minimum - audit_band, audit_minimum)` are audited. The score is
+    /// meant to be confident enough that clearly-low accounts need no peer
+    /// time spent on them; they are simply not yet eligible for gated actions.
+    pub audit_band: u8,
 }
 
 /// Why a policy or a proposed threshold change was refused.
@@ -89,12 +94,14 @@ impl PersonhoodPolicy {
         zero_after_ms: u64,
         audit_minimum: u8,
         max_vouch_degree: u32,
+        audit_band: u8,
     ) -> Result<Self, PolicyError> {
         let ok = (1..=100).contains(&presence_weight)
             && (1..=100).contains(&vouching_weight)
             && zero_after_ms > full_credit_window_ms
             && audit_minimum <= 100
-            && max_vouch_degree >= 1;
+            && max_vouch_degree >= 1
+            && audit_band <= audit_minimum;
         if !ok {
             return Err(PolicyError::Invalid);
         }
@@ -106,6 +113,7 @@ impl PersonhoodPolicy {
             zero_after_ms,
             audit_minimum,
             max_vouch_degree,
+            audit_band,
         })
     }
 
@@ -121,6 +129,7 @@ impl PersonhoodPolicy {
         b.extend_from_slice(&self.zero_after_ms.to_be_bytes());
         b.push(self.audit_minimum);
         b.extend_from_slice(&self.max_vouch_degree.to_be_bytes());
+        b.push(self.audit_band);
         b
     }
 
@@ -141,6 +150,7 @@ impl PersonhoodPolicy {
             zero_after_ms: 365 * 86_400_000,
             audit_minimum: 30,
             max_vouch_degree: 150,
+            audit_band: 10,
         }
     }
 
@@ -159,6 +169,7 @@ impl PersonhoodPolicy {
     pub fn gate(&self) -> AuditGate {
         AuditGate {
             minimum: self.audit_minimum,
+            band: self.audit_band,
         }
     }
 
@@ -176,10 +187,12 @@ impl PersonhoodPolicy {
 pub enum GateOutcome {
     /// Score meets the published minimum.
     Pass,
-    /// Score is below the minimum: route to audit/appeal. The identity stays
-    /// on the network and may still use everything that does not need a
-    /// personhood-gated action.
+    /// Score is just below the minimum (inside the audit band): peer audit.
     NeedsAudit,
+    /// Score is below the audit band: not yet eligible for gated actions, and
+    /// no peer time is spent on it. The identity stays on the network, keeps
+    /// earning evidence, and is re-evaluated every epoch.
+    Insufficient,
 }
 
 /// Gate for personhood-sensitive actions (voting, monthly payments).
@@ -187,6 +200,8 @@ pub enum GateOutcome {
 pub struct AuditGate {
     /// Minimum score (0..=100) to pass without audit.
     pub minimum: u8,
+    /// Width of the audit window just below `minimum`.
+    pub band: u8,
 }
 
 impl AuditGate {
@@ -194,8 +209,10 @@ impl AuditGate {
     pub fn evaluate(&self, score: u8) -> GateOutcome {
         if score >= self.minimum {
             GateOutcome::Pass
-        } else {
+        } else if score >= self.minimum.saturating_sub(self.band) {
             GateOutcome::NeedsAudit
+        } else {
+            GateOutcome::Insufficient
         }
     }
 }
@@ -255,11 +272,12 @@ mod tests {
     #[test]
     fn invalid_policies_are_refused() {
         let ok = PersonhoodPolicy::starting_point();
-        assert!(PersonhoodPolicy::new(1, 0, 70, 1, 2, 30, 10).is_err());
-        assert!(PersonhoodPolicy::new(1, 100, 0, 1, 2, 30, 10).is_err());
-        assert!(PersonhoodPolicy::new(1, 100, 70, 5, 5, 30, 10).is_err());
-        assert!(PersonhoodPolicy::new(1, 100, 70, 1, 2, 101, 10).is_err());
-        assert!(PersonhoodPolicy::new(1, 100, 70, 1, 2, 30, 0).is_err());
+        assert!(PersonhoodPolicy::new(1, 0, 70, 1, 2, 30, 10, 5).is_err());
+        assert!(PersonhoodPolicy::new(1, 100, 0, 1, 2, 30, 10, 5).is_err());
+        assert!(PersonhoodPolicy::new(1, 100, 70, 5, 5, 30, 10, 5).is_err());
+        assert!(PersonhoodPolicy::new(1, 100, 70, 1, 2, 101, 10, 5).is_err());
+        assert!(PersonhoodPolicy::new(1, 100, 70, 1, 2, 30, 0, 5).is_err());
+        assert!(PersonhoodPolicy::new(1, 100, 70, 1, 2, 30, 10, 31).is_err());
         assert!(PersonhoodPolicy::new(
             ok.version,
             ok.presence_weight,
@@ -267,7 +285,8 @@ mod tests {
             ok.full_credit_window_ms,
             ok.zero_after_ms,
             ok.audit_minimum,
-            ok.max_vouch_degree
+            ok.max_vouch_degree,
+            ok.audit_band
         )
         .is_ok());
     }
@@ -295,19 +314,23 @@ mod tests {
     }
 
     #[test]
-    fn gate_never_excludes() {
-        let g = AuditGate { minimum: 30 };
-        assert_eq!(g.evaluate(0), GateOutcome::NeedsAudit);
-        assert_eq!(g.evaluate(29), GateOutcome::NeedsAudit);
-        assert_eq!(g.evaluate(30), GateOutcome::Pass);
+    fn only_scores_just_below_the_minimum_are_audited() {
+        let g = AuditGate {
+            minimum: 30,
+            band: 10,
+        };
         assert_eq!(g.evaluate(100), GateOutcome::Pass);
-        // Exhaustive: only two outcomes exist.
-        for s in 0..=100u8 {
-            assert!(matches!(
-                g.evaluate(s),
-                GateOutcome::Pass | GateOutcome::NeedsAudit
-            ));
-        }
+        assert_eq!(g.evaluate(30), GateOutcome::Pass);
+        assert_eq!(g.evaluate(29), GateOutcome::NeedsAudit);
+        assert_eq!(g.evaluate(20), GateOutcome::NeedsAudit);
+        assert_eq!(g.evaluate(19), GateOutcome::Insufficient);
+        assert_eq!(g.evaluate(0), GateOutcome::Insufficient);
+        // A band wider than the minimum cannot underflow.
+        let wide = AuditGate {
+            minimum: 5,
+            band: 50,
+        };
+        assert_eq!(wide.evaluate(0), GateOutcome::NeedsAudit);
     }
 
     #[test]

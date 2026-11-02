@@ -5,7 +5,10 @@
 //! ## Shape
 //!
 //! 1. A personhood-gated action (voting, monthly payment) whose score is
-//!    below the published minimum opens an [`AuditCase`].
+//!    *just below* the published minimum (inside the policy's audit band)
+//!    opens an [`AuditCase`]. Scores far below the band are simply not yet
+//!    eligible and cost reviewers nothing; the score is meant to be confident
+//!    enough that audits are only for the borderline.
 //! 2. A panel of reviewers is drawn by [`select_panel`] — a public,
 //!    reproducible sortition over qualified identity roots, excluding the
 //!    subject and the subject's direct vouchers (conflict of interest).
@@ -24,7 +27,7 @@
 //! finalized value nobody could choose after seeing the candidates). Counts
 //! identity roots, not proven humans (Sybil resistance is unsolved).
 
-use crate::policy::{PersonhoodPolicy, PolicyError};
+use crate::policy::{AuditGate, GateOutcome, PersonhoodPolicy, PolicyError};
 use did_mini::Did;
 use std::collections::{HashMap, HashSet};
 
@@ -96,6 +99,7 @@ impl PolicySchedule {
             && mature_from_epoch >= 1
             && m.policy.audit_minimum >= e.policy.audit_minimum
             && m.policy.max_vouch_degree <= e.policy.max_vouch_degree
+            && m.policy.audit_band <= e.policy.audit_band
             && m.vouches_per_epoch <= e.vouches_per_epoch
             && m.vouches_per_epoch >= 1
             && m.audit.panel_size >= e.audit.panel_size
@@ -124,6 +128,7 @@ impl PolicySchedule {
         let mut mature_policy = PersonhoodPolicy::starting_point();
         mature_policy.version = 2;
         mature_policy.audit_minimum = 45;
+        mature_policy.audit_band = 5;
         mature_policy.max_vouch_degree = 100;
         let mature = Stage {
             policy: mature_policy,
@@ -159,6 +164,8 @@ pub enum AuditError {
     AlreadyVoted,
     /// The case already has a final outcome or has expired.
     Closed,
+    /// The score is not inside the audit band, so no case may be opened.
+    OutsideAuditBand,
 }
 
 impl std::fmt::Display for AuditError {
@@ -168,6 +175,7 @@ impl std::fmt::Display for AuditError {
             AuditError::NotOnPanel => "reviewer is not on this panel",
             AuditError::AlreadyVoted => "reviewer already voted",
             AuditError::Closed => "audit case is closed",
+            AuditError::OutsideAuditBand => "score is outside the audit band",
         })
     }
 }
@@ -258,6 +266,29 @@ pub enum AuditOutcome {
     Expired,
 }
 
+/// Everything needed to open an [`AuditCase`].
+#[derive(Debug)]
+pub struct CaseSpec<'a> {
+    /// The identity root under audit.
+    pub subject: &'a Did,
+    /// The gated action.
+    pub action: GatedAction,
+    /// The epoch the case is opened in.
+    pub epoch: Epoch,
+    /// Panel parameters of the stage in force.
+    pub params: AuditParams,
+    /// Anonymous summary reviewers will see.
+    pub summary: ActivitySummary,
+    /// The drawn panel.
+    pub panel: Vec<Did>,
+    /// Coordinator-private salt for the opaque handle.
+    pub salt: [u8; 32],
+    /// The subject's exact score (must be inside the audit band).
+    pub score: u8,
+    /// The gate in force.
+    pub gate: AuditGate,
+}
+
 /// One audit of one action for one identity root in one epoch.
 #[derive(Debug, Clone)]
 pub struct AuditCase {
@@ -271,18 +302,25 @@ pub struct AuditCase {
 }
 
 impl AuditCase {
-    /// Open a case. The opaque `handle` is `BLAKE3(domain||subject||epoch||
+    /// Open a case. Refused unless `score` is inside the audit band of `gate`
+    /// (just below the minimum): clearly-low accounts are never audited. The opaque `handle` is `BLAKE3(domain||subject||epoch||
     /// action||salt)` so reviewers can refer to the case without learning the
     /// subject; keep `salt` secret to the coordinator.
-    pub fn open(
-        subject: &Did,
-        action: GatedAction,
-        epoch: Epoch,
-        params: AuditParams,
-        summary: ActivitySummary,
-        panel: Vec<Did>,
-        salt: [u8; 32],
-    ) -> Result<Self, AuditError> {
+    pub fn open(spec: CaseSpec<'_>) -> Result<Self, AuditError> {
+        let CaseSpec {
+            subject,
+            action,
+            epoch,
+            params,
+            summary,
+            panel,
+            salt,
+            score,
+            gate,
+        } = spec;
+        if gate.evaluate(score) != GateOutcome::NeedsAudit {
+            return Err(AuditError::OutsideAuditBand);
+        }
         if !params.valid() || panel.len() != params.panel_size as usize {
             return Err(AuditError::NotEnoughReviewers);
         }
@@ -368,8 +406,10 @@ impl AuditCase {
 pub enum Eligibility {
     /// Allowed (score passes or an audit cleared it this epoch).
     Allowed,
-    /// Score is below the minimum and no audit has cleared it: open a case.
+    /// Score is just below the minimum and no audit has cleared it: open a case.
     NeedsAudit,
+    /// Score is below the audit band: not eligible this epoch, no audit.
+    Insufficient,
     /// An audit denied it this epoch. Lapses next epoch; never an exclusion.
     DeniedThisEpoch,
 }
@@ -409,10 +449,12 @@ impl EligibilityLedger {
         action: GatedAction,
         epoch: Epoch,
         score: u8,
-        minimum: u8,
+        gate: AuditGate,
     ) -> Eligibility {
-        if score >= minimum {
-            return Eligibility::Allowed;
+        match gate.evaluate(score) {
+            GateOutcome::Pass => return Eligibility::Allowed,
+            GateOutcome::Insufficient => return Eligibility::Insufficient,
+            GateOutcome::NeedsAudit => {}
         }
         match self.settled.get(&(subject.clone(), action)) {
             Some((e, true)) if *e == epoch => Eligibility::Allowed,
@@ -438,6 +480,12 @@ mod tests {
     fn sched() -> PolicySchedule {
         PolicySchedule::starting_point()
     }
+    fn gate() -> AuditGate {
+        AuditGate {
+            minimum: 30,
+            band: 10,
+        }
+    }
     fn summary() -> ActivitySummary {
         ActivitySummary::bucketed(27, 40, 2, 3)
     }
@@ -447,6 +495,7 @@ mod tests {
         let s = sched();
         let (e, m) = (s.stage_at(999), s.stage_at(1000));
         assert!(m.policy.audit_minimum > e.policy.audit_minimum);
+        assert!(m.policy.audit_band < e.policy.audit_band);
         assert!(m.audit.panel_size > e.audit.panel_size);
         assert!(m.vouches_per_epoch < e.vouches_per_epoch);
         assert!(m.policy.max_vouch_degree < e.policy.max_vouch_degree);
@@ -504,15 +553,17 @@ mod tests {
         let params = sched().stage_at(epoch).audit;
         let panel =
             select_panel(&all, &subject, &HashSet::new(), [1; 32], params.panel_size).unwrap();
-        let case = AuditCase::open(
-            &subject,
-            GatedAction::Vote,
+        let case = AuditCase::open(CaseSpec {
+            subject: &subject,
+            action: GatedAction::Vote,
             epoch,
             params,
-            summary(),
-            panel.clone(),
-            [5; 32],
-        )
+            summary: summary(),
+            panel: panel.clone(),
+            salt: [5; 32],
+            score: 27,
+            gate: gate(),
+        })
         .unwrap();
         (case, panel, subject)
     }
@@ -527,15 +578,15 @@ mod tests {
         let mut ledger = EligibilityLedger::new();
         ledger.record(&subject, &case, 10);
         assert_eq!(
-            ledger.check(&subject, GatedAction::Vote, 10, 12, 30),
+            ledger.check(&subject, GatedAction::Vote, 10, 27, gate()),
             Eligibility::Allowed
         );
         assert_eq!(
-            ledger.check(&subject, GatedAction::Vote, 11, 12, 30),
+            ledger.check(&subject, GatedAction::Vote, 11, 27, gate()),
             Eligibility::NeedsAudit
         );
         assert_eq!(
-            ledger.check(&subject, GatedAction::MonthlyPayment, 10, 12, 30),
+            ledger.check(&subject, GatedAction::MonthlyPayment, 10, 27, gate()),
             Eligibility::NeedsAudit
         );
     }
@@ -550,16 +601,16 @@ mod tests {
         let mut ledger = EligibilityLedger::new();
         ledger.record(&subject, &case, 10);
         assert_eq!(
-            ledger.check(&subject, GatedAction::Vote, 10, 12, 30),
+            ledger.check(&subject, GatedAction::Vote, 10, 27, gate()),
             Eligibility::DeniedThisEpoch
         );
         assert_eq!(
-            ledger.check(&subject, GatedAction::Vote, 11, 12, 30),
+            ledger.check(&subject, GatedAction::Vote, 11, 27, gate()),
             Eligibility::NeedsAudit
         );
         // A passing score is never blocked by an old denial.
         assert_eq!(
-            ledger.check(&subject, GatedAction::Vote, 10, 35, 30),
+            ledger.check(&subject, GatedAction::Vote, 10, 35, gate()),
             Eligibility::Allowed
         );
     }
@@ -594,6 +645,34 @@ mod tests {
         assert_eq!(case.outcome(1000), AuditOutcome::Pending);
         case.cast(&panel[7], Verdict::Confirm, 1000).unwrap();
         assert_eq!(case.outcome(1000), AuditOutcome::Cleared);
+    }
+
+    #[test]
+    fn clearly_low_and_clearly_high_scores_cannot_open_a_case() {
+        let all = roots(30);
+        let subject = all[0].clone();
+        let params = sched().stage_at(10).audit;
+        let panel =
+            select_panel(&all, &subject, &HashSet::new(), [1; 32], params.panel_size).unwrap();
+        for score in [0u8, 19, 30, 90] {
+            let r = AuditCase::open(CaseSpec {
+                subject: &subject,
+                action: GatedAction::Vote,
+                epoch: 10,
+                params,
+                summary: summary(),
+                panel: panel.clone(),
+                salt: [5; 32],
+                score,
+                gate: gate(),
+            });
+            assert_eq!(r.unwrap_err(), AuditError::OutsideAuditBand, "{score}");
+        }
+        let ledger = EligibilityLedger::new();
+        assert_eq!(
+            ledger.check(&subject, GatedAction::Vote, 10, 5, gate()),
+            Eligibility::Insufficient
+        );
     }
 
     #[test]
