@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1268,
-    "headings": 4257,
-    "rust_symbols": 15174
+    "files": 1269,
+    "headings": 4258,
+    "rust_symbols": 15207
   },
   "crates": {
     "askama_derive": {
@@ -97509,6 +97509,203 @@
       "title": "mini-transport-security"
     },
     {
+      "bytes": 14760,
+      "group": "crate:mini-transport-security",
+      "headings": [],
+      "keywords": [
+        "window",
+        "request",
+        "source",
+        "bits",
+        "admissionpolicy",
+        "work",
+        "u64",
+        "admitted",
+        "global",
+        "per",
+        "refused",
+        "admissionmeter",
+        "new",
+        "cost",
+        "extra",
+        "sources",
+        "vecdeque",
+        "policy",
+        "self",
+        "domain",
+        "required",
+        "limit",
+        "per-source",
+        "derive"
+      ],
+      "lines": 412,
+      "path": "crates/mini-transport-security/src/admission.rs",
+      "sha256": "ceb4c8cf2624bfbee407288c86c29029394a655de59f16476dd51d9524ad5b2c",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 36,
+          "name": "DOMAIN"
+        },
+        {
+          "kind": "struct",
+          "line": 41,
+          "name": "AdmissionPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 58,
+          "name": "AdmissionPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 60,
+          "name": "starting_point"
+        },
+        {
+          "kind": "enum",
+          "line": 75,
+          "name": "Refused"
+        },
+        {
+          "kind": "struct",
+          "line": 87,
+          "name": "Quote"
+        },
+        {
+          "kind": "struct",
+          "line": 97,
+          "name": "AdmissionMeter"
+        },
+        {
+          "kind": "impl",
+          "line": 103,
+          "name": "AdmissionMeter"
+        },
+        {
+          "kind": "fn",
+          "line": 105,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 113,
+          "name": "key"
+        },
+        {
+          "kind": "fn",
+          "line": 120,
+          "name": "prune_deque"
+        },
+        {
+          "kind": "fn",
+          "line": 126,
+          "name": "global_extra"
+        },
+        {
+          "kind": "fn",
+          "line": 138,
+          "name": "quote"
+        },
+        {
+          "kind": "fn",
+          "line": 147,
+          "name": "count_for"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "required_bits"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "admit"
+        },
+        {
+          "kind": "fn",
+          "line": 196,
+          "name": "make_room"
+        },
+        {
+          "kind": "fn",
+          "line": 219,
+          "name": "tracked_sources"
+        },
+        {
+          "kind": "fn",
+          "line": 226,
+          "name": "work_hash"
+        },
+        {
+          "kind": "fn",
+          "line": 237,
+          "name": "leading_zero_bits"
+        },
+        {
+          "kind": "fn",
+          "line": 252,
+          "name": "solve"
+        },
+        {
+          "kind": "mod",
+          "line": 265,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 268,
+          "name": "small"
+        },
+        {
+          "kind": "fn",
+          "line": 279,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 282,
+          "name": "go"
+        },
+        {
+          "kind": "fn",
+          "line": 289,
+          "name": "each_request_in_the_window_raises_the_next_cost_by_one_bit"
+        },
+        {
+          "kind": "fn",
+          "line": 303,
+          "name": "cost_resets_after_a_quiet_window_and_sources_are_independent"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "insufficient_work_is_refused_and_does_not_raise_the_cost"
+        },
+        {
+          "kind": "fn",
+          "line": 333,
+          "name": "work_is_bound_to_the_request_and_cannot_be_replayed"
+        },
+        {
+          "kind": "fn",
+          "line": 356,
+          "name": "a_flooding_source_is_refused_past_the_ceiling"
+        },
+        {
+          "kind": "fn",
+          "line": 382,
+          "name": "heavy_global_load_raises_everyones_cost_up_to_a_cap"
+        },
+        {
+          "kind": "fn",
+          "line": 401,
+          "name": "tracked_sources_stay_bounded"
+        }
+      ],
+      "title": "use mini_crypto::hash::blake3_256;"
+    },
+    {
       "bytes": 20650,
       "group": "crate:mini-transport-security",
       "headings": [],
@@ -98239,13 +98436,14 @@
       "title": "use mini_privacy_policy::PrivacyTier;"
     },
     {
-      "bytes": 2323,
+      "bytes": 2522,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
         "advertisement",
         "runtime",
         "selection",
+        "admission",
         "auth",
         "error",
         "gate",
@@ -98265,55 +98463,59 @@
         "authentication",
         "secure",
         "discovery",
-        "above",
-        "anonymous"
+        "above"
       ],
-      "lines": 55,
+      "lines": 60,
       "path": "crates/mini-transport-security/src/lib.rs",
-      "sha256": "c1f88e1710cdd7f0af1e71035f6b0ff5c9e7cfc52511ffcd81d8701cf4f063db",
+      "sha256": "37a7245d491294e95064397a06c5da40d15268c2ac04ec383e2e6d228ec1283d",
       "symbols": [
         {
           "kind": "mod",
           "line": 24,
-          "name": "advertisement"
+          "name": "admission"
         },
         {
           "kind": "mod",
           "line": 25,
-          "name": "auth"
+          "name": "advertisement"
         },
         {
           "kind": "mod",
           "line": 26,
-          "name": "codec"
+          "name": "auth"
         },
         {
           "kind": "mod",
           "line": 27,
-          "name": "error"
+          "name": "codec"
         },
         {
           "kind": "mod",
           "line": 28,
-          "name": "gate"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 29,
-          "name": "replay"
+          "name": "gate"
         },
         {
           "kind": "mod",
           "line": 30,
-          "name": "runtime"
+          "name": "replay"
         },
         {
           "kind": "mod",
           "line": 31,
+          "name": "runtime"
+        },
+        {
+          "kind": "mod",
+          "line": 32,
           "name": "selection"
         }
       ],
-      "title": "mod advertisement;"
+      "title": "mod admission;"
     },
     {
       "bytes": 4801,
@@ -112439,7 +112641,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 14850,
+      "bytes": 16023,
       "group": "docs",
       "headings": [
         {
@@ -112531,6 +112733,11 @@
           "level": 2,
           "line": 258,
           "text": "Automatic housekeeping (no engineer needed)"
+        },
+        {
+          "level": 2,
+          "line": 272,
+          "text": "Escalating admission cost (spam / flood protection)"
         }
       ],
       "keywords": [
@@ -112559,9 +112766,9 @@
         "target",
         "what"
       ],
-      "lines": 271,
+      "lines": 276,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "d6db39fb7636b86743cd517fd93740df8eb7f9f070fad8b30e801fd6e76b39e2",
+      "sha256": "3d7d5b13d3f4216725cc64afd9f4d608929f582e5290be4214d115f3940c43aa",
       "symbols": [],
       "title": "Open Beta status"
     },
