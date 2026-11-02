@@ -239,6 +239,15 @@ impl<V: IdentityVault> Core<V> {
                 amount_micro,
                 &memo,
             ),
+            Command::BetaGrantApprove {
+                operation_id,
+                policy_id,
+                grant_id,
+            } => self.beta_grant_approve(&operation_id, &policy_id, &grant_id),
+            Command::BetaGrantStatus {
+                policy_id,
+                grant_id,
+            } => self.beta_grant_status(&policy_id, &grant_id),
             Command::Status => self.status().map(Reply::Status),
             Command::CreateRoot => {
                 self.create_root()?;

@@ -161,6 +161,8 @@ enum CoreAction {
     BetaRegisterAccount,
     BetaBalances,
     BetaTransfer,
+    BetaGrantApprove,
+    BetaGrantStatus,
 }
 
 impl std::fmt::Debug for CoreAction {
@@ -185,6 +187,8 @@ impl std::fmt::Debug for CoreAction {
             Self::BetaRegisterAccount => "BetaRegisterAccount",
             Self::BetaBalances => "BetaBalances",
             Self::BetaTransfer => "BetaTransfer",
+            Self::BetaGrantApprove => "BetaGrantApprove",
+            Self::BetaGrantStatus => "BetaGrantStatus",
         })
     }
 }
@@ -2537,6 +2541,28 @@ impl MininetApp {
                 self.reload_workspace();
                 self.notice = "BETA transfer signed through the application core.".into();
             }
+            (CoreAction::BetaGrantApprove, Ok(AppReply::BetaGrantApproval { .. })) => {
+                self.beta_wallet.on_grant_approval();
+                self.reload_workspace();
+                self.notice = "BETA grant approval signed through the application core.".into();
+            }
+            (
+                CoreAction::BetaGrantStatus,
+                Ok(AppReply::BetaGrantStatus {
+                    accepted,
+                    approvals_counted,
+                    threshold,
+                    equivocations,
+                }),
+            ) => {
+                self.beta_wallet.on_grant_status(
+                    accepted,
+                    approvals_counted,
+                    threshold,
+                    equivocations,
+                );
+                self.notice = "BETA grant status checked (test value only).".into();
+            }
             (action, Ok(_)) => {
                 self.app_status = None;
                 self.signing_confirmation = false;
@@ -3545,6 +3571,28 @@ No tracking. No forced updates.",
                     to,
                     amount_micro,
                     memo,
+                },
+            ),
+            beta_wallet::Request::GrantApprove {
+                operation_id,
+                policy_id,
+                grant_id,
+            } => (
+                CoreAction::BetaGrantApprove,
+                AppCommand::BetaGrantApprove {
+                    operation_id,
+                    policy_id,
+                    grant_id,
+                },
+            ),
+            beta_wallet::Request::GrantStatus {
+                policy_id,
+                grant_id,
+            } => (
+                CoreAction::BetaGrantStatus,
+                AppCommand::BetaGrantStatus {
+                    policy_id,
+                    grant_id,
                 },
             ),
         };

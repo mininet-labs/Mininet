@@ -719,7 +719,9 @@ fn dispatch_pr(
                 value
                     .map(|v| {
                         v.parse::<usize>().map_err(|_| {
-                            CliError::Usage(format!("pr list: {flag} must be a non-negative integer"))
+                            CliError::Usage(format!(
+                                "pr list: {flag} must be a non-negative integer"
+                            ))
                         })
                     })
                     .transpose()
