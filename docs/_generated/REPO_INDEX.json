@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1261,
-    "headings": 4248,
+    "files": 1262,
+    "headings": 4255,
     "rust_symbols": 15007
   },
   "crates": {
@@ -122133,6 +122133,78 @@
       "sha256": "a8a277cb2f24cf49244adb9a291a17257bbbe9d4de1ca8ba0db5d651b8fe7b79",
       "symbols": [],
       "title": "Reusable offline allowances and private account settlement"
+    },
+    {
+      "bytes": 5428,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "The proposal (founder, paraphrased)"
+        },
+        {
+          "level": 2,
+          "line": 23,
+          "text": "What already exists (do not rebuild)"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "Where the proposal collides with frozen rules (needs a decision, not code)"
+        },
+        {
+          "level": 2,
+          "line": 65,
+          "text": "Options for the gate (decision requested)"
+        },
+        {
+          "level": 2,
+          "line": 79,
+          "text": "What can be built now without touching a frozen row"
+        },
+        {
+          "level": 2,
+          "line": 91,
+          "text": "Honest limits"
+        }
+      ],
+      "keywords": [
+        "score",
+        "proposal",
+        "humanness",
+        "frozen",
+        "decision",
+        "founder",
+        "gate",
+        "minimum",
+        "signals",
+        "frontier",
+        "audited",
+        "what",
+        "needs",
+        "voting",
+        "peer",
+        "vouching",
+        "tree",
+        "already",
+        "row",
+        "vouch",
+        "other",
+        "apps",
+        "also",
+        "nobody"
+      ],
+      "lines": 96,
+      "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
+      "sha256": "b569ee2c73bf9f6d6d5ea1124fe370422d9bf4345435d6518ce8cc138def420f",
+      "symbols": [],
+      "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },
     {
       "bytes": 12145,
