@@ -10,6 +10,8 @@
 
 #![cfg_attr(not(windows), forbid(unsafe_code))]
 
+pub mod space;
+
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::Path;
@@ -109,6 +111,9 @@ pub fn try_lock_exclusive(path: &Path) -> io::Result<File> {
 /// Atomically replace a file, flushing contents before a committed rename. On an error after rename the operation may have committed: callers
 /// must fail closed and reload, never issue a conflicting retry from memory.
 pub fn atomic_replace(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    // Free-space guard: reclaim safely or fail with a plain StorageFull error
+    // *before* touching anything, so a full disk never leaves partial state.
+    space::ensure_space(path, bytes.len() as u64)?;
     let temp = temporary_path(path)?;
     let result = (|| {
         let mut file = OpenOptions::new()
