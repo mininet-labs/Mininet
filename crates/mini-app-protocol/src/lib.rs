@@ -399,6 +399,40 @@ impl Request {
                     return Err(ProtocolError::LimitExceeded("beta transfer memo"));
                 }
             }
+            Command::BetaGrantApprove {
+                operation_id,
+                policy_id,
+                grant_id,
+            } => {
+                validate_operation_id(operation_id)?;
+                validate_beta_grant_ids(policy_id, grant_id)?;
+            }
+            Command::BetaGrantStatus {
+                policy_id,
+                grant_id,
+            } => validate_beta_grant_ids(policy_id, grant_id)?,
+            Command::BetaGrantPolicyCreate {
+                operation_id,
+                campaign_id,
+                members,
+                testing_amount,
+                reward_bands,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                validate_beta_grant_policy(campaign_id, members, *testing_amount, reward_bands)?;
+            }
+            Command::BetaGrantCreate {
+                operation_id,
+                campaign_id,
+                contribution_id,
+                amount,
+                memo,
+                ..
+            } => {
+                validate_operation_id(operation_id)?;
+                validate_beta_grant(campaign_id, contribution_id.as_deref(), *amount, memo)?;
+            }
             Command::SetLike {
                 operation_id,
                 target_id,
@@ -511,6 +545,79 @@ pub const MAX_BETA_CAMPAIGNS: usize = 64;
 pub const MAX_BETA_ACCOUNTS: u16 = 64;
 pub const MAX_BETA_MEMO_BYTES: usize = 256;
 
+fn validate_beta_grant_ids(policy_id: &str, grant_id: &str) -> Result<(), ProtocolError> {
+    for id in [policy_id, grant_id] {
+        if id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES {
+            return Err(ProtocolError::LimitExceeded("beta grant object id"));
+        }
+    }
+    Ok(())
+}
+
+/// Bounds for grant-policy creation. Member DIDs are public by design.
+pub const MAX_BETA_GRANT_MEMBERS: usize = 64;
+pub const MAX_BETA_REWARD_BANDS: usize = 64;
+
+fn validate_beta_grant_policy(
+    campaign_id: &str,
+    members: &[String],
+    testing_amount: u64,
+    reward_bands: &[u64],
+) -> Result<(), ProtocolError> {
+    if campaign_id.is_empty() || campaign_id.len() > MAX_OBJECT_ID_BYTES {
+        return Err(ProtocolError::LimitExceeded("beta grant campaign id"));
+    }
+    if members.is_empty() || members.len() > MAX_BETA_GRANT_MEMBERS {
+        return Err(ProtocolError::LimitExceeded("beta grant member count"));
+    }
+    if members
+        .iter()
+        .any(|did| did.is_empty() || did.len() > MAX_DID_BYTES)
+    {
+        return Err(ProtocolError::LimitExceeded("beta grant member DID"));
+    }
+    let mut sorted: Vec<&String> = members.iter().collect();
+    sorted.sort();
+    if sorted.windows(2).any(|w| w[0] == w[1]) {
+        return Err(ProtocolError::LimitExceeded("beta grant duplicate member"));
+    }
+    if testing_amount == 0 {
+        return Err(ProtocolError::LimitExceeded("beta grant testing amount"));
+    }
+    if reward_bands.is_empty() || reward_bands.len() > MAX_BETA_REWARD_BANDS {
+        return Err(ProtocolError::LimitExceeded("beta grant reward band count"));
+    }
+    Ok(())
+}
+
+fn validate_beta_grant(
+    campaign_id: &str,
+    contribution_id: Option<&str>,
+    amount: u64,
+    memo: &str,
+) -> Result<(), ProtocolError> {
+    if campaign_id.is_empty() || campaign_id.len() > MAX_OBJECT_ID_BYTES {
+        return Err(ProtocolError::LimitExceeded("beta grant campaign id"));
+    }
+    if contribution_id.is_some_and(|id| id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES) {
+        return Err(ProtocolError::LimitExceeded("beta grant contribution id"));
+    }
+    if amount == 0 {
+        return Err(ProtocolError::LimitExceeded("beta grant amount"));
+    }
+    if memo.len() > MAX_BETA_MEMO_BYTES || memo.trim().is_empty() {
+        return Err(ProtocolError::LimitExceeded("beta grant memo"));
+    }
+    Ok(())
+}
+
+/// Class of a BETA grant authorization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BetaGrantClass {
+    Testing,
+    Participation,
+}
+
 /// One opaque BETA account balance, in integer micro-BETA test units.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BetaAccountBalance {
@@ -553,6 +660,46 @@ pub enum Command {
         from: [u8; 32],
         to: [u8; 32],
         amount_micro: u64,
+        memo: String,
+    },
+    /// Approve one exact grant under one grant policy, signed by this
+    /// identity's PRIMARY DID (policy members are public DIDs). Retrying with
+    /// the same `operation_id` never signs a second approval.
+    BetaGrantApprove {
+        operation_id: String,
+        policy_id: String,
+        grant_id: String,
+    },
+    /// Read-only: count the distinct policy-member approvals for a grant.
+    BetaGrantStatus {
+        policy_id: String,
+        grant_id: String,
+    },
+    /// Create a grant policy for a campaign this identity authored, signed by
+    /// this identity's PRIMARY DID. Members are public DIDs by design.
+    /// Retrying with the same `operation_id` never signs a second policy.
+    BetaGrantPolicyCreate {
+        operation_id: String,
+        campaign_id: String,
+        members: Vec<String>,
+        testing_threshold: u16,
+        participation_threshold: u16,
+        testing_amount: u64,
+        reward_bands: Vec<u64>,
+        valid_from_ms: u64,
+        valid_until_ms: u64,
+    },
+    /// Create a grant authorization for a registered account, signed by this
+    /// identity's PRIMARY DID. It has no effect until a policy threshold of
+    /// members approves it. Test value only.
+    BetaGrantCreate {
+        operation_id: String,
+        campaign_id: String,
+        epoch: [u8; 32],
+        account: [u8; 32],
+        class: BetaGrantClass,
+        contribution_id: Option<String>,
+        amount: u64,
         memo: String,
     },
     PublishMediaPost {
@@ -709,6 +856,22 @@ pub enum Reply {
         transfer_id: String,
         amount_micro: u64,
         change_micro: u64,
+    },
+    BetaGrantApproval {
+        approval_id: String,
+    },
+    BetaGrantPolicyCreated {
+        policy_id: String,
+    },
+    BetaGrantCreated {
+        grant_id: String,
+    },
+    /// Evidence only: an accepted grant is not a conversion or issuance.
+    BetaGrantStatus {
+        accepted: bool,
+        approvals_counted: u16,
+        threshold: u16,
+        equivocations: u16,
     },
     PublicDeliveryObject(DeliveryObjectView),
     Ack,
@@ -1065,6 +1228,77 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.u64(*amount_micro);
             encoder.string(memo, MAX_BETA_MEMO_BYTES)?;
         }
+        Command::BetaGrantApprove {
+            operation_id,
+            policy_id,
+            grant_id,
+        } => {
+            encoder.u8(43);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(policy_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Command::BetaGrantStatus {
+            policy_id,
+            grant_id,
+        } => {
+            encoder.u8(44);
+            encoder.string(policy_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Command::BetaGrantPolicyCreate {
+            operation_id,
+            campaign_id,
+            members,
+            testing_threshold,
+            participation_threshold,
+            testing_amount,
+            reward_bands,
+            valid_from_ms,
+            valid_until_ms,
+        } => {
+            validate_beta_grant_policy(campaign_id, members, *testing_amount, reward_bands)?;
+            encoder.u8(45);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(campaign_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u16(members.len() as u16);
+            for member in members {
+                encoder.string(member, MAX_DID_BYTES)?;
+            }
+            encoder.u16(*testing_threshold);
+            encoder.u16(*participation_threshold);
+            encoder.u64(*testing_amount);
+            encoder.u16(reward_bands.len() as u16);
+            for band in reward_bands {
+                encoder.u64(*band);
+            }
+            encoder.u64(*valid_from_ms);
+            encoder.u64(*valid_until_ms);
+        }
+        Command::BetaGrantCreate {
+            operation_id,
+            campaign_id,
+            epoch,
+            account,
+            class,
+            contribution_id,
+            amount,
+            memo,
+        } => {
+            validate_beta_grant(campaign_id, contribution_id.as_deref(), *amount, memo)?;
+            encoder.u8(46);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(campaign_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.byte_string(epoch, 32)?;
+            encoder.byte_string(account, 32)?;
+            encoder.u8(match class {
+                BetaGrantClass::Testing => 1,
+                BetaGrantClass::Participation => 2,
+            });
+            encoder.option_string(contribution_id.as_deref(), MAX_OBJECT_ID_BYTES)?;
+            encoder.u64(*amount);
+            encoder.string(memo, MAX_BETA_MEMO_BYTES)?;
+        }
         Command::SetLike {
             operation_id,
             target_id,
@@ -1277,6 +1511,61 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             from: array32(decoder.byte_string(32)?, "beta sender")?,
             to: array32(decoder.byte_string(32)?, "beta recipient")?,
             amount_micro: decoder.u64()?,
+            memo: decoder.string(MAX_BETA_MEMO_BYTES)?,
+        }),
+        43 => Ok(Command::BetaGrantApprove {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        44 => Ok(Command::BetaGrantStatus {
+            policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        45 => {
+            let operation_id = decoder.string(MAX_OPERATION_ID_BYTES)?;
+            let campaign_id = decoder.string(MAX_OBJECT_ID_BYTES)?;
+            let count = usize::from(decoder.u16()?);
+            if count == 0 || count > MAX_BETA_GRANT_MEMBERS {
+                return Err(ProtocolError::LimitExceeded("beta grant member count"));
+            }
+            let members = (0..count)
+                .map(|_| decoder.string(MAX_DID_BYTES))
+                .collect::<Result<Vec<_>, _>>()?;
+            let testing_threshold = decoder.u16()?;
+            let participation_threshold = decoder.u16()?;
+            let testing_amount = decoder.u64()?;
+            let band_count = usize::from(decoder.u16()?);
+            if band_count == 0 || band_count > MAX_BETA_REWARD_BANDS {
+                return Err(ProtocolError::LimitExceeded("beta grant reward band count"));
+            }
+            let reward_bands = (0..band_count)
+                .map(|_| decoder.u64())
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Command::BetaGrantPolicyCreate {
+                operation_id,
+                campaign_id,
+                members,
+                testing_threshold,
+                participation_threshold,
+                testing_amount,
+                reward_bands,
+                valid_from_ms: decoder.u64()?,
+                valid_until_ms: decoder.u64()?,
+            })
+        }
+        46 => Ok(Command::BetaGrantCreate {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            campaign_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            epoch: array32(decoder.byte_string(32)?, "beta epoch")?,
+            account: array32(decoder.byte_string(32)?, "beta account")?,
+            class: match decoder.u8()? {
+                1 => BetaGrantClass::Testing,
+                2 => BetaGrantClass::Participation,
+                _ => return Err(ProtocolError::Decode("invalid beta grant class".into())),
+            },
+            contribution_id: decoder.option_string(MAX_OBJECT_ID_BYTES)?,
+            amount: decoder.u64()?,
             memo: decoder.string(MAX_BETA_MEMO_BYTES)?,
         }),
         25 => Ok(Command::SetLike {
@@ -1514,6 +1803,30 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
             encoder.u64(*amount_micro);
             encoder.u64(*change_micro);
         }
+        Reply::BetaGrantApproval { approval_id } => {
+            encoder.u8(43);
+            encoder.string(approval_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Reply::BetaGrantPolicyCreated { policy_id } => {
+            encoder.u8(45);
+            encoder.string(policy_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Reply::BetaGrantCreated { grant_id } => {
+            encoder.u8(46);
+            encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
+        }
+        Reply::BetaGrantStatus {
+            accepted,
+            approvals_counted,
+            threshold,
+            equivocations,
+        } => {
+            encoder.u8(44);
+            encoder.bool(*accepted);
+            encoder.u16(*approvals_counted);
+            encoder.u16(*threshold);
+            encoder.u16(*equivocations);
+        }
         Reply::DeliveryRuntime(view) => {
             encoder.u8(10);
             encoder.bool(view.enabled);
@@ -1625,6 +1938,21 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
             transfer_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
             amount_micro: decoder.u64()?,
             change_micro: decoder.u64()?,
+        }),
+        43 => Ok(Reply::BetaGrantApproval {
+            approval_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        45 => Ok(Reply::BetaGrantPolicyCreated {
+            policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        46 => Ok(Reply::BetaGrantCreated {
+            grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        44 => Ok(Reply::BetaGrantStatus {
+            accepted: decoder.bool()?,
+            approvals_counted: decoder.u16()?,
+            threshold: decoder.u16()?,
+            equivocations: decoder.u16()?,
         }),
         8 => Ok(Reply::DeliveryIdentity(DeliveryIdentity {
             root_kel: decoder.byte_string(MAX_DELIVERY_KEL_BYTES)?,
@@ -2357,6 +2685,124 @@ mod tests {
         );
     }
 
+    fn policy_create() -> Command {
+        Command::BetaGrantPolicyCreate {
+            operation_id: "op-5".to_string(),
+            campaign_id: "zcampaign".to_string(),
+            members: vec!["did:mini:a".to_string(), "did:mini:b".to_string()],
+            testing_threshold: 2,
+            participation_threshold: 2,
+            testing_amount: 10,
+            reward_bands: vec![100, 200],
+            valid_from_ms: 1,
+            valid_until_ms: 2,
+        }
+    }
+
+    #[test]
+    #[allow(clippy::type_complexity)]
+    fn malformed_beta_grant_creation_requests_are_rejected() {
+        let mut sink = Vec::new();
+        let mut bad_requests = Vec::new();
+        let policy = |f: &dyn Fn(&mut Vec<String>, &mut u64, &mut Vec<u64>, &mut String)| {
+            let Command::BetaGrantPolicyCreate {
+                operation_id,
+                mut campaign_id,
+                mut members,
+                testing_threshold,
+                participation_threshold,
+                mut testing_amount,
+                mut reward_bands,
+                valid_from_ms,
+                valid_until_ms,
+            } = policy_create()
+            else {
+                unreachable!()
+            };
+            f(
+                &mut members,
+                &mut testing_amount,
+                &mut reward_bands,
+                &mut campaign_id,
+            );
+            Request::new(
+                1,
+                Command::BetaGrantPolicyCreate {
+                    operation_id,
+                    campaign_id,
+                    members,
+                    testing_threshold,
+                    participation_threshold,
+                    testing_amount,
+                    reward_bands,
+                    valid_from_ms,
+                    valid_until_ms,
+                },
+            )
+        };
+        bad_requests.push(policy(&|m, _, _, _| m.clear()));
+        bad_requests.push(policy(&|m, _, _, _| *m = vec!["did:mini:a".to_string(); 2]));
+        bad_requests.push(policy(&|m, _, _, _| {
+            *m = (0..=MAX_BETA_GRANT_MEMBERS)
+                .map(|i| format!("d{i}"))
+                .collect()
+        }));
+        bad_requests.push(policy(&|m, _, _, _| m[0] = String::new()));
+        bad_requests.push(policy(&|m, _, _, _| m[0] = "d".repeat(MAX_DID_BYTES + 1)));
+        bad_requests.push(policy(&|_, a, _, _| *a = 0));
+        bad_requests.push(policy(&|_, _, b, _| b.clear()));
+        bad_requests.push(policy(&|_, _, b, _| {
+            *b = (1..=(MAX_BETA_REWARD_BANDS as u64 + 1)).collect()
+        }));
+        bad_requests.push(policy(&|_, _, _, c| c.clear()));
+        let grant = |amount: u64, memo: &str, contribution: Option<&str>| {
+            Request::new(
+                1,
+                Command::BetaGrantCreate {
+                    operation_id: "op".to_string(),
+                    campaign_id: "zcampaign".to_string(),
+                    epoch: [7; 32],
+                    account: [3; 32],
+                    class: BetaGrantClass::Testing,
+                    contribution_id: contribution.map(str::to_string),
+                    amount,
+                    memo: memo.to_string(),
+                },
+            )
+        };
+        bad_requests.push(grant(0, "m", None));
+        bad_requests.push(grant(1, "  ", None));
+        bad_requests.push(grant(1, &"m".repeat(MAX_BETA_MEMO_BYTES + 1), None));
+        bad_requests.push(grant(1, "m", Some("")));
+        for bad in &bad_requests {
+            sink.clear();
+            assert!(write_request(&mut sink, bad).is_err(), "{bad:?}");
+        }
+        // Hand-built frames: unknown class, and a member count above the bound.
+        let mut e = Encoder::new();
+        e.u8(46);
+        e.string("op", MAX_OPERATION_ID_BYTES).unwrap();
+        e.string("c", MAX_OBJECT_ID_BYTES).unwrap();
+        e.byte_string(&[1; 32], 32).unwrap();
+        e.byte_string(&[1; 32], 32).unwrap();
+        e.u8(9);
+        assert!(decode_command(&mut Decoder::new(&e.bytes)).is_err());
+        let mut e = Encoder::new();
+        e.u8(45);
+        e.string("op", MAX_OPERATION_ID_BYTES).unwrap();
+        e.string("c", MAX_OBJECT_ID_BYTES).unwrap();
+        e.u16(MAX_BETA_GRANT_MEMBERS as u16 + 1);
+        assert!(decode_command(&mut Decoder::new(&e.bytes)).is_err());
+        // Truncated frames are refused.
+        let mut e = Encoder::new();
+        e.u8(45);
+        e.string("op", MAX_OPERATION_ID_BYTES).unwrap();
+        assert!(decode_command(&mut Decoder::new(&e.bytes)).is_err());
+        let mut r = Encoder::new();
+        r.u8(46);
+        assert!(decode_reply(&mut Decoder::new(&r.bytes)).is_err());
+    }
+
     #[test]
     fn beta_wallet_commands_and_replies_round_trip_with_bounded_fields() {
         let campaigns = vec!["zcampaign".to_string()];
@@ -2377,6 +2823,36 @@ mod tests {
                 to: [2; 32],
                 amount_micro: 30,
                 memo: "lunch".to_string(),
+            },
+            Command::BetaGrantApprove {
+                operation_id: "op-4".to_string(),
+                policy_id: "zpolicy".to_string(),
+                grant_id: "zgrant".to_string(),
+            },
+            Command::BetaGrantStatus {
+                policy_id: "zpolicy".to_string(),
+                grant_id: "zgrant".to_string(),
+            },
+            policy_create(),
+            Command::BetaGrantCreate {
+                operation_id: "op-6".to_string(),
+                campaign_id: "zcampaign".to_string(),
+                epoch: [7; 32],
+                account: [3; 32],
+                class: BetaGrantClass::Participation,
+                contribution_id: Some("zcontribution".to_string()),
+                amount: 500,
+                memo: "thanks".to_string(),
+            },
+            Command::BetaGrantCreate {
+                operation_id: "op-7".to_string(),
+                campaign_id: "zcampaign".to_string(),
+                epoch: [7; 32],
+                account: [3; 32],
+                class: BetaGrantClass::Testing,
+                contribution_id: None,
+                amount: 5,
+                memo: "test".to_string(),
             },
         ] {
             let request = Request::new(5, command);
@@ -2406,6 +2882,21 @@ mod tests {
                 transfer_id: "ztransfer".to_string(),
                 amount_micro: 30,
                 change_micro: 70,
+            },
+            Reply::BetaGrantApproval {
+                approval_id: "zapproval".to_string(),
+            },
+            Reply::BetaGrantStatus {
+                accepted: true,
+                approvals_counted: 2,
+                threshold: 2,
+                equivocations: 1,
+            },
+            Reply::BetaGrantPolicyCreated {
+                policy_id: "zpolicy".to_string(),
+            },
+            Reply::BetaGrantCreated {
+                grant_id: "zgrant".to_string(),
             },
         ] {
             let response = Response::ok(6, reply);
@@ -2453,6 +2944,61 @@ mod tests {
         encoder.byte_string(&[1u8; 31], 32).unwrap();
         let mut decoder = Decoder::new(&encoder.bytes);
         assert!(decode_command(&mut decoder).is_err());
+    }
+
+    #[test]
+    fn malformed_beta_grant_requests_are_rejected_before_dispatch() {
+        let long = "g".repeat(MAX_OBJECT_ID_BYTES + 1);
+        let max = "g".repeat(MAX_OBJECT_ID_BYTES);
+        let approve = |op: &str, policy: &str, grant: &str| {
+            Request::new(
+                1,
+                Command::BetaGrantApprove {
+                    operation_id: op.to_string(),
+                    policy_id: policy.to_string(),
+                    grant_id: grant.to_string(),
+                },
+            )
+        };
+        let status = |policy: &str, grant: &str| {
+            Request::new(
+                1,
+                Command::BetaGrantStatus {
+                    policy_id: policy.to_string(),
+                    grant_id: grant.to_string(),
+                },
+            )
+        };
+        let mut sink = Vec::new();
+        for bad in [
+            approve("", "p", "g"),
+            approve("op", "", "g"),
+            approve("op", "p", ""),
+            approve("op", &long, "g"),
+            approve("op", "p", &long),
+            status("", "g"),
+            status("p", ""),
+            status(&long, "g"),
+            status("p", &long),
+        ] {
+            sink.clear();
+            assert!(write_request(&mut sink, &bad).is_err(), "{bad:?}");
+        }
+        sink.clear();
+        write_request(&mut sink, &approve("op", &max, &max)).unwrap();
+        // A hand-built frame with an oversized grant id is refused on decode.
+        let mut encoder = Encoder::new();
+        encoder.u8(44);
+        encoder.string("p", MAX_OBJECT_ID_BYTES).unwrap();
+        encoder.u32(long.len() as u32);
+        encoder.bytes.extend_from_slice(long.as_bytes());
+        assert!(decode_command(&mut Decoder::new(&encoder.bytes)).is_err());
+        // A truncated status reply is refused on decode.
+        let mut reply = Encoder::new();
+        reply.u8(44);
+        reply.bool(true);
+        reply.u16(1);
+        assert!(decode_reply(&mut Decoder::new(&reply.bytes)).is_err());
     }
 
     #[test]

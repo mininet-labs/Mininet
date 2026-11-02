@@ -760,6 +760,41 @@ pub fn create_grant_authorization<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    let object = build_grant_authorization(
+        store,
+        record_human,
+        record_device,
+        campaign_id,
+        contribution_id,
+        epoch,
+        account,
+        class,
+        amount,
+        memo,
+        timestamp_ms,
+        sequence,
+    )?;
+    store.insert(&object)?;
+    Ok(object)
+}
+
+/// Build and sign a grant authorization WITHOUT storing it, for write-ahead
+/// journaling callers. Applies every check `create_grant_authorization` applies.
+#[allow(clippy::too_many_arguments)]
+pub fn build_grant_authorization<B: Backend>(
+    store: &Store<B>,
+    record_human: &Did,
+    record_device: &Controller,
+    campaign_id: &ObjectId,
+    contribution_id: Option<&ObjectId>,
+    epoch: BetaEpochId,
+    account: BetaAccountId,
+    class: GrantClass,
+    amount: u64,
+    memo: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     let campaign_obj = store.get(campaign_id)?;
     let campaign = parse_campaign_object(&campaign_obj)?;
     if epoch != campaign.epoch || amount == 0 {
@@ -800,9 +835,7 @@ pub fn create_grant_authorization<B: Backend>(
     if let Some(contribution_id) = contribution_id {
         builder = builder.link("contribution", contribution_id.clone());
     }
-    let object = builder.sign(record_human, record_device)?;
-    store.insert(&object)?;
-    Ok(object)
+    Ok(builder.sign(record_human, record_device)?)
 }
 
 /// Strictly read a campaign object from the store.

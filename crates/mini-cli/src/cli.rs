@@ -710,10 +710,29 @@ fn dispatch_pr(
         }
         "list" => {
             let project = next(&mut args, "pr list")?;
+            let offset = extract_flag(&mut args, "--offset");
+            let page_size = extract_flag(&mut args, "--page-size");
             if !args.is_empty() {
                 return Err(CliError::Usage("unexpected pr list arguments".into()));
             }
-            pr::list_prs(home, store_path, &project)
+            let parse = |value: Option<String>, flag: &str| -> Result<Option<usize>> {
+                value
+                    .map(|v| {
+                        v.parse::<usize>().map_err(|_| {
+                            CliError::Usage(format!(
+                                "pr list: {flag} must be a non-negative integer"
+                            ))
+                        })
+                    })
+                    .transpose()
+            };
+            pr::list_prs(
+                home,
+                store_path,
+                &project,
+                parse(offset, "--offset")?,
+                parse(page_size, "--page-size")?,
+            )
         }
         "show" | "diff" => {
             let id = next(&mut args, "pr show/diff")?;

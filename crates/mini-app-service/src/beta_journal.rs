@@ -1,6 +1,6 @@
 //! Durable, idempotent record of BETA mutations keyed by operation id.
 //!
-//! A BETA registration or transfer is signed exactly once: the signed object
+//! A BETA registration, transfer, grant approval, grant policy or grant is signed exactly once: the signed object
 //! bytes are written to `pending/` *before* they are committed to the store, so
 //! a retry after a lost response (or a crash between signing and committing)
 //! replays the identical object instead of signing a second one. Once
@@ -29,6 +29,13 @@ const MAX_ACCOUNT_MARKERS: usize = 256;
 
 pub(crate) const KIND_REGISTER: u8 = 1;
 pub(crate) const KIND_TRANSFER: u8 = 2;
+/// A grant approval signed by the user's primary identity. Its `account`,
+/// `amount` and `change` fields are unused (zero).
+pub(crate) const KIND_APPROVAL: u8 = 3;
+/// A grant policy signed by the user's primary identity (unused fields zero).
+pub(crate) const KIND_POLICY: u8 = 4;
+/// A grant authorization signed by the user's primary identity (unused fields zero).
+pub(crate) const KIND_GRANT: u8 = 5;
 
 /// A signed object waiting to be committed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,7 +119,10 @@ fn encode_pending(record: &Record) -> Result<Vec<u8>, ServiceError> {
 }
 
 fn valid_kind(kind: u8) -> bool {
-    kind == KIND_REGISTER || kind == KIND_TRANSFER
+    matches!(
+        kind,
+        KIND_REGISTER | KIND_TRANSFER | KIND_APPROVAL | KIND_POLICY | KIND_GRANT
+    )
 }
 
 fn decode_pending(bytes: &[u8]) -> Result<Record, ServiceError> {

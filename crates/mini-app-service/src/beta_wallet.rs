@@ -7,20 +7,31 @@
 //! include account or object ids.
 
 use mini_app_protocol::{
-    BetaAccountBalance, BetaBalancesView, ErrorCode, Reply, ServiceError, MAX_BETA_ACCOUNTS,
+    BetaAccountBalance, BetaBalancesView, BetaGrantClass, ErrorCode, Reply, ServiceError,
+    MAX_BETA_ACCOUNTS,
 };
-use mini_beta::{BetaAccountId, BetaEpochId, BetaMiniPolicy};
+use mini_beta::{
+    build_grant_authorization, BetaAccountId, BetaEpochId, BetaError, BetaMiniPolicy, GrantClass,
+};
 use mini_beta_exec::{
     build_account_registration, build_transfer, derive_account_id,
     parse_account_registration_object, resolve_snapshot, BetaExecError, BetaOutputRef,
     BetaTransferOutput, EpochIssuancePolicy, BETA_ACCOUNT_TYPE, MAX_TRANSFER_INPUTS,
 };
+use mini_beta_grants::{
+    build_grant_approval, build_grant_policy, detect_authorizer_equivocations,
+    parse_grant_approval_object, validate_grant_acceptance, validate_policy, GrantAcceptanceError,
+    BETA_GRANT_APPROVAL_TYPE,
+};
 use mini_crypto::random_32;
 use mini_crypto::KdfSuite;
 use mini_objects::{ObjectId, ObjectType};
+use mini_store::StoreError;
 use mini_windows_vault::SeedPair;
 
-use crate::beta_journal::{self, Record, KIND_REGISTER, KIND_TRANSFER};
+use crate::beta_journal::{
+    self, Record, KIND_APPROVAL, KIND_GRANT, KIND_POLICY, KIND_REGISTER, KIND_TRANSFER,
+};
 use crate::{
     identity_from_seeds, next_object_sequence, now_ms, storage_error, validate_operation, Core,
     CoreIdentity, IdentityVault,
@@ -28,6 +39,9 @@ use crate::{
 
 /// HKDF domain separating per-account BETA signing identities from every other
 /// use of the root seed.
+/// Bound on objects examined when discovering a policy's approvals.
+const MAX_STATUS_SCAN: usize = 4096;
+
 const ACCOUNT_IDENTITY_INFO: &[u8] = b"mininet/beta/account-identity/v1";
 
 /// One BETA account's isolated signing identity. It is derived, never stored,
@@ -100,6 +114,52 @@ fn exec_error(error: BetaExecError) -> ServiceError {
         | BetaExecError::Object(_) => bad("BETA request rejected"),
         _ => ServiceError::new(ErrorCode::Internal, "BETA execution error"),
     }
+}
+
+/// Map a grant-library error to fixed text. Never includes object ids,
+/// account ids or DIDs.
+fn grants_error(error: GrantAcceptanceError) -> ServiceError {
+    match error {
+        GrantAcceptanceError::Store(StoreError::NotFound)
+        | GrantAcceptanceError::Beta(BetaError::Store(StoreError::NotFound)) => {
+            bad("grant policy or grant not found in this store")
+        }
+        GrantAcceptanceError::Store(_) | GrantAcceptanceError::Beta(BetaError::Store(_)) => {
+            ServiceError::new(ErrorCode::Storage, "BETA store error")
+        }
+        GrantAcceptanceError::InvalidApproval => bad(
+            "this identity cannot approve this grant (not a policy member, or outside the policy window)",
+        ),
+        GrantAcceptanceError::EvidenceLimit => bad("too many approvals to evaluate here"),
+        GrantAcceptanceError::PolicyConflict => {
+            bad("more than one grant policy exists for this campaign")
+        }
+        GrantAcceptanceError::GrantRuleViolation => bad("the grant violates its policy"),
+        GrantAcceptanceError::InvalidObject
+        | GrantAcceptanceError::InvalidPolicy
+        | GrantAcceptanceError::PolicyAuthorMismatch
+        | GrantAcceptanceError::Beta(_)
+        | GrantAcceptanceError::Object(_) => bad("grant or policy is not valid"),
+        _ => ServiceError::new(ErrorCode::Internal, "BETA grant error"),
+    }
+}
+
+/// Map a Beta-library error to fixed text. Never includes ids or DIDs.
+fn beta_lib_error(error: BetaError) -> ServiceError {
+    match error {
+        BetaError::Store(StoreError::NotFound) => bad("campaign or contribution not found"),
+        BetaError::Store(_) => ServiceError::new(ErrorCode::Storage, "BETA store error"),
+        BetaError::GrantLimitExceeded => bad("grant amount exceeds the campaign limit"),
+        BetaError::WrongEpoch => bad("grant epoch does not match the campaign"),
+        BetaError::InvalidObject | BetaError::InvalidPolicy | BetaError::DuplicateGrant => {
+            bad("grant request is not valid for this campaign")
+        }
+        _ => ServiceError::new(ErrorCode::Internal, "BETA grant error"),
+    }
+}
+
+fn object_id(value: &str) -> Result<ObjectId, ServiceError> {
+    ObjectId::parse(value).map_err(|_| bad("invalid object id"))
 }
 
 fn epoch_id(bytes: [u8; 32]) -> Result<BetaEpochId, ServiceError> {
@@ -179,6 +239,18 @@ impl<V: IdentityVault> Core<V> {
             Reply::BetaAccount {
                 account: receipt.account,
                 registration_id: receipt.object_id.clone(),
+            }
+        } else if receipt.kind == KIND_POLICY {
+            Reply::BetaGrantPolicyCreated {
+                policy_id: receipt.object_id.clone(),
+            }
+        } else if receipt.kind == KIND_GRANT {
+            Reply::BetaGrantCreated {
+                grant_id: receipt.object_id.clone(),
+            }
+        } else if receipt.kind == KIND_APPROVAL {
+            Reply::BetaGrantApproval {
+                approval_id: receipt.object_id.clone(),
             }
         } else {
             Reply::BetaTransfer {
@@ -311,6 +383,296 @@ impl<V: IdentityVault> Core<V> {
             conflicts: u32::try_from(conflicts).unwrap_or(u32::MAX),
             snapshot_digest: snapshot.digest,
         }))
+    }
+
+    /// Approve one exact grant under one policy.
+    ///
+    /// Signed by the user's PRIMARY identity, deliberately NOT the
+    /// per-account derived identity: grant-policy members are public DIDs by
+    /// design (the threshold is over named authorizers), so the approval must
+    /// be attributable to the member's real DID. It therefore links the
+    /// approver's public DID to the approved grant.
+    pub(crate) fn beta_grant_approve(
+        &mut self,
+        operation_id: &str,
+        policy_id: &str,
+        grant_id: &str,
+    ) -> Result<Reply, ServiceError> {
+        validate_operation(operation_id)?;
+        let policy = object_id(policy_id)?;
+        let grant = object_id(grant_id)?;
+        let digest = input_digest(
+            b"grant-approve",
+            &[policy.as_str().as_bytes(), grant.as_str().as_bytes()],
+        );
+        if let Some(reply) = self.beta_replay(operation_id, KIND_APPROVAL, digest)? {
+            return Ok(reply);
+        }
+        self.ensure_signing_available()?;
+        beta_journal::commit_pending(&self.beta_ops, &mut self.store)?;
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object = build_grant_approval(
+            &self.store,
+            human,
+            device,
+            &policy,
+            &grant,
+            now_ms(),
+            sequence,
+        )
+        .map_err(grants_error)?;
+        self.beta_journal_and_commit(
+            operation_id,
+            Record {
+                kind: KIND_APPROVAL,
+                digest,
+                account: [0; 32],
+                amount: 0,
+                change: 0,
+                object: object.to_bytes(),
+            },
+        )
+    }
+
+    /// Create a grant policy for a campaign this identity authored.
+    ///
+    /// Signed by the user's PRIMARY identity, deliberately NOT a per-account
+    /// derived identity: the campaign record author and the policy members
+    /// are public DIDs by design, so the policy is attributable to the
+    /// author's real DID and names the members' real DIDs.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn beta_grant_policy_create(
+        &mut self,
+        operation_id: &str,
+        campaign_id: &str,
+        members: &[String],
+        testing_threshold: u16,
+        participation_threshold: u16,
+        testing_amount: u64,
+        reward_bands: &[u64],
+        valid_from_ms: u64,
+        valid_until_ms: u64,
+    ) -> Result<Reply, ServiceError> {
+        validate_operation(operation_id)?;
+        let campaign = object_id(campaign_id)?;
+        let dids = members
+            .iter()
+            .map(|m| did_mini::Did::parse(m).map_err(|_| bad("invalid member identity")))
+            .collect::<Result<Vec<_>, _>>()?;
+        let member_list = members.join("\n");
+        let bands: Vec<u8> = reward_bands.iter().flat_map(|b| b.to_be_bytes()).collect();
+        let digest = input_digest(
+            b"grant-policy",
+            &[
+                campaign.as_str().as_bytes(),
+                member_list.as_bytes(),
+                &testing_threshold.to_be_bytes(),
+                &participation_threshold.to_be_bytes(),
+                &testing_amount.to_be_bytes(),
+                &bands,
+                &valid_from_ms.to_be_bytes(),
+                &valid_until_ms.to_be_bytes(),
+            ],
+        );
+        if let Some(reply) = self.beta_replay(operation_id, KIND_POLICY, digest)? {
+            return Ok(reply);
+        }
+        self.ensure_signing_available()?;
+        beta_journal::commit_pending(&self.beta_ops, &mut self.store)?;
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object = build_grant_policy(
+            &self.store,
+            human,
+            device,
+            &campaign,
+            &dids,
+            testing_threshold,
+            participation_threshold,
+            testing_amount,
+            reward_bands,
+            valid_from_ms,
+            valid_until_ms,
+            now_ms(),
+            sequence,
+        )
+        .map_err(grants_error)?;
+        self.beta_journal_and_commit(
+            operation_id,
+            Record {
+                kind: KIND_POLICY,
+                digest,
+                account: [0; 32],
+                amount: 0,
+                change: 0,
+                object: object.to_bytes(),
+            },
+        )
+    }
+
+    /// Create a grant authorization for a registered account. Signed by the
+    /// user's PRIMARY identity (the campaign record author is a public DID by
+    /// design). No issuance effect until a policy threshold approves it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn beta_grant_create(
+        &mut self,
+        operation_id: &str,
+        campaign_id: &str,
+        epoch: [u8; 32],
+        account: [u8; 32],
+        class: BetaGrantClass,
+        contribution_id: Option<&str>,
+        amount: u64,
+        memo: &str,
+    ) -> Result<Reply, ServiceError> {
+        validate_operation(operation_id)?;
+        let campaign = object_id(campaign_id)?;
+        let contribution = contribution_id.map(object_id).transpose()?;
+        let epoch = epoch_id(epoch)?;
+        let account = account_id(account)?;
+        if amount == 0 {
+            return Err(bad("amount must be positive"));
+        }
+        let class = match class {
+            BetaGrantClass::Testing => GrantClass::Testing,
+            BetaGrantClass::Participation => GrantClass::Participation,
+        };
+        let digest = input_digest(
+            b"grant",
+            &[
+                campaign.as_str().as_bytes(),
+                epoch.as_bytes(),
+                account.as_bytes(),
+                class.as_str().as_bytes(),
+                contribution
+                    .as_ref()
+                    .map_or(&b""[..], |c| c.as_str().as_bytes()),
+                &amount.to_be_bytes(),
+                memo.as_bytes(),
+            ],
+        );
+        if let Some(reply) = self.beta_replay(operation_id, KIND_GRANT, digest)? {
+            return Ok(reply);
+        }
+        self.ensure_signing_available()?;
+        beta_journal::commit_pending(&self.beta_ops, &mut self.store)?;
+        if !self
+            .beta_registrations(epoch)?
+            .iter()
+            .any(|(_, _, registered)| *registered == account)
+        {
+            return Err(bad("recipient is not a registered BETA account"));
+        }
+        let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
+        let object = build_grant_authorization(
+            &self.store,
+            human,
+            device,
+            &campaign,
+            contribution.as_ref(),
+            epoch,
+            account,
+            class,
+            amount,
+            memo,
+            now_ms(),
+            sequence,
+        )
+        .map_err(beta_lib_error)?;
+        self.beta_journal_and_commit(
+            operation_id,
+            Record {
+                kind: KIND_GRANT,
+                digest,
+                account: *account.as_bytes(),
+                amount,
+                change: 0,
+                object: object.to_bytes(),
+            },
+        )
+    }
+
+    /// Read-only: how many distinct policy members approved `grant_id`, and
+    /// whether the policy threshold is met. Approvals are discovered by
+    /// scanning objects that link to the policy; invalid or foreign ones are
+    /// ignored. An accepted grant is evidence only, never a conversion.
+    pub(crate) fn beta_grant_status(
+        &self,
+        policy_id: &str,
+        grant_id: &str,
+    ) -> Result<Reply, ServiceError> {
+        let policy = object_id(policy_id)?;
+        let grant = object_id(grant_id)?;
+        validate_policy(&self.store, &policy).map_err(grants_error)?;
+        let approval_type = ObjectType::Custom(BETA_GRANT_APPROVAL_TYPE.to_string());
+        let mut scanned = 0usize;
+        // One approval per (author, grant): repeats count once anyway.
+        let mut unique: std::collections::BTreeMap<(String, String), ObjectId> =
+            std::collections::BTreeMap::new();
+        for id in self.store.linking_to(&policy).map_err(storage_error)? {
+            scanned += 1;
+            if scanned > MAX_STATUS_SCAN {
+                return Err(bad("too many objects reference this policy to evaluate"));
+            }
+            let object = self.store.get(&id).map_err(storage_error)?;
+            if object.object_type != approval_type {
+                continue;
+            }
+            let Ok(approval) = parse_grant_approval_object(&object) else {
+                continue;
+            };
+            if approval.policy_id != policy {
+                continue;
+            }
+            match validate_grant_acceptance(
+                &self.store,
+                &policy,
+                &approval.grant_id,
+                std::slice::from_ref(&id),
+            ) {
+                Ok(_) | Err(GrantAcceptanceError::ThresholdNotMet { .. }) => {}
+                Err(GrantAcceptanceError::Store(error)) => return Err(storage_error(error)),
+                Err(_) => continue,
+            }
+            let key = (
+                approval.record_author.as_str().to_string(),
+                approval.grant_id.as_str().to_string(),
+            );
+            let slot = unique.entry(key).or_insert_with(|| id.clone());
+            if id.as_str() < slot.as_str() {
+                *slot = id;
+            }
+        }
+        let mut for_grant = Vec::new();
+        let mut all = Vec::new();
+        for ((_, approved), id) in &unique {
+            if approved.as_str() == grant.as_str() {
+                for_grant.push(id.clone());
+            }
+            all.push(id.clone());
+        }
+        let (accepted, counted, threshold) =
+            match validate_grant_acceptance(&self.store, &policy, &grant, &for_grant) {
+                Ok(acceptance) => (
+                    true,
+                    acceptance.distinct_approvers,
+                    acceptance.required_approvals,
+                ),
+                Err(GrantAcceptanceError::ThresholdNotMet { required, observed }) => {
+                    (false, observed, required)
+                }
+                Err(other) => return Err(grants_error(other)),
+            };
+        let equivocations =
+            detect_authorizer_equivocations(&self.store, &policy, &all).map_err(grants_error)?;
+        Ok(Reply::BetaGrantStatus {
+            accepted,
+            approvals_counted: counted,
+            threshold,
+            equivocations: u16::try_from(equivocations.len()).unwrap_or(u16::MAX),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]

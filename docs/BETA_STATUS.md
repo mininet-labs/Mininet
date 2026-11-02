@@ -151,13 +151,27 @@ be silently linked merely to manufacture reputation continuity.
 
 - [ ] Expose unmistakably labelled BETA wallet/grant/transfer UX. *Done:* the
   `mini beta` CLI (accounts, balances, transfer, grant policy/grant/approve/status)
-  and a desktop **BETA wallet** panel (register account, refresh balances, send)
-  served by new application-core commands. Every surface labels amounts BETA,
+  and a desktop **BETA wallet** panel (register account, refresh balances, send,
+  create a grant policy, create a grant, approve a grant, check grant status) served by new application-core commands. Every surface labels amounts BETA,
   provisional and not production MINI. *Not done:* the desktop panel's layout has
   not been exercised on a real Windows display (its input parsing, request
-  building, protocol framing and core handlers are unit-tested), and grant
-  approval is CLI-only for now. The desktop path is retry-safe and unlinkable:
-  register/transfer carry an operation id and the exact signed object is
+  building, protocol framing and core handlers are unit-tested). Grant
+  policy creation and grant creation are now also in the desktop panel (same
+  checks as the CLI, via non-inserting `build_*` library twins so the exact
+  signed object is journaled before commit; retry-safe like approval). They
+  are signed by the PRIMARY identity, which must be the campaign's author, so
+  the author and every policy member appear as public DIDs. The policy's
+  start must be no earlier than its creation moment and grants can only be
+  made once the window has started (the panel offers an absolute suggested
+  window). Not done: this creation UI has likewise not been exercised on a real
+  display. Grant approval is signed by the user's PRIMARY
+  identity, not a per-account one, because policy members are public DIDs by
+  design, so an approval publicly links that DID to the approved grant. Grant
+  status counts only approvals present in the local store (found by scanning
+  objects linking to the policy; invalid or non-member ones are ignored), an
+  accepted grant is evidence rather than a conversion, and status fails closed
+  when a policy has more approvals than the library's evidence limit. The desktop path is retry-safe and unlinkable:
+  register/transfer/approve carry an operation id and the exact signed object is
   journaled before it is committed, so a lost response never causes a second
   signature; each BETA account is signed by its own identity derived (HKDF, never
   stored) from the unlocked root seed and a random per-account nonce, with its

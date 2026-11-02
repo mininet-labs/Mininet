@@ -20,6 +20,9 @@ const MAX_RECORD: usize = 128 * 1024;
 const MAX_OBJECT: usize = 64 * 1024 * 1024;
 const CHUNK: usize = 64 * 1024;
 const MAX_RECORDS: usize = 4096;
+/// Evidence records one remote identity root may occupy, so a single
+/// allowlisted peer cannot fill the shared journal and starve the others.
+const MAX_EVIDENCE_PER_PEER: usize = 256;
 fn err(e: impl std::fmt::Display) -> CliError {
     CliError::Usage(format!("seed: {e}"))
 }
@@ -318,6 +321,17 @@ fn records(home: &Path) -> Result<Vec<Evidence>> {
     }
     Ok(records)
 }
+fn peer_evidence_count(all: &[Evidence], root: &str) -> usize {
+    all.iter()
+        .filter(|r| r.witness_root == root || r.host_root == root)
+        .count()
+}
+fn check_peer_evidence_quota(home: &Path, root: &str) -> Result<()> {
+    if peer_evidence_count(&records(home)?, root) >= MAX_EVIDENCE_PER_PEER {
+        return Err(err("peer evidence quota reached; archive explicitly"));
+    }
+    Ok(())
+}
 fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
     e.verify(home)?;
     let dir = home.join("seed-evidence");
@@ -348,6 +362,12 @@ fn save_evidence(home: &Path, e: &Evidence) -> Result<()> {
     }
     if all.len() >= MAX_RECORDS {
         return Err(err("evidence journal full"));
+    }
+    let own = crate::identity::load(home)?.human_did().to_string();
+    for root in [&e.host_root, &e.witness_root] {
+        if *root != own && peer_evidence_count(&all, root) >= MAX_EVIDENCE_PER_PEER {
+            return Err(err("peer evidence quota reached; archive explicitly"));
+        }
     }
     let bytes = serde_json::to_vec(e).map_err(err)?;
     mini_durable::atomic_replace(&dir.join(format!("{}.json", e.id)), &bytes).map_err(err)
@@ -465,6 +485,7 @@ pub(crate) fn serve_stream(
             if peer == identity.human_did() {
                 return Err(err("self-serving cannot produce reward evidence"));
             }
+            check_peer_evidence_quota(home, &peer.to_string())?;
             let o = offer(home, &id)?;
             if max_bytes == 0 || max_bytes > MAX_OBJECT as u64 || o.bytes > max_bytes {
                 return Err(err("object exceeds receiver byte window"));
@@ -1134,5 +1155,36 @@ mod evidence_temp_tests {
         ] {
             assert!(!is_evidence_temp(name), "{name}");
         }
+    }
+}
+
+#[cfg(test)]
+mod peer_quota_tests {
+    use super::*;
+
+    fn ev(host: &str, witness: &str) -> Evidence {
+        Evidence {
+            id: String::new(),
+            content_id: String::new(),
+            bytes: 0,
+            digest: [0; 32],
+            host_root: host.into(),
+            witness_root: witness.into(),
+            host_device: String::new(),
+            witness_device: String::new(),
+            host_nonce: [0; 32],
+            witness_nonce: [0; 32],
+            at_ms: 0,
+            host_sig: vec![],
+            witness_sig: vec![],
+            payment: None,
+        }
+    }
+
+    #[test]
+    fn one_peer_cannot_consume_another_peers_evidence_quota() {
+        let all: Vec<_> = (0..MAX_EVIDENCE_PER_PEER).map(|_| ev("me", "a")).collect();
+        assert_eq!(peer_evidence_count(&all, "a"), MAX_EVIDENCE_PER_PEER);
+        assert_eq!(peer_evidence_count(&all, "b"), 0);
     }
 }

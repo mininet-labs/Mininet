@@ -161,6 +161,10 @@ enum CoreAction {
     BetaRegisterAccount,
     BetaBalances,
     BetaTransfer,
+    BetaGrantApprove,
+    BetaGrantStatus,
+    BetaGrantPolicyCreate,
+    BetaGrantCreate,
 }
 
 impl std::fmt::Debug for CoreAction {
@@ -185,6 +189,10 @@ impl std::fmt::Debug for CoreAction {
             Self::BetaRegisterAccount => "BetaRegisterAccount",
             Self::BetaBalances => "BetaBalances",
             Self::BetaTransfer => "BetaTransfer",
+            Self::BetaGrantApprove => "BetaGrantApprove",
+            Self::BetaGrantStatus => "BetaGrantStatus",
+            Self::BetaGrantPolicyCreate => "BetaGrantPolicyCreate",
+            Self::BetaGrantCreate => "BetaGrantCreate",
         })
     }
 }
@@ -2537,6 +2545,42 @@ impl MininetApp {
                 self.reload_workspace();
                 self.notice = "BETA transfer signed through the application core.".into();
             }
+            (CoreAction::BetaGrantApprove, Ok(AppReply::BetaGrantApproval { .. })) => {
+                self.beta_wallet.on_grant_approval();
+                self.reload_workspace();
+                self.notice = "BETA grant approval signed through the application core.".into();
+            }
+            (
+                CoreAction::BetaGrantPolicyCreate,
+                Ok(AppReply::BetaGrantPolicyCreated { policy_id }),
+            ) => {
+                self.beta_wallet.on_policy_created(&policy_id);
+                self.reload_workspace();
+                self.notice = "BETA grant policy signed through the application core.".into();
+            }
+            (CoreAction::BetaGrantCreate, Ok(AppReply::BetaGrantCreated { grant_id })) => {
+                self.beta_wallet.on_grant_created(&grant_id);
+                self.reload_workspace();
+                self.notice =
+                    "BETA grant authorization signed through the application core.".into();
+            }
+            (
+                CoreAction::BetaGrantStatus,
+                Ok(AppReply::BetaGrantStatus {
+                    accepted,
+                    approvals_counted,
+                    threshold,
+                    equivocations,
+                }),
+            ) => {
+                self.beta_wallet.on_grant_status(
+                    accepted,
+                    approvals_counted,
+                    threshold,
+                    equivocations,
+                );
+                self.notice = "BETA grant status checked (test value only).".into();
+            }
             (action, Ok(_)) => {
                 self.app_status = None;
                 self.signing_confirmation = false;
@@ -3545,6 +3589,74 @@ No tracking. No forced updates.",
                     to,
                     amount_micro,
                     memo,
+                },
+            ),
+            beta_wallet::Request::GrantApprove {
+                operation_id,
+                policy_id,
+                grant_id,
+            } => (
+                CoreAction::BetaGrantApprove,
+                AppCommand::BetaGrantApprove {
+                    operation_id,
+                    policy_id,
+                    grant_id,
+                },
+            ),
+            beta_wallet::Request::PolicyCreate {
+                operation_id,
+                campaign_id,
+                members,
+                testing_threshold,
+                participation_threshold,
+                testing_amount,
+                reward_bands,
+                valid_from_ms,
+                valid_until_ms,
+            } => (
+                CoreAction::BetaGrantPolicyCreate,
+                AppCommand::BetaGrantPolicyCreate {
+                    operation_id,
+                    campaign_id,
+                    members,
+                    testing_threshold,
+                    participation_threshold,
+                    testing_amount,
+                    reward_bands,
+                    valid_from_ms,
+                    valid_until_ms,
+                },
+            ),
+            beta_wallet::Request::GrantCreate {
+                operation_id,
+                campaign_id,
+                epoch,
+                account,
+                class,
+                contribution_id,
+                amount,
+                memo,
+            } => (
+                CoreAction::BetaGrantCreate,
+                AppCommand::BetaGrantCreate {
+                    operation_id,
+                    campaign_id,
+                    epoch,
+                    account,
+                    class,
+                    contribution_id,
+                    amount,
+                    memo,
+                },
+            ),
+            beta_wallet::Request::GrantStatus {
+                policy_id,
+                grant_id,
+            } => (
+                CoreAction::BetaGrantStatus,
+                AppCommand::BetaGrantStatus {
+                    policy_id,
+                    grant_id,
                 },
             ),
         };

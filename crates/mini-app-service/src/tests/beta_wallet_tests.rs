@@ -551,3 +551,924 @@ fn epoch_rollover_through_the_application_core_retires_old_value() {
     assert_eq!(amount_of(&balances(&mut core, EPOCH, &campaign), old), 100);
     fs::remove_dir_all(root).unwrap();
 }
+
+// ---- grant approval / status ------------------------------------------
+
+struct GrantFixture {
+    policy: String,
+    grant: String,
+    /// The other policy members (library-only signers). When the core is a
+    /// member it is the extra one: members are `me + others[0..2]`.
+    others: [Controller; 2],
+}
+
+/// Campaign + 2-of-3 policy + a 100 testing grant. With `include_core` the
+/// members are the core's own primary DID and two library-only signers;
+/// otherwise the core is NOT a member. The windows run far into the future
+/// because the core stamps approvals with the real clock.
+fn grant_fixture(
+    core: &mut Core<MemoryVault>,
+    account: [u8; 32],
+    include_core: bool,
+) -> GrantFixture {
+    let author = signer(10);
+    let others = [signer(20), signer(30)];
+    let epoch = BetaEpochId::new(EPOCH).unwrap();
+    let mut dids = vec![others[0].did(), others[1].did()];
+    dids.push(if include_core {
+        core.human.clone().expect("root exists")
+    } else {
+        signer(40).did()
+    });
+    let store = &mut core.store;
+    let target = ObjectBuilder::new(ObjectType::Custom("mininet.beta-wallet/test".into()))
+        .timestamp_ms(1)
+        .sequence(1)
+        .payload(Payload::Public(b"service-fixture".to_vec()))
+        .sign(&author.did(), &author)
+        .unwrap();
+    store.insert(&target).unwrap();
+    let campaign = create_campaign(
+        store,
+        &author.did(),
+        &author,
+        target.id(),
+        epoch,
+        "service beta",
+        "exercise grant approval",
+        &["wallet".to_string()],
+        100,
+        4_000_000_000_000,
+        1_000,
+        100,
+        2,
+    )
+    .unwrap();
+    let policy = create_grant_policy(
+        store,
+        &author.did(),
+        &author,
+        campaign.id(),
+        &dids,
+        2,
+        2,
+        100,
+        &[25, 50, 100],
+        200,
+        3_999_999_999_999,
+        150,
+        3,
+    )
+    .unwrap();
+    let grant = create_grant_authorization(
+        store,
+        &author.did(),
+        &author,
+        campaign.id(),
+        None,
+        epoch,
+        BetaAccountId::new(account).unwrap(),
+        GrantClass::Testing,
+        100,
+        "testing balance",
+        500,
+        4,
+    )
+    .unwrap();
+    GrantFixture {
+        policy: policy.id().as_str().to_string(),
+        grant: grant.id().as_str().to_string(),
+        others,
+    }
+}
+
+fn approve_cmd(operation_id: &str, policy: &str, grant: &str) -> Command {
+    Command::BetaGrantApprove {
+        operation_id: operation_id.to_string(),
+        policy_id: policy.to_string(),
+        grant_id: grant.to_string(),
+    }
+}
+
+fn approve_op(
+    core: &mut Core<MemoryVault>,
+    operation_id: &str,
+    fixture: &GrantFixture,
+) -> Result<Reply, ServiceError> {
+    core.handle(approve_cmd(operation_id, &fixture.policy, &fixture.grant))
+}
+
+fn grant_status(core: &mut Core<MemoryVault>, fixture: &GrantFixture) -> (bool, u16, u16, u16) {
+    match core
+        .handle(Command::BetaGrantStatus {
+            policy_id: fixture.policy.clone(),
+            grant_id: fixture.grant.clone(),
+        })
+        .unwrap()
+    {
+        Reply::BetaGrantStatus {
+            accepted,
+            approvals_counted,
+            threshold,
+            equivocations,
+        } => (accepted, approvals_counted, threshold, equivocations),
+        _ => panic!("unexpected reply"),
+    }
+}
+
+fn library_approve(core: &mut Core<MemoryVault>, fixture: &GrantFixture, who: usize, seq: u64) {
+    let member = &fixture.others[who];
+    create_grant_approval(
+        &mut core.store,
+        &member.did(),
+        member,
+        &ObjectId::parse(&fixture.policy).unwrap(),
+        &ObjectId::parse(&fixture.grant).unwrap(),
+        600 + seq,
+        seq,
+    )
+    .unwrap();
+}
+
+const APPROVAL_TYPE: &str = mini_beta_grants::BETA_GRANT_APPROVAL_TYPE;
+
+#[test]
+fn a_member_approves_through_the_core_and_status_reaches_the_threshold() {
+    let (mut core, root) = unlocked("beta-grant-approve");
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, true);
+    assert_eq!(grant_status(&mut core, &fixture), (false, 0, 2, 0));
+
+    let approval_id = match approve_op(&mut core, "beta-approve-1", &fixture).unwrap() {
+        Reply::BetaGrantApproval { approval_id } => approval_id,
+        _ => panic!("unexpected reply"),
+    };
+    // The approval is signed by the PRIMARY identity, not a derived one.
+    let object = core
+        .store
+        .get(&ObjectId::parse(&approval_id).unwrap())
+        .unwrap();
+    assert_eq!(&object.author_human, core.human.as_ref().unwrap());
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 1);
+    assert_eq!(grant_status(&mut core, &fixture), (false, 1, 2, 0));
+
+    library_approve(&mut core, &fixture, 0, 1);
+    assert_eq!(grant_status(&mut core, &fixture), (true, 2, 2, 0));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn status_counts_a_member_once_and_skips_outsider_approvals() {
+    let (mut core, root) = unlocked("beta-grant-ignore");
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, true);
+    approve_op(&mut core, "beta-approve-a", &fixture).unwrap();
+    // A second approval by the same member under a new operation id counts once.
+    approve_op(&mut core, "beta-approve-b", &fixture).unwrap();
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 2);
+    assert_eq!(grant_status(&mut core, &fixture), (false, 1, 2, 0));
+    // An outsider's hand-built approval object is skipped, not counted, and
+    // does not make the status fail.
+    let outsider = signer(99);
+    let forged = ObjectBuilder::new(ObjectType::Custom(APPROVAL_TYPE.to_string()))
+        .timestamp_ms(700)
+        .sequence(1)
+        .payload(Payload::Public(vec![1]))
+        .link("policy", ObjectId::parse(&fixture.policy).unwrap())
+        .link("grant", ObjectId::parse(&fixture.grant).unwrap())
+        .sign(&outsider.did(), &outsider)
+        .unwrap();
+    core.store.insert(&forged).unwrap();
+    assert_eq!(grant_status(&mut core, &fixture), (false, 1, 2, 0));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn approve_retry_with_the_same_operation_id_creates_exactly_one_approval() {
+    let (mut core, root) = unlocked("beta-grant-retry");
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, true);
+    let first = approve_op(&mut core, "beta-approve-retry", &fixture).unwrap();
+    let again = approve_op(&mut core, "beta-approve-retry", &fixture).unwrap();
+    assert_eq!(first, again);
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 1);
+    // The same id for different content (another grant id) is refused, never
+    // silently replayed.
+    let reuse = core
+        .handle(approve_cmd(
+            "beta-approve-retry",
+            &fixture.policy,
+            &fixture.policy,
+        ))
+        .unwrap_err();
+    assert_eq!(reuse.code, ErrorCode::BadRequest);
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_non_member_is_refused_with_text_that_leaks_no_ids() {
+    let (mut core, root) = unlocked("beta-grant-nonmember");
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, false);
+    let err = approve_op(&mut core, "beta-approve-outsider", &fixture).unwrap_err();
+    assert_eq!(err.code, ErrorCode::BadRequest);
+    let human = core.human.as_ref().unwrap().as_str().to_string();
+    for secret in [&fixture.policy, &fixture.grant, &human] {
+        assert!(!err.message.contains(secret.as_str()));
+    }
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 0);
+    // Unknown ids are also refused with fixed text.
+    let missing = core
+        .handle(approve_cmd(
+            "beta-approve-missing",
+            &fixture.grant,
+            &fixture.policy,
+        ))
+        .unwrap_err();
+    assert_eq!(missing.code, ErrorCode::BadRequest);
+    assert!(!missing.message.contains(fixture.grant.as_str()));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_locked_identity_cannot_approve_but_status_still_reads() {
+    let (mut core, root) = unlocked("beta-grant-locked");
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, true);
+    core.handle(Command::LockIdentity).unwrap();
+    let err = approve_op(&mut core, "beta-approve-locked", &fixture).unwrap_err();
+    assert_eq!(err.code, ErrorCode::IdentityLocked);
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 0);
+    assert_eq!(grant_status(&mut core, &fixture), (false, 0, 2, 0));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_journaled_but_uncommitted_approval_is_recovered_not_duplicated() {
+    let root = temp_root("beta-grant-crash");
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    core.handle(Command::UnlockIdentity).unwrap();
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, true);
+    let id = "beta-crash-approve";
+    // Crash window: the signed approval is journaled but never committed.
+    let policy = ObjectId::parse(&fixture.policy).unwrap();
+    let grant = ObjectId::parse(&fixture.grant).unwrap();
+    let sequence = core.reserve_sequence().unwrap();
+    let (human, device) = core.signing_identity().unwrap();
+    let object = mini_beta_grants::build_grant_approval(
+        &core.store,
+        human,
+        device,
+        &policy,
+        &grant,
+        now_ms(),
+        sequence,
+    )
+    .unwrap();
+    beta_journal::write_pending(
+        &core.beta_ops,
+        id,
+        &beta_journal::Record {
+            kind: beta_journal::KIND_APPROVAL,
+            digest: beta_wallet::input_digest(
+                b"grant-approve",
+                &[policy.as_str().as_bytes(), grant.as_str().as_bytes()],
+            ),
+            account: [0; 32],
+            amount: 0,
+            change: 0,
+            object: object.to_bytes(),
+        },
+    )
+    .unwrap();
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 0);
+    let expected = object.id().as_str().to_string();
+    drop(core);
+    // Reopening commits the journaled object; the retry then replays it.
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 1);
+    core.handle(Command::UnlockIdentity).unwrap();
+    let reply = approve_op(&mut core, id, &fixture).unwrap();
+    assert_eq!(
+        reply,
+        Reply::BetaGrantApproval {
+            approval_id: expected
+        }
+    );
+    assert_eq!(count_type(&core, APPROVAL_TYPE), 1);
+    // A same-id retry with different content is still refused after recovery.
+    let reuse = core
+        .handle(approve_cmd(id, &fixture.policy, &fixture.policy))
+        .unwrap_err();
+    assert_eq!(reuse.code, ErrorCode::BadRequest);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn status_detects_an_authorizer_that_approved_two_grants_for_one_account() {
+    let (mut core, root) = unlocked("beta-grant-equivocation");
+    let account = register(&mut core, EPOCH);
+    let fixture = grant_fixture(&mut core, account, true);
+    // A second testing grant for the same account under the same policy.
+    let author = signer(10);
+    let policy_id = ObjectId::parse(&fixture.policy).unwrap();
+    let policy =
+        mini_beta_grants::parse_grant_policy_object(&core.store.get(&policy_id).unwrap()).unwrap();
+    let second = create_grant_authorization(
+        &mut core.store,
+        &author.did(),
+        &author,
+        &policy.campaign_id,
+        None,
+        BetaEpochId::new(EPOCH).unwrap(),
+        BetaAccountId::new(account).unwrap(),
+        GrantClass::Testing,
+        100,
+        "conflicting grant",
+        520,
+        5,
+    )
+    .unwrap();
+    let member = &fixture.others[0];
+    for (grant, seq) in [(fixture.grant.as_str(), 1), (second.id().as_str(), 2)] {
+        create_grant_approval(
+            &mut core.store,
+            &member.did(),
+            member,
+            &policy_id,
+            &ObjectId::parse(grant).unwrap(),
+            700 + seq,
+            seq,
+        )
+        .unwrap();
+    }
+    assert_eq!(grant_status(&mut core, &fixture), (false, 1, 2, 1));
+    fs::remove_dir_all(root).unwrap();
+}
+
+// ---- grant policy / grant creation ------------------------------------
+
+const POLICY_TYPE: &str = mini_beta_grants::BETA_GRANT_POLICY_TYPE;
+const GRANT_TYPE: &str = mini_beta::BETA_GRANT_TYPE;
+
+/// A campaign authored by the core's own PRIMARY identity (policy creation
+/// requires the campaign record author), written by library calls.
+fn own_campaign(core: &mut Core<MemoryVault>) -> String {
+    let human = core.human.clone().expect("root exists");
+    let device = &core.identity.as_ref().expect("unlocked").device;
+    let target = ObjectBuilder::new(ObjectType::Custom("mininet.beta-wallet/test".into()))
+        .timestamp_ms(1)
+        .sequence(1)
+        .payload(Payload::Public(b"creation-fixture".to_vec()))
+        .sign(&human, device)
+        .unwrap();
+    core.store.insert(&target).unwrap();
+    create_campaign(
+        &mut core.store,
+        &human,
+        device,
+        target.id(),
+        BetaEpochId::new(EPOCH).unwrap(),
+        "creation beta",
+        "exercise grant creation",
+        &["wallet".to_string()],
+        100,
+        4_000_000_000_000,
+        1_000,
+        100,
+        2,
+    )
+    .unwrap()
+    .id()
+    .as_str()
+    .to_string()
+}
+
+struct PolicySpec {
+    members: Vec<String>,
+    testing_threshold: u16,
+    participation_threshold: u16,
+    testing_amount: u64,
+    bands: Vec<u64>,
+    valid_from_ms: u64,
+}
+
+impl PolicySpec {
+    /// Members: the core's own DID plus two library-only signers.
+    fn standard(core: &Core<MemoryVault>) -> Self {
+        PolicySpec {
+            members: vec![
+                core.human.as_ref().unwrap().as_str().to_string(),
+                signer(20).did().as_str().to_string(),
+                signer(30).did().as_str().to_string(),
+            ],
+            testing_threshold: 2,
+            participation_threshold: 2,
+            testing_amount: 100,
+            bands: vec![25, 50, 100],
+            // Policy timestamp (now) must not exceed valid_from, and grants
+            // must not predate valid_from: tests wait out this margin.
+            valid_from_ms: now_ms() + 250,
+        }
+    }
+}
+
+fn policy_cmd(operation_id: &str, campaign: &str, spec: &PolicySpec) -> Command {
+    Command::BetaGrantPolicyCreate {
+        operation_id: operation_id.to_string(),
+        campaign_id: campaign.to_string(),
+        members: spec.members.clone(),
+        testing_threshold: spec.testing_threshold,
+        participation_threshold: spec.participation_threshold,
+        testing_amount: spec.testing_amount,
+        reward_bands: spec.bands.clone(),
+        valid_from_ms: spec.valid_from_ms,
+        valid_until_ms: 3_999_999_999_999,
+    }
+}
+
+fn grant_create_cmd(operation_id: &str, campaign: &str, account: [u8; 32], amount: u64) -> Command {
+    Command::BetaGrantCreate {
+        operation_id: operation_id.to_string(),
+        campaign_id: campaign.to_string(),
+        epoch: EPOCH,
+        account,
+        class: mini_app_protocol::BetaGrantClass::Testing,
+        contribution_id: None,
+        amount,
+        memo: "testing balance".to_string(),
+    }
+}
+
+fn created_policy(reply: Reply) -> String {
+    match reply {
+        Reply::BetaGrantPolicyCreated { policy_id } => policy_id,
+        _ => panic!("unexpected reply"),
+    }
+}
+
+fn created_grant(reply: Reply) -> String {
+    match reply {
+        Reply::BetaGrantCreated { grant_id } => grant_id,
+        _ => panic!("unexpected reply"),
+    }
+}
+
+fn wait_for(valid_from_ms: u64) {
+    while now_ms() <= valid_from_ms {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+fn assert_no_secrets(err: &ServiceError, secrets: &[&str]) {
+    for secret in secrets {
+        assert!(!err.message.contains(secret), "leaked id in error text");
+    }
+}
+
+#[test]
+fn policy_and_grant_created_through_the_core_reach_the_threshold() {
+    let (mut core, root) = unlocked("beta-create-flow");
+    let account = register(&mut core, EPOCH);
+    let campaign = own_campaign(&mut core);
+    let spec = PolicySpec::standard(&core);
+    let policy = created_policy(
+        core.handle(policy_cmd("beta-create-policy", &campaign, &spec))
+            .unwrap(),
+    );
+    wait_for(spec.valid_from_ms);
+    let grant = created_grant(
+        core.handle(grant_create_cmd(
+            "beta-create-grant",
+            &campaign,
+            account,
+            100,
+        ))
+        .unwrap(),
+    );
+    assert_eq!(count_type(&core, POLICY_TYPE), 1);
+    assert_eq!(count_type(&core, GRANT_TYPE), 1);
+    let fixture = GrantFixture {
+        policy: policy.clone(),
+        grant: grant.clone(),
+        others: [signer(20), signer(30)],
+    };
+    assert_eq!(grant_status(&mut core, &fixture), (false, 0, 2, 0));
+    // Two members approve: the core through the service, one by library.
+    approve_op(&mut core, "beta-create-approve", &fixture).unwrap();
+    let member = &fixture.others[0];
+    create_grant_approval(
+        &mut core.store,
+        &member.did(),
+        member,
+        &ObjectId::parse(&policy).unwrap(),
+        &ObjectId::parse(&grant).unwrap(),
+        now_ms(),
+        1,
+    )
+    .unwrap();
+    assert_eq!(grant_status(&mut core, &fixture), (true, 2, 2, 0));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn creation_objects_are_signed_by_the_primary_identity() {
+    let (mut core, root) = unlocked("beta-create-author");
+    let account = register(&mut core, EPOCH);
+    let campaign = own_campaign(&mut core);
+    let spec = PolicySpec::standard(&core);
+    let policy = created_policy(
+        core.handle(policy_cmd("beta-author-policy", &campaign, &spec))
+            .unwrap(),
+    );
+    wait_for(spec.valid_from_ms);
+    let grant = created_grant(
+        core.handle(grant_create_cmd(
+            "beta-author-grant",
+            &campaign,
+            account,
+            50,
+        ))
+        .unwrap(),
+    );
+    let human = core.human.clone().unwrap();
+    for id in [policy, grant] {
+        let object = core.store.get(&ObjectId::parse(&id).unwrap()).unwrap();
+        assert_eq!(object.author_human, human);
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn policy_and_grant_retries_create_exactly_one_object_and_reject_id_reuse() {
+    let (mut core, root) = unlocked("beta-create-retry");
+    let account = register(&mut core, EPOCH);
+    let campaign = own_campaign(&mut core);
+    let spec = PolicySpec::standard(&core);
+    let first = core
+        .handle(policy_cmd("beta-retry-policy", &campaign, &spec))
+        .unwrap();
+    let second = core
+        .handle(policy_cmd("beta-retry-policy", &campaign, &spec))
+        .unwrap();
+    assert_eq!(first, second);
+    assert_eq!(count_type(&core, POLICY_TYPE), 1);
+    let mut different = PolicySpec::standard(&core);
+    different.testing_amount = 90;
+    let reuse = core
+        .handle(policy_cmd("beta-retry-policy", &campaign, &different))
+        .unwrap_err();
+    assert_eq!(reuse.code, ErrorCode::BadRequest);
+    assert_eq!(count_type(&core, POLICY_TYPE), 1);
+
+    wait_for(spec.valid_from_ms);
+    let g1 = core
+        .handle(grant_create_cmd(
+            "beta-retry-grant",
+            &campaign,
+            account,
+            100,
+        ))
+        .unwrap();
+    let g2 = core
+        .handle(grant_create_cmd(
+            "beta-retry-grant",
+            &campaign,
+            account,
+            100,
+        ))
+        .unwrap();
+    assert_eq!(g1, g2);
+    assert_eq!(count_type(&core, GRANT_TYPE), 1);
+    let reuse = core
+        .handle(grant_create_cmd("beta-retry-grant", &campaign, account, 99))
+        .unwrap_err();
+    assert_eq!(reuse.code, ErrorCode::BadRequest);
+    // An id used for a policy cannot be reused for a grant.
+    let cross = core
+        .handle(grant_create_cmd(
+            "beta-retry-policy",
+            &campaign,
+            account,
+            100,
+        ))
+        .unwrap_err();
+    assert_eq!(cross.code, ErrorCode::BadRequest);
+    assert_eq!(count_type(&core, GRANT_TYPE), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn invalid_policy_input_is_refused_without_leaking_ids_or_creating_objects() {
+    let (mut core, root) = unlocked("beta-create-badpolicy");
+    let campaign = own_campaign(&mut core);
+    let human = core.human.as_ref().unwrap().as_str().to_string();
+    // A well-formed id of an object that was never stored.
+    let unknown = {
+        let device = &core.identity.as_ref().unwrap().device;
+        ObjectBuilder::new(ObjectType::Custom("mininet.beta-wallet/test".into()))
+            .timestamp_ms(1)
+            .sequence(99)
+            .payload(Payload::Public(b"never-stored".to_vec()))
+            .sign(core.human.as_ref().unwrap(), device)
+            .unwrap()
+            .id()
+            .as_str()
+            .to_string()
+    };
+    let mut cases: Vec<(String, PolicySpec)> = Vec::new();
+    let mut threshold = PolicySpec::standard(&core);
+    threshold.testing_threshold = 3;
+    threshold.participation_threshold = 4;
+    cases.push((campaign.clone(), threshold));
+    let mut dup = PolicySpec::standard(&core);
+    dup.members[2] = dup.members[1].clone();
+    cases.push((campaign.clone(), dup));
+    let mut bad_did = PolicySpec::standard(&core);
+    bad_did.members[1] = "not a did".to_string();
+    cases.push((campaign.clone(), bad_did));
+    let mut over = PolicySpec::standard(&core);
+    over.testing_amount = 5_000;
+    cases.push((campaign.clone(), over));
+    cases.push((unknown, PolicySpec::standard(&core)));
+    let member_dids: Vec<String> = PolicySpec::standard(&core).members;
+    for (index, (campaign_id, spec)) in cases.iter().enumerate() {
+        let err = core
+            .handle(policy_cmd(
+                &format!("beta-bad-policy-{index}"),
+                campaign_id,
+                spec,
+            ))
+            .unwrap_err();
+        assert!(
+            matches!(err.code, ErrorCode::BadRequest | ErrorCode::Storage),
+            "case {index}: {:?}",
+            err.code
+        );
+        let mut secrets: Vec<&str> = vec![campaign.as_str(), human.as_str(), campaign_id.as_str()];
+        secrets.extend(member_dids.iter().map(String::as_str));
+        assert_no_secrets(&err, &secrets);
+    }
+    assert_eq!(count_type(&core, POLICY_TYPE), 0);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn invalid_grant_input_is_refused_without_leaking_ids_or_creating_objects() {
+    let (mut core, root) = unlocked("beta-create-badgrant");
+    let account = register(&mut core, EPOCH);
+    let campaign = own_campaign(&mut core);
+    let account_hex: String = account.iter().map(|b| format!("{b:02x}")).collect();
+    let expect_refused = |core: &mut Core<MemoryVault>, id: &str, command: Command| {
+        let err = core.handle(command).unwrap_err();
+        assert!(
+            matches!(err.code, ErrorCode::BadRequest),
+            "{id}: {:?}",
+            err.code
+        );
+        assert_no_secrets(&err, &[campaign.as_str(), account_hex.as_str()]);
+    };
+    // Unregistered account.
+    expect_refused(
+        &mut core,
+        "unregistered",
+        grant_create_cmd("beta-bad-grant-1", &campaign, [9; 32], 10),
+    );
+    // Zero amount; testing amount above the campaign default.
+    expect_refused(
+        &mut core,
+        "zero",
+        grant_create_cmd("beta-bad-grant-2", &campaign, account, 0),
+    );
+    expect_refused(
+        &mut core,
+        "over",
+        grant_create_cmd("beta-bad-grant-3", &campaign, account, 1_001),
+    );
+    // Testing grants take no contribution; participation requires one.
+    expect_refused(
+        &mut core,
+        "testing+contribution",
+        Command::BetaGrantCreate {
+            operation_id: "beta-bad-grant-4".into(),
+            campaign_id: campaign.clone(),
+            epoch: EPOCH,
+            account,
+            class: mini_app_protocol::BetaGrantClass::Testing,
+            contribution_id: Some(campaign.clone()),
+            amount: 10,
+            memo: "m".into(),
+        },
+    );
+    expect_refused(
+        &mut core,
+        "participation-without-contribution",
+        Command::BetaGrantCreate {
+            operation_id: "beta-bad-grant-5".into(),
+            campaign_id: campaign.clone(),
+            epoch: EPOCH,
+            account,
+            class: mini_app_protocol::BetaGrantClass::Participation,
+            contribution_id: None,
+            amount: 10,
+            memo: "m".into(),
+        },
+    );
+    // Wrong epoch and a campaign id that is not a campaign.
+    let mut wrong_epoch = grant_create_cmd("beta-bad-grant-6", &campaign, account, 10);
+    if let Command::BetaGrantCreate { epoch, .. } = &mut wrong_epoch {
+        *epoch = [8; 32];
+    }
+    expect_refused(&mut core, "epoch", wrong_epoch);
+    assert_eq!(count_type(&core, GRANT_TYPE), 0);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_locked_identity_cannot_create_policies_or_grants() {
+    let (mut core, root) = unlocked("beta-create-locked");
+    let account = register(&mut core, EPOCH);
+    let campaign = own_campaign(&mut core);
+    let spec = PolicySpec::standard(&core);
+    core.handle(Command::LockIdentity).unwrap();
+    let err = core
+        .handle(policy_cmd("beta-locked-policy", &campaign, &spec))
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::IdentityLocked);
+    let err = core
+        .handle(grant_create_cmd(
+            "beta-locked-grant",
+            &campaign,
+            account,
+            10,
+        ))
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::IdentityLocked);
+    assert_eq!(count_type(&core, POLICY_TYPE), 0);
+    assert_eq!(count_type(&core, GRANT_TYPE), 0);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn a_journaled_but_uncommitted_policy_or_grant_is_recovered_not_duplicated() {
+    let root = temp_root("beta-create-crash");
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    core.handle(Command::UnlockIdentity).unwrap();
+    let account = register(&mut core, EPOCH);
+    let campaign = own_campaign(&mut core);
+    let spec = PolicySpec::standard(&core);
+    let campaign_id = ObjectId::parse(&campaign).unwrap();
+
+    // Crash window 1: the signed policy is journaled but never committed.
+    let dids = spec
+        .members
+        .iter()
+        .map(|m| did_mini::Did::parse(m).unwrap())
+        .collect::<Vec<_>>();
+    let sequence = core.reserve_sequence().unwrap();
+    let (human, device) = core.signing_identity().unwrap();
+    let policy_object = mini_beta_grants::build_grant_policy(
+        &core.store,
+        human,
+        device,
+        &campaign_id,
+        &dids,
+        spec.testing_threshold,
+        spec.participation_threshold,
+        spec.testing_amount,
+        &spec.bands,
+        spec.valid_from_ms,
+        3_999_999_999_999,
+        now_ms(),
+        sequence,
+    )
+    .unwrap();
+    let member_list = spec.members.join("\n");
+    let bands: Vec<u8> = spec.bands.iter().flat_map(|b| b.to_be_bytes()).collect();
+    let policy_digest = beta_wallet::input_digest(
+        b"grant-policy",
+        &[
+            campaign_id.as_str().as_bytes(),
+            member_list.as_bytes(),
+            &spec.testing_threshold.to_be_bytes(),
+            &spec.participation_threshold.to_be_bytes(),
+            &spec.testing_amount.to_be_bytes(),
+            &bands,
+            &spec.valid_from_ms.to_be_bytes(),
+            &3_999_999_999_999u64.to_be_bytes(),
+        ],
+    );
+    beta_journal::write_pending(
+        &core.beta_ops,
+        "beta-crash-policy",
+        &beta_journal::Record {
+            kind: beta_journal::KIND_POLICY,
+            digest: policy_digest,
+            account: [0; 32],
+            amount: 0,
+            change: 0,
+            object: policy_object.to_bytes(),
+        },
+    )
+    .unwrap();
+    assert_eq!(count_type(&core, POLICY_TYPE), 0);
+    let expected_policy = policy_object.id().as_str().to_string();
+    drop(core);
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    assert_eq!(count_type(&core, POLICY_TYPE), 1);
+    core.handle(Command::UnlockIdentity).unwrap();
+    let reply = core
+        .handle(policy_cmd("beta-crash-policy", &campaign, &spec))
+        .unwrap();
+    assert_eq!(
+        reply,
+        Reply::BetaGrantPolicyCreated {
+            policy_id: expected_policy
+        }
+    );
+    assert_eq!(count_type(&core, POLICY_TYPE), 1);
+    let mut different = PolicySpec::standard(&core);
+    different.testing_amount = 90;
+    assert_eq!(
+        core.handle(policy_cmd("beta-crash-policy", &campaign, &different))
+            .unwrap_err()
+            .code,
+        ErrorCode::BadRequest
+    );
+
+    // Crash window 2: the signed grant is journaled but never committed.
+    wait_for(spec.valid_from_ms);
+    let epoch = BetaEpochId::new(EPOCH).unwrap();
+    let sequence = core.reserve_sequence().unwrap();
+    let (human, device) = core.signing_identity().unwrap();
+    let grant_object = mini_beta::build_grant_authorization(
+        &core.store,
+        human,
+        device,
+        &campaign_id,
+        None,
+        epoch,
+        BetaAccountId::new(account).unwrap(),
+        GrantClass::Testing,
+        100,
+        "testing balance",
+        now_ms(),
+        sequence,
+    )
+    .unwrap();
+    let grant_digest = beta_wallet::input_digest(
+        b"grant",
+        &[
+            campaign_id.as_str().as_bytes(),
+            epoch.as_bytes(),
+            &account,
+            GrantClass::Testing.as_str().as_bytes(),
+            b"",
+            &100u64.to_be_bytes(),
+            b"testing balance",
+        ],
+    );
+    beta_journal::write_pending(
+        &core.beta_ops,
+        "beta-crash-grant",
+        &beta_journal::Record {
+            kind: beta_journal::KIND_GRANT,
+            digest: grant_digest,
+            account,
+            amount: 100,
+            change: 0,
+            object: grant_object.to_bytes(),
+        },
+    )
+    .unwrap();
+    assert_eq!(count_type(&core, GRANT_TYPE), 0);
+    let expected_grant = grant_object.id().as_str().to_string();
+    drop(core);
+    let mut core = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap();
+    assert_eq!(count_type(&core, GRANT_TYPE), 1);
+    core.handle(Command::UnlockIdentity).unwrap();
+    let reply = core
+        .handle(grant_create_cmd(
+            "beta-crash-grant",
+            &campaign,
+            account,
+            100,
+        ))
+        .unwrap();
+    assert_eq!(
+        reply,
+        Reply::BetaGrantCreated {
+            grant_id: expected_grant
+        }
+    );
+    assert_eq!(count_type(&core, GRANT_TYPE), 1);
+    assert_eq!(
+        core.handle(grant_create_cmd("beta-crash-grant", &campaign, account, 99))
+            .unwrap_err()
+            .code,
+        ErrorCode::BadRequest
+    );
+    fs::remove_dir_all(root).unwrap();
+}
