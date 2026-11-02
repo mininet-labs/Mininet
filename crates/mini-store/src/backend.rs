@@ -25,6 +25,22 @@ pub trait Backend {
     /// (deterministic across backends).
     fn list_meta_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>>;
 
+    /// Remove a blob (idempotent). Only [`Store::evict_cached`] calls this,
+    /// after it has removed every index row; backends that cannot delete keep
+    /// the default refusal and the store simply stays append-only.
+    fn delete_blob(&mut self, _id: &str) -> Result<()> {
+        Err(StoreError::Io("backend does not support deletion".into()))
+    }
+    /// Remove a metadata entry (idempotent). See [`Backend::delete_blob`].
+    fn delete_meta(&mut self, _key: &str) -> Result<()> {
+        Err(StoreError::Io("backend does not support deletion".into()))
+    }
+    /// Called once after a batch of deletions so a backend can repair any
+    /// derived structure (the filesystem backend rebuilds its time index).
+    fn finish_deletions(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     /// The last `limit` metadata entries whose key starts with `prefix`, in
     /// *descending* key order — the bounded counterpart a "most recent N"
     /// query needs instead of calling [`Self::list_meta_prefix`] (which
@@ -96,6 +112,14 @@ impl Backend for MemoryBackend {
     }
     fn get_meta(&self, key: &str) -> Result<Option<Vec<u8>>> {
         Ok(self.meta.get(key).cloned())
+    }
+    fn delete_blob(&mut self, id: &str) -> Result<()> {
+        self.blobs.remove(id);
+        Ok(())
+    }
+    fn delete_meta(&mut self, key: &str) -> Result<()> {
+        self.meta.remove(key);
+        Ok(())
     }
     fn list_meta_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>> {
         Ok(self
@@ -394,6 +418,24 @@ impl Backend for FsBackend {
             });
         }
         Self::atomic_write(&path, value)
+    }
+    fn delete_blob(&mut self, id: &str) -> Result<()> {
+        let path = self.blob_path(id)?;
+        if Self::existing_regular_file(&path, &self.root.join("blobs"), "blob")? {
+            mini_durable::remove_file(&path)?;
+        }
+        Ok(())
+    }
+    fn delete_meta(&mut self, key: &str) -> Result<()> {
+        let path = self.meta_path(key)?;
+        if Self::existing_regular_file(&path, &self.root.join("meta"), "metadata entry")? {
+            mini_durable::remove_file(&path)?;
+        }
+        Ok(())
+    }
+    fn finish_deletions(&mut self) -> Result<()> {
+        // Deleted `idx/time/` rows must also leave the ordered side index.
+        self.rebuild_time_index().map(|_| ())
     }
     fn get_meta(&self, key: &str) -> Result<Option<Vec<u8>>> {
         Self::read_existing_regular_file(

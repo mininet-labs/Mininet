@@ -37,7 +37,7 @@ pub use owner_seal::{
     open_as_owner, seal_for_owner, OwnerSealingKey, OwnerSealingPublicKey,
     MAX_OWNER_SEAL_PLAINTEXT_BYTES,
 };
-pub use store::{HeadState, Store, TimeCursor, TimePage, MAX_TIME_PAGE_SIZE};
+pub use store::{EvictReport, HeadState, Store, TimeCursor, TimePage, MAX_TIME_PAGE_SIZE};
 
 use did_mini::IdentityError;
 use mini_crypto::CryptoError;
@@ -73,6 +73,9 @@ pub enum StoreError {
     Crypto(CryptoError),
     /// An encrypted object was assigned a tier that advertises its presence.
     PrivateContentAdvertising,
+    /// An eviction was refused: the object is pinned/seeded/committed or
+    /// private, or a retained object still links to it.
+    NotEvictable,
 }
 
 impl core::fmt::Display for StoreError {
@@ -85,6 +88,7 @@ impl core::fmt::Display for StoreError {
             StoreError::NotFound => write!(f, "object not found"),
             StoreError::Corrupt => write!(f, "corrupt object or reconstructible index"),
             StoreError::LimitExceeded => write!(f, "store limit exceeded"),
+            StoreError::NotEvictable => write!(f, "object is not evictable cache"),
             StoreError::InvalidCursor => write!(f, "invalid ordered-index cursor"),
             StoreError::Crypto(e) => write!(f, "owner-seal crypto: {e}"),
             StoreError::PrivateContentAdvertising => {
