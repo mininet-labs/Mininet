@@ -255,3 +255,16 @@ remaining substantive safety gates still have to be proven.
 - `mini_durable::space`: every `atomic_replace` (all durable state: journals, manifests, seed objects, KELs, caches) first checks free space. If short, registered safe reclaimers run (built in: interrupted-write temporaries older than ten minutes), and only then does the write fail, cleanly and before touching anything, with a plain `StorageFull` error. An 8 MiB reserve is kept so small control writes still commit. If the platform cannot report free space the guard fails open.
 - `mini-cli` runs housekeeping at the start of every command: when space is low it prunes expired seed leases and (when critical) drops the rebuildable inventory cache, and prints a plain-language warning to stderr. `mini storage status` reports the level.
 - Not yet: warnings in the desktop and Android UI (they can call `space::level`/`warning`), reclaimers for other regenerable caches, and guarding the few writers that bypass `atomic_replace` (e.g. staged-file publish). The evidence archive is intentionally never reclaimed.
+## Automatic housekeeping (no engineer needed)
+
+- **Evidence journal:** when the seed evidence journal (or one peer's share of it)
+  reaches 75% of its bound, the oldest receipts move automatically to
+  `seed-evidence-archive/`. Nothing is deleted. Replay protection survives
+  archiving via an append-only `replay.jsonl` index; `earnings` and
+  `payment-export` read the archive too. There is no "archive explicitly" step.
+- **Disk full:** I/O errors that mean "out of space" now say, in plain language,
+  to free space and retry; writes are atomic so nothing is lost.
+- **Not yet automatic:** the other durable stores (BETA operation journals,
+  KEL/object stores, seed pool eviction) still fail closed when full without
+  self-cleaning; proactive free-space checks need a platform statvfs and are not
+  built. The archive itself grows until the disk does.
