@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1265,
-    "headings": 4254,
-    "rust_symbols": 15134
+    "files": 1266,
+    "headings": 4255,
+    "rust_symbols": 15150
   },
   "crates": {
     "askama_derive": {
@@ -101086,7 +101086,7 @@
       "title": "mini-uniqueness"
     },
     {
-      "bytes": 23722,
+      "bytes": 23931,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -101115,9 +101115,9 @@
         "debug",
         "clone"
       ],
-      "lines": 686,
+      "lines": 691,
       "path": "crates/mini-uniqueness/src/audit.rs",
-      "sha256": "b3179ef49bfa7dd2b8b7603b65aaa7af76401fdcba6070cae38012a4b2b0296e",
+      "sha256": "78148835a7862b3779abf1e38c854f17cba0c323d7c5c5d0908bbe9e44ea4940",
       "symbols": [
         {
           "kind": "type",
@@ -101321,82 +101321,87 @@
         },
         {
           "kind": "fn",
-          "line": 472,
-          "name": "did"
+          "line": 474,
+          "name": "tb"
         },
         {
           "kind": "fn",
           "line": 477,
+          "name": "did"
+        },
+        {
+          "kind": "fn",
+          "line": 482,
           "name": "roots"
         },
         {
           "kind": "fn",
-          "line": 480,
+          "line": 485,
           "name": "sched"
         },
         {
           "kind": "fn",
-          "line": 483,
+          "line": 488,
           "name": "gate"
         },
         {
           "kind": "fn",
-          "line": 489,
+          "line": 494,
           "name": "summary"
         },
         {
           "kind": "fn",
-          "line": 494,
+          "line": 499,
           "name": "schedule_is_stricter_after_epoch_1000_and_refuses_loosening"
         },
         {
           "kind": "fn",
-          "line": 515,
+          "line": 520,
           "name": "audit_params_require_a_strict_majority"
         },
         {
           "kind": "fn",
-          "line": 525,
+          "line": 530,
           "name": "panel_is_reproducible_excludes_subject_and_vouchers_and_needs_enough"
         },
         {
           "kind": "fn",
-          "line": 542,
+          "line": 547,
           "name": "summary_exposes_only_buckets"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 555,
           "name": "open_case"
         },
         {
           "kind": "fn",
-          "line": 572,
+          "line": 577,
           "name": "majority_confirmation_clears_and_only_for_that_epoch"
         },
         {
           "kind": "fn",
-          "line": 595,
+          "line": 600,
           "name": "denial_lapses_next_epoch_and_never_excludes"
         },
         {
           "kind": "fn",
-          "line": 619,
+          "line": 624,
           "name": "votes_are_one_per_panelist_and_panel_only_and_close_on_expiry"
         },
         {
           "kind": "fn",
-          "line": 640,
+          "line": 645,
           "name": "mature_stage_needs_more_confirmations"
         },
         {
           "kind": "fn",
-          "line": 651,
+          "line": 656,
           "name": "clearly_low_and_clearly_high_scores_cannot_open_a_case"
         },
         {
           "kind": "fn",
-          "line": 679,
+          "line": 684,
           "name": "case_handle_hides_the_subject_but_is_stable"
         }
       ],
@@ -102609,6 +102614,118 @@
         }
       ],
       "title": "use did_mini::{Controller, Did, IndexedSig};"
+    },
+    {
+      "bytes": 6166,
+      "group": "crate:mini-uniqueness",
+      "headings": [],
+      "keywords": [
+        "honest",
+        "sybils",
+        "usize",
+        "did",
+        "colluders",
+        "seeds",
+        "quota",
+        "lcg",
+        "edge",
+        "collect",
+        "const",
+        "u64",
+        "attack_edges",
+        "next",
+        "outcome",
+        "sybil",
+        "trust",
+        "median",
+        "passing_sybils",
+        "vec",
+        "map",
+        "iter",
+        "cluster",
+        "one"
+      ],
+      "lines": 172,
+      "path": "crates/mini-uniqueness/tests/adversarial_sim.rs",
+      "sha256": "d61a4b18ea42567e2a5582140adf0f55dc147e5697d46eec2332f183a3fb4f27",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 19,
+          "name": "HONEST"
+        },
+        {
+          "kind": "const",
+          "line": 20,
+          "name": "SEEDS"
+        },
+        {
+          "kind": "const",
+          "line": 21,
+          "name": "SYBILS"
+        },
+        {
+          "kind": "const",
+          "line": 22,
+          "name": "HONEST_VOUCHES"
+        },
+        {
+          "kind": "const",
+          "line": 25,
+          "name": "QUOTA"
+        },
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "DEGREE_CAP"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
+          "name": "did"
+        },
+        {
+          "kind": "struct",
+          "line": 34,
+          "name": "Lcg"
+        },
+        {
+          "kind": "impl",
+          "line": 35,
+          "name": "Lcg"
+        },
+        {
+          "kind": "fn",
+          "line": 36,
+          "name": "next"
+        },
+        {
+          "kind": "fn",
+          "line": 45,
+          "name": "edge"
+        },
+        {
+          "kind": "struct",
+          "line": 56,
+          "name": "Outcome"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "few_colluding_mature_credentials_cannot_lift_a_sybil_cluster"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "mass_collusion_is_a_documented_limit_of_the_graph_signal_alone"
+        }
+      ],
+      "title": "use did_mini::{Controller, Did};"
     },
     {
       "bytes": 7467,
@@ -122860,7 +122977,7 @@
       "title": "Reusable offline allowances and private account settlement"
     },
     {
-      "bytes": 9124,
+      "bytes": 10453,
       "group": "docs",
       "headings": [
         {
@@ -122912,6 +123029,11 @@
           "level": 2,
           "line": 117,
           "text": "Audit band (founder refinement, 2026-11-02)"
+        },
+        {
+          "level": 2,
+          "line": 121,
+          "text": "Adversarial simulation findings (graph signal only)"
         }
       ],
       "keywords": [
@@ -122940,9 +123062,9 @@
         "implemented",
         "first"
       ],
-      "lines": 120,
+      "lines": 136,
       "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
-      "sha256": "b5d7c5e7b816f9fe3d41271f8aa83bb2eb2363136f3ed6a8410ce4b27096de81",
+      "sha256": "c46b973dc1c2839ee979bb369da1583a82f80cad33e23d6130c4e929302b144c",
       "symbols": [],
       "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },
