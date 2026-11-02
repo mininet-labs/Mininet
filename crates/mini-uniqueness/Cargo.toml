@@ -12,11 +12,4 @@ publish = false
 [dependencies]
 did-mini = { path = "../did-mini" }
 mini-presence = { path = "../mini-presence" }
-
-[dev-dependencies]
-# Test-only: derives deterministic test nonce bytes via a real hash instead
-# of a literal array, matching mini-presence's own test convention and
-# mini-keystone's demo_nonce (see tests/vouch.rs). Already resolved
-# transitively through mini-presence; this just makes it directly usable
-# from integration tests.
 mini-crypto = { path = "../mini-crypto" }

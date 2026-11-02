@@ -47,19 +47,32 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod audit;
 mod confidence;
 mod error;
+mod governor;
 mod graph;
+mod policy;
 mod status;
 mod verify;
 mod vouch;
 
+pub use audit::{
+    select_panel, ActivitySummary, AuditCase, AuditError, AuditOutcome, AuditParams, CaseSpec,
+    Eligibility, EligibilityLedger, Epoch, GatedAction, PolicySchedule, Stage, Verdict,
+    MATURE_FROM_EPOCH,
+};
 pub use confidence::{
     fuse_confidence, BehavioralEntropySource, ConfidenceInputs, ConfidenceWeights, DecayPolicy,
     NoEntropySource,
 };
 pub use error::{Result, UniquenessError};
-pub use graph::{recommended_iterations, trust_scores, VouchGraph, TRUST_SCALE};
+pub use governor::{Finalized, GovernorError, ThresholdGovernor};
+pub use graph::{recommended_iterations, trust_scores, VouchGraph, VouchQuota, TRUST_SCALE};
+pub use policy::{
+    bounded_threshold, AuditGate, GateOutcome, PersonhoodPolicy, PolicyError, ThresholdBounds,
+    POLICY_FORMAT_VERSION,
+};
 pub use status::{
     HumanRecord, HumanStatus, PromotionPolicy, SignalEvidence, SignalSource, TrustWeights,
 };
