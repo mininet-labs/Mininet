@@ -263,3 +263,8 @@ remaining substantive safety gates still have to be proven.
   KEL/object stores, seed pool eviction) still fail closed when full without
   self-cleaning; proactive free-space checks need a platform statvfs and are not
   built. The archive itself grows until the disk does.
+
+## Escalating admission cost (spam / flood protection)
+
+- `mini-transport-security::admission` (`AdmissionMeter`): each admitted request from a source inside a sliding 5 s window raises the work the next one must prove by one bit (expected hashing doubles per extra request); quiet for a window and it resets. Past a per-source ceiling (default 40 bits) the source is refused. A global term raises everyone's required bits when total load exceeds a soft limit (capped lower), so a botnet spread across many sources still pays. Work is a BLAKE3 hash bound to the request digest and a per-window sequence number, so it can't be reused or replayed. Cost is compute, not money: ordinary internet access stays free.
+- Not yet: wiring into the live listeners (seed, sync, relay, app service), per-class tuning, and any adversarial load testing. GPU/ASIC/botnet attackers pay less per unit than phones; this raises cost and rate-limits, it does not make flooding impossible, and must sit beside the existing connection/bandwidth quotas and peer-selection diversity. `source` must be unspoofable (authenticated session identity or an established-connection IP prefix). Unaudited.
