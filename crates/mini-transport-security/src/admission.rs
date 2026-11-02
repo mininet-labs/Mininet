@@ -193,6 +193,23 @@ impl AdmissionMeter {
         })
     }
 
+    /// Record a request that needs no proof because its cost is still inside
+    /// the free tier (`required_bits <= free_bits`): honest, low-rate callers
+    /// pay nothing and see no extra round trip. Returns `false` (and records
+    /// nothing) when the source must prove work instead.
+    pub fn admit_free(&mut self, source: &[u8], free_bits: u8, now_ms: u64) -> bool {
+        let key = Self::key(source);
+        Self::prune_deque(&mut self.global, now_ms, self.policy.window_ms);
+        let seq = self.count_for(&key, now_ms);
+        if self.required_bits(seq) > free_bits {
+            return false;
+        }
+        self.make_room(&key, now_ms);
+        self.sources.entry(key).or_default().push_back(now_ms);
+        self.global.push_back(now_ms);
+        true
+    }
+
     fn make_room(&mut self, key: &[u8; 32], now_ms: u64) {
         if self.sources.len() < self.policy.max_sources || self.sources.contains_key(key) {
             return;
@@ -395,6 +412,22 @@ mod tests {
         let q = m.quote(b"honest", 11);
         assert_eq!(q.required_bits, 2 + 3, "capped global extra");
         assert_eq!(m.quote(b"honest", 6_000).required_bits, 2, "load decays");
+    }
+
+    #[test]
+    fn free_tier_costs_nothing_then_demands_work() {
+        let mut m = AdmissionMeter::new(small());
+        // base 2 bits, free up to 4 bits: seq 0,1,2 free, the 4th must prove.
+        assert!(m.admit_free(b"a", 4, 0));
+        assert!(m.admit_free(b"a", 4, 1));
+        assert!(m.admit_free(b"a", 4, 2));
+        assert!(!m.admit_free(b"a", 4, 3));
+        assert_eq!(m.quote(b"a", 3).seq, 3, "refused free call records nothing");
+        assert!(m.admit_free(b"b", 4, 3), "other sources are unaffected");
+        assert!(
+            m.admit_free(b"a", 4, 6_000),
+            "free again after a quiet window"
+        );
     }
 
     #[test]

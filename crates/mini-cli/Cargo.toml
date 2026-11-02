@@ -30,6 +30,7 @@ mini-beta-exec = { path = "../mini-beta-exec" }
 mini-beta-grants = { path = "../mini-beta-grants" }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
+mini-transport-security = { path = "../mini-transport-security" }
 mini-forge = { path = "../mini-forge" }
 mini-installer = { path = "../mini-installer" }
 mini-selftest = { path = "../mini-selftest" }

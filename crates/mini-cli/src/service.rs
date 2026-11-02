@@ -226,6 +226,7 @@ fn run(
     drop(control);
     let mut workers: Vec<Worker> = Vec::new();
     let active_peers = Arc::new(Mutex::new(std::collections::BTreeSet::<String>::new()));
+    let admission = crate::admission_gate::new_meter();
     let mut stopping = false;
     let mut fatal = None;
     loop {
@@ -291,6 +292,8 @@ fn run(
                             let home = home.to_path_buf();
                             let store = store.to_path_buf();
                             let allowed_peers = allowed_peers.clone();
+                            let gate =
+                                crate::admission_gate::Gate::new(admission.clone(), source.ip());
                             let authenticated = Arc::new(AtomicBool::new(false));
                             let phase = authenticated.clone();
                             let active_peers = active_peers.clone();
@@ -320,6 +323,7 @@ fn run(
                                             &home,
                                             stream,
                                             &allowed_peers,
+                                            &gate,
                                             admit,
                                         )
                                     } else {
@@ -328,6 +332,7 @@ fn run(
                                             &store,
                                             stream,
                                             &allowed_peers,
+                                            &gate,
                                             admit,
                                         )
                                         .map(|_| ())
