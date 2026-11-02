@@ -84,6 +84,11 @@ pub fn run(raw_args: &[String]) -> Result<String> {
     }
 
     let _maintenance_lease = crate::maintenance::lease(&home)?;
+    crate::storage::housekeeping(&home, crate::sequence::now_ms());
+    if args.as_slice() == ["storage".to_string(), "status".to_string()] {
+        reject_json(json, "storage")?;
+        return Ok(crate::storage::status(&home));
+    }
     dispatch(&home, &store_path, args, json)
 }
 

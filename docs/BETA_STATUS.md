@@ -250,6 +250,11 @@ to the final phase now.
 Forge-independent operation, the one-way Forge-canonical handoff, and the
 remaining substantive safety gates still have to be proven.
 
+## Storage guard (full-disk protection)
+
+- `mini_durable::space`: every `atomic_replace` (all durable state: journals, manifests, seed objects, KELs, caches) first checks free space. If short, registered safe reclaimers run (built in: interrupted-write temporaries older than ten minutes), and only then does the write fail, cleanly and before touching anything, with a plain `StorageFull` error. An 8 MiB reserve is kept so small control writes still commit. If the platform cannot report free space the guard fails open.
+- `mini-cli` runs housekeeping at the start of every command: when space is low it prunes expired seed leases and (when critical) drops the rebuildable inventory cache, and prints a plain-language warning to stderr. `mini storage status` reports the level.
+- Not yet: warnings in the desktop and Android UI (they can call `space::level`/`warning`), reclaimers for other regenerable caches, and guarding the few writers that bypass `atomic_replace` (e.g. staged-file publish). The evidence archive is intentionally never reclaimed.
 ## Automatic housekeeping (no engineer needed)
 
 - **Evidence journal:** when the seed evidence journal (or one peer's share of it)

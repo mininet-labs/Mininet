@@ -3004,6 +3004,7 @@ dependencies = [
 name = "mini-durable"
 version = "0.0.1"
 dependencies = [
+ "fs4",
  "windows-sys 0.59.0",
 ]
 
