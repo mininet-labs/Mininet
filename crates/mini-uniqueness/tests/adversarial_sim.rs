@@ -14,8 +14,8 @@
 
 use did_mini::{Controller, Did};
 use mini_uniqueness::{
-    recommended_iterations, trust_scores, GateOutcome, HumanRecord, PersonhoodPolicy,
-    SignalEvidence, SignalSource, VouchGraph, VouchVerdict,
+    recommended_iterations, trust_scores, vouch_strengths, GateOutcome, HumanRecord,
+    PersonhoodPolicy, SignalEvidence, SignalSource, Standing, VouchGraph, VouchVerdict,
 };
 use std::collections::HashSet;
 
@@ -275,4 +275,144 @@ fn forged_presence_cannot_turn_a_trace_of_graph_trust_into_a_pass() {
     assert_eq!(table[2].1, 0);
     // More collusion never helps the defender.
     assert!(table.windows(2).all(|w| w[1].1 >= w[0].1));
+}
+
+const MIN_DEGREE: u32 = 6;
+const REFERENCE_PERCENTILE: u32 = 75;
+
+/// Build the honest graph (same shape as `run_with`) plus `newcomers` extra
+/// honest members each vouched for by `m` established members.
+fn newcomer_strengths(m: usize, newcomers: usize) -> Vec<u8> {
+    let honest: Vec<Did> = (0..HONEST).map(did).collect();
+    let fresh: Vec<Did> = (5_000..5_000 + newcomers).map(did).collect();
+    let seeds = &honest[..SEEDS];
+    let mut g = VouchGraph::new();
+    let mut rng = Lcg(7);
+    for i in 0..HONEST {
+        edge(&mut g, &honest[i], &honest[(i + 1) % HONEST]);
+        for _ in 0..HONEST_VOUCHES {
+            let j = rng.next(HONEST);
+            if j != i {
+                edge(&mut g, &honest[i], &honest[j]);
+            }
+        }
+    }
+    for n in &fresh {
+        let mut got = 0;
+        while got < m {
+            let v = rng.next(HONEST);
+            if edge(&mut g, n, &honest[v]) {
+                got += 1;
+            }
+        }
+    }
+    let iters = recommended_iterations(g.node_count());
+    let trust = trust_scores(&g, seeds, iters);
+    let strengths = vouch_strengths(&g, &trust, MIN_DEGREE, REFERENCE_PERCENTILE);
+    fresh
+        .iter()
+        .map(|n| strengths.get(n).copied().unwrap_or(0))
+        .collect()
+}
+
+#[test]
+fn honest_newcomers_are_never_locked_out_and_reach_full_standing_with_a_few_vouches() {
+    let policy = PersonhoodPolicy::starting_point();
+    let standing_of =
+        |v: u8, presence: u32| policy.standing(&record(Some(u32::from(v)), presence), 2_000, false);
+    println!("--- honest newcomers (honest presence 80), by number of vouches ---");
+    for m in [1usize, 2, 3, 4, 6, 8] {
+        let strengths = newcomer_strengths(m, 60);
+        let count = |want: Standing| {
+            strengths
+                .iter()
+                .filter(|v| standing_of(**v, 80) == want)
+                .count()
+        };
+        println!(
+            "vouches={m}: full {} provisional {} unvouched {} (of 60), median strength {}",
+            count(Standing::Full),
+            count(Standing::Provisional),
+            count(Standing::Unvouched),
+            {
+                let mut s = strengths.clone();
+                s.sort_unstable();
+                s[s.len() / 2]
+            }
+        );
+    }
+}
+
+/// A lean attacker: no internal sybil edges (lowest degree), every sybil
+/// vouched by exactly `d` colluder slots, `k` colluders spending `QUOTA` each.
+/// Returns each sybil's vouching strength under the graded model.
+fn lean_attack(k: usize, d: usize) -> Vec<u8> {
+    let honest: Vec<Did> = (0..HONEST).map(did).collect();
+    let total_slots = k * QUOTA;
+    let sybil_count = total_slots / d;
+    let sybils: Vec<Did> = (10_000..10_000 + sybil_count).map(did).collect();
+    let seeds = &honest[..SEEDS];
+    let mut g = VouchGraph::new();
+    let mut rng = Lcg(7);
+    for i in 0..HONEST {
+        edge(&mut g, &honest[i], &honest[(i + 1) % HONEST]);
+        for _ in 0..HONEST_VOUCHES {
+            let j = rng.next(HONEST);
+            if j != i {
+                edge(&mut g, &honest[i], &honest[j]);
+            }
+        }
+    }
+    // Slot j of the attack goes to sybil j / d, from colluder j % k.
+    for slot in 0..sybil_count * d {
+        let colluder = &honest[SEEDS + (slot % k.max(1)) * 7 % (HONEST - SEEDS)];
+        edge(&mut g, colluder, &sybils[slot / d]);
+    }
+    let iters = recommended_iterations(g.node_count());
+    let trust = trust_scores(&g, seeds, iters);
+    let strengths = vouch_strengths(&g, &trust, MIN_DEGREE, REFERENCE_PERCENTILE);
+    sybils
+        .iter()
+        .map(|n| strengths.get(n).copied().unwrap_or(0))
+        .collect()
+}
+
+#[test]
+fn a_fake_identity_costs_several_colluder_vouches_to_reach_full_standing() {
+    let policy = PersonhoodPolicy::starting_point();
+    let standing_of = |v: u8| policy.standing(&record(Some(u32::from(v)), 100), 2_000, false);
+    for k in [1usize, 6, 24, 60] {
+        let mut line = format!("colluders={k:>2} ({} vouch slots):", k * QUOTA);
+        for d in [1usize, 2, 3, 6] {
+            let strengths = lean_attack(k, d);
+            let full = strengths
+                .iter()
+                .filter(|v| standing_of(**v) == Standing::Full)
+                .count();
+            let prov = strengths
+                .iter()
+                .filter(|v| standing_of(**v) == Standing::Provisional)
+                .count();
+            // Value an attacker can draw per epoch, in whole-entitlement units:
+            // full identities at 100%, provisional at the policy share.
+            let drawn =
+                full as f64 + prov as f64 * f64::from(policy.provisional_share_percent) / 100.0;
+            line.push_str(&format!(
+                "  d={d}: {full} full, {prov} prov (draw {drawn:.1})"
+            ));
+            if d <= 2 {
+                assert_eq!(
+                    full, 0,
+                    "k={k} d={d}: fewer than 3 vouches must never reach full standing"
+                );
+            }
+            // The bound that matters: identities drawn never exceed what the
+            // colluders' vouch slots can buy (slots / vouches-per-identity).
+            assert!(
+                drawn <= (k * QUOTA) as f64 / d.min(3) as f64 + 1.0,
+                "k={k} d={d}"
+            );
+        }
+        println!("{line}");
+    }
 }

@@ -100,6 +100,9 @@ impl PolicySchedule {
             && m.policy.audit_minimum >= e.policy.audit_minimum
             && m.policy.max_vouch_degree <= e.policy.max_vouch_degree
             && m.policy.audit_band <= e.policy.audit_band
+            && m.policy.full_vouch_strength >= e.policy.full_vouch_strength
+            && m.policy.provisional_vouch_strength >= e.policy.provisional_vouch_strength
+            && m.policy.provisional_share_percent <= e.policy.provisional_share_percent
             && m.vouches_per_epoch <= e.vouches_per_epoch
             && m.vouches_per_epoch >= 1
             && m.audit.panel_size >= e.audit.panel_size
@@ -129,6 +132,9 @@ impl PolicySchedule {
         mature_policy.version = 2;
         mature_policy.audit_minimum = 45;
         mature_policy.audit_band = 5;
+        mature_policy = mature_policy
+            .with_standing(50, 15, 15)
+            .expect("mature standing parameters are valid");
         mature_policy.max_vouch_degree = 100;
         let mature = Stage {
             policy: mature_policy,

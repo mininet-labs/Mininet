@@ -110,6 +110,43 @@ impl VouchGraph {
     }
 }
 
+/// Turn raw trust mass into a 0..=100 vouching strength per node.
+///
+/// Raw mass is proportional to how many vouches a node holds, which would
+/// shut honest newcomers out; dividing by the bare degree instead would make
+/// a fake identity with a single vouch from a colluder look perfect. The
+/// middle path: divide by `max(degree, min_degree)`, so a newcomer with a few
+/// vouches earns proportional strength while an attacker needs about
+/// `min_degree` vouches *per fake identity* to look established. The reference
+/// (what 100 means) is the `reference_percentile`-th value of that quantity
+/// over reached nodes of degree at least `min_degree`, so a flood of
+/// low-trust fake nodes cannot drag the reference down.
+pub fn vouch_strengths(
+    graph: &VouchGraph,
+    trust: &HashMap<Did, u64>,
+    min_degree: u32,
+    reference_percentile: u32,
+) -> HashMap<Did, u8> {
+    let d0 = u64::from(min_degree.max(1));
+    let per = |node: &Did, mass: u64| mass / (graph.degree(node) as u64).max(d0);
+    let mut established: Vec<u64> = trust
+        .iter()
+        .filter(|(n, m)| **m > 0 && graph.degree(n) as u64 >= d0)
+        .map(|(n, m)| per(n, *m))
+        .collect();
+    established.sort_unstable();
+    let reference = if established.is_empty() {
+        1
+    } else {
+        let idx = (established.len() - 1) * reference_percentile.min(100) as usize / 100;
+        established[idx].max(1)
+    };
+    trust
+        .iter()
+        .map(|(n, m)| (n.clone(), (per(n, *m) * 100 / reference).min(100) as u8))
+        .collect()
+}
+
 /// Per-epoch cap on how many new vouches one identity root may form, so a
 /// farm cannot mint a dense web of vouches quickly. Pure bookkeeping; the
 /// caller picks the cap from the stage in force and the epoch from consensus.
