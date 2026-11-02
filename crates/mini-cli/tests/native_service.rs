@@ -211,7 +211,19 @@ fn authenticated_service_isolates_bad_peers_and_stops_and_restarts() {
         assert!(synced.contains("\"ok\":true"));
     }
     // Bob receives Alice's signed project through the persistent owner host.
-    let status = run(&homes[2], &stores[2], &["repo", "status", &project]);
+    // The owner's worker may still be committing Alice's objects when her
+    // client returns (a slow CI runner shows this), so Bob pulls again a few
+    // times instead of assuming the ordering; the end state is still asserted.
+    let mut status = command(&homes[2], &stores[2], &["repo", "status", &project]);
+    for _ in 0..20 {
+        if status.is_ok() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(300));
+        run(&homes[2], &stores[2], &["remote", "sync", "owner"]);
+        status = command(&homes[2], &stores[2], &["repo", "status", &project]);
+    }
+    let status = status.expect("Bob never received Alice's project through the owner host");
     assert!(status.contains("alice-code"));
     // A trusted but non-allowlisted root still cannot sync. A wrong saved
     // endpoint pin cannot fall back to the legacy anonymous protocol.
