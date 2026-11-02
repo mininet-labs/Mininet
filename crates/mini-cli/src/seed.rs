@@ -575,11 +575,13 @@ pub(crate) fn serve_stream(
     home: &Path,
     stream: TcpStream,
     allowed: &[Did],
+    gate: &crate::admission_gate::Gate,
     on_authenticated: impl FnOnce(&Did) -> Result<()>,
 ) -> Result<()> {
     let identity = crate::identity::load(home)?;
     let mut b = TcpBearer::from_stream(stream).map_err(err)?;
     let hello = b.recv().map_err(err)?;
+    gate.check(&mut b, &hello)?;
     let (mut c, response) = Responder::respond(&hello).map_err(err)?;
     b.send(&response).map_err(err)?;
     let transcript = crate::sync::session_transcript(&hello, &response);
@@ -757,7 +759,7 @@ fn connect_until(home: &Path, address: &str, peer: &Did, deadline: Instant) -> R
     let mut b = TcpBearer::from_stream(stream).map_err(err)?;
     let (initiator, hello) = Initiator::start().map_err(err)?;
     b.send(&hello).map_err(err)?;
-    let response = b.recv().map_err(err)?;
+    let response = crate::admission_gate::client_response(&mut b, &hello)?;
     let mut c = initiator.finish(&response).map_err(err)?;
     let transcript = crate::sync::session_transcript(&hello, &response);
     crate::sync::send_session_proof(&mut b, &mut c, &identity, &transcript, b'i', peer)?;

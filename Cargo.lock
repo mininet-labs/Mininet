@@ -2851,6 +2851,7 @@ dependencies = [
  "mini-storage",
  "mini-store",
  "mini-sync",
+ "mini-transport-security",
  "mini-windows-setup",
  "serde",
  "serde_json",

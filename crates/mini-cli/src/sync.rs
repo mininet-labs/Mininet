@@ -261,11 +261,13 @@ pub(crate) fn serve_stream(
     store_path: &Path,
     stream: std::net::TcpStream,
     allowed_peers: &[did_mini::Did],
+    gate: &crate::admission_gate::Gate,
     admit: impl FnOnce(&did_mini::Did) -> Result<()>,
 ) -> Result<IngestReport> {
     let identity = crate::identity::load(home)?;
     let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
     let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    gate.check(&mut bearer, &hello)?;
     let (mut channel, response) =
         Responder::respond(&hello).map_err(|e| CliError::Sync(e.to_string()))?;
     bearer
@@ -439,7 +441,7 @@ pub fn connect_authenticated_report(
     bearer
         .send(&hello)
         .map_err(|e| CliError::Sync(e.to_string()))?;
-    let response = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    let response = crate::admission_gate::client_response(&mut bearer, &hello)?;
     let mut channel = initiator
         .finish(&response)
         .map_err(|e| CliError::Sync(e.to_string()))?;

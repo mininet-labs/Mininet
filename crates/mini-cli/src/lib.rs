@@ -44,6 +44,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod admission_gate;
 mod beta;
 mod beta_grants;
 mod beta_identity;
