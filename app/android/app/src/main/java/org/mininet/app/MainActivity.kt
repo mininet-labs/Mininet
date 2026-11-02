@@ -494,6 +494,7 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
     Scaffold(
         containerColor = Warm,
         topBar = {
+            Column {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -508,6 +509,8 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Warm),
             )
+            StorageBanner()
+            }
         },
     ) { padding ->
         AnimatedContent(

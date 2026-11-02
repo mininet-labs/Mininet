@@ -100,6 +100,9 @@ impl PolicySchedule {
             && m.policy.audit_minimum >= e.policy.audit_minimum
             && m.policy.max_vouch_degree <= e.policy.max_vouch_degree
             && m.policy.audit_band <= e.policy.audit_band
+            && m.policy.full_vouch_strength >= e.policy.full_vouch_strength
+            && m.policy.provisional_vouch_strength >= e.policy.provisional_vouch_strength
+            && m.policy.provisional_share_percent <= e.policy.provisional_share_percent
             && m.vouches_per_epoch <= e.vouches_per_epoch
             && m.vouches_per_epoch >= 1
             && m.audit.panel_size >= e.audit.panel_size
@@ -129,6 +132,9 @@ impl PolicySchedule {
         mature_policy.version = 2;
         mature_policy.audit_minimum = 45;
         mature_policy.audit_band = 5;
+        mature_policy = mature_policy
+            .with_standing(50, 15, 15)
+            .expect("mature standing parameters are valid");
         mature_policy.max_vouch_degree = 100;
         let mature = Stage {
             policy: mature_policy,
@@ -464,6 +470,38 @@ impl EligibilityLedger {
     }
 }
 
+/// Evaluate a whole roll of candidates for one action and epoch under the
+/// stage in force, returning each root's eligibility. Pure: scores come from
+/// the published policy over each root's evidence, audits from `ledger`.
+/// Callers use [`eligible_set`] to filter a payout list or to build the
+/// predicate for `mini_forge::EligibleOnly`.
+pub fn evaluate_roll<'a>(
+    schedule: &PolicySchedule,
+    ledger: &EligibilityLedger,
+    action: GatedAction,
+    epoch: Epoch,
+    now_ms: u64,
+    candidates: impl IntoIterator<Item = (&'a Did, &'a crate::status::HumanRecord)>,
+) -> Vec<(Did, Eligibility)> {
+    let policy = &schedule.stage_at(epoch).policy;
+    let gate = policy.gate();
+    candidates
+        .into_iter()
+        .map(|(root, record)| {
+            let score = policy.score(record, now_ms);
+            (root.clone(), ledger.check(root, action, epoch, score, gate))
+        })
+        .collect()
+}
+
+/// The roots in `roll` that are `Allowed` right now.
+pub fn eligible_set(roll: &[(Did, Eligibility)]) -> HashSet<Did> {
+    roll.iter()
+        .filter(|(_, e)| *e == Eligibility::Allowed)
+        .map(|(d, _)| d.clone())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -678,6 +716,45 @@ mod tests {
             ledger.check(&subject, GatedAction::Vote, 10, 5, gate()),
             Eligibility::Insufficient
         );
+    }
+
+    #[test]
+    fn a_roll_is_evaluated_per_root_and_only_allowed_roots_are_eligible() {
+        use crate::status::{HumanRecord, SignalEvidence, SignalSource};
+        let ev = |source, strength| SignalEvidence {
+            source,
+            strength,
+            recorded_at_ms: 1_000,
+        };
+        let (strong, borderline, farm) = (did(1), did(2), did(3));
+        let mut r_strong = HumanRecord::new();
+        r_strong.record(ev(SignalSource::VouchingGraph, 80));
+        r_strong.record(ev(SignalSource::PhysicalPresence, 90));
+        let mut r_border = HumanRecord::new();
+        r_border.record(ev(SignalSource::VouchingGraph, 14));
+        r_border.record(ev(SignalSource::PhysicalPresence, 100));
+        let mut r_farm = HumanRecord::new();
+        r_farm.record(ev(SignalSource::PhysicalPresence, 100));
+        let schedule = sched();
+        let ledger = EligibilityLedger::new();
+        let roll = evaluate_roll(
+            &schedule,
+            &ledger,
+            GatedAction::MonthlyPayment,
+            10,
+            2_000,
+            [
+                (&strong, &r_strong),
+                (&borderline, &r_border),
+                (&farm, &r_farm),
+            ],
+        );
+        let get = |d: &Did| roll.iter().find(|(r, _)| r == d).unwrap().1;
+        assert_eq!(get(&strong), Eligibility::Allowed);
+        assert_eq!(get(&borderline), Eligibility::NeedsAudit);
+        assert_eq!(get(&farm), Eligibility::Insufficient);
+        let set = eligible_set(&roll);
+        assert!(set.contains(&strong) && !set.contains(&borderline) && !set.contains(&farm));
     }
 
     #[test]

@@ -145,3 +145,40 @@ Same model, now asking how many colluding mature credentials an attacker must bu
 | 600 honest roots, 10 vouches per credential | 56 |
 
 The stricter mature quota raises the price by about 60% and a doubled honest network by about 17%, so the per-epoch quota is a stronger lever than network size alone. The number to price against is the attacker's cost per witness versus the value of the human-exclusive power the cluster would unlock. Still not modelled: active proximity relays and forged devices (they attack the presence signal, not the graph), and the other signals.
+
+### Forged or relayed presence (simulator, policy v2)
+
+Presence evidence can be forged (attacker devices attesting each other) or relayed (an active proximity relay). Model: every sybil carries perfect presence; vouching strength is the cluster's seed-anchored trust relative to the honest median.
+
+- Plain weighted average (policy v1): one colluding credential already let 10 of 400 sybils pass the gate, and six let all 400 pass — perfect presence made any trace of graph trust enough.
+- Policy v2: no live vouching evidence → score capped below the audit window (a presence-only farm, however large, never reaches audit); presence may lift the score at most 15 points above the vouching strength. Result with forged presence: 0 colluders → 0 pass; 1 → 0; 6 → 0 pass (57 reach audit); 24 → 395 of 400 pass.
+
+Reading: v2 closes the cheap attacks (forged presence alone, or with one to six colluding credentials) but 24 colluding mature credentials still lift a forged-presence cluster over the *current* minimum, because the starting minimum (30) corresponds to only 15% of the honest median vouching strength. The minimum and the vouch quotas are the levers; the starting numbers should be raised (or the pass test should require vouching strength directly) before any gated action carries real value. Note also that the earlier "24 colluders do not lift a cluster" result used the stricter 50%-of-median graph criterion, not the policy gate. Hardware-backed ranging for presence remains the real fix for forged presence.
+
+## Graded standing: strong against Sybils, no lockout for honest newcomers (policy v3)
+
+Founder direction (2026-11-02): make Sybil resistance as strong as possible *without* keeping money or votes from honest participants and without hurting expansion. A single pass/fail gate cannot do both, so the policy grades standing and delays instead of denying.
+
+**Standing** (`PersonhoodPolicy::standing`): *Full* needs live seed-anchored vouching of at least `full_vouch_strength` and a passing score (or a panel-cleared audit); *Provisional* needs at least `provisional_vouch_strength`; otherwise *Unvouched*. Nobody leaves the network.
+- **Value is delayed, never forfeited** (`payout_split` / `release_held`): Full receives the whole periodic entitlement; Provisional receives `provisional_share_percent` now and the rest is held; Unvouched is held. Held value is released in full when standing becomes Full. The split always sums to the entitlement (property-tested).
+- **Votes are never thrown away** (`tally`): one equal ballot per root; a ballot counts if the root is at Full standing when voting closes, and otherwise is reported as *not counted* (not half-weighted, not hidden), so a newcomer who gains standing before close is counted.
+- **Strength is not raw trust** (`vouch_strengths`): raw trust mass is proportional to how many vouches a node holds (that would shut newcomers out), while dividing by the bare degree makes a fake identity with one vouch look perfect. Dividing by `max(degree, 6)` earns newcomers proportional strength while an attacker needs about three vouches *per fake identity* for Full; the reference (100) is the 75th percentile over established nodes so a flood of fake nodes cannot drag it down.
+
+Starting numbers (early stage / mature stage, epoch >= 1000): Full bar 40 / 50, Provisional bar 10 / 15, provisional share 25% / 15%.
+
+**Simulator results** (honest presence 80; attacker presence forged to 100; 300 honest roots, quota 10 vouches per colluding credential per epoch):
+
+| honest newcomer vouches | Full | Provisional | Unvouched |
+|---|---|---|---|
+| 1 | 0 | 60 / 60 | 0 |
+| 2 | 0 | 60 / 60 | 0 |
+| 3 | 58 / 60 | 2 | 0 |
+| 4 and up | 60 / 60 | 0 | 0 |
+
+| colluding credentials | fake identities reaching Full per epoch (3 vouches each) | fake Provisional (1 vouch each) |
+|---|---|---|
+| 6 (60 vouch slots) | 20 | 60 (worth 15 Full-equivalents) |
+| 24 (240 slots) | 80 | 240 (worth 60) |
+| 60 (600 slots) | 200 | 600 (worth 150) |
+
+So a fake identity now costs three colluder vouches for Full instead of one (about 3.3 Full-equivalents drawn per colluding credential per epoch versus 10 before), fewer than three vouches never reaches Full at any scale, and an honest newcomer needs three vouches for Full and is never locked out before that. The price is the lever: raising the Full bar to 60 would need four vouches from honest newcomers and about four per fake identity. Remaining honest limits: a colluding mature credential is still worth about 3 identities per epoch, so credential cost, the per-epoch quota and the audit/economics layer carry the rest; the reference percentile assumes a mostly-honest reached graph.

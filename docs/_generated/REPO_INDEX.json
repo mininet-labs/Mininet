@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1274,
-    "headings": 4263,
-    "rust_symbols": 15294
+    "files": 1275,
+    "headings": 4267,
+    "rust_symbols": 15338
   },
   "crates": {
     "askama_derive": {
@@ -8739,14 +8739,13 @@
       "title": "use mini_app_protocol::{"
     },
     {
-      "bytes": 7091,
+      "bytes": 7555,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
         "retention",
         "never",
         "path",
-        "store",
         "day_ms",
         "objecttype",
         "some",
@@ -8754,23 +8753,24 @@
         "short",
         "standard",
         "long",
+        "store",
         "spacelevel",
+        "const",
+        "u64",
         "root",
         "kind",
-        "owner",
-        "else",
-        "object",
         "self",
         "match",
+        "owner",
+        "else",
         "parent",
         "days",
         "serviceerror",
-        "std",
-        "u64"
+        "std"
       ],
-      "lines": 203,
+      "lines": 214,
       "path": "crates/mini-app-service/src/cache_policy.rs",
-      "sha256": "52ba2d5af391672727694b986f5a22b316eba66883278c6b8f101c86f0a78d34",
+      "sha256": "163f39caae7e8c14c715b8d8aaf9c6e404c38b2aeb984833baf72cfc070f38f1",
       "symbols": [
         {
           "kind": "const",
@@ -9444,7 +9444,7 @@
       "title": "use crate::{delivery_interrupt::DeliveryInterrupt, outbox::DeliveryFailure};"
     },
     {
-      "bytes": 204939,
+      "bytes": 205605,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9473,9 +9473,9 @@
         "production",
         "join"
       ],
-      "lines": 5261,
+      "lines": 5275,
       "path": "crates/mini-app-service/src/lib.rs",
-      "sha256": "a03b5a16e185fd79696df0d95eaee8fc15bd857630d664eac8cee08dbe25e886",
+      "sha256": "6a583f710f10f64eb0816410eac22982e3a646cbbfbc5935d1d631f83e8c4ec3",
       "symbols": [
         {
           "kind": "mod",
@@ -9634,722 +9634,722 @@
         },
         {
           "kind": "impl",
-          "line": 149,
+          "line": 151,
           "name": "Core<WindowsIdentityVault>"
         },
         {
           "kind": "fn",
-          "line": 151,
+          "line": 153,
           "name": "open"
         },
         {
           "kind": "impl",
-          "line": 157,
+          "line": 159,
           "name": "Core<V>"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 160,
           "name": "open_inner"
         },
         {
           "kind": "fn",
-          "line": 224,
+          "line": 227,
           "name": "delivery_interrupt_handle"
         },
         {
           "kind": "fn",
-          "line": 228,
+          "line": 231,
           "name": "handle"
         },
         {
           "kind": "fn",
-          "line": 544,
+          "line": 558,
           "name": "queue_public_delivery"
         },
         {
           "kind": "fn",
-          "line": 561,
+          "line": 575,
           "name": "own_public_delivery_object"
         },
         {
           "kind": "fn",
-          "line": 594,
+          "line": 608,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 617,
           "name": "current_profile"
         },
         {
           "kind": "fn",
-          "line": 613,
+          "line": 627,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 632,
+          "line": 646,
           "name": "unlock"
         },
         {
           "kind": "fn",
-          "line": 656,
+          "line": 670,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 663,
+          "line": 677,
           "name": "publish_post"
         },
         {
           "kind": "fn",
-          "line": 698,
+          "line": 712,
           "name": "publish_media_post"
         },
         {
           "kind": "fn",
-          "line": 781,
+          "line": 795,
           "name": "publish_wall"
         },
         {
           "kind": "fn",
-          "line": 830,
+          "line": 844,
           "name": "publish_profile_with_photo"
         },
         {
           "kind": "fn",
-          "line": 871,
+          "line": 885,
           "name": "publish_profile_details"
         },
         {
           "kind": "fn",
-          "line": 927,
+          "line": 941,
           "name": "publish_community"
         },
         {
           "kind": "fn",
-          "line": 974,
+          "line": 988,
           "name": "set_membership"
         },
         {
           "kind": "fn",
-          "line": 1020,
+          "line": 1034,
           "name": "publish_comment"
         },
         {
           "kind": "fn",
-          "line": 1069,
+          "line": 1083,
           "name": "set_like"
         },
         {
           "kind": "fn",
-          "line": 1124,
+          "line": 1138,
           "name": "set_follow"
         },
         {
           "kind": "fn",
-          "line": 1162,
+          "line": 1176,
           "name": "publish_profile"
         },
         {
           "kind": "fn",
-          "line": 1203,
+          "line": 1217,
           "name": "finish_existing"
         },
         {
           "kind": "fn",
-          "line": 1230,
+          "line": 1244,
           "name": "ensure_signing_available"
         },
         {
           "kind": "fn",
-          "line": 1246,
+          "line": 1260,
           "name": "signing_identity"
         },
         {
           "kind": "fn",
-          "line": 1253,
+          "line": 1267,
           "name": "reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 1256,
+          "line": 1270,
           "name": "reserve_sequences"
         },
         {
           "kind": "fn",
-          "line": 1280,
+          "line": 1294,
           "name": "feed_snapshot"
         },
         {
           "kind": "fn",
-          "line": 1405,
+          "line": 1419,
           "name": "emit_published"
         },
         {
           "kind": "fn",
-          "line": 1413,
+          "line": 1427,
           "name": "emit"
         },
         {
           "kind": "fn",
-          "line": 1425,
+          "line": 1439,
           "name": "drain_events"
         },
         {
           "kind": "struct",
-          "line": 1432,
+          "line": 1446,
           "name": "FeedSeed"
         },
         {
           "kind": "fn",
-          "line": 1440,
+          "line": 1454,
           "name": "profile_view"
         },
         {
           "kind": "fn",
-          "line": 1449,
+          "line": 1463,
           "name": "delivery_view"
         },
         {
           "kind": "fn",
-          "line": 1472,
+          "line": 1486,
           "name": "root_from_seeds"
         },
         {
           "kind": "fn",
-          "line": 1541,
+          "line": 1555,
           "name": "storage_error"
         },
         {
           "kind": "fn",
-          "line": 1545,
+          "line": 1559,
           "name": "storage_or_social"
         },
         {
           "kind": "enum",
-          "line": 1550,
+          "line": 1564,
           "name": "MutationInput"
         },
         {
           "kind": "impl",
-          "line": 1595,
+          "line": 1609,
           "name": "MutationInput"
         },
         {
           "kind": "fn",
-          "line": 1596,
+          "line": 1610,
           "name": "kind"
         },
         {
           "kind": "struct",
-          "line": 1613,
+          "line": 1627,
           "name": "PendingMutation"
         },
         {
           "kind": "struct",
-          "line": 1620,
+          "line": 1634,
           "name": "MutationReceipt"
         },
         {
           "kind": "enum",
-          "line": 1628,
+          "line": 1642,
           "name": "ExistingMutation"
         },
         {
           "kind": "struct",
-          "line": 1634,
+          "line": 1648,
           "name": "MutationJournal"
         },
         {
           "kind": "impl",
-          "line": 1640,
+          "line": 1654,
           "name": "MutationJournal"
         },
         {
           "kind": "fn",
-          "line": 1641,
+          "line": 1655,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 1654,
+          "line": 1668,
           "name": "ensure_sequence_floor"
         },
         {
           "kind": "fn",
-          "line": 1669,
+          "line": 1683,
           "name": "persist_next_sequence"
         },
         {
           "kind": "fn",
-          "line": 1678,
+          "line": 1692,
           "name": "existing"
         },
         {
           "kind": "fn",
-          "line": 1704,
+          "line": 1718,
           "name": "write_pending"
         },
         {
           "kind": "fn",
-          "line": 1711,
+          "line": 1725,
           "name": "commit_and_complete"
         },
         {
           "kind": "fn",
-          "line": 1728,
+          "line": 1742,
           "name": "recover"
         },
         {
           "kind": "fn",
-          "line": 1793,
+          "line": 1807,
           "name": "write_receipt"
         },
         {
           "kind": "fn",
-          "line": 1799,
+          "line": 1813,
           "name": "read_pending"
         },
         {
           "kind": "fn",
-          "line": 1805,
+          "line": 1819,
           "name": "read_receipt"
         },
         {
           "kind": "fn",
-          "line": 1811,
+          "line": 1825,
           "name": "remove_pending"
         },
         {
           "kind": "fn",
-          "line": 1820,
+          "line": 1834,
           "name": "pending_path"
         },
         {
           "kind": "fn",
-          "line": 1825,
+          "line": 1839,
           "name": "receipt_path"
         },
         {
           "kind": "fn",
-          "line": 1831,
+          "line": 1845,
           "name": "profile_details_values"
         },
         {
           "kind": "fn",
-          "line": 1852,
+          "line": 1866,
           "name": "validate_profile_details_pair"
         },
         {
           "kind": "fn",
-          "line": 1885,
+          "line": 1899,
           "name": "commit_record"
         },
         {
           "kind": "fn",
-          "line": 2219,
+          "line": 2233,
           "name": "encode_pending"
         },
         {
           "kind": "fn",
-          "line": 2242,
+          "line": 2256,
           "name": "decode_pending"
         },
         {
           "kind": "fn",
-          "line": 2272,
+          "line": 2286,
           "name": "encode_receipt"
         },
         {
           "kind": "fn",
-          "line": 2291,
+          "line": 2305,
           "name": "decode_receipt"
         },
         {
           "kind": "fn",
-          "line": 2329,
+          "line": 2343,
           "name": "decode_sequence"
         },
         {
           "kind": "fn",
-          "line": 2346,
+          "line": 2360,
           "name": "read_optional"
         },
         {
           "kind": "fn",
-          "line": 2362,
+          "line": 2376,
           "name": "read_bounded"
         },
         {
           "kind": "const",
-          "line": 2372,
+          "line": 2386,
           "name": "HEX"
         },
         {
           "kind": "struct",
-          "line": 2382,
+          "line": 2396,
           "name": "JournalEncoder"
         },
         {
           "kind": "impl",
-          "line": 2386,
+          "line": 2400,
           "name": "JournalEncoder"
         },
         {
           "kind": "fn",
-          "line": 2387,
+          "line": 2401,
           "name": "new"
-        },
-        {
-          "kind": "fn",
-          "line": 2394,
-          "name": "finish"
-        },
-        {
-          "kind": "fn",
-          "line": 2404,
-          "name": "u8"
         },
         {
           "kind": "fn",
           "line": 2408,
-          "name": "u32"
-        },
-        {
-          "kind": "fn",
-          "line": 2412,
-          "name": "string"
-        },
-        {
-          "kind": "fn",
-          "line": 2426,
-          "name": "bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 2440,
-          "name": "details"
-        },
-        {
-          "kind": "fn",
-          "line": 2469,
-          "name": "input"
-        },
-        {
-          "kind": "struct",
-          "line": 2550,
-          "name": "JournalDecoder"
-        },
-        {
-          "kind": "impl",
-          "line": 2555,
-          "name": "JournalDecoder<'a>"
-        },
-        {
-          "kind": "fn",
-          "line": 2556,
-          "name": "new"
-        },
-        {
-          "kind": "fn",
-          "line": 2573,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2584,
-          "name": "take"
-        },
-        {
-          "kind": "fn",
-          "line": 2596,
+          "line": 2418,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2600,
+          "line": 2422,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2605,
+          "line": 2426,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2618,
+          "line": 2440,
           "name": "bytes"
         },
         {
           "kind": "fn",
-          "line": 2629,
+          "line": 2454,
           "name": "details"
         },
         {
           "kind": "fn",
-          "line": 2668,
+          "line": 2483,
+          "name": "input"
+        },
+        {
+          "kind": "struct",
+          "line": 2564,
+          "name": "JournalDecoder"
+        },
+        {
+          "kind": "impl",
+          "line": 2569,
+          "name": "JournalDecoder<'a>"
+        },
+        {
+          "kind": "fn",
+          "line": 2570,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 2587,
+          "name": "finish"
+        },
+        {
+          "kind": "fn",
+          "line": 2598,
+          "name": "take"
+        },
+        {
+          "kind": "fn",
+          "line": 2610,
+          "name": "u8"
+        },
+        {
+          "kind": "fn",
+          "line": 2614,
+          "name": "u32"
+        },
+        {
+          "kind": "fn",
+          "line": 2619,
+          "name": "string"
+        },
+        {
+          "kind": "fn",
+          "line": 2632,
+          "name": "bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 2643,
+          "name": "details"
+        },
+        {
+          "kind": "fn",
+          "line": 2682,
           "name": "flag"
         },
         {
           "kind": "fn",
-          "line": 2678,
+          "line": 2692,
           "name": "input"
         },
         {
           "kind": "mod",
-          "line": 2828,
+          "line": 2842,
           "name": "tests"
         },
         {
           "kind": "mod",
-          "line": 2832,
+          "line": 2846,
           "name": "beta_wallet_tests"
         },
         {
           "kind": "mod",
-          "line": 2833,
+          "line": 2847,
           "name": "cache_policy_tests"
         },
         {
           "kind": "struct",
-          "line": 2836,
+          "line": 2850,
           "name": "MemoryVault"
         },
         {
           "kind": "impl",
-          "line": 2841,
+          "line": 2855,
           "name": "MemoryVault"
         },
         {
           "kind": "fn",
-          "line": 2842,
+          "line": 2856,
           "name": "empty"
         },
         {
           "kind": "fn",
-          "line": 2849,
+          "line": 2863,
           "name": "seeded"
         },
         {
           "kind": "impl",
-          "line": 2863,
+          "line": 2877,
           "name": "IdentityVault"
         },
         {
           "kind": "fn",
-          "line": 2864,
+          "line": 2878,
           "name": "root_exists"
         },
         {
           "kind": "fn",
-          "line": 2868,
+          "line": 2882,
           "name": "load_root"
         },
         {
           "kind": "fn",
-          "line": 2874,
+          "line": 2888,
           "name": "load_or_create_root"
         },
         {
           "kind": "fn",
-          "line": 2882,
+          "line": 2896,
           "name": "load_or_create_device"
         },
         {
           "kind": "fn",
-          "line": 2891,
+          "line": 2905,
           "name": "temp_root"
         },
         {
           "kind": "fn",
-          "line": 2903,
+          "line": 2917,
           "name": "forwarded_stop_prevents_another_scheduling_turn_until_control_is_processed"
         },
         {
           "kind": "fn",
-          "line": 2924,
+          "line": 2938,
           "name": "offline_delivery_recovers_and_reports_verified_remote_receipt_without_new_signature"
         },
         {
           "kind": "fn",
-          "line": 3082,
+          "line": 3096,
           "name": "revoked_recipient_never_connects_and_locked_identity_stops_listener"
         },
         {
           "kind": "fn",
-          "line": 3141,
+          "line": 3155,
           "name": "queued_public_post_survives_locked_restart_and_cancellation_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 3213,
+          "line": 3227,
           "name": "identity_profile_post_feed_and_restart_idempotency_share_one_authority"
         },
         {
           "kind": "fn",
-          "line": 3291,
+          "line": 3305,
           "name": "pending_exact_signed_post_is_recovered_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 3340,
+          "line": 3354,
           "name": "profile_pending_record_is_bound_to_requested_content"
         },
         {
           "kind": "fn",
-          "line": 3366,
+          "line": 3380,
           "name": "orphaned_atomic_replace_temp_does_not_block_recovery"
         },
         {
           "kind": "fn",
-          "line": 3381,
+          "line": 3395,
           "name": "production_lock_refuses_a_second_core_service_instance"
         },
         {
           "kind": "fn",
-          "line": 3392,
+          "line": 3406,
           "name": "follow_mutations_drive_feed_and_keep_exact_retry_identity_after_locked_restart"
         },
         {
           "kind": "fn",
-          "line": 3495,
+          "line": 3509,
           "name": "exact_pending_follow_recovers_but_tampered_input_never_inserts"
         },
         {
           "kind": "fn",
-          "line": 3545,
+          "line": 3559,
           "name": "like_count"
         },
         {
           "kind": "fn",
-          "line": 3554,
+          "line": 3568,
           "name": "like_unlike_counts_and_locked_retry_keep_exact_bytes_without_reviving_stale_like"
         },
         {
           "kind": "fn",
-          "line": 3624,
+          "line": 3638,
           "name": "missing_private_and_noncontent_like_targets_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 3662,
+          "line": 3676,
           "name": "pending_like_recovers_exact_bytes_and_refuses_tampered_action_or_kind"
         },
         {
           "kind": "fn",
-          "line": 3722,
+          "line": 3736,
           "name": "public_comments_thread_and_custom_parents_keep_locked_receipts_after_parent_removal"
         },
         {
           "kind": "fn",
-          "line": 3817,
+          "line": 3831,
           "name": "invalid_private_missing_or_blank_new_comments_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 3858,
+          "line": 3872,
           "name": "pending_comments_recover_exactly_and_reject_text_parent_link_or_type_tampering"
         },
         {
           "kind": "fn",
-          "line": 3923,
+          "line": 3937,
           "name": "membership_test_card"
         },
         {
           "kind": "fn",
-          "line": 3947,
+          "line": 3961,
           "name": "membership_open_join_leave_policy_and_locked_deleted_card_retry_are_exact"
         },
         {
           "kind": "fn",
-          "line": 4036,
+          "line": 4050,
           "name": "pending_membership_recovers_exactly_and_refuses_action_or_target_tampering"
         },
         {
           "kind": "fn",
-          "line": 4088,
+          "line": 4102,
           "name": "community_creation_is_open_and_exact_locked_receipts_do_not_replace_newer_cards"
         },
         {
           "kind": "fn",
-          "line": 4180,
+          "line": 4194,
           "name": "pending_community_recovers_exactly_and_refuses_name_charter_mode_link_type_tampering"
         },
         {
           "kind": "fn",
-          "line": 4255,
+          "line": 4269,
           "name": "public_delivery_preview_and_queue_require_exact_own_identity_and_expose_only_review"
         },
         {
           "kind": "fn",
-          "line": 4354,
+          "line": 4368,
           "name": "maximum_comment_publication_locked_receipt_and_pending_recovery_keep_journal_usable"
         },
         {
           "kind": "fn",
-          "line": 4434,
+          "line": 4448,
           "name": "details_test_draft"
         },
         {
           "kind": "fn",
-          "line": 4454,
+          "line": 4468,
           "name": "profile_details_all_fields_and_avatar_keep_exact_locked_receipts_and_invalid_input_no_sequence"
         },
         {
           "kind": "fn",
-          "line": 4581,
+          "line": 4595,
           "name": "pending_profile_details_validate_all_objects_before_any_insert"
         },
         {
           "kind": "fn",
-          "line": 4659,
+          "line": 4673,
           "name": "profile_photo_publishes_exact_four_objects_and_locked_receipt_while_invalid_input_does_not_reserve"
         },
         {
           "kind": "fn",
-          "line": 4740,
+          "line": 4754,
           "name": "photo_profile_pending_recovery_validates_every_object_before_inserting"
         },
         {
           "kind": "fn",
-          "line": 4832,
+          "line": 4846,
           "name": "photo_sequence_range_overflow_never_partially_reserves"
         },
         {
           "kind": "fn",
-          "line": 4844,
+          "line": 4858,
           "name": "wall_test_draft"
         },
         {
           "kind": "fn",
-          "line": 4853,
+          "line": 4867,
           "name": "wall_public_and_unlisted_heads_keep_locked_exact_receipts_and_no_profile_confusion"
         },
         {
           "kind": "fn",
-          "line": 4953,
+          "line": 4967,
           "name": "pending_wall_checks_visibility_header_links_head_label_and_time_before_any_insert"
         },
         {
           "kind": "fn",
-          "line": 5039,
+          "line": 5053,
           "name": "media_share_test_headers"
         },
         {
           "kind": "fn",
-          "line": 5074,
+          "line": 5088,
           "name": "media_share_accepts_three_public_headers_without_fetch_and_keeps_locked_exact_receipts"
         },
         {
           "kind": "fn",
-          "line": 5153,
+          "line": 5167,
           "name": "missing_private_unrelated_and_noncanonical_media_headers_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 5193,
+          "line": 5207,
           "name": "pending_media_share_recovery_binds_exact_caption_media_and_no_extra_or_zero_links"
         }
       ],
@@ -27206,7 +27206,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 10254,
+      "bytes": 10869,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -27235,9 +27235,9 @@
         "map",
         "stores"
       ],
-      "lines": 297,
+      "lines": 309,
       "path": "crates/mini-cli/tests/native_service.rs",
-      "sha256": "f895f8eb63bcf317dd3accb919680a67332ab974d54e7310a0cbd542258b536c",
+      "sha256": "e0788cfb4a8a224164187b5d5ae8f0b63a2ee0c04a2fb03bad7a56526e1e105f",
       "symbols": [
         {
           "kind": "fn",
@@ -27281,7 +27281,7 @@
         },
         {
           "kind": "fn",
-          "line": 246,
+          "line": 258,
           "name": "silent_source_cannot_consume_authenticated_session_capacity"
         }
       ],
@@ -53649,7 +53649,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 33106,
+      "bytes": 33120,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -53657,11 +53657,10 @@
         "oracle",
         "commit",
         "artifact",
-        "object",
         "git_export",
         "git_import",
         "git",
-        "type",
+        "object",
         "collection",
         "coordination",
         "governance",
@@ -53672,15 +53671,16 @@
         "never",
         "identity",
         "root",
-        "attestation",
+        "type",
         "const",
         "str",
         "file_type",
-        "executable_file_type"
+        "executable_file_type",
+        "tree_type"
       ],
       "lines": 886,
       "path": "crates/mini-forge/src/lib.rs",
-      "sha256": "3b96c354864eb8459a77864a3615a6afe118585d8571577c4862ea02d853d299",
+      "sha256": "19fd5c5c983e5a1d4809b4c554b88efd202f3bd8b3b532c9c177b26858e0c5c5",
       "symbols": [
         {
           "kind": "mod",
@@ -53976,7 +53976,7 @@
       "title": "mod collection;"
     },
     {
-      "bytes": 9532,
+      "bytes": 12386,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -53985,29 +53985,29 @@
         "kels",
         "did",
         "scid",
-        "oracle",
-        "verified",
-        "obj",
         "new",
-        "len",
+        "bool",
         "identity",
+        "verified",
         "identityoracle",
+        "len",
+        "roots",
+        "oracle",
         "keldirectory",
         "insert",
+        "eligibleonly",
+        "fmt",
         "directory",
+        "one",
         "object",
         "author",
-        "one",
-        "sync",
-        "forgeerror",
-        "old",
-        "try_insert_verified",
-        "is_empty",
-        "provenance"
+        "does",
+        "personhood",
+        "caller"
       ],
-      "lines": 237,
+      "lines": 304,
       "path": "crates/mini-forge/src/oracle.rs",
-      "sha256": "26a5403b5f0dbd48ce1437e1d1d546f9eb27d94c58e877efd825e58a0d2a3df3",
+      "sha256": "e4ff17773462f6a6730a96dc4364479cb9e4f98a93ae2f173c6f3ac267a9ef63",
       "symbols": [
         {
           "kind": "trait",
@@ -54065,43 +54065,83 @@
           "name": "kel"
         },
         {
+          "kind": "struct",
+          "line": 110,
+          "name": "EligibleOnly"
+        },
+        {
+          "kind": "impl",
+          "line": 115,
+          "name": "bool>"
+        },
+        {
           "kind": "fn",
-          "line": 136,
+          "line": 116,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 121,
+          "name": "bool>"
+        },
+        {
+          "kind": "fn",
+          "line": 123,
+          "name": "new"
+        },
+        {
+          "kind": "impl",
+          "line": 128,
+          "name": "bool>"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "kel"
+        },
+        {
+          "kind": "fn",
+          "line": 176,
           "name": "author_assurance"
         },
         {
           "kind": "mod",
-          "line": 153,
+          "line": 193,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 159,
+          "line": 199,
           "name": "human"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 212,
           "name": "an_object"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 220,
+          "name": "an_ineligible_root_and_its_devices_stop_counting_but_others_are_unaffected"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
           "name": "a_verified_first_contact_author_is_direct"
         },
         {
           "kind": "fn",
-          "line": 193,
+          "line": 260,
           "name": "a_second_check_of_the_same_root_is_pinned"
         },
         {
           "kind": "fn",
-          "line": 212,
+          "line": 279,
           "name": "an_unknown_author_is_rejected_without_computing_assurance"
         },
         {
           "kind": "fn",
-          "line": 225,
+          "line": 292,
           "name": "known_duplicity_overrides_a_verified_author"
         }
       ],
@@ -94419,7 +94459,7 @@
       "title": "use mini_crypto::{"
     },
     {
-      "bytes": 21587,
+      "bytes": 23677,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -94448,9 +94488,9 @@
         "struct",
         "u64"
       ],
-      "lines": 549,
+      "lines": 601,
       "path": "crates/mini-store/src/store.rs",
-      "sha256": "8fc4837e5af76c60a9b64cca3479df2e7d4ffdfd6ee5a452aee27ee75a5e267b",
+      "sha256": "7ecf80bb33d28087bbe60aa08bedf844713d8419111220c9c4e564078448bff2",
       "symbols": [
         {
           "kind": "const",
@@ -94539,117 +94579,137 @@
         },
         {
           "kind": "fn",
-          "line": 222,
-          "name": "contains"
+          "line": 226,
+          "name": "was_evicted"
         },
         {
           "kind": "fn",
-          "line": 230,
-          "name": "insert_private"
+          "line": 236,
+          "name": "wants"
         },
         {
           "kind": "fn",
           "line": 242,
+          "name": "forget_eviction"
+        },
+        {
+          "kind": "fn",
+          "line": 251,
+          "name": "prune_eviction_markers"
+        },
+        {
+          "kind": "fn",
+          "line": 274,
+          "name": "contains"
+        },
+        {
+          "kind": "fn",
+          "line": 282,
+          "name": "insert_private"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
           "name": "get_private"
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 310,
           "name": "contains_private"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 317,
           "name": "private_by_route"
         },
         {
           "kind": "fn",
-          "line": 270,
+          "line": 322,
           "name": "all_ids"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 327,
           "name": "by_author"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 332,
           "name": "by_type"
         },
         {
           "kind": "fn",
-          "line": 285,
+          "line": 337,
           "name": "linking_to"
         },
         {
           "kind": "fn",
-          "line": 297,
+          "line": 349,
           "name": "since"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 368,
           "name": "since_page"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 422,
           "name": "recent"
         },
         {
           "kind": "fn",
-          "line": 382,
+          "line": 434,
           "name": "ids_under"
         },
         {
           "kind": "fn",
-          "line": 399,
+          "line": 451,
           "name": "apply_head"
         },
         {
           "kind": "fn",
-          "line": 437,
+          "line": 489,
           "name": "resolve_head"
         },
         {
           "kind": "fn",
-          "line": 450,
+          "line": 502,
           "name": "missing_links"
         },
         {
           "kind": "fn",
-          "line": 463,
+          "line": 515,
           "name": "want_list"
         },
         {
           "kind": "fn",
-          "line": 487,
+          "line": 539,
           "name": "time_key"
         },
         {
           "kind": "fn",
-          "line": 494,
+          "line": 546,
           "name": "parse_time_index_key"
         },
         {
           "kind": "fn",
-          "line": 510,
+          "line": 562,
           "name": "type_key"
         },
         {
           "kind": "fn",
-          "line": 525,
+          "line": 577,
           "name": "route_key"
         },
         {
           "kind": "fn",
-          "line": 533,
+          "line": 585,
           "name": "encode_slot"
         },
         {
           "kind": "fn",
-          "line": 540,
+          "line": 592,
           "name": "decode_slot"
         }
       ],
@@ -95295,38 +95355,38 @@
       "title": "use did_mini::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, Capabilities, Controller, Did};"
     },
     {
-      "bytes": 4388,
+      "bytes": 5207,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "store",
         "unwrap",
         "root",
-        "device",
         "assert_eq",
-        "did",
+        "device",
         "clone",
+        "did",
+        "assert",
         "human",
         "post",
         "controller",
         "payload",
-        "new",
-        "assert",
         "reply",
+        "new",
         "object",
         "seed",
         "seq",
+        "evict_cached",
         "contains",
         "exercise",
-        "index",
+        "objects",
         "objectbuilder",
         "objecttype",
-        "storeerror",
-        "u64"
+        "storeerror"
       ],
-      "lines": 120,
+      "lines": 140,
       "path": "crates/mini-store/tests/evict.rs",
-      "sha256": "4ec54df6f4d73a13d7170b81b361fe318bb42fc22aa8bc42a38fc29e9bd504fd",
+      "sha256": "8c2532d816a84a99a60ed714cc4b03705bce7ba749787b9d8cb56b43681676c7",
       "symbols": [
         {
           "kind": "fn",
@@ -95350,12 +95410,12 @@
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 126,
           "name": "memory_backend_eviction_keeps_every_invariant"
         },
         {
           "kind": "fn",
-          "line": 111,
+          "line": 131,
           "name": "filesystem_backend_eviction_keeps_every_invariant_and_the_time_index"
         }
       ],
@@ -96543,7 +96603,7 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 37852,
+      "bytes": 37844,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
@@ -96574,7 +96634,7 @@
       ],
       "lines": 1017,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "bb941f11b69e1b4a5f48e39189116dade63ab6f32a47ec8b10fa9eff70c1806a",
+      "sha256": "e24bfbb021e65e77a726fc1772f3f35122833bb4ddbd2f9ba567ef2725eb5b4c",
       "symbols": [
         {
           "kind": "const",
@@ -96852,7 +96912,7 @@
       "title": "use std::thread;"
     },
     {
-      "bytes": 14321,
+      "bytes": 15802,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
@@ -96881,9 +96941,9 @@
         "carriers",
         "insert_verified"
       ],
-      "lines": 406,
+      "lines": 446,
       "path": "crates/mini-sync/tests/sync.rs",
-      "sha256": "0ce1a6d32c485b34e06fbaf49805396938c70bdb9fa885bad36cf372f910da72",
+      "sha256": "a6c0ced33838a0d8a827d7ff78dab96d039bb2e6edb93038f63d8d749eba6e26",
       "symbols": [
         {
           "kind": "fn",
@@ -96964,6 +97024,11 @@
           "kind": "fn",
           "line": 371,
           "name": "paged_sync_reconciles_more_than_one_id_frame"
+        },
+        {
+          "kind": "fn",
+          "line": 408,
+          "name": "evicted_cache_is_not_downloaded_again_until_its_marker_lapses"
         }
       ],
       "title": "use std::thread;"
@@ -102093,26 +102158,26 @@
       "title": "mini-uniqueness"
     },
     {
-      "bytes": 23931,
+      "bytes": 27095,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
+        "policy",
         "audit",
         "epoch",
         "stage",
-        "policy",
+        "u64",
         "panel_size",
         "self",
-        "u64",
         "mature",
         "mature_from_epoch",
         "one",
+        "panel",
         "early",
         "auditparams",
-        "panel",
-        "approve_at_least",
         "policyschedule",
         "identity",
+        "approve_at_least",
         "valid",
         "new",
         "auditcase",
@@ -102122,9 +102187,9 @@
         "debug",
         "clone"
       ],
-      "lines": 691,
+      "lines": 768,
       "path": "crates/mini-uniqueness/src/audit.rs",
-      "sha256": "78148835a7862b3779abf1e38c854f17cba0c323d7c5c5d0908bbe9e44ea4940",
+      "sha256": "656bde70e1b9791e0ae41b1a00161c11b3c2a35d0f73f51f050e282e27de54aa",
       "symbols": [
         {
           "kind": "type",
@@ -102178,241 +102243,323 @@
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 121,
           "name": "starting_point"
         },
         {
           "kind": "fn",
-          "line": 147,
+          "line": 153,
           "name": "stage_at"
         },
         {
           "kind": "enum",
-          "line": 158,
+          "line": 164,
           "name": "AuditError"
         },
         {
           "kind": "impl",
-          "line": 171,
+          "line": 177,
           "name": "std::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 178,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 182,
+          "line": 188,
           "name": "std::error::Error"
         },
         {
           "kind": "struct",
-          "line": 186,
+          "line": 192,
           "name": "ActivitySummary"
         },
         {
           "kind": "impl",
-          "line": 197,
+          "line": 203,
           "name": "ActivitySummary"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 205,
           "name": "bucketed"
         },
         {
           "kind": "enum",
-          "line": 216,
+          "line": 222,
           "name": "Verdict"
         },
         {
           "kind": "fn",
-          "line": 226,
+          "line": 232,
           "name": "select_panel"
         },
         {
           "kind": "enum",
-          "line": 258,
+          "line": 264,
           "name": "AuditOutcome"
         },
         {
           "kind": "struct",
-          "line": 271,
+          "line": 277,
           "name": "CaseSpec"
         },
         {
           "kind": "struct",
-          "line": 294,
+          "line": 300,
           "name": "AuditCase"
         },
         {
           "kind": "impl",
-          "line": 304,
+          "line": 310,
           "name": "AuditCase"
         },
         {
           "kind": "fn",
-          "line": 309,
+          "line": 315,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 344,
+          "line": 350,
           "name": "handle"
         },
         {
           "kind": "fn",
-          "line": 348,
+          "line": 354,
           "name": "action"
         },
         {
           "kind": "fn",
-          "line": 352,
+          "line": 358,
           "name": "epoch"
         },
         {
           "kind": "fn",
-          "line": 356,
+          "line": 362,
           "name": "summary"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 366,
           "name": "panel"
         },
         {
           "kind": "fn",
-          "line": 365,
+          "line": 371,
           "name": "cast"
         },
         {
           "kind": "fn",
-          "line": 385,
+          "line": 391,
           "name": "outcome"
         },
         {
           "kind": "enum",
-          "line": 406,
+          "line": 412,
           "name": "Eligibility"
         },
         {
           "kind": "struct",
-          "line": 419,
+          "line": 425,
           "name": "EligibilityLedger"
         },
         {
           "kind": "impl",
-          "line": 423,
+          "line": 429,
           "name": "EligibilityLedger"
         },
         {
           "kind": "fn",
-          "line": 425,
+          "line": 431,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 430,
+          "line": 436,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 446,
+          "line": 452,
           "name": "check"
         },
         {
+          "kind": "fn",
+          "line": 478,
+          "name": "evaluate_roll"
+        },
+        {
+          "kind": "fn",
+          "line": 498,
+          "name": "eligible_set"
+        },
+        {
           "kind": "mod",
-          "line": 468,
+          "line": 506,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 512,
           "name": "tb"
         },
         {
           "kind": "fn",
-          "line": 477,
+          "line": 515,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 482,
+          "line": 520,
           "name": "roots"
         },
         {
           "kind": "fn",
-          "line": 485,
+          "line": 523,
           "name": "sched"
         },
         {
           "kind": "fn",
-          "line": 488,
+          "line": 526,
           "name": "gate"
         },
         {
           "kind": "fn",
-          "line": 494,
+          "line": 532,
           "name": "summary"
         },
         {
           "kind": "fn",
-          "line": 499,
+          "line": 537,
           "name": "schedule_is_stricter_after_epoch_1000_and_refuses_loosening"
         },
         {
           "kind": "fn",
-          "line": 520,
+          "line": 558,
           "name": "audit_params_require_a_strict_majority"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 568,
           "name": "panel_is_reproducible_excludes_subject_and_vouchers_and_needs_enough"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 585,
           "name": "summary_exposes_only_buckets"
         },
         {
           "kind": "fn",
-          "line": 555,
+          "line": 593,
           "name": "open_case"
         },
         {
           "kind": "fn",
-          "line": 577,
+          "line": 615,
           "name": "majority_confirmation_clears_and_only_for_that_epoch"
         },
         {
           "kind": "fn",
-          "line": 600,
+          "line": 638,
           "name": "denial_lapses_next_epoch_and_never_excludes"
         },
         {
           "kind": "fn",
-          "line": 624,
+          "line": 662,
           "name": "votes_are_one_per_panelist_and_panel_only_and_close_on_expiry"
         },
         {
           "kind": "fn",
-          "line": 645,
+          "line": 683,
           "name": "mature_stage_needs_more_confirmations"
         },
         {
           "kind": "fn",
-          "line": 656,
+          "line": 694,
           "name": "clearly_low_and_clearly_high_scores_cannot_open_a_case"
         },
         {
           "kind": "fn",
-          "line": 684,
+          "line": 722,
+          "name": "a_roll_is_evaluated_per_root_and_only_allowed_roots_are_eligible"
+        },
+        {
+          "kind": "fn",
+          "line": 761,
           "name": "case_handle_hides_the_subject_but_is_stable"
         }
       ],
       "title": "use crate::policy::{AuditGate, GateOutcome, PersonhoodPolicy, PolicyError};"
+    },
+    {
+      "bytes": 3233,
+      "group": "crate:mini-uniqueness",
+      "headings": [],
+      "keywords": [
+        "standing",
+        "did",
+        "ballots",
+        "tally",
+        "root",
+        "full",
+        "yes",
+        "not_counted",
+        "true",
+        "provisional",
+        "u32",
+        "else",
+        "result",
+        "roots",
+        "close",
+        "counted",
+        "hashset",
+        "duplicates",
+        "assert_eq",
+        "early",
+        "at_close",
+        "newcomer",
+        "vote",
+        "identity"
+      ],
+      "lines": 102,
+      "path": "crates/mini-uniqueness/src/ballots.rs",
+      "sha256": "75628a4e1a5c5dceb26278ee73c44ac71615d520b83f84603d0e8f2940b4efe3",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 21,
+          "name": "Tally"
+        },
+        {
+          "kind": "fn",
+          "line": 33,
+          "name": "tally"
+        },
+        {
+          "kind": "mod",
+          "line": 58,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 62,
+          "name": "did"
+        },
+        {
+          "kind": "fn",
+          "line": 69,
+          "name": "only_full_standing_at_close_counts_each_root_once_with_equal_weight"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "a_newcomer_who_reaches_full_before_close_is_counted"
+        }
+      ],
+      "title": "use crate::policy::Standing;"
     },
     {
       "bytes": 9547,
@@ -102776,38 +102923,38 @@
       "title": "use crate::audit::Epoch;"
     },
     {
-      "bytes": 12354,
+      "bytes": 13906,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
         "self",
         "verdict",
         "edges",
-        "did",
+        "node",
         "graph",
-        "one",
+        "did",
+        "degree",
+        "trust",
         "identity",
         "vouch",
-        "node",
-        "how",
-        "new",
-        "trust",
         "vouches",
-        "degree",
+        "how",
+        "one",
         "edge",
         "roots",
         "many",
-        "root",
         "vouchgraph",
-        "vouchquota",
+        "new",
         "verified",
         "vouchverdict",
-        "default",
-        "a_root"
+        "a_root",
+        "clone",
+        "b_root",
+        "max_degree"
       ],
-      "lines": 332,
+      "lines": 369,
       "path": "crates/mini-uniqueness/src/graph.rs",
-      "sha256": "db96d962896aa1734078061af6eecd5749287f740de3900f239ae3720a592762",
+      "sha256": "f98cfeac47f022ba17c4cd63ed3a912dd764dc1bd60b7cc18dc30148bc74fb1c",
       "symbols": [
         {
           "kind": "const",
@@ -102860,95 +103007,100 @@
           "name": "node_count"
         },
         {
+          "kind": "fn",
+          "line": 124,
+          "name": "vouch_strengths"
+        },
+        {
           "kind": "struct",
-          "line": 117,
+          "line": 154,
           "name": "VouchQuota"
         },
         {
           "kind": "impl",
-          "line": 121,
+          "line": 158,
           "name": "VouchQuota"
         },
         {
           "kind": "fn",
-          "line": 123,
+          "line": 160,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 166,
           "name": "try_spend"
         },
         {
           "kind": "fn",
-          "line": 139,
+          "line": 176,
           "name": "forget_before"
         },
         {
           "kind": "fn",
-          "line": 147,
+          "line": 184,
           "name": "recommended_iterations"
         },
         {
           "kind": "fn",
-          "line": 164,
+          "line": 201,
           "name": "trust_scores"
         },
         {
           "kind": "mod",
-          "line": 192,
+          "line": 229,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 233,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 240,
           "name": "verdict"
         },
         {
           "kind": "fn",
-          "line": 212,
+          "line": 249,
           "name": "vouch_quota_is_per_root_per_epoch"
         },
         {
           "kind": "fn",
-          "line": 225,
+          "line": 262,
           "name": "degree_cap_blocks_new_edges_but_allows_idempotent_readds"
         },
         {
           "kind": "fn",
-          "line": 239,
+          "line": 276,
           "name": "add_verdict_creates_an_undirected_edge"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 289,
           "name": "degree_of_unknown_node_is_zero"
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 295,
           "name": "trust_propagates_outward_from_seed_along_a_chain"
         },
         {
           "kind": "fn",
-          "line": 281,
+          "line": 318,
           "name": "a_sybil_cluster_with_one_bridge_edge_scores_far_below_the_honest_region"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 363,
           "name": "recommended_iterations_grows_with_graph_size"
         }
       ],
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 4026,
+      "bytes": 4135,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -102960,6 +103112,7 @@
         "verify",
         "signals",
         "audit",
+        "ballots",
         "error",
         "governor",
         "policy",
@@ -102974,12 +103127,11 @@
         "left",
         "founding",
         "d-0035",
-        "resistance",
-        "per"
+        "resistance"
       ],
-      "lines": 81,
+      "lines": 85,
       "path": "crates/mini-uniqueness/src/lib.rs",
-      "sha256": "898451158f0d2c9d26ed60e7afc8be0b08af3f3660bf1c83d8b57f4f0a04ffec",
+      "sha256": "d7c72182c8391045ba53fc456e02172aa38d6945e610108ecb6f7699a61dbb51",
       "symbols": [
         {
           "kind": "mod",
@@ -102989,225 +103141,275 @@
         {
           "kind": "mod",
           "line": 51,
-          "name": "confidence"
+          "name": "ballots"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "error"
+          "name": "confidence"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "governor"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "graph"
+          "name": "governor"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "policy"
+          "name": "graph"
         },
         {
           "kind": "mod",
           "line": 56,
-          "name": "status"
+          "name": "policy"
         },
         {
           "kind": "mod",
           "line": 57,
-          "name": "verify"
+          "name": "status"
         },
         {
           "kind": "mod",
           "line": 58,
+          "name": "verify"
+        },
+        {
+          "kind": "mod",
+          "line": 59,
           "name": "vouch"
         }
       ],
       "title": "mod audit;"
     },
     {
-      "bytes": 13609,
+      "bytes": 23138,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
-        "policy",
-        "policyerror",
         "score",
-        "u32",
-        "personhoodpolicy",
-        "one",
-        "minimum",
-        "std",
+        "policy",
         "fmt",
-        "proposed",
-        "audit_minimum",
-        "audit",
-        "change",
+        "standing",
+        "vouching",
         "evidence",
-        "version",
-        "error",
+        "personhoodpolicy",
+        "policyerror",
+        "std",
+        "audit",
+        "seed-anchored",
+        "proposed",
+        "minimum",
+        "strength",
+        "may",
+        "trust",
+        "u32",
+        "counts",
         "personhood",
+        "one",
+        "presence",
+        "change",
         "weight",
-        "presence_weight",
-        "vouching_weight",
-        "window",
-        "u64",
-        "audit_band",
-        "invalid"
+        "root"
       ],
-      "lines": 355,
+      "lines": 556,
       "path": "crates/mini-uniqueness/src/policy.rs",
-      "sha256": "8e8767b64040e5693527158576222b35ee1f948637b00ff30601b6b08b87badc",
+      "sha256": "08527654ca563182a9de9ab58744e21cb7923cfc49c3d0b5737e53364dd60234",
       "symbols": [
         {
           "kind": "const",
-          "line": 33,
+          "line": 35,
           "name": "POLICY_FORMAT_VERSION"
         },
         {
+          "kind": "const",
+          "line": 42,
+          "name": "PRESENCE_LIFT"
+        },
+        {
           "kind": "struct",
-          "line": 38,
+          "line": 47,
           "name": "PersonhoodPolicy"
         },
         {
           "kind": "enum",
-          "line": 62,
+          "line": 83,
           "name": "PolicyError"
         },
         {
           "kind": "impl",
-          "line": 71,
+          "line": 92,
           "name": "std::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 93,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 80,
+          "line": 101,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 82,
+          "line": 103,
           "name": "PersonhoodPolicy"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 110,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 145,
           "name": "canonical_bytes"
         },
         {
           "kind": "fn",
-          "line": 138,
+          "line": 165,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 144,
+          "line": 171,
           "name": "starting_point"
         },
         {
           "kind": "fn",
-          "line": 159,
+          "line": 189,
           "name": "score"
         },
         {
           "kind": "fn",
-          "line": 169,
-          "name": "gate"
+          "line": 216,
+          "name": "with_standing"
         },
         {
           "kind": "fn",
-          "line": 177,
-          "name": "counts"
-        },
-        {
-          "kind": "enum",
-          "line": 187,
-          "name": "GateOutcome"
-        },
-        {
-          "kind": "struct",
-          "line": 200,
-          "name": "AuditGate"
-        },
-        {
-          "kind": "impl",
-          "line": 207,
-          "name": "AuditGate"
+          "line": 235,
+          "name": "decay"
         },
         {
           "kind": "fn",
-          "line": 209,
-          "name": "evaluate"
-        },
-        {
-          "kind": "struct",
-          "line": 223,
-          "name": "ThresholdBounds"
-        },
-        {
-          "kind": "fn",
-          "line": 233,
-          "name": "bounded_threshold"
-        },
-        {
-          "kind": "mod",
-          "line": 251,
-          "name": "tests"
-        },
-        {
-          "kind": "fn",
-          "line": 255,
-          "name": "ev"
-        },
-        {
-          "kind": "fn",
-          "line": 264,
-          "name": "policy_digest_is_stable_and_changes_with_any_parameter"
+          "line": 254,
+          "name": "standing"
         },
         {
           "kind": "fn",
           "line": 273,
-          "name": "invalid_policies_are_refused"
+          "name": "payout_split"
+        },
+        {
+          "kind": "fn",
+          "line": 286,
+          "name": "release_held"
         },
         {
           "kind": "fn",
           "line": 295,
+          "name": "gate"
+        },
+        {
+          "kind": "fn",
+          "line": 303,
+          "name": "counts"
+        },
+        {
+          "kind": "enum",
+          "line": 313,
+          "name": "Standing"
+        },
+        {
+          "kind": "enum",
+          "line": 325,
+          "name": "GateOutcome"
+        },
+        {
+          "kind": "struct",
+          "line": 338,
+          "name": "AuditGate"
+        },
+        {
+          "kind": "impl",
+          "line": 345,
+          "name": "AuditGate"
+        },
+        {
+          "kind": "fn",
+          "line": 347,
+          "name": "evaluate"
+        },
+        {
+          "kind": "struct",
+          "line": 361,
+          "name": "ThresholdBounds"
+        },
+        {
+          "kind": "fn",
+          "line": 371,
+          "name": "bounded_threshold"
+        },
+        {
+          "kind": "mod",
+          "line": 389,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 393,
+          "name": "ev"
+        },
+        {
+          "kind": "fn",
+          "line": 402,
+          "name": "policy_digest_is_stable_and_changes_with_any_parameter"
+        },
+        {
+          "kind": "fn",
+          "line": 411,
+          "name": "invalid_policies_are_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 433,
           "name": "external_and_behavioral_evidence_cannot_raise_the_score"
         },
         {
           "kind": "fn",
-          "line": 307,
+          "line": 445,
+          "name": "forged_presence_without_live_vouching_never_reaches_the_audit_window"
+        },
+        {
+          "kind": "fn",
+          "line": 465,
           "name": "combined_presence_and_vouching_beats_either_alone_at_equal_strength"
         },
         {
           "kind": "fn",
-          "line": 317,
+          "line": 475,
+          "name": "standing_is_graded_and_value_is_never_forfeited"
+        },
+        {
+          "kind": "fn",
+          "line": 518,
           "name": "only_scores_just_below_the_minimum_are_audited"
         },
         {
           "kind": "fn",
-          "line": 337,
+          "line": 538,
           "name": "threshold_changes_respect_floor_ceiling_and_step"
         }
       ],
       "title": "use crate::confidence::DecayPolicy;"
     },
     {
-      "bytes": 24475,
+      "bytes": 25280,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -103236,9 +103438,9 @@
         "new",
         "record"
       ],
-      "lines": 596,
+      "lines": 615,
       "path": "crates/mini-uniqueness/src/status.rs",
-      "sha256": "5ce366f34da90e111fa76b8b0ddd6e7a877677078e0a23a1c7292c0f3ec3c535",
+      "sha256": "6fa9083ad9852967c0bd50fb58c732153642bd32d4ff6f58d8d4faa09eb9a84b",
       "symbols": [
         {
           "kind": "enum",
@@ -103347,77 +103549,87 @@
         },
         {
           "kind": "fn",
-          "line": 290,
+          "line": 291,
+          "name": "decayed_strength"
+        },
+        {
+          "kind": "fn",
+          "line": 304,
+          "name": "is_live"
+        },
+        {
+          "kind": "fn",
+          "line": 309,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 320,
+          "line": 339,
           "name": "latest_per_source"
         },
         {
           "kind": "mod",
-          "line": 337,
+          "line": 356,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 340,
+          "line": 359,
           "name": "decay"
         },
         {
           "kind": "fn",
-          "line": 348,
+          "line": 367,
           "name": "empty_record_is_unverified"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 379,
           "name": "a_single_modest_vouch_reaches_vouched_human_quickly"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 396,
           "name": "evidence_qualified_human_is_never_reached_before_the_minimum_age_even_with_a_high_score"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 420,
           "name": "evidence_qualified_human_is_never_reached_from_a_single_source_no_matter_how_strong"
         },
         {
           "kind": "fn",
-          "line": 420,
+          "line": 439,
           "name": "evidence_qualified_human_is_reached_with_enough_score_age_and_source_diversity"
         },
         {
           "kind": "fn",
-          "line": 443,
+          "line": 462,
           "name": "stale_evidence_decays_and_can_demote_evidence_qualified_human_back_down"
         },
         {
           "kind": "fn",
-          "line": 476,
+          "line": 495,
           "name": "our_own_sources_outweigh_external_by_default"
         },
         {
           "kind": "fn",
-          "line": 489,
+          "line": 508,
           "name": "an_external_source_can_still_contribute_and_be_reweighted"
         },
         {
           "kind": "fn",
-          "line": 504,
+          "line": 523,
           "name": "a_farm_cannot_reach_evidence_qualified_human_without_the_seed_anchored_vouch_signal"
         },
         {
           "kind": "fn",
-          "line": 551,
+          "line": 570,
           "name": "a_fully_decayed_vouch_signal_does_not_satisfy_the_required_gate"
         },
         {
           "kind": "fn",
-          "line": 578,
+          "line": 597,
           "name": "later_evidence_from_the_same_source_replaces_the_earlier_one"
         }
       ],
@@ -103623,128 +103835,173 @@
       "title": "use did_mini::{Controller, Did, IndexedSig};"
     },
     {
-      "bytes": 7766,
+      "bytes": 15922,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
         "usize",
-        "sybils",
         "honest",
+        "sybils",
         "did",
-        "colluders",
         "honest_n",
         "quota",
         "seeds",
         "lcg",
         "edge",
         "outcome",
-        "collect",
-        "const",
-        "u64",
-        "attack_edges",
-        "next",
         "sybil",
         "trust",
+        "collect",
         "median",
+        "const",
+        "u64",
         "vec",
+        "colluders",
         "map",
         "iter",
-        "cluster",
-        "spent"
+        "next",
+        "spent",
+        "self",
+        "attack_edges"
       ],
-      "lines": 205,
+      "lines": 419,
       "path": "crates/mini-uniqueness/tests/adversarial_sim.rs",
-      "sha256": "6476efcabb1d715d741d6a38426ea7dc23dfc69b6bc349125a97f240e8e640f3",
+      "sha256": "87b1237edcf5478bc99b71f8eb469285aabf7b0bed107ac2c49f0212d9cf7c0f",
       "symbols": [
         {
           "kind": "const",
-          "line": 19,
+          "line": 22,
           "name": "HONEST"
         },
         {
           "kind": "const",
-          "line": 20,
+          "line": 23,
           "name": "SEEDS"
         },
         {
           "kind": "const",
-          "line": 21,
+          "line": 24,
           "name": "SYBILS"
         },
         {
           "kind": "const",
-          "line": 22,
+          "line": 25,
           "name": "HONEST_VOUCHES"
         },
         {
           "kind": "const",
-          "line": 25,
+          "line": 28,
           "name": "QUOTA"
         },
         {
           "kind": "const",
-          "line": 26,
+          "line": 29,
           "name": "DEGREE_CAP"
         },
         {
           "kind": "fn",
-          "line": 28,
+          "line": 31,
           "name": "did"
         },
         {
           "kind": "struct",
-          "line": 34,
+          "line": 37,
           "name": "Lcg"
         },
         {
           "kind": "impl",
-          "line": 35,
+          "line": 38,
           "name": "Lcg"
         },
         {
           "kind": "fn",
-          "line": 36,
+          "line": 39,
           "name": "next"
         },
         {
           "kind": "fn",
-          "line": 45,
+          "line": 48,
           "name": "edge"
         },
         {
           "kind": "struct",
-          "line": 56,
+          "line": 59,
           "name": "Outcome"
         },
         {
           "kind": "fn",
-          "line": 63,
+          "line": 68,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 67,
+          "line": 72,
           "name": "run_with"
         },
         {
           "kind": "fn",
-          "line": 133,
+          "line": 143,
           "name": "few_colluding_mature_credentials_cannot_lift_a_sybil_cluster"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 173,
           "name": "mass_collusion_is_a_documented_limit_of_the_graph_signal_alone"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 190,
           "name": "colluders_to_lift_cluster"
         },
         {
           "kind": "fn",
-          "line": 188,
+          "line": 198,
           "name": "price_of_a_cluster_rises_with_a_stricter_quota_and_a_larger_honest_network"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "record"
+        },
+        {
+          "kind": "fn",
+          "line": 234,
+          "name": "a_farm_with_forged_or_relayed_presence_but_no_graph_trust_never_even_reaches_audit"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
+          "name": "forged_presence_cannot_turn_a_trace_of_graph_trust_into_a_pass"
+        },
+        {
+          "kind": "const",
+          "line": 280,
+          "name": "MIN_DEGREE"
+        },
+        {
+          "kind": "const",
+          "line": 281,
+          "name": "REFERENCE_PERCENTILE"
+        },
+        {
+          "kind": "fn",
+          "line": 285,
+          "name": "newcomer_strengths"
+        },
+        {
+          "kind": "fn",
+          "line": 319,
+          "name": "honest_newcomers_are_never_locked_out_and_reach_full_standing_with_a_few_vouches"
+        },
+        {
+          "kind": "fn",
+          "line": 349,
+          "name": "lean_attack"
+        },
+        {
+          "kind": "fn",
+          "line": 381,
+          "name": "a_fake_identity_costs_several_colluder_vouches_to_reach_full_standing"
         }
       ],
       "title": "use did_mini::{Controller, Did};"
@@ -113261,7 +113518,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 21404,
+      "bytes": 24241,
       "group": "docs",
       "headings": [
         {
@@ -113378,6 +113635,16 @@
           "level": 2,
           "line": 295,
           "text": "Automatic cache eviction with an owner-chosen retention"
+        },
+        {
+          "level": 2,
+          "line": 303,
+          "text": "Follow-through on the \"not done\" list"
+        },
+        {
+          "level": 2,
+          "line": 311,
+          "text": "Graded standing (policy v3)"
         }
       ],
       "keywords": [
@@ -113406,9 +113673,9 @@
         "status",
         "target"
       ],
-      "lines": 302,
+      "lines": 314,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "0ba0ce33d7a1e7661423629b2e174fc983784294b2c789cbccdc2f05fbcd3b23",
+      "sha256": "e440d2176914b8051eaf4f8580485757bd7eff8de1b3debc9d345a49651fccc5",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -124029,7 +124296,7 @@
       "title": "Reusable offline allowances and private account settlement"
     },
     {
-      "bytes": 11485,
+      "bytes": 16190,
       "group": "docs",
       "headings": [
         {
@@ -124091,6 +124358,16 @@
           "level": 3,
           "line": 137,
           "text": "Price of a cluster (extended simulation)"
+        },
+        {
+          "level": 3,
+          "line": 149,
+          "text": "Forged or relayed presence (simulator, policy v2)"
+        },
+        {
+          "level": 2,
+          "line": 158,
+          "text": "Graded standing: strong against Sybils, no lockout for honest newcomers (policy v3)"
         }
       ],
       "keywords": [
@@ -124103,6 +124380,7 @@
         "decision",
         "gate",
         "mini-uniqueness",
+        "policy",
         "minimum",
         "frontier",
         "peer",
@@ -124116,12 +124394,11 @@
         "already",
         "built",
         "row",
-        "implemented",
-        "first"
+        "implemented"
       ],
-      "lines": 148,
+      "lines": 185,
       "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
-      "sha256": "d34caca1f85abb7d4a41aa24c1b19f7ac58cabbfc9b0f88de169d6eaf1321f9c",
+      "sha256": "20feeba0692008f959f98bc1dab47d59918d791c542d0deffc587d1739207ab3",
       "symbols": [],
       "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },

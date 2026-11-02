@@ -403,3 +403,43 @@ fn paged_sync_reconciles_more_than_one_id_frame() {
     server_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     assert_eq!(client_ids, server_ids);
 }
+
+#[test]
+fn evicted_cache_is_not_downloaded_again_until_its_marker_lapses() {
+    // B first pulls everything, then evicts two of A's posts from its cache.
+    let (a_store, a_cache, ..) = seeded(30, 5);
+    let (b_store, b_cache, ra0, a_store, _a_cache, _) = {
+        let (a_store, a_cache, _, b_store, b_cache, _rb) = run_sync(
+            a_store,
+            a_cache,
+            Store::new(MemoryBackend::new()),
+            KelCache::new(),
+        );
+        (b_store, b_cache, 0, a_store, a_cache, 0)
+    };
+    let _ = ra0;
+    let mut b_store = b_store;
+    let a_posts = a_store.by_type(&ObjectType::POST).unwrap();
+    let evict = vec![a_posts[0].clone(), a_posts[1].clone()];
+    b_store.evict_cached(&evict, 10_000).unwrap();
+    assert_eq!(b_store.by_type(&ObjectType::POST).unwrap().len(), 3);
+
+    // A new sync with the same peer must not pull the evicted objects back.
+    let a_cache2 = {
+        let mut c = KelCache::new();
+        c.hydrate_from_store(&a_store).unwrap();
+        c
+    };
+    let (_a, _, _ra, b_store, _, rb) = run_sync(a_store, a_cache2, b_store, b_cache);
+    assert_eq!(rb.accepted, 0, "evicted objects must not be re-downloaded");
+    assert_eq!(b_store.by_type(&ObjectType::POST).unwrap().len(), 3);
+
+    // Once the marker lapses they are wanted (and pulled) again.
+    let mut b_store = b_store;
+    assert_eq!(
+        b_store
+            .prune_eviction_markers(10_000 + 1_000, 1_000, 10)
+            .unwrap(),
+        2
+    );
+}

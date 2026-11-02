@@ -48,6 +48,7 @@
 #![warn(missing_debug_implementations)]
 
 mod audit;
+mod ballots;
 mod confidence;
 mod error;
 mod governor;
@@ -58,20 +59,23 @@ mod verify;
 mod vouch;
 
 pub use audit::{
-    select_panel, ActivitySummary, AuditCase, AuditError, AuditOutcome, AuditParams, CaseSpec,
-    Eligibility, EligibilityLedger, Epoch, GatedAction, PolicySchedule, Stage, Verdict,
-    MATURE_FROM_EPOCH,
+    eligible_set, evaluate_roll, select_panel, ActivitySummary, AuditCase, AuditError,
+    AuditOutcome, AuditParams, CaseSpec, Eligibility, EligibilityLedger, Epoch, GatedAction,
+    PolicySchedule, Stage, Verdict, MATURE_FROM_EPOCH,
 };
+pub use ballots::{tally, Tally};
 pub use confidence::{
     fuse_confidence, BehavioralEntropySource, ConfidenceInputs, ConfidenceWeights, DecayPolicy,
     NoEntropySource,
 };
 pub use error::{Result, UniquenessError};
 pub use governor::{Finalized, GovernorError, ThresholdGovernor};
-pub use graph::{recommended_iterations, trust_scores, VouchGraph, VouchQuota, TRUST_SCALE};
+pub use graph::{
+    recommended_iterations, trust_scores, vouch_strengths, VouchGraph, VouchQuota, TRUST_SCALE,
+};
 pub use policy::{
-    bounded_threshold, AuditGate, GateOutcome, PersonhoodPolicy, PolicyError, ThresholdBounds,
-    POLICY_FORMAT_VERSION,
+    bounded_threshold, AuditGate, GateOutcome, PersonhoodPolicy, PolicyError, Standing,
+    ThresholdBounds, POLICY_FORMAT_VERSION,
 };
 pub use status::{
     HumanRecord, HumanStatus, PromotionPolicy, SignalEvidence, SignalSource, TrustWeights,

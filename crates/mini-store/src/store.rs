@@ -170,7 +170,7 @@ impl<B: Backend> Store<B> {
     /// orphan, never an indexed object with no content. Authorship/type/age
     /// policy belongs to the caller; this method only enforces the invariants
     /// that keep the store consistent.
-    pub fn evict_cached(&mut self, ids: &[ObjectId]) -> Result<EvictReport> {
+    pub fn evict_cached(&mut self, ids: &[ObjectId], now_ms: u64) -> Result<EvictReport> {
         let set: std::collections::BTreeSet<&str> = ids.iter().map(ObjectId::as_str).collect();
         let mut objects = Vec::new();
         for id in ids {
@@ -208,6 +208,10 @@ impl<B: Backend> Store<B> {
                 .delete_meta(&format!("idx/time/{}/{id}", time_key(object.timestamp_ms)))?;
             self.backend.delete_meta(&format!("cache/{id}"))?;
             self.backend.delete_meta(&format!("seen/{id}"))?;
+            // A tiny marker so sync does not immediately download the object
+            // again and thrash; see `wants` and `prune_eviction_markers`.
+            self.backend
+                .put_meta(&format!("evicted/{id}"), &now_ms.to_be_bytes())?;
             self.backend.delete_blob(id)?;
             report.objects += 1;
             report.bytes += len;
@@ -216,6 +220,54 @@ impl<B: Backend> Store<B> {
             self.backend.finish_deletions()?;
         }
         Ok(report)
+    }
+
+    /// Whether `id` was evicted from this device's cache (marker present).
+    pub fn was_evicted(&self, id: &ObjectId) -> Result<bool> {
+        Ok(self
+            .backend
+            .get_meta(&format!("evicted/{}", id.as_str()))?
+            .is_some())
+    }
+
+    /// Whether a sync should fetch `id`: it is neither held nor deliberately
+    /// evicted. Using this instead of `!contains` keeps a freshly evicted
+    /// object from being downloaded again on the next sync.
+    pub fn wants(&self, id: &ObjectId) -> Result<bool> {
+        Ok(!self.contains(id)? && !self.was_evicted(id)?)
+    }
+
+    /// Drop the eviction marker for `id` so it can be fetched again (an
+    /// explicit user action, such as opening a link to it).
+    pub fn forget_eviction(&mut self, id: &ObjectId) -> Result<()> {
+        self.backend
+            .delete_meta(&format!("evicted/{}", id.as_str()))
+    }
+
+    /// Remove eviction markers older than `max_age_ms`, at most `limit` per
+    /// call; returns how many were removed. After a marker lapses the object
+    /// may be downloaded again if a peer still offers it (and will then age
+    /// out afresh), so lapse only after a long time.
+    pub fn prune_eviction_markers(
+        &mut self,
+        now_ms: u64,
+        max_age_ms: u64,
+        limit: usize,
+    ) -> Result<usize> {
+        let mut removed = 0;
+        for (key, value) in self.backend.list_meta_prefix("evicted/")? {
+            if removed >= limit {
+                break;
+            }
+            let Ok(raw) = <[u8; 8]>::try_from(value.as_slice()) else {
+                continue;
+            };
+            if now_ms.saturating_sub(u64::from_be_bytes(raw)) >= max_age_ms {
+                self.backend.delete_meta(&key)?;
+                removed += 1;
+            }
+        }
+        Ok(removed)
     }
 
     /// Whether an object is present.
