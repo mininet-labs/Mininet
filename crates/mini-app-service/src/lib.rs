@@ -131,6 +131,8 @@ pub struct Core<V: IdentityVault> {
     peers: delivery_peers::PeerBook,
     delivery_policy: delivery_runtime::Policy,
     delivery_listener: Option<std::net::TcpListener>,
+    /// Escalating-work meter shared by every incoming delivery connection.
+    delivery_admission: std::sync::Arc<std::sync::Mutex<mini_transport_security::AdmissionMeter>>,
     delivery_interrupt: DeliveryInterrupt,
     events: VecDeque<ServiceEvent>,
     next_event_id: u64,
@@ -199,6 +201,7 @@ impl<V: IdentityVault> Core<V> {
             peers,
             delivery_policy,
             delivery_listener: None,
+            delivery_admission: mini_transport_security::new_admission_meter(),
             delivery_interrupt: DeliveryInterrupt::default(),
             events: VecDeque::new(),
             next_event_id: 1,

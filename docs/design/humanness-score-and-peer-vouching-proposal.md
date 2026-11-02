@@ -133,3 +133,15 @@ Peer audit triggers only for accounts whose score falls in `[minimum - audit_ban
 | 200 | 2000 | 400 / 400 | 297% |
 
 Reading: collected trust scales with attack edges (colluders x quota), so the quota and degree cap are the real levers, and one, six or even 24 colluders do not lift a cluster — but there is a cliff once attack edges approach the cluster's size (here 600 edges for 400 sybils, with colluders at 20% of a small honest network). The graph signal alone therefore does not stop a large collusion; presence evidence, minimum age, distinct live sources, the audit band, and the economics must carry that case. Not modelled yet: paid real-human witnesses, forged devices, active proximity relays, stolen credentials, larger honest networks, and the second and third signals.
+
+### Price of a cluster (extended simulation)
+
+Same model, now asking how many colluding mature credentials an attacker must buy, bribe or steal before at least a tenth of a 400-identity cluster passes the graph signal (paid real-human witnesses and stolen credentials are the same thing to this signal; they differ in what they cost the attacker):
+
+| setting | colluders needed |
+|---|---|
+| 300 honest roots, 10 vouches per credential (early stage) | 48 |
+| 300 honest roots, 5 vouches per credential (mature stage, epoch >= 1000) | 76 |
+| 600 honest roots, 10 vouches per credential | 56 |
+
+The stricter mature quota raises the price by about 60% and a doubled honest network by about 17%, so the per-epoch quota is a stronger lever than network size alone. The number to price against is the attacker's cost per witness versus the value of the human-exclusive power the cluster would unlock. Still not modelled: active proximity relays and forged devices (they attack the presence signal, not the graph), and the other signals.

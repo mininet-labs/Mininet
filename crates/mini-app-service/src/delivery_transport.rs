@@ -7,8 +7,9 @@ use mini_bearer::{Bearer, BearerError, Initiator, Responder};
 use mini_objects::{Object, ObjectType, Payload};
 use mini_store::{FsBackend, Store};
 use mini_transport_security::{
-    authenticate_established_initiator, authenticate_established_responder,
-    AuthenticatedConnection, LocalSessionIdentity, PeerExpectation, ReplayCache, TransportPurpose,
+    admission_client_response, authenticate_established_initiator,
+    authenticate_established_responder, AdmissionGate, AuthenticatedConnection, GateError,
+    LocalSessionIdentity, PeerExpectation, ReplayCache, TransportPurpose,
 };
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -251,6 +252,7 @@ pub(crate) fn public_object_view(object: &Object) -> Result<DeliveryObjectView, 
         targets,
     })
 }
+#[allow(clippy::too_many_arguments)]
 fn establish(
     stream: TcpStream,
     local: LocalSessionIdentity<'_>,
@@ -258,6 +260,7 @@ fn establish(
     device: &Kel,
     now_ms: u64,
     initiator: bool,
+    gate: Option<&AdmissionGate>,
     interrupt: &DeliveryInterrupt,
 ) -> Result<AuthenticatedConnection<BoundedBearer>, DeliveryFailure> {
     check_stop(interrupt)?;
@@ -270,11 +273,16 @@ fn establish(
     let channel = if initiator {
         let (initiator, hello) = Initiator::start().map_err(unavailable)?;
         bearer.send(&hello).map_err(unavailable)?;
-        initiator
-            .finish(&bearer.recv().map_err(unavailable)?)
-            .map_err(rejected)?
+        // A busy listener may answer with an admission challenge (escalating
+        // work) instead of its handshake response; this solves it transparently.
+        let response = admission_client_response(&mut bearer, &hello).map_err(gate_failure)?;
+        initiator.finish(&response).map_err(rejected)?
     } else {
         let hello = bearer.recv().map_err(unavailable)?;
+        if let Some(gate) = gate {
+            gate.check(&mut bearer, &hello, now_ms)
+                .map_err(gate_failure)?;
+        }
         let (channel, response) = Responder::respond(&hello).map_err(rejected)?;
         bearer.send(&response).map_err(unavailable)?;
         channel
@@ -298,6 +306,13 @@ fn establish(
         &mut replay,
     )
     .map_err(rejected)
+}
+
+fn gate_failure(error: GateError) -> DeliveryFailure {
+    match error {
+        GateError::Refused | GateError::Malformed => DeliveryFailure::Rejected,
+        _ => DeliveryFailure::Unavailable,
+    }
 }
 
 fn check_stop(interrupt: &DeliveryInterrupt) -> Result<(), DeliveryFailure> {
@@ -338,6 +353,7 @@ pub(crate) fn send(
         interrupt,
     )
 }
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn receive(
     stream: TcpStream,
     local: LocalSessionIdentity<'_>,
@@ -345,6 +361,7 @@ pub(crate) fn receive(
     peer_device: &Kel,
     store: &mut Store<FsBackend>,
     now_ms: u64,
+    gate: Option<&AdmissionGate>,
     interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
     stopped_result(
@@ -355,6 +372,7 @@ pub(crate) fn receive(
             peer_device,
             store,
             now_ms,
+            gate,
             interrupt,
         ),
         interrupt,
@@ -381,6 +399,7 @@ fn send_inner(
         peer_device,
         now_ms,
         true,
+        None,
         interrupt,
     )?;
     check_stop(interrupt)?;
@@ -395,6 +414,7 @@ fn send_inner(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn receive_inner(
     stream: TcpStream,
     local: LocalSessionIdentity<'_>,
@@ -402,6 +422,7 @@ fn receive_inner(
     peer_device: &Kel,
     store: &mut Store<FsBackend>,
     now_ms: u64,
+    gate: Option<&AdmissionGate>,
     interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
     check_stop(interrupt)?;
@@ -412,6 +433,7 @@ fn receive_inner(
         peer_device,
         now_ms,
         false,
+        gate,
         interrupt,
     )?;
     let message = connection.recv(AAD).map_err(unavailable)?;
@@ -528,6 +550,7 @@ mod tests {
                         &sender_device_kel,
                         1000,
                         false,
+                        None,
                         &DeliveryInterrupt::default(),
                     )
                     .unwrap();
@@ -558,6 +581,7 @@ mod tests {
                         &sender_device_kel,
                         &mut store,
                         1000,
+                        None,
                         &DeliveryInterrupt::default()
                     )
                     .unwrap(),
@@ -605,6 +629,7 @@ mod tests {
                 &device,
                 1000,
                 false,
+                None,
                 &DeliveryInterrupt::default()
             )
             .is_err());
@@ -766,6 +791,7 @@ mod tests {
                 &sender_kel,
                 &mut store,
                 1000,
+                None,
                 &worker_interrupt,
             );
             assert!(store.all_ids().unwrap().is_empty());
@@ -780,6 +806,7 @@ mod tests {
             &receiver_kel,
             1000,
             true,
+            None,
             &DeliveryInterrupt::default(),
         )
         .unwrap();

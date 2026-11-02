@@ -61,17 +61,21 @@ struct Outcome {
 }
 
 fn run(colluders: usize) -> Outcome {
-    let honest: Vec<Did> = (0..HONEST).map(did).collect();
-    let sybils: Vec<Did> = (HONEST..HONEST + SYBILS).map(did).collect();
+    run_with(colluders, HONEST, QUOTA)
+}
+
+fn run_with(colluders: usize, honest_n: usize, quota: usize) -> Outcome {
+    let honest: Vec<Did> = (0..honest_n).map(did).collect();
+    let sybils: Vec<Did> = (honest_n..honest_n + SYBILS).map(did).collect();
     let seeds = &honest[..SEEDS];
     let mut g = VouchGraph::new();
     let mut rng = Lcg(7);
 
     // Honest region: a ring (connectivity) plus random vouches.
-    for i in 0..HONEST {
-        edge(&mut g, &honest[i], &honest[(i + 1) % HONEST]);
+    for i in 0..honest_n {
+        edge(&mut g, &honest[i], &honest[(i + 1) % honest_n]);
         for _ in 0..HONEST_VOUCHES {
-            let j = rng.next(HONEST);
+            let j = rng.next(honest_n);
             if j != i {
                 edge(&mut g, &honest[i], &honest[j]);
             }
@@ -91,10 +95,10 @@ fn run(colluders: usize) -> Outcome {
     let mut attack_edges = 0;
     let mut used = HashSet::new();
     for c in 0..colluders {
-        let colluder = &honest[SEEDS + (c * 7) % (HONEST - SEEDS)];
+        let colluder = &honest[SEEDS + (c * 7) % (honest_n - SEEDS)];
         let mut spent = 0;
         let mut tries = 0;
-        while spent < QUOTA && tries < 10 * SYBILS {
+        while spent < quota && tries < 10 * SYBILS {
             tries += 1;
             let s = rng.next(SYBILS);
             if used.insert((colluder.as_str().to_string(), s)) && edge(&mut g, colluder, &sybils[s])
@@ -112,7 +116,7 @@ fn run(colluders: usize) -> Outcome {
         .map(|d| trust.get(d).copied().unwrap_or(0))
         .collect();
     honest_t.sort_unstable();
-    let median = honest_t[HONEST / 2].max(1);
+    let median = honest_t[honest_n / 2].max(1);
     let sybil_t: Vec<u64> = sybils
         .iter()
         .map(|d| trust.get(d).copied().unwrap_or(0))
@@ -168,4 +172,33 @@ fn mass_collusion_is_a_documented_limit_of_the_graph_signal_alone() {
         r.passing_sybils
     );
     assert!(r.passing_sybils > 0);
+}
+
+/// Smallest number of colluding mature credentials (scanned in steps of 4)
+/// for which at least a tenth of the cluster passes the graph signal; this is
+/// the "price of a Sybil cluster" measured in bought or stolen witnesses.
+fn colluders_to_lift_cluster(honest_n: usize, quota: usize) -> usize {
+    (0..=honest_n / 2)
+        .step_by(4)
+        .find(|k| run_with(*k, honest_n, quota).passing_sybils * 10 >= SYBILS)
+        .unwrap_or(usize::MAX)
+}
+
+#[test]
+fn price_of_a_cluster_rises_with_a_stricter_quota_and_a_larger_honest_network() {
+    // Paid real-human witnesses and stolen credentials both reduce, for the
+    // graph signal, to "colluding mature credentials"; what differs is what
+    // each costs the attacker, which the audit and economics must price.
+    let early = colluders_to_lift_cluster(300, 10); // early stage: 10 vouches/epoch
+    let mature = colluders_to_lift_cluster(300, 5); // mature stage (epoch >= 1000): 5
+    let larger = colluders_to_lift_cluster(600, 10);
+    println!(
+        "colluders needed to lift 10% of the cluster: early(300,q10)={early} \
+         mature(300,q5)={mature} larger(600,q10)={larger}"
+    );
+    assert!(early >= 4 && early != usize::MAX);
+    // Halving the quota (the stricter stage) cannot make the attack cheaper,
+    // and a larger honest network cannot either.
+    assert!(mature >= early, "mature {mature} < early {early}");
+    assert!(larger >= early, "larger {larger} < early {early}");
 }

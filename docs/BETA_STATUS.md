@@ -278,3 +278,8 @@ remaining substantive safety gates still have to be proven.
 
 - `mini service run` now meters each connecting source (IPv4 address, or IPv6 /64). The first five connections in any 5 s window are free and need no extra round trip. After that the server answers the hello with a challenge, the client grinds BLAKE3 work bound to its own hello (cost doubles per extra connection), and only then does the handshake continue. Past 40 bits the source is refused. The authenticated sync client and `mini seed` client solve challenges automatically (they refuse work above ~2^26 hashes and report "peer is busy, try again shortly").
 - Not yet covered: the one-shot listeners (`sync listen`, `sync serve-release`, the remote build worker), the desktop delivery listener in `mini-app-service`, relay/DHT listeners, and any per-class tuning or load testing. Behind NAT or a shared IP, many honest users share one meter. GPUs/botnets pay less per unit than phones: this raises cost and rate-limits, it does not make flooding impossible. Unaudited.
+
+## Admission cost: more listeners
+
+- The handshake gate now lives in `mini-transport-security::AdmissionGate` (generic over any bearer; one wire format). It covers `mini service run`, `mini sync listen --repeat` (with the `sync connect` client solving challenges) and the desktop delivery listener in `mini-app-service` (a per-service shared meter; the delivery sender solves challenges, bounded by its 5 s session deadline, so a heavily throttled sender simply retries later through the outbox).
+- Still uncovered: single-accept one-shot servers (`sync serve-release`, the build worker) where a gate cannot help, and relay/DHT listeners. The delivery-listener gate has no dedicated integration test yet beyond the shared gate tests.
