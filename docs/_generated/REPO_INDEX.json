@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1262,
-    "headings": 4255,
-    "rust_symbols": 15007
+    "files": 1263,
+    "headings": 4251,
+    "rust_symbols": 15039
   },
   "crates": {
     "askama_derive": {
@@ -100928,66 +100928,40 @@
       "title": "use std::collections::HashSet;"
     },
     {
-      "bytes": 868,
+      "bytes": 534,
       "group": "crate:mini-uniqueness",
-      "headings": [
-        {
-          "level": 1,
-          "line": 17,
-          "text": "Test-only: derives deterministic test nonce bytes via a real hash instead"
-        },
-        {
-          "level": 1,
-          "line": 18,
-          "text": "of a literal array, matching mini-presence's own test convention and"
-        },
-        {
-          "level": 1,
-          "line": 19,
-          "text": "mini-keystone's demo_nonce (see tests/vouch.rs). Already resolved"
-        },
-        {
-          "level": 1,
-          "line": 20,
-          "text": "transitively through mini-presence; this just makes it directly usable"
-        },
-        {
-          "level": 1,
-          "line": 21,
-          "text": "from integration tests."
-        }
-      ],
+      "headings": [],
       "keywords": [
-        "mini-presence",
         "workspace",
         "true",
         "path",
         "mini-uniqueness",
-        "test-only",
-        "derives",
-        "deterministic",
-        "nonce",
-        "bytes",
-        "via",
-        "real",
-        "hash",
-        "instead",
-        "literal",
-        "array",
-        "matching",
-        "own",
-        "convention",
-        "mini-keystone",
-        "demo_nonce",
-        "see",
-        "vouch",
-        "already"
+        "did-mini",
+        "mini-presence",
+        "mini-crypto",
+        "cargo",
+        "toml",
+        "package",
+        "name",
+        "version",
+        "description",
+        "three-signal",
+        "personhood",
+        "uniqueness",
+        "fusion",
+        "whitepaper",
+        "ss5",
+        "social-vouching",
+        "graph",
+        "physical-presence",
+        "behavioral-entropy",
+        "seam"
       ],
-      "lines": 23,
+      "lines": 16,
       "path": "crates/mini-uniqueness/Cargo.toml",
-      "sha256": "2774b600d97992cf9282fe1c58f28837f7d0b2cd12d6988b352fbde471dd5c67",
+      "sha256": "fb97fdf9a1b36eea7eacb9855f07b27c836f5708330c8248bda6ed226e0f495c",
       "symbols": [],
-      "title": "Test-only: derives deterministic test nonce bytes via a real hash instead"
+      "title": "[package]"
     },
     {
       "bytes": 3470,
@@ -101281,38 +101255,38 @@
       "title": "use did_mini::IdentityError;"
     },
     {
-      "bytes": 9510,
+      "bytes": 10947,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
         "self",
-        "did",
-        "edges",
-        "trust",
-        "graph",
-        "node",
-        "seed",
-        "node_count",
         "verdict",
+        "edges",
+        "graph",
+        "did",
+        "node",
+        "trust",
+        "node_count",
         "identity",
-        "hashmap",
-        "vouchgraph",
-        "nodes",
-        "roots",
+        "one",
         "vouch",
         "how",
+        "degree",
+        "edge",
+        "roots",
+        "vouchgraph",
+        "verified",
+        "vouchverdict",
+        "vouches",
+        "many",
+        "a_root",
         "clone",
-        "new",
-        "one",
-        "never",
-        "every",
-        "iterations",
-        "trust_scale",
-        "neighbors"
+        "b_root",
+        "max_degree"
       ],
-      "lines": 254,
+      "lines": 288,
       "path": "crates/mini-uniqueness/src/graph.rs",
-      "sha256": "901d4aeae20f5138dc9036dd15c723e4c3a017dc89f0e4afcd7b3034c171cab5",
+      "sha256": "396a4171d99d2b51b9360a81e31d02cdbb2a806641fffe57e634471fb742b457",
       "symbols": [
         {
           "kind": "const",
@@ -101341,79 +101315,89 @@
         },
         {
           "kind": "fn",
-          "line": 73,
+          "line": 77,
+          "name": "add_verdict_capped"
+        },
+        {
+          "kind": "fn",
+          "line": 93,
           "name": "degree"
         },
         {
           "kind": "fn",
-          "line": 78,
+          "line": 98,
           "name": "nodes"
         },
         {
           "kind": "fn",
-          "line": 83,
+          "line": 103,
           "name": "neighbors"
         },
         {
           "kind": "fn",
-          "line": 88,
+          "line": 108,
           "name": "node_count"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 116,
           "name": "recommended_iterations"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 133,
           "name": "trust_scores"
         },
         {
           "kind": "mod",
-          "line": 141,
+          "line": 161,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 165,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 152,
+          "line": 172,
           "name": "verdict"
         },
         {
           "kind": "fn",
-          "line": 161,
+          "line": 181,
+          "name": "degree_cap_blocks_new_edges_but_allows_idempotent_readds"
+        },
+        {
+          "kind": "fn",
+          "line": 195,
           "name": "add_verdict_creates_an_undirected_edge"
         },
         {
           "kind": "fn",
-          "line": 174,
+          "line": 208,
           "name": "degree_of_unknown_node_is_zero"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 214,
           "name": "trust_propagates_outward_from_seed_along_a_chain"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 237,
           "name": "a_sybil_cluster_with_one_bridge_edge_scores_far_below_the_honest_region"
         },
         {
           "kind": "fn",
-          "line": 248,
+          "line": 282,
           "name": "recommended_iterations_grows_with_graph_size"
         }
       ],
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3543,
+      "bytes": 3698,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -101425,6 +101409,7 @@
         "verify",
         "signals",
         "error",
+        "policy",
         "point",
         "sybil",
         "three",
@@ -101439,12 +101424,11 @@
         "resistance",
         "per",
         "system",
-        "fuses",
-        "independent"
+        "fuses"
       ],
-      "lines": 68,
+      "lines": 73,
       "path": "crates/mini-uniqueness/src/lib.rs",
-      "sha256": "cc1a2fe5d7566a7b5b01776736d967571e09b953d6c46034a2e8545b3bf4dc30",
+      "sha256": "77d89c610b87888b890601a32e9aba754fc97b2ff0f0fafb322b345722d7e5c0",
       "symbols": [
         {
           "kind": "mod",
@@ -101464,23 +101448,205 @@
         {
           "kind": "mod",
           "line": 53,
-          "name": "status"
+          "name": "policy"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "verify"
+          "name": "status"
         },
         {
           "kind": "mod",
           "line": 55,
+          "name": "verify"
+        },
+        {
+          "kind": "mod",
+          "line": 56,
           "name": "vouch"
         }
       ],
       "title": "mod confidence;"
     },
     {
-      "bytes": 23765,
+      "bytes": 12479,
+      "group": "crate:mini-uniqueness",
+      "headings": [],
+      "keywords": [
+        "policy",
+        "policyerror",
+        "u32",
+        "personhoodpolicy",
+        "score",
+        "one",
+        "std",
+        "fmt",
+        "proposed",
+        "minimum",
+        "change",
+        "evidence",
+        "version",
+        "error",
+        "personhood",
+        "audit",
+        "weight",
+        "presence_weight",
+        "vouching_weight",
+        "full_credit_window_ms",
+        "u64",
+        "zero_after_ms",
+        "audit_minimum",
+        "max_vouch_degree"
+      ],
+      "lines": 332,
+      "path": "crates/mini-uniqueness/src/policy.rs",
+      "sha256": "c8af0ff6d1dfb730d18f96570f4fc961155915616935cc79ccb660df8621dc5e",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 33,
+          "name": "POLICY_FORMAT_VERSION"
+        },
+        {
+          "kind": "struct",
+          "line": 38,
+          "name": "PersonhoodPolicy"
+        },
+        {
+          "kind": "enum",
+          "line": 57,
+          "name": "PolicyError"
+        },
+        {
+          "kind": "impl",
+          "line": 66,
+          "name": "std::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 75,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "impl",
+          "line": 77,
+          "name": "PersonhoodPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 113,
+          "name": "canonical_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 135,
+          "name": "starting_point"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "score"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "gate"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "counts"
+        },
+        {
+          "kind": "enum",
+          "line": 176,
+          "name": "GateOutcome"
+        },
+        {
+          "kind": "struct",
+          "line": 187,
+          "name": "AuditGate"
+        },
+        {
+          "kind": "impl",
+          "line": 192,
+          "name": "AuditGate"
+        },
+        {
+          "kind": "fn",
+          "line": 194,
+          "name": "evaluate"
+        },
+        {
+          "kind": "struct",
+          "line": 206,
+          "name": "ThresholdBounds"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "bounded_threshold"
+        },
+        {
+          "kind": "mod",
+          "line": 234,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "ev"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
+          "name": "policy_digest_is_stable_and_changes_with_any_parameter"
+        },
+        {
+          "kind": "fn",
+          "line": 256,
+          "name": "invalid_policies_are_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 276,
+          "name": "external_and_behavioral_evidence_cannot_raise_the_score"
+        },
+        {
+          "kind": "fn",
+          "line": 288,
+          "name": "combined_presence_and_vouching_beats_either_alone_at_equal_strength"
+        },
+        {
+          "kind": "fn",
+          "line": 298,
+          "name": "gate_never_excludes"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "threshold_changes_respect_floor_ceiling_and_step"
+        }
+      ],
+      "title": "use crate::confidence::DecayPolicy;"
+    },
+    {
+      "bytes": 24475,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -101509,9 +101675,9 @@
         "new",
         "record"
       ],
-      "lines": 581,
+      "lines": 596,
       "path": "crates/mini-uniqueness/src/status.rs",
-      "sha256": "af978171fdbd17afea0bfb0b4a4e17ba53eb128fc81a518b8081f1d832aa5c88",
+      "sha256": "5ce366f34da90e111fa76b8b0ddd6e7a877677078e0a23a1c7292c0f3ec3c535",
       "symbols": [
         {
           "kind": "enum",
@@ -101540,152 +101706,157 @@
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 117,
+          "name": "closed_set"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
           "name": "weight_for"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 141,
           "name": "set_weight"
         },
         {
           "kind": "struct",
-          "line": 137,
+          "line": 152,
           "name": "PromotionPolicy"
         },
         {
           "kind": "impl",
-          "line": 167,
+          "line": 182,
           "name": "PromotionPolicy"
         },
         {
           "kind": "fn",
-          "line": 173,
+          "line": 188,
           "name": "whitepaper_default"
         },
         {
           "kind": "enum",
-          "line": 192,
+          "line": 207,
           "name": "HumanStatus"
         },
         {
           "kind": "struct",
-          "line": 206,
+          "line": 221,
           "name": "HumanRecord"
         },
         {
           "kind": "impl",
-          "line": 210,
+          "line": 225,
           "name": "HumanRecord"
         },
         {
           "kind": "fn",
-          "line": 212,
+          "line": 227,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 232,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 222,
+          "line": 237,
           "name": "first_evidence_at_ms"
         },
         {
           "kind": "fn",
-          "line": 228,
+          "line": 243,
           "name": "age_ms"
         },
         {
           "kind": "fn",
-          "line": 238,
+          "line": 253,
           "name": "score"
         },
         {
           "kind": "fn",
-          "line": 257,
+          "line": 272,
           "name": "distinct_live_sources"
         },
         {
           "kind": "fn",
-          "line": 263,
+          "line": 278,
           "name": "live_sources"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 290,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 320,
           "name": "latest_per_source"
         },
         {
           "kind": "mod",
-          "line": 322,
+          "line": 337,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 325,
+          "line": 340,
           "name": "decay"
         },
         {
           "kind": "fn",
-          "line": 333,
+          "line": 348,
           "name": "empty_record_is_unverified"
         },
         {
           "kind": "fn",
-          "line": 345,
+          "line": 360,
           "name": "a_single_modest_vouch_reaches_vouched_human_quickly"
         },
         {
           "kind": "fn",
-          "line": 362,
+          "line": 377,
           "name": "evidence_qualified_human_is_never_reached_before_the_minimum_age_even_with_a_high_score"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 401,
           "name": "evidence_qualified_human_is_never_reached_from_a_single_source_no_matter_how_strong"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 420,
           "name": "evidence_qualified_human_is_reached_with_enough_score_age_and_source_diversity"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 443,
           "name": "stale_evidence_decays_and_can_demote_evidence_qualified_human_back_down"
         },
         {
           "kind": "fn",
-          "line": 461,
+          "line": 476,
           "name": "our_own_sources_outweigh_external_by_default"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 489,
           "name": "an_external_source_can_still_contribute_and_be_reweighted"
         },
         {
           "kind": "fn",
-          "line": 489,
+          "line": 504,
           "name": "a_farm_cannot_reach_evidence_qualified_human_without_the_seed_anchored_vouch_signal"
         },
         {
           "kind": "fn",
-          "line": 536,
+          "line": 551,
           "name": "a_fully_decayed_vouch_signal_does_not_satisfy_the_required_gate"
         },
         {
           "kind": "fn",
-          "line": 563,
+          "line": 578,
           "name": "later_evidence_from_the_same_source_replaces_the_earlier_one"
         }
       ],
@@ -122135,7 +122306,7 @@
       "title": "Reusable offline allowances and private account settlement"
     },
     {
-      "bytes": 5428,
+      "bytes": 6587,
       "group": "docs",
       "headings": [
         {
@@ -122172,37 +122343,42 @@
           "level": 2,
           "line": 91,
           "text": "Honest limits"
+        },
+        {
+          "level": 2,
+          "line": 97,
+          "text": "Implemented (first primitives, `mini-uniqueness`)"
         }
       ],
       "keywords": [
         "score",
         "proposal",
         "humanness",
-        "frozen",
-        "decision",
         "founder",
-        "gate",
-        "minimum",
+        "frozen",
         "signals",
+        "decision",
+        "gate",
+        "mini-uniqueness",
+        "minimum",
         "frontier",
+        "peer",
+        "vouching",
         "audited",
         "what",
         "needs",
+        "threshold",
         "voting",
-        "peer",
-        "vouching",
         "tree",
         "already",
         "row",
-        "vouch",
-        "other",
-        "apps",
-        "also",
-        "nobody"
+        "implemented",
+        "first",
+        "chat"
       ],
-      "lines": 96,
+      "lines": 105,
       "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
-      "sha256": "b569ee2c73bf9f6d6d5ea1124fe370422d9bf4345435d6518ce8cc138def420f",
+      "sha256": "b29244f25bc8043de07694f1a47372f983a2deae85e02e095bcdc8da6578a44d",
       "symbols": [],
       "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },

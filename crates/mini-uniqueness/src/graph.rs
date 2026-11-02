@@ -69,6 +69,26 @@ impl VouchGraph {
             .insert(verdict.a_root.clone());
     }
 
+    /// Record a verified vouch only if neither side would exceed `max_degree`
+    /// distinct vouches. Returns whether the edge is now present. Capping
+    /// degree raises the cost of a farm pumping one root with many cheap
+    /// vouches and bounds how much trust any one root can fan out. Re-adding
+    /// an existing edge is idempotent and always allowed.
+    pub fn add_verdict_capped(&mut self, verdict: &VouchVerdict, max_degree: usize) -> bool {
+        let exists = self
+            .edges
+            .get(&verdict.a_root)
+            .is_some_and(|n| n.contains(&verdict.b_root));
+        if !exists
+            && (self.degree(&verdict.a_root) >= max_degree
+                || self.degree(&verdict.b_root) >= max_degree)
+        {
+            return false;
+        }
+        self.add_verdict(verdict);
+        true
+    }
+
     /// How many distinct identity roots have vouched for `node`.
     pub fn degree(&self, node: &Did) -> usize {
         self.edges.get(node).map(HashSet::len).unwrap_or(0)
@@ -155,6 +175,20 @@ mod tests {
             b_root: b.clone(),
             at_ms: 0,
         }
+    }
+
+    #[test]
+    fn degree_cap_blocks_new_edges_but_allows_idempotent_readds() {
+        let hub = did(1);
+        let (a, b, c) = (did(2), did(3), did(4));
+        let mut graph = VouchGraph::new();
+        assert!(graph.add_verdict_capped(&verdict(&hub, &a), 2));
+        assert!(graph.add_verdict_capped(&verdict(&hub, &b), 2));
+        assert!(!graph.add_verdict_capped(&verdict(&hub, &c), 2));
+        assert_eq!(graph.degree(&hub), 2);
+        assert_eq!(graph.degree(&c), 0);
+        assert!(graph.add_verdict_capped(&verdict(&a, &hub), 2));
+        assert_eq!(graph.degree(&hub), 2);
     }
 
     #[test]

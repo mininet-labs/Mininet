@@ -1,6 +1,6 @@
 # Humanness score, peer vouching, and audited thresholds — founder proposal mapped to the tree
 
-**Status:** proposal / decision request. Not a Decision-Log entry, not
+**Status:** option 1 chosen by the founder in chat on 2026-11-02 (published-policy threshold; physical-presence signals combined with reciprocal peer vouching); first primitives implemented in `mini-uniqueness::policy`. Still not a Decision-Log entry. Not a Decision-Log entry, not
 implemented, no frozen row weakened. Written 2026-11-02 in response to a
 founder chat proposal; chat direction is task authorization, not a canonical
 Decision. It builds on, and does not replace,
@@ -93,3 +93,12 @@ Nothing above links `mini-value`, `mini-bounty`, `mini-treasury`,
 Sybil resistance remains unsolved (INVARIANTS hard limitation). No
 mechanism here proves one human; everything counts identity roots until
 SPEC-02 lands. Say "identity root", not "one human, one vote".
+
+## Implemented (first primitives, `mini-uniqueness`)
+
+- `PersonhoodPolicy`: versioned, content-addressed (BLAKE3 over canonical bytes) published policy; closed signal set (physical presence + seed-anchored vouching; `External`/behavioral weigh zero); `score(record, now)` 0..=100; validation refuses zero weights (a farm could otherwise saturate the score).
+- `AuditGate` / `GateOutcome::{Pass, NeedsAudit}`: no exclusion variant exists.
+- `bounded_threshold` + `ThresholdBounds`: floor, ceiling and per-change step for the minimum; the one-human-one-vote and timelock live in governance.
+- `VouchGraph::add_verdict_capped`: degree cap (collusion cost). Vouches are mutual by construction, i.e. reciprocal.
+
+Not built: wiring the gate into voting or monthly-payment paths, the governance vote/timelock for the minimum, appeal/audit process, per-epoch vouch quotas, the nullifier/blinded-handle route (2(b)), and any external cryptographic review.
