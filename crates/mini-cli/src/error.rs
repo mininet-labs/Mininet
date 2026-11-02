@@ -86,7 +86,7 @@ impl fmt::Display for CliError {
                 f,
                 "sequence counter file exists but is not a trustworthy count -- refusing to reuse old sequence numbers"
             ),
-            CliError::Io(e) => write!(f, "I/O error: {e}"),
+            CliError::Io(e) => write!(f, "I/O error: {e}{}", disk_full_hint(e)),
             CliError::Identity(e) => write!(f, "identity error: {e}"),
             CliError::Forge(e) => write!(f, "forge error: {e}"),
             CliError::Store(e) => write!(f, "store error: {e}"),
@@ -139,3 +139,34 @@ impl std::error::Error for CliError {}
 
 /// Result alias for this crate.
 pub type Result<T> = core::result::Result<T, CliError>;
+
+/// Plain-language guidance appended when an error text says the disk is full
+/// (Unix `os error 28`, Windows `os error 112`/"not enough space"). Nothing is
+/// lost: Mininet writes atomically and resumes where it left off.
+pub(crate) fn disk_full_hint(text: &str) -> &'static str {
+    let t = text.to_ascii_lowercase();
+    if t.contains("no space left")
+        || t.contains("not enough space")
+        || t.contains("os error 112")
+        || t.contains("os error 28")
+        || t.contains("quota exceeded")
+    {
+        " -- this device is out of storage space. Free some space (empty the trash, remove unused apps or downloads) and run the same action again; nothing was lost and it will pick up where it left off"
+    } else {
+        ""
+    }
+}
+
+#[cfg(test)]
+mod disk_hint_tests {
+    use super::disk_full_hint;
+    #[test]
+    fn disk_full_errors_get_plain_guidance_and_others_do_not() {
+        assert!(disk_full_hint("No space left on device (os error 28)").contains("out of storage"));
+        assert!(
+            disk_full_hint("There is not enough space on the disk. (os error 112)")
+                .contains("out of storage")
+        );
+        assert_eq!(disk_full_hint("permission denied"), "");
+    }
+}
