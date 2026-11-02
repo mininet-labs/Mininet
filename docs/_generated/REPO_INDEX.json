@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1270,
-    "headings": 4259,
-    "rust_symbols": 15223
+    "files": 1271,
+    "headings": 4261,
+    "rust_symbols": 15246
   },
   "crates": {
     "askama_derive": {
@@ -9028,7 +9028,7 @@
       "title": "use did_mini::{verify_delegation, Kel};"
     },
     {
-      "bytes": 11533,
+      "bytes": 11775,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9057,9 +9057,9 @@
         "request",
         "std"
       ],
-      "lines": 299,
+      "lines": 303,
       "path": "crates/mini-app-service/src/delivery_runtime.rs",
-      "sha256": "54f2572d741d5839683f90ad1c0647bfbe248a72fd872869a56328db6c1842fc",
+      "sha256": "1c99bea7ac48c1b727f7b4127d98a671e1767a447b301b11940267d8a3dd9c8b",
       "symbols": [
         {
           "kind": "const",
@@ -9125,7 +9125,7 @@
       "title": "use crate::{"
     },
     {
-      "bytes": 30793,
+      "bytes": 31775,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9154,215 +9154,220 @@
         "interrupt",
         "post"
       ],
-      "lines": 848,
+      "lines": 875,
       "path": "crates/mini-app-service/src/delivery_transport.rs",
-      "sha256": "c31f120dacb2b536651e80b82dfb711e932d174a0f8eb1a353b7030ff2e8b8fe",
+      "sha256": "4b98790b85f08e8ba0573ec0b0421f114598bdfadd6a4452b410728263ed2bc8",
       "symbols": [
         {
           "kind": "const",
-          "line": 17,
+          "line": 18,
           "name": "MAX_OBJECT"
         },
         {
           "kind": "const",
-          "line": 18,
+          "line": 19,
           "name": "MAX_FRAME"
         },
         {
           "kind": "const",
-          "line": 19,
+          "line": 20,
           "name": "MAX_SESSION"
         },
         {
           "kind": "const",
-          "line": 20,
+          "line": 21,
           "name": "DEADLINE"
         },
         {
           "kind": "const",
-          "line": 23,
+          "line": 24,
           "name": "POLL_SLICES"
         },
         {
           "kind": "const",
-          "line": 24,
+          "line": 25,
           "name": "AAD"
         },
         {
           "kind": "const",
-          "line": 25,
+          "line": 26,
           "name": "POST"
         },
         {
           "kind": "const",
-          "line": 26,
+          "line": 27,
           "name": "ACK"
         },
         {
           "kind": "struct",
-          "line": 31,
+          "line": 32,
           "name": "BoundedBearer"
         },
         {
           "kind": "impl",
-          "line": 37,
+          "line": 38,
           "name": "BoundedBearer"
         },
         {
           "kind": "fn",
-          "line": 38,
+          "line": 39,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 47,
           "name": "timeout"
         },
         {
           "kind": "fn",
-          "line": 56,
+          "line": 57,
           "name": "reserve"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 65,
           "name": "read_exact"
         },
         {
           "kind": "fn",
-          "line": 86,
+          "line": 87,
           "name": "write_all"
         },
         {
           "kind": "impl",
-          "line": 109,
+          "line": 110,
           "name": "Bearer"
         },
         {
           "kind": "fn",
-          "line": 110,
+          "line": 111,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 122,
           "name": "recv"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 138,
           "name": "try_recv"
         },
         {
           "kind": "fn",
-          "line": 142,
+          "line": 143,
           "name": "max_frame_bytes"
         },
         {
           "kind": "fn",
-          "line": 146,
+          "line": 147,
           "name": "rejected"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 150,
           "name": "unavailable"
         },
         {
           "kind": "fn",
-          "line": 152,
+          "line": 153,
           "name": "validate_object"
         },
         {
           "kind": "fn",
-          "line": 254,
+          "line": 256,
           "name": "establish"
         },
         {
           "kind": "fn",
-          "line": 303,
+          "line": 311,
+          "name": "gate_failure"
+        },
+        {
+          "kind": "fn",
+          "line": 318,
           "name": "check_stop"
         },
         {
           "kind": "fn",
-          "line": 310,
+          "line": 325,
           "name": "stopped_result"
         },
         {
           "kind": "fn",
-          "line": 363,
+          "line": 381,
           "name": "send_inner"
         },
         {
           "kind": "fn",
-          "line": 398,
+          "line": 418,
           "name": "receive_inner"
         },
         {
           "kind": "fn",
-          "line": 430,
+          "line": 452,
           "name": "ingest_post"
         },
         {
           "kind": "mod",
-          "line": 452,
+          "line": 474,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 460,
+          "line": 482,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 496,
           "name": "local"
         },
         {
           "kind": "fn",
-          "line": 481,
+          "line": 503,
           "name": "post"
         },
         {
           "kind": "fn",
-          "line": 487,
+          "line": 509,
           "name": "lost_and_forged_acknowledgements_never_deliver_and_retry_is_one_exact_object"
         },
         {
           "kind": "fn",
-          "line": 590,
+          "line": 614,
           "name": "wrong_recipient_cannot_acknowledge_and_invalid_object_is_refused"
         },
         {
           "kind": "fn",
-          "line": 638,
+          "line": 663,
           "name": "whitelist_accepts_only_canonical_public_social_shapes_and_max_text_previews"
         },
         {
           "kind": "fn",
-          "line": 718,
+          "line": 743,
           "name": "late_stop_preserves_verified_success_and_classifies_only_failed_work"
         },
         {
           "kind": "fn",
-          "line": 739,
+          "line": 764,
           "name": "established_partial_frame_stops_promptly_without_inserting_or_acknowledging"
         },
         {
           "kind": "fn",
-          "line": 799,
+          "line": 826,
           "name": "held_stop_prevents_any_outbound_frame_and_allows_no_authorization"
         },
         {
           "kind": "fn",
-          "line": 818,
+          "line": 845,
           "name": "bounded_bearer_rejects_length_budget_and_absolute_dribble_deadline"
         }
       ],
       "title": "use crate::{delivery_interrupt::DeliveryInterrupt, outbox::DeliveryFailure};"
     },
     {
-      "bytes": 202370,
+      "bytes": 202625,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9391,9 +9396,9 @@
         "debug",
         "production"
       ],
-      "lines": 5207,
+      "lines": 5210,
       "path": "crates/mini-app-service/src/lib.rs",
-      "sha256": "6520b3a50423f26ba5be012a7c5a094802f93c61fa271bbdebf978dedd491584",
+      "sha256": "2565a84cd75cdad30b56b5e6f2b4f851dd62b0a610bbe11b20d126e0e93ef291",
       "symbols": [
         {
           "kind": "mod",
@@ -9547,717 +9552,717 @@
         },
         {
           "kind": "impl",
-          "line": 140,
+          "line": 142,
           "name": "Core<WindowsIdentityVault>"
         },
         {
           "kind": "fn",
-          "line": 142,
+          "line": 144,
           "name": "open"
         },
         {
           "kind": "impl",
-          "line": 148,
+          "line": 150,
           "name": "Core<V>"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 151,
           "name": "open_inner"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 214,
           "name": "delivery_interrupt_handle"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 218,
           "name": "handle"
         },
         {
           "kind": "fn",
-          "line": 491,
+          "line": 494,
           "name": "queue_public_delivery"
         },
         {
           "kind": "fn",
-          "line": 508,
+          "line": 511,
           "name": "own_public_delivery_object"
         },
         {
           "kind": "fn",
-          "line": 541,
+          "line": 544,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 553,
           "name": "current_profile"
         },
         {
           "kind": "fn",
-          "line": 560,
+          "line": 563,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 579,
+          "line": 582,
           "name": "unlock"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 606,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 610,
+          "line": 613,
           "name": "publish_post"
         },
         {
           "kind": "fn",
-          "line": 645,
+          "line": 648,
           "name": "publish_media_post"
         },
         {
           "kind": "fn",
-          "line": 728,
+          "line": 731,
           "name": "publish_wall"
         },
         {
           "kind": "fn",
-          "line": 777,
+          "line": 780,
           "name": "publish_profile_with_photo"
         },
         {
           "kind": "fn",
-          "line": 818,
+          "line": 821,
           "name": "publish_profile_details"
         },
         {
           "kind": "fn",
-          "line": 874,
+          "line": 877,
           "name": "publish_community"
         },
         {
           "kind": "fn",
-          "line": 921,
+          "line": 924,
           "name": "set_membership"
         },
         {
           "kind": "fn",
-          "line": 967,
+          "line": 970,
           "name": "publish_comment"
         },
         {
           "kind": "fn",
-          "line": 1016,
+          "line": 1019,
           "name": "set_like"
         },
         {
           "kind": "fn",
-          "line": 1071,
+          "line": 1074,
           "name": "set_follow"
         },
         {
           "kind": "fn",
-          "line": 1109,
+          "line": 1112,
           "name": "publish_profile"
         },
         {
           "kind": "fn",
-          "line": 1150,
+          "line": 1153,
           "name": "finish_existing"
         },
         {
           "kind": "fn",
-          "line": 1177,
+          "line": 1180,
           "name": "ensure_signing_available"
         },
         {
           "kind": "fn",
-          "line": 1193,
+          "line": 1196,
           "name": "signing_identity"
         },
         {
           "kind": "fn",
-          "line": 1200,
+          "line": 1203,
           "name": "reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 1203,
+          "line": 1206,
           "name": "reserve_sequences"
         },
         {
           "kind": "fn",
-          "line": 1227,
+          "line": 1230,
           "name": "feed_snapshot"
         },
         {
           "kind": "fn",
-          "line": 1352,
+          "line": 1355,
           "name": "emit_published"
         },
         {
           "kind": "fn",
-          "line": 1360,
+          "line": 1363,
           "name": "emit"
         },
         {
           "kind": "fn",
-          "line": 1372,
+          "line": 1375,
           "name": "drain_events"
         },
         {
           "kind": "struct",
-          "line": 1379,
+          "line": 1382,
           "name": "FeedSeed"
         },
         {
           "kind": "fn",
-          "line": 1387,
+          "line": 1390,
           "name": "profile_view"
         },
         {
           "kind": "fn",
-          "line": 1396,
+          "line": 1399,
           "name": "delivery_view"
         },
         {
           "kind": "fn",
-          "line": 1419,
+          "line": 1422,
           "name": "root_from_seeds"
         },
         {
           "kind": "fn",
-          "line": 1488,
+          "line": 1491,
           "name": "storage_error"
         },
         {
           "kind": "fn",
-          "line": 1492,
+          "line": 1495,
           "name": "storage_or_social"
         },
         {
           "kind": "enum",
-          "line": 1497,
+          "line": 1500,
           "name": "MutationInput"
         },
         {
           "kind": "impl",
-          "line": 1542,
+          "line": 1545,
           "name": "MutationInput"
         },
         {
           "kind": "fn",
-          "line": 1543,
+          "line": 1546,
           "name": "kind"
         },
         {
           "kind": "struct",
-          "line": 1560,
+          "line": 1563,
           "name": "PendingMutation"
         },
         {
           "kind": "struct",
-          "line": 1567,
+          "line": 1570,
           "name": "MutationReceipt"
         },
         {
           "kind": "enum",
-          "line": 1575,
+          "line": 1578,
           "name": "ExistingMutation"
         },
         {
           "kind": "struct",
-          "line": 1581,
+          "line": 1584,
           "name": "MutationJournal"
         },
         {
           "kind": "impl",
-          "line": 1587,
+          "line": 1590,
           "name": "MutationJournal"
         },
         {
           "kind": "fn",
-          "line": 1588,
+          "line": 1591,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 1601,
+          "line": 1604,
           "name": "ensure_sequence_floor"
         },
         {
           "kind": "fn",
-          "line": 1616,
+          "line": 1619,
           "name": "persist_next_sequence"
         },
         {
           "kind": "fn",
-          "line": 1625,
+          "line": 1628,
           "name": "existing"
         },
         {
           "kind": "fn",
-          "line": 1651,
+          "line": 1654,
           "name": "write_pending"
         },
         {
           "kind": "fn",
-          "line": 1658,
+          "line": 1661,
           "name": "commit_and_complete"
         },
         {
           "kind": "fn",
-          "line": 1675,
+          "line": 1678,
           "name": "recover"
         },
         {
           "kind": "fn",
-          "line": 1740,
+          "line": 1743,
           "name": "write_receipt"
         },
         {
           "kind": "fn",
-          "line": 1746,
+          "line": 1749,
           "name": "read_pending"
         },
         {
           "kind": "fn",
-          "line": 1752,
+          "line": 1755,
           "name": "read_receipt"
         },
         {
           "kind": "fn",
-          "line": 1758,
+          "line": 1761,
           "name": "remove_pending"
         },
         {
           "kind": "fn",
-          "line": 1767,
+          "line": 1770,
           "name": "pending_path"
         },
         {
           "kind": "fn",
-          "line": 1772,
+          "line": 1775,
           "name": "receipt_path"
         },
         {
           "kind": "fn",
-          "line": 1778,
+          "line": 1781,
           "name": "profile_details_values"
         },
         {
           "kind": "fn",
-          "line": 1799,
+          "line": 1802,
           "name": "validate_profile_details_pair"
         },
         {
           "kind": "fn",
-          "line": 1832,
+          "line": 1835,
           "name": "commit_record"
         },
         {
           "kind": "fn",
-          "line": 2166,
+          "line": 2169,
           "name": "encode_pending"
         },
         {
           "kind": "fn",
-          "line": 2189,
+          "line": 2192,
           "name": "decode_pending"
         },
         {
           "kind": "fn",
-          "line": 2219,
+          "line": 2222,
           "name": "encode_receipt"
         },
         {
           "kind": "fn",
-          "line": 2238,
+          "line": 2241,
           "name": "decode_receipt"
         },
         {
           "kind": "fn",
-          "line": 2276,
+          "line": 2279,
           "name": "decode_sequence"
         },
         {
           "kind": "fn",
-          "line": 2293,
+          "line": 2296,
           "name": "read_optional"
         },
         {
           "kind": "fn",
-          "line": 2309,
+          "line": 2312,
           "name": "read_bounded"
         },
         {
           "kind": "const",
-          "line": 2319,
+          "line": 2322,
           "name": "HEX"
         },
         {
           "kind": "struct",
-          "line": 2329,
+          "line": 2332,
           "name": "JournalEncoder"
         },
         {
           "kind": "impl",
-          "line": 2333,
+          "line": 2336,
           "name": "JournalEncoder"
         },
         {
           "kind": "fn",
-          "line": 2334,
+          "line": 2337,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2341,
+          "line": 2344,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2351,
+          "line": 2354,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2355,
+          "line": 2358,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2359,
+          "line": 2362,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2373,
+          "line": 2376,
           "name": "bytes"
         },
         {
           "kind": "fn",
-          "line": 2387,
+          "line": 2390,
           "name": "details"
         },
         {
           "kind": "fn",
-          "line": 2416,
+          "line": 2419,
           "name": "input"
         },
         {
           "kind": "struct",
-          "line": 2497,
+          "line": 2500,
           "name": "JournalDecoder"
         },
         {
           "kind": "impl",
-          "line": 2502,
+          "line": 2505,
           "name": "JournalDecoder<'a>"
         },
         {
           "kind": "fn",
-          "line": 2503,
+          "line": 2506,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2520,
+          "line": 2523,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2531,
+          "line": 2534,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 2543,
+          "line": 2546,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2547,
+          "line": 2550,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2552,
+          "line": 2555,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2565,
+          "line": 2568,
           "name": "bytes"
         },
         {
           "kind": "fn",
-          "line": 2576,
+          "line": 2579,
           "name": "details"
         },
         {
           "kind": "fn",
-          "line": 2615,
+          "line": 2618,
           "name": "flag"
         },
         {
           "kind": "fn",
-          "line": 2625,
+          "line": 2628,
           "name": "input"
         },
         {
           "kind": "mod",
-          "line": 2775,
+          "line": 2778,
           "name": "tests"
         },
         {
           "kind": "mod",
-          "line": 2779,
+          "line": 2782,
           "name": "beta_wallet_tests"
         },
         {
           "kind": "struct",
-          "line": 2782,
+          "line": 2785,
           "name": "MemoryVault"
         },
         {
           "kind": "impl",
-          "line": 2787,
+          "line": 2790,
           "name": "MemoryVault"
         },
         {
           "kind": "fn",
-          "line": 2788,
+          "line": 2791,
           "name": "empty"
         },
         {
           "kind": "fn",
-          "line": 2795,
+          "line": 2798,
           "name": "seeded"
         },
         {
           "kind": "impl",
-          "line": 2809,
+          "line": 2812,
           "name": "IdentityVault"
         },
         {
           "kind": "fn",
-          "line": 2810,
+          "line": 2813,
           "name": "root_exists"
         },
         {
           "kind": "fn",
-          "line": 2814,
+          "line": 2817,
           "name": "load_root"
         },
         {
           "kind": "fn",
-          "line": 2820,
+          "line": 2823,
           "name": "load_or_create_root"
         },
         {
           "kind": "fn",
-          "line": 2828,
+          "line": 2831,
           "name": "load_or_create_device"
         },
         {
           "kind": "fn",
-          "line": 2837,
+          "line": 2840,
           "name": "temp_root"
         },
         {
           "kind": "fn",
-          "line": 2849,
+          "line": 2852,
           "name": "forwarded_stop_prevents_another_scheduling_turn_until_control_is_processed"
         },
         {
           "kind": "fn",
-          "line": 2870,
+          "line": 2873,
           "name": "offline_delivery_recovers_and_reports_verified_remote_receipt_without_new_signature"
         },
         {
           "kind": "fn",
-          "line": 3028,
+          "line": 3031,
           "name": "revoked_recipient_never_connects_and_locked_identity_stops_listener"
         },
         {
           "kind": "fn",
-          "line": 3087,
+          "line": 3090,
           "name": "queued_public_post_survives_locked_restart_and_cancellation_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 3159,
+          "line": 3162,
           "name": "identity_profile_post_feed_and_restart_idempotency_share_one_authority"
         },
         {
           "kind": "fn",
-          "line": 3237,
+          "line": 3240,
           "name": "pending_exact_signed_post_is_recovered_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 3286,
+          "line": 3289,
           "name": "profile_pending_record_is_bound_to_requested_content"
         },
         {
           "kind": "fn",
-          "line": 3312,
+          "line": 3315,
           "name": "orphaned_atomic_replace_temp_does_not_block_recovery"
         },
         {
           "kind": "fn",
-          "line": 3327,
+          "line": 3330,
           "name": "production_lock_refuses_a_second_core_service_instance"
         },
         {
           "kind": "fn",
-          "line": 3338,
+          "line": 3341,
           "name": "follow_mutations_drive_feed_and_keep_exact_retry_identity_after_locked_restart"
         },
         {
           "kind": "fn",
-          "line": 3441,
+          "line": 3444,
           "name": "exact_pending_follow_recovers_but_tampered_input_never_inserts"
         },
         {
           "kind": "fn",
-          "line": 3491,
+          "line": 3494,
           "name": "like_count"
         },
         {
           "kind": "fn",
-          "line": 3500,
+          "line": 3503,
           "name": "like_unlike_counts_and_locked_retry_keep_exact_bytes_without_reviving_stale_like"
         },
         {
           "kind": "fn",
-          "line": 3570,
+          "line": 3573,
           "name": "missing_private_and_noncontent_like_targets_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 3608,
+          "line": 3611,
           "name": "pending_like_recovers_exact_bytes_and_refuses_tampered_action_or_kind"
         },
         {
           "kind": "fn",
-          "line": 3668,
+          "line": 3671,
           "name": "public_comments_thread_and_custom_parents_keep_locked_receipts_after_parent_removal"
         },
         {
           "kind": "fn",
-          "line": 3763,
+          "line": 3766,
           "name": "invalid_private_missing_or_blank_new_comments_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 3804,
+          "line": 3807,
           "name": "pending_comments_recover_exactly_and_reject_text_parent_link_or_type_tampering"
         },
         {
           "kind": "fn",
-          "line": 3869,
+          "line": 3872,
           "name": "membership_test_card"
         },
         {
           "kind": "fn",
-          "line": 3893,
+          "line": 3896,
           "name": "membership_open_join_leave_policy_and_locked_deleted_card_retry_are_exact"
         },
         {
           "kind": "fn",
-          "line": 3982,
+          "line": 3985,
           "name": "pending_membership_recovers_exactly_and_refuses_action_or_target_tampering"
         },
         {
           "kind": "fn",
-          "line": 4034,
+          "line": 4037,
           "name": "community_creation_is_open_and_exact_locked_receipts_do_not_replace_newer_cards"
         },
         {
           "kind": "fn",
-          "line": 4126,
+          "line": 4129,
           "name": "pending_community_recovers_exactly_and_refuses_name_charter_mode_link_type_tampering"
         },
         {
           "kind": "fn",
-          "line": 4201,
+          "line": 4204,
           "name": "public_delivery_preview_and_queue_require_exact_own_identity_and_expose_only_review"
         },
         {
           "kind": "fn",
-          "line": 4300,
+          "line": 4303,
           "name": "maximum_comment_publication_locked_receipt_and_pending_recovery_keep_journal_usable"
         },
         {
           "kind": "fn",
-          "line": 4380,
+          "line": 4383,
           "name": "details_test_draft"
         },
         {
           "kind": "fn",
-          "line": 4400,
+          "line": 4403,
           "name": "profile_details_all_fields_and_avatar_keep_exact_locked_receipts_and_invalid_input_no_sequence"
         },
         {
           "kind": "fn",
-          "line": 4527,
+          "line": 4530,
           "name": "pending_profile_details_validate_all_objects_before_any_insert"
         },
         {
           "kind": "fn",
-          "line": 4605,
+          "line": 4608,
           "name": "profile_photo_publishes_exact_four_objects_and_locked_receipt_while_invalid_input_does_not_reserve"
         },
         {
           "kind": "fn",
-          "line": 4686,
+          "line": 4689,
           "name": "photo_profile_pending_recovery_validates_every_object_before_inserting"
         },
         {
           "kind": "fn",
-          "line": 4778,
+          "line": 4781,
           "name": "photo_sequence_range_overflow_never_partially_reserves"
         },
         {
           "kind": "fn",
-          "line": 4790,
+          "line": 4793,
           "name": "wall_test_draft"
         },
         {
           "kind": "fn",
-          "line": 4799,
+          "line": 4802,
           "name": "wall_public_and_unlisted_heads_keep_locked_exact_receipts_and_no_profile_confusion"
         },
         {
           "kind": "fn",
-          "line": 4899,
+          "line": 4902,
           "name": "pending_wall_checks_visibility_header_links_head_label_and_time_before_any_insert"
         },
         {
           "kind": "fn",
-          "line": 4985,
+          "line": 4988,
           "name": "media_share_test_headers"
         },
         {
           "kind": "fn",
-          "line": 5020,
+          "line": 5023,
           "name": "media_share_accepts_three_public_headers_without_fetch_and_keeps_locked_exact_receipts"
         },
         {
           "kind": "fn",
-          "line": 5099,
+          "line": 5102,
           "name": "missing_private_unrelated_and_noncanonical_media_headers_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 5139,
+          "line": 5142,
           "name": "pending_media_share_recovery_binds_exact_caption_media_and_no_extra_or_zero_links"
         }
       ],
@@ -20541,103 +20546,78 @@
       "title": "mini-cli"
     },
     {
-      "bytes": 9293,
+      "bytes": 5928,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
-        "source",
-        "sync_err",
-        "self",
-        "frame",
-        "meter",
-        "std",
-        "fmt",
-        "gate",
         "hello",
-        "map_err",
-        "admission",
-        "admissionmeter",
+        "gate",
+        "sync_err",
+        "listener",
         "handshake",
         "server",
-        "bearer",
+        "meter",
+        "new",
+        "map_err",
+        "mini_transport_security",
+        "std",
         "client",
-        "work",
-        "ipaddr",
-        "arc",
-        "mutex",
-        "first",
+        "connection",
+        "result",
+        "tcpbearer",
+        "bearer",
         "vec",
-        "magic",
-        "response"
+        "unwrap",
+        "true",
+        "admissionmeter",
+        "source",
+        "free",
+        "response",
+        "ipv4addr"
       ],
-      "lines": 237,
+      "lines": 140,
       "path": "crates/mini-cli/src/admission_gate.rs",
-      "sha256": "280d5a04b0b9114c74be034ecdd349608bab72343bc74174c41815597d9f2876",
+      "sha256": "625a219ca7ab73b9a4cef8aecc961f8623f394a93c162c7caa4100af2970ce07",
       "symbols": [
         {
-          "kind": "const",
-          "line": 37,
-          "name": "CLIENT_MAX_BITS"
-        },
-        {
-          "kind": "const",
-          "line": 38,
-          "name": "MAGIC"
-        },
-        {
           "kind": "fn",
-          "line": 40,
+          "line": 31,
           "name": "sync_err"
         },
         {
           "kind": "impl",
-          "line": 75,
-          "name": "std::fmt::Debug"
-        },
-        {
-          "kind": "fn",
-          "line": 76,
-          "name": "fmt"
-        },
-        {
-          "kind": "impl",
-          "line": 81,
+          "line": 39,
           "name": "Gate"
         },
         {
           "kind": "mod",
-          "line": 149,
+          "line": 60,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 66,
           "name": "policy"
         },
         {
           "kind": "fn",
-          "line": 168,
+          "line": 80,
           "name": "serve_once"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 88,
           "name": "dial"
         },
         {
           "kind": "fn",
-          "line": 183,
+          "line": 95,
           "name": "free_tier_then_proof_then_refusal_over_real_tcp"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 118,
           "name": "a_client_that_skips_the_work_is_dropped"
-        },
-        {
-          "kind": "fn",
-          "line": 229,
-          "name": "ipv6_sources_are_metered_per_slash_64"
         }
       ],
       "title": "use crate::error::{CliError, Result};"
@@ -25361,16 +25341,16 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 19190,
+      "bytes": 19491,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
-        "sync",
         "store",
         "identity",
+        "sync",
         "clierror",
-        "to_string",
         "map_err",
+        "to_string",
         "peer",
         "report",
         "bearer",
@@ -25378,21 +25358,21 @@
         "path",
         "one",
         "times",
-        "exactly",
         "same",
+        "repeat",
         "own",
-        "responder",
         "kel_carrier",
-        "syncrole",
         "device",
         "human_did",
         "seed_own_kel_carriers",
-        "format_report",
-        "connect"
+        "real",
+        "mini_sync",
+        "exactly",
+        "already"
       ],
-      "lines": 481,
+      "lines": 486,
       "path": "crates/mini-cli/src/sync.rs",
-      "sha256": "0b67873111ab4ad172330fca64b899481e7451f19175d3592a1fb56977e340f5",
+      "sha256": "c1e14e6f2b93acedc6bc37a990acf085fd89c4ec5d1b737b40c6bcab6b7b4d8c",
       "symbols": [
         {
           "kind": "fn",
@@ -25411,52 +25391,52 @@
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 120,
           "name": "connect"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 126,
           "name": "connect_report"
         },
         {
           "kind": "struct",
-          "line": 171,
+          "line": 176,
           "name": "ServeReleaseReport"
         },
         {
           "kind": "fn",
-          "line": 182,
+          "line": 187,
           "name": "retrieve_release"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 223,
           "name": "serve_release"
         },
         {
           "kind": "const",
-          "line": 321,
+          "line": 326,
           "name": "SESSION_AAD"
         },
         {
           "kind": "const",
-          "line": 322,
+          "line": 327,
           "name": "SESSION_TYPE"
         },
         {
           "kind": "const",
-          "line": 323,
+          "line": 328,
           "name": "MAX_SESSION_PROOF"
         },
         {
           "kind": "fn",
-          "line": 333,
+          "line": 338,
           "name": "proof_payload"
         },
         {
           "kind": "fn",
-          "line": 406,
+          "line": 411,
           "name": "connect_authenticated_report"
         }
       ],
@@ -97823,6 +97803,158 @@
       "title": "use mini_crypto::hash::blake3_256;"
     },
     {
+      "bytes": 9797,
+      "group": "crate:mini-transport-security",
+      "headings": [],
+      "keywords": [
+        "gateerror",
+        "std",
+        "fmt",
+        "source",
+        "meter",
+        "self",
+        "frame",
+        "work",
+        "admissiongate",
+        "transport",
+        "admissionmeter",
+        "bearer",
+        "server",
+        "connection",
+        "new",
+        "admission",
+        "hello",
+        "quote",
+        "ipaddr",
+        "arc",
+        "mutex",
+        "write_str",
+        "free_bits",
+        "error"
+      ],
+      "lines": 270,
+      "path": "crates/mini-transport-security/src/admission_gate.rs",
+      "sha256": "2a2f4f1b114e48e605fb404eb9dff56408c5e9e9bf909aff9c4f3966112f186e",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 27,
+          "name": "FREE_BITS"
+        },
+        {
+          "kind": "const",
+          "line": 30,
+          "name": "CLIENT_MAX_BITS"
+        },
+        {
+          "kind": "const",
+          "line": 31,
+          "name": "MAGIC"
+        },
+        {
+          "kind": "enum",
+          "line": 35,
+          "name": "GateError"
+        },
+        {
+          "kind": "impl",
+          "line": 48,
+          "name": "std::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 49,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 63,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "fn",
+          "line": 65,
+          "name": "transport"
+        },
+        {
+          "kind": "fn",
+          "line": 70,
+          "name": "new_meter"
+        },
+        {
+          "kind": "fn",
+          "line": 78,
+          "name": "source_key"
+        },
+        {
+          "kind": "struct",
+          "line": 95,
+          "name": "AdmissionGate"
+        },
+        {
+          "kind": "impl",
+          "line": 100,
+          "name": "std::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 106,
+          "name": "AdmissionGate"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 117,
+          "name": "check"
+        },
+        {
+          "kind": "fn",
+          "line": 151,
+          "name": "client_response"
+        },
+        {
+          "kind": "mod",
+          "line": 177,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 181,
+          "name": "policy"
+        },
+        {
+          "kind": "fn",
+          "line": 194,
+          "name": "ipv6_sources_are_metered_per_slash_64"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "free_tier_then_proof_then_refusal_over_an_in_process_bearer"
+        },
+        {
+          "kind": "fn",
+          "line": 235,
+          "name": "a_client_that_skips_the_work_is_dropped"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
+          "name": "an_excessive_demand_is_reported_as_busy"
+        }
+      ],
+      "title": "use crate::admission::{solve, AdmissionMeter, AdmissionPolicy, Quote};"
+    },
+    {
       "bytes": 20650,
       "group": "crate:mini-transport-security",
       "headings": [],
@@ -98553,7 +98685,7 @@
       "title": "use mini_privacy_policy::PrivacyTier;"
     },
     {
-      "bytes": 2522,
+      "bytes": 2725,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -98561,6 +98693,7 @@
         "runtime",
         "selection",
         "admission",
+        "admission_gate",
         "auth",
         "error",
         "gate",
@@ -98579,12 +98712,11 @@
         "optional",
         "authentication",
         "secure",
-        "discovery",
-        "above"
+        "discovery"
       ],
-      "lines": 60,
+      "lines": 65,
       "path": "crates/mini-transport-security/src/lib.rs",
-      "sha256": "37a7245d491294e95064397a06c5da40d15268c2ac04ec383e2e6d228ec1283d",
+      "sha256": "7076a1ebfb14353917e4512920e2c86c7d0aaf6d3a675b00941a89ee45b4da29",
       "symbols": [
         {
           "kind": "mod",
@@ -98594,41 +98726,46 @@
         {
           "kind": "mod",
           "line": 25,
-          "name": "advertisement"
+          "name": "admission_gate"
         },
         {
           "kind": "mod",
           "line": 26,
-          "name": "auth"
+          "name": "advertisement"
         },
         {
           "kind": "mod",
           "line": 27,
-          "name": "codec"
+          "name": "auth"
         },
         {
           "kind": "mod",
           "line": 28,
-          "name": "error"
+          "name": "codec"
         },
         {
           "kind": "mod",
           "line": 29,
-          "name": "gate"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 30,
-          "name": "replay"
+          "name": "gate"
         },
         {
           "kind": "mod",
           "line": 31,
-          "name": "runtime"
+          "name": "replay"
         },
         {
           "kind": "mod",
           "line": 32,
+          "name": "runtime"
+        },
+        {
+          "kind": "mod",
+          "line": 33,
           "name": "selection"
         }
       ],
@@ -103135,38 +103272,38 @@
       "title": "use did_mini::{Controller, Did, IndexedSig};"
     },
     {
-      "bytes": 6166,
+      "bytes": 7766,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
-        "honest",
-        "sybils",
         "usize",
+        "sybils",
+        "honest",
         "did",
         "colluders",
-        "seeds",
+        "honest_n",
         "quota",
+        "seeds",
         "lcg",
         "edge",
+        "outcome",
         "collect",
         "const",
         "u64",
         "attack_edges",
         "next",
-        "outcome",
         "sybil",
         "trust",
         "median",
-        "passing_sybils",
         "vec",
         "map",
         "iter",
         "cluster",
-        "one"
+        "spent"
       ],
-      "lines": 172,
+      "lines": 205,
       "path": "crates/mini-uniqueness/tests/adversarial_sim.rs",
-      "sha256": "d61a4b18ea42567e2a5582140adf0f55dc147e5697d46eec2332f183a3fb4f27",
+      "sha256": "6476efcabb1d715d741d6a38426ea7dc23dfc69b6bc349125a97f240e8e640f3",
       "symbols": [
         {
           "kind": "const",
@@ -103235,13 +103372,28 @@
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 67,
+          "name": "run_with"
+        },
+        {
+          "kind": "fn",
+          "line": 133,
           "name": "few_colluding_mature_credentials_cannot_lift_a_sybil_cluster"
         },
         {
           "kind": "fn",
-          "line": 159,
+          "line": 163,
           "name": "mass_collusion_is_a_documented_limit_of_the_graph_signal_alone"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "colluders_to_lift_cluster"
+        },
+        {
+          "kind": "fn",
+          "line": 188,
+          "name": "price_of_a_cluster_rises_with_a_stricter_quota_and_a_larger_honest_network"
         }
       ],
       "title": "use did_mini::{Controller, Did};"
@@ -112758,7 +112910,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 17058,
+      "bytes": 17793,
       "group": "docs",
       "headings": [
         {
@@ -112860,6 +113012,11 @@
           "level": 2,
           "line": 277,
           "text": "Escalating admission cost is live on `mini service run`"
+        },
+        {
+          "level": 2,
+          "line": 282,
+          "text": "Admission cost: more listeners"
         }
       ],
       "keywords": [
@@ -112888,9 +113045,9 @@
         "target",
         "what"
       ],
-      "lines": 281,
+      "lines": 286,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "981603fcf753c07b6c4cc508adac5039885a39d49a9a43908d630219ac16bc2f",
+      "sha256": "09e1633880f0e4f43f63b4378dab148a2403e12d855eaaffab7378097ec5a3e0",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -123511,7 +123668,7 @@
       "title": "Reusable offline allowances and private account settlement"
     },
     {
-      "bytes": 10453,
+      "bytes": 11485,
       "group": "docs",
       "headings": [
         {
@@ -123568,6 +123725,11 @@
           "level": 2,
           "line": 121,
           "text": "Adversarial simulation findings (graph signal only)"
+        },
+        {
+          "level": 3,
+          "line": 137,
+          "text": "Price of a cluster (extended simulation)"
         }
       ],
       "keywords": [
@@ -123596,9 +123758,9 @@
         "implemented",
         "first"
       ],
-      "lines": 136,
+      "lines": 148,
       "path": "docs/design/humanness-score-and-peer-vouching-proposal.md",
-      "sha256": "c46b973dc1c2839ee979bb369da1583a82f80cad33e23d6130c4e929302b144c",
+      "sha256": "d34caca1f85abb7d4a41aa24c1b19f7ac58cabbfc9b0f88de169d6eaf1321f9c",
       "symbols": [],
       "title": "Humanness score, peer vouching, and audited thresholds \u2014 founder proposal mapped to the tree"
     },

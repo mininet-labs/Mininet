@@ -22,6 +22,7 @@
 #![warn(missing_debug_implementations)]
 
 mod admission;
+mod admission_gate;
 mod advertisement;
 mod auth;
 mod codec;
@@ -34,6 +35,10 @@ mod selection;
 pub use admission::{
     solve as solve_admission_work, work_hash as admission_work_hash, AdmissionMeter,
     AdmissionPolicy, Quote as AdmissionQuote, Refused as AdmissionRefused,
+};
+pub use admission_gate::{
+    client_response as admission_client_response, new_meter as new_admission_meter, source_key,
+    AdmissionGate, GateError, CLIENT_MAX_BITS, FREE_BITS,
 };
 pub use advertisement::{
     PeerAdvertisement, SecurePexResponse, VerifiedPeerAdvertisement, MAX_PEER_ADVERTISEMENT_BYTES,

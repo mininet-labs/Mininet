@@ -84,12 +84,17 @@ pub fn listen(home: &Path, store_path: &Path, addr: &str, times: u32) -> Result<
 
     let listener = TcpListener::bind(addr).map_err(|e| CliError::Io(e.to_string()))?;
     let mut reports = Vec::with_capacity(times.max(1) as usize);
+    // One meter across the repeat loop: a source that reconnects repeatedly
+    // pays escalating work (see `admission_gate`).
+    let admission = crate::admission_gate::new_meter();
     for _ in 0..times.max(1) {
         let (stream, peer) = listener.accept().map_err(|e| CliError::Io(e.to_string()))?;
         let mut bearer =
             TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
 
         let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+        crate::admission_gate::Gate::new(admission.clone(), peer.ip())
+            .check(&mut bearer, &hello)?;
         let (mut chan, response) =
             Responder::respond(&hello).map_err(|e| CliError::Sync(e.to_string()))?;
         bearer
@@ -147,7 +152,7 @@ pub fn connect_report(home: &Path, store_path: &Path, addr: &str) -> Result<Inge
     bearer
         .send(&hello)
         .map_err(|e| CliError::Sync(e.to_string()))?;
-    let response = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    let response = crate::admission_gate::client_response(&mut bearer, &hello)?;
     let mut chan = init
         .finish(&response)
         .map_err(|e| CliError::Sync(e.to_string()))?;

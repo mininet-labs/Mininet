@@ -255,7 +255,7 @@ impl<V: IdentityVault> Core<V> {
                         .expect("bound listener")
                         .accept();
                     match accepted {
-                        Ok((stream, _)) => {
+                        Ok((stream, source)) => {
                             // Windows accepted sockets inherit the listener's
                             // non-blocking mode; the handshake needs blocking I/O.
                             stream.set_nonblocking(false).map_err(io)?;
@@ -275,6 +275,10 @@ impl<V: IdentityVault> Core<V> {
                                 &peer.device,
                                 &mut self.store,
                                 crate::now_ms(),
+                                Some(&mini_transport_security::AdmissionGate::new(
+                                    self.delivery_admission.clone(),
+                                    source.ip(),
+                                )),
                                 &self.delivery_interrupt,
                             );
                             // Storage may have committed even when the ack was lost.
