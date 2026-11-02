@@ -21,6 +21,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod admission;
 mod advertisement;
 mod auth;
 mod codec;
@@ -30,6 +31,10 @@ mod replay;
 mod runtime;
 mod selection;
 
+pub use admission::{
+    solve as solve_admission_work, work_hash as admission_work_hash, AdmissionMeter,
+    AdmissionPolicy, Quote as AdmissionQuote, Refused as AdmissionRefused,
+};
 pub use advertisement::{
     PeerAdvertisement, SecurePexResponse, VerifiedPeerAdvertisement, MAX_PEER_ADVERTISEMENT_BYTES,
     MAX_PEER_ADVERTISEMENT_LIFETIME_MS, MAX_SECURE_PEX_BYTES, MAX_SECURE_PEX_RECORDS,
