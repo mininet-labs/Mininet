@@ -26391,3 +26391,50 @@ settlement path when D-0047 clears; apply `comment_fees` on arrival at hosts;
 a collusion study on ticket issuance (roadmap #18 for Sybil).
 
 **Supersedes / superseded by:** extends D-0543 and D-0544; supersedes neither.
+
+
+### D-0546 — The fast-rising fee covers every spammable action, not only comments  ·  *Shipped*
+
+**Decision:** founder direction ("on all spammable action") extends D-0544's
+escalation from comments to every cheap, repeatable action. `mini_ticket::
+action_fee` prices seven kinds, each with its own free allowance per trailing
+hour and a small base that **doubles with every further action of that kind**
+in the window (capped at 20 doublings): posts (5 free, base 10 micro-MINI),
+comments (3, 10), likes/votes including withdrawals (30, 1), follows (20, 5),
+community joins/leaves (10, 10), community creation (1, 100) and media uploads
+(3, 50). The fee is owed by the author, computed from the author's own signed
+objects. It is shared among the hosts that kept the object available
+(`host_shares`, completed media counted for its manifest), and `Ledger` reports
+`action_fees_owed_micro` / `action_fees_earned_micro`. The desktop refreshes
+the next price of each kind every few seconds, shows a banner whenever any is
+above zero, and a notice in the comment composers. `comment_fee` becomes
+`action_fee` (it had not shipped beyond one day).
+
+**Reason:** limiting the escalation to comments left posts, likes, follows and
+joins free to flood. Allowances are set so ordinary use never pays.
+
+**Constitutional impact:** Directive 5, Directive 16, Directive 18, P1,
+constitution principle 7 (open participation: nobody is blocked, only priced).
+No dependency edge changed; no vote conferred; no Tier-F row touched.
+Unaudited value-adjacent prototype; D-0037/D-0047 gate unchanged.
+
+**Implementation status:** shipped in `mini-ticket` (`action_fee`, ledger
+fields, 3 tests covering every kind) and `mini-desktop` (price cache, banner,
+Earnings lines).
+
+**Failure point:** allowances and bases are unmeasured starting points, so an
+honest heavy user (a very active liker) could be priced and a patient flooder
+could stay under an allowance. Object times are author-declared, so backdating
+spreads actions across windows until hosts apply the fee on arrival. The fee is
+per identity root; many roots multiply the allowances (Sybil flooding is the
+personhood layer's job). Nothing is charged or paid. Toggling a like counts as
+actions. Chat messages and encrypted private objects are not priced (their
+type is not visible to this crate).
+
+**Required follow-up:** measure real usage to tune allowances; apply the fee
+on arrival at hosts; price private/encrypted traffic by another mechanism
+(admission cost already exists at the transport layer); wire into the audited
+settlement path when D-0047 clears.
+
+**Supersedes / superseded by:** extends D-0544 and D-0545 (their comment-only
+scope and `comment_fee` names); supersedes neither.

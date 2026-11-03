@@ -29,7 +29,7 @@
 
 #![forbid(unsafe_code)]
 
-pub mod comment_fee;
+pub mod action_fee;
 
 use did_mini::{Controller, Did};
 use mini_media::read_manifest;
@@ -572,11 +572,11 @@ pub struct Ledger {
     pub issued: Vec<ServiceTicket>,
     /// Bytes `me` received according to issued tickets.
     pub bytes_received: u64,
-    /// Micro-MINI `me` owes in comment fees (see [`comment_fee`]).
-    pub comment_fees_owed_micro: u64,
-    /// Micro-MINI `me` earned as a host that kept fee-bearing comments
-    /// available (see [`comment_fee::host_shares`]).
-    pub comment_fees_earned_micro: u64,
+    /// Micro-MINI `me` owes in action fees (see [`action_fee`]).
+    pub action_fees_owed_micro: u64,
+    /// Micro-MINI `me` earned as a host that kept fee-bearing objects
+    /// available (see [`action_fee::host_shares`]).
+    pub action_fees_earned_micro: u64,
     /// Micro-MINI `me` owes others for what it received.
     pub owed_micro: u64,
     /// Of `owed_micro`: what goes to the hosts who served it (seeders).
@@ -677,8 +677,8 @@ impl Ledger {
                 });
             }
         }
-        ledger.comment_fees_owed_micro = comment_fee::comment_fees(store, me)?.total_micro;
-        ledger.comment_fees_earned_micro = comment_fee::host_shares(store, &deduped)?
+        ledger.action_fees_owed_micro = action_fee::action_fees(store, me)?.total_micro;
+        ledger.action_fees_earned_micro = action_fee::host_shares(store, &deduped)?
             .get(me.as_str())
             .copied()
             .unwrap_or(0);

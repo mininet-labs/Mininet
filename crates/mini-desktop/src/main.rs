@@ -294,6 +294,10 @@ struct MininetApp {
     storage: Option<(u8, u64)>,
     storage_rx: Option<Receiver<Result<AppReply, String>>>,
     storage_due: Instant,
+    /// Price of the next action of each kind, refreshed every few seconds;
+    /// only kinds above zero are kept.
+    fee_prices: Vec<(mini_ticket::action_fee::ActionKind, u64)>,
+    fee_due: Instant,
     /// How long other people's cached content is kept: 0 short, 1 standard,
     /// 2 long, 3 never delete. `None` until the core has answered.
     cache_retention: Option<u8>,
@@ -1556,6 +1560,8 @@ impl Default for MininetApp {
             storage: None,
             storage_rx: None,
             storage_due: Instant::now(),
+            fee_prices: Vec::new(),
+            fee_due: Instant::now(),
             cache_retention: None,
             retention_rx: None,
             vote_rx: None,
@@ -1848,6 +1854,7 @@ impl eframe::App for MininetApp {
         self.poll_app_service();
         self.poll_storage();
         self.poll_vote();
+        self.refresh_fee_prices();
         self.poll_profile_photo();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
@@ -1910,6 +1917,14 @@ impl eframe::App for MininetApp {
             egui::TopBottomPanel::top("storage-warning").show(ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.label(storage_warning_text(level, free_mib));
+                });
+            });
+        }
+        if !self.fee_prices.is_empty() {
+            let text = self.fee_banner_text();
+            egui::TopBottomPanel::top("fee-warning").show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.colored_label(theme::WARN_AMBER, text);
                 });
             });
         }
@@ -5491,7 +5506,7 @@ No tracking. No forced updates.",
                         .desired_width(f32::INFINITY)
                         .desired_rows(2),
                 );
-                if let Some(notice) = self.comment_fee_notice() {
+                if let Some(notice) = self.action_fee_notice(mini_ticket::action_fee::ActionKind::Comment) {
                     ui.colored_label(theme::WARN_AMBER, notice);
                 }
                 ui.checkbox(
@@ -6998,21 +7013,21 @@ No tracking. No forced updates.",
                 mini_ticket::CREATOR_FLOOR_BPS / 100,
             ),
         );
-        if ledger.comment_fees_earned_micro > 0 {
+        if ledger.action_fees_earned_micro > 0 {
             theme::muted(
                 ui,
                 &format!(
-                    "Earned from comment fees as a host that kept those comments available: {}.",
-                    mini(ledger.comment_fees_earned_micro)
+                    "Earned from action fees as a host that kept those posts, comments and reactions available: {}.",
+                    mini(ledger.action_fees_earned_micro)
                 ),
             );
         }
-        if ledger.comment_fees_owed_micro > 0 {
+        if ledger.action_fees_owed_micro > 0 {
             ui.colored_label(
                 theme::WARN_AMBER,
                 format!(
-                    "Comment fees you owe: {}. Commenting is free up to a few comments an hour; past that the fee doubles with each comment, to keep spam expensive.",
-                    mini(ledger.comment_fees_owed_micro)
+                    "Fees you owe for heavy use: {}. Every kind of action (posts, comments, likes, follows, joins, uploads) is free up to an allowance per hour; past that the fee doubles with each extra one, to keep spam expensive.",
+                    mini(ledger.action_fees_owed_micro)
                 ),
             );
         }
@@ -7845,7 +7860,9 @@ No tracking. No forced updates.",
                         .desired_rows(2)
                         .desired_width(f32::INFINITY),
                 );
-                if let Some(notice) = self.comment_fee_notice() {
+                if let Some(notice) =
+                    self.action_fee_notice(mini_ticket::action_fee::ActionKind::Comment)
+                {
                     ui.colored_label(theme::WARN_AMBER, notice);
                 }
                 ui.checkbox(
@@ -8128,20 +8145,71 @@ No tracking. No forced updates.",
         }
     }
 
-    /// A plain-language price notice for the next comment, or `None` while it
-    /// is still free (the first few comments in an hour carry no fee).
-    fn comment_fee_notice(&self) -> Option<String> {
-        let workspace = self.workspace.as_ref()?;
-        let me = workspace.human.as_ref()?;
-        let fee =
-            mini_ticket::comment_fee::next_comment_fee(&workspace.store, me, now_ms()).ok()?;
-        (fee > 0).then(|| {
-            format!(
-                "Heads up: your next comment carries a fee of {}.{:06} MINI because you have commented a lot in the last hour. The fee doubles with each extra comment and resets as the hour passes.",
-                fee / 1_000_000,
-                fee % 1_000_000
-            )
-        })
+    /// Re-read what each kind of action would cost next. Cheap enough to run
+    /// every few seconds; most of the time every price is zero.
+    fn refresh_fee_prices(&mut self) {
+        if Instant::now() < self.fee_due {
+            return;
+        }
+        self.fee_due = Instant::now() + Duration::from_secs(5);
+        let prices = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| {
+                let me = workspace.human.as_ref()?;
+                Some(
+                    mini_ticket::action_fee::ALL_KINDS
+                        .iter()
+                        .filter_map(|kind| {
+                            let fee = mini_ticket::action_fee::next_action_fee(
+                                &workspace.store,
+                                me,
+                                *kind,
+                                now_ms(),
+                            )
+                            .ok()?;
+                            (fee > 0).then_some((*kind, fee))
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .unwrap_or_default();
+        self.fee_prices = prices;
+    }
+
+    fn fee_banner_text(&self) -> String {
+        let parts: Vec<String> = self
+            .fee_prices
+            .iter()
+            .map(|(kind, fee)| {
+                format!(
+                    "{} {}.{:06} MINI",
+                    kind.label(),
+                    fee / 1_000_000,
+                    fee % 1_000_000
+                )
+            })
+            .collect();
+        format!(
+            "Slow down: you have done a lot in the last hour. Your next {}. The fee doubles with each extra action of the same kind and resets as the hour passes.",
+            parts.join(", ")
+        )
+    }
+
+    /// A plain-language price notice for the next action of `kind`, or `None`
+    /// while it is still free.
+    fn action_fee_notice(&self, kind: mini_ticket::action_fee::ActionKind) -> Option<String> {
+        let fee = self
+            .fee_prices
+            .iter()
+            .find(|(k, _)| *k == kind)
+            .map(|(_, fee)| *fee)?;
+        Some(format!(
+            "Heads up: your next {} carries a fee of {}.{:06} MINI because you have done a lot of them in the last hour. The fee doubles with each extra one and resets as the hour passes.",
+            kind.label(),
+            fee / 1_000_000,
+            fee % 1_000_000
+        ))
     }
 
     fn membership_can_join(&self, id: &mini_objects::ObjectId) -> bool {
@@ -8276,7 +8344,9 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed discussion object",
             );
-            if let Some(notice) = self.comment_fee_notice() {
+            if let Some(notice) =
+                self.action_fee_notice(mini_ticket::action_fee::ActionKind::Comment)
+            {
                 ui.colored_label(theme::WARN_AMBER, notice);
             }
             if ui.add(theme::primary_button("Post discussion")).clicked() {
@@ -8464,7 +8534,9 @@ No tracking. No forced updates.",
                             .desired_rows(2)
                             .desired_width(f32::INFINITY),
                     );
-                    if let Some(notice) = self.comment_fee_notice() {
+                    if let Some(notice) =
+                        self.action_fee_notice(mini_ticket::action_fee::ActionKind::Comment)
+                    {
                         ui.colored_label(theme::WARN_AMBER, notice);
                     }
                     ui.checkbox(
