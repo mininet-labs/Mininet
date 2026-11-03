@@ -1,7 +1,8 @@
 //! Community votes: a reddit-style up/down vote on any object (a post, a
 //! proposal written as a post), counted for a community at a chosen close time.
 //!
-//! No new wire format: ballots are the existing `Upvote`/`Downvote` reactions.
+//! No new wire format: ballots are the existing `Upvote`/`Like` (yes) and
+//! `Downvote` (no) reactions.
 //! A ballot counts only if its author is a current member of the community and
 //! has **Full** standing when voting closes (see `mini-uniqueness`' `tally`);
 //! a member who is not yet Full is reported as *not counted*, never
@@ -64,7 +65,8 @@ pub fn community_vote<B: Backend>(
             continue;
         }
         let in_favour = match ReactionKind::from_byte(bytes[0]) {
-            Some(ReactionKind::Upvote) => true,
+            // The app's ⬆ arrow publishes a Like; both mean "yes".
+            Some(ReactionKind::Upvote | ReactionKind::Like) => true,
             Some(ReactionKind::Downvote) => false,
             _ => continue,
         };
