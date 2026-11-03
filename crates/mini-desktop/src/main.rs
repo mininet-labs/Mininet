@@ -6989,6 +6989,32 @@ No tracking. No forced updates.",
         theme::muted(
             ui,
             &format!(
+                "Of what you owe: {} to the hosts who served you (seeders), {} to the authors of the content (owners). Authors earn at least {}% of what is attributed to their content.",
+                mini(ledger.owed_to_hosts_micro),
+                mini(ledger.owed_to_creators_micro),
+                mini_ticket::CREATOR_FLOOR_BPS / 100,
+            ),
+        );
+        if !ledger.costs.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                theme::section_title(ui, "What you paid for");
+                for line in ledger.costs.iter().rev().take(10) {
+                    let owners: u64 = line.creator_micro.values().sum();
+                    ui.label(format!(
+                        "{} · {} received · seeder {} {} · owners {}",
+                        timeline::age(line.ticket.timestamp_ms, now_ms()),
+                        library::human_size(line.ticket.fields.bytes_received),
+                        short_did(line.ticket.fields.provider.as_str()),
+                        mini(line.host_micro),
+                        mini(owners),
+                    ));
+                }
+            });
+            ui.add_space(8.0);
+        }
+        theme::muted(
+            ui,
+            &format!(
                 "Unsettled credit from {} ticket(s) naming you, {} you issued · served {} · received {}. {} duplicate(s) ignored{}.",
                 ledger.as_host.len(),
                 ledger.issued.len(),
@@ -7051,7 +7077,7 @@ No tracking. No forced updates.",
                     }
                 }
             });
-            theme::muted(ui, "Each exchange agrees a rate: the provider's ask, capped by the receiver's ceiling. The agreed rate is written into the ticket, so both ledgers compute the same credit. Media bytes are split between the host and the manifest's author by the creator share.");
+            theme::muted(ui, "Each exchange agrees a rate: the provider's ask, capped by the receiver's ceiling. The agreed rate is written into the ticket, so both ledgers compute the same credit. New tickets also carry the creator share (never below the published floor) and list the posts and media received, so every author earns, not only media creators. The share below applies only to older tickets that carry none.");
         });
         ui.add_space(8.0);
         theme::card_frame().show(ui, |ui| {

@@ -26252,3 +26252,55 @@ sufficient headroom — not expected to matter on any realistic timeline.
 
 **Supersedes / superseded by:** none. Extends D-0021; no prior decision on
 extensibility testing existed to supersede.
+
+
+### D-0543 — Service ticket v2: a signed creator share, every received object attributed to its author, and a seeder/owner view of what you paid  ·  *Shipped*
+
+**Decision:** earnings and costs follow who owns content (its author) and who
+seeds it (the host who serves it), for every kind of content, not only media.
+(1) A version-2 `mini-ticket` ticket carries the creator share the receiver
+agreed (basis points, signed with the ticket) and a list of the non-media
+objects received with their sizes; version-1 tickets still read and keep the
+old local-rate behavior. (2) `split_ticket` divides one ticket's price between
+the host and the authors of the attributed content; the ledger uses it for
+both earnings and the receiver's costs (`owed_to_hosts_micro`,
+`owed_to_creators_micro`, one `costs` line per exchange). (3) A signed share is
+raised to a published floor (`CREATOR_FLOOR_BPS`, 20%) so a receiver and a host
+cannot sign authors out of their share. (4) A receiver never owes themselves:
+bytes of content the receiver authored go to the host. (5) The desktop issues
+v2 tickets for public exchanges and the Earnings view shows the seeder/owner
+split of what was paid.
+
+**Reason:** before this, the split was whatever each ledger's local setting
+said (and a redemption stated its own), only completed media paid an author,
+and a receiver saw one "owed" total. Directive 5 (evidence, not final
+ownership) is kept: this is still unsettled credit.
+
+**Constitutional impact:** Directive 5, Directive 16, Directive 18, P1. No
+dependency edge changed: `mini-ticket` stays a leaf with no value or
+governance dependency; a ticket carries no vote. No Tier-F row touched.
+Unaudited value-adjacent prototype; D-0037/D-0047 gate unchanged.
+
+**Implementation status:** shipped in `mini-ticket` (encoding, `split_ticket`,
+ledger costs, floor, 5 new tests), `mini-desktop` (`peer_link` fills the new
+fields from a before/after snapshot of the store; Earnings shows costs).
+
+**Failure point:** attribution trusts the receiver's list of received objects;
+a receiver can omit objects (authors then earn less) but cannot add money.
+A host can still ignore authors off-ledger; the floor only binds the ledger
+and any redemption that uses `split_ticket`. Redemption requests still state a
+rate and share of their own; settlement must use the tickets' signed share,
+not the request's. Private-route exchanges (encrypted) attribute nothing. The
+creator share is one global default (30%, floor 20%); there is no per-owner
+royalty and no price negotiation per content kind. Counts identity roots, not
+humans; no Sybil defence. Content not on the device at ledger time cannot be
+attributed and is credited to the host.
+
+**Required follow-up:** make the audited settlement layer read the ticket's
+signed share via `split_ticket` (not the redemption's stated share); decide
+whether owners may set a per-content royalty (and where it is signed); ticket
+pruning and aggregation (D-0417 follow-up); Sybil/personhood for payout
+eligibility (roadmap #18).
+
+**Supersedes / superseded by:** extends the ticket decision (creator share and
+host split) without superseding it; version-1 tickets remain valid.
