@@ -29,7 +29,7 @@
 
 #![forbid(unsafe_code)]
 
-pub mod comment_fee;
+pub mod action_fee;
 
 use did_mini::{Controller, Did};
 use mini_media::read_manifest;
@@ -572,8 +572,11 @@ pub struct Ledger {
     pub issued: Vec<ServiceTicket>,
     /// Bytes `me` received according to issued tickets.
     pub bytes_received: u64,
-    /// Micro-MINI `me` owes in comment fees (see [`comment_fee`]).
-    pub comment_fees_owed_micro: u64,
+    /// Micro-MINI `me` owes in action fees (see [`action_fee`]).
+    pub action_fees_owed_micro: u64,
+    /// Micro-MINI `me` earned as a host that kept fee-bearing objects
+    /// available (see [`action_fee::host_shares`]).
+    pub action_fees_earned_micro: u64,
     /// Micro-MINI `me` owes others for what it received.
     pub owed_micro: u64,
     /// Of `owed_micro`: what goes to the hosts who served it (seeders).
@@ -596,6 +599,7 @@ impl Ledger {
             .by_type(&ObjectType::Custom(TICKET_TYPE.into()))
             .map_err(|error| TicketError::Store(error.to_string()))?;
         let mut ledger = Ledger::default();
+        let mut deduped: Vec<ServiceTicket> = Vec::new();
         let mut seen: BTreeSet<(String, [u8; 32])> = BTreeSet::new();
         let mut tickets: Vec<ServiceTicket> = Vec::new();
         for id in ids {
@@ -617,6 +621,7 @@ impl Ledger {
                 ledger.duplicates += 1;
                 continue;
             }
+            deduped.push(ticket.clone());
             let split = split_ticket(store, &ticket, rate.creator_bps)?;
             if &ticket.consumer == me {
                 ledger.bytes_received = ledger
@@ -672,7 +677,11 @@ impl Ledger {
                 });
             }
         }
-        ledger.comment_fees_owed_micro = comment_fee::comment_fees(store, me)?.total_micro;
+        ledger.action_fees_owed_micro = action_fee::action_fees(store, me)?.total_micro;
+        ledger.action_fees_earned_micro = action_fee::host_shares(store, &deduped)?
+            .get(me.as_str())
+            .copied()
+            .unwrap_or(0);
         Ok(ledger)
     }
 }
@@ -825,6 +834,42 @@ pub fn verify_redemption<B: Backend>(store: &Store<B>, request: &RedemptionReque
     Ok(())
 }
 
+/// What a verified redemption request divides into: the host's part and each
+/// author's part, computed from the tickets' own signed shares (raised to the
+/// floor), never from the share the request states. The settlement layer
+/// should read this, not the request's `rate.creator_bps`; that field only
+/// matters for version-1 tickets, which carry no signed share.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RedemptionSplit {
+    pub host_micro: u64,
+    pub creator_micro: BTreeMap<String, u64>,
+}
+
+/// Verify `request` and divide what it claims between host and authors.
+pub fn settle_split<B: Backend>(
+    store: &Store<B>,
+    request: &RedemptionRequest,
+) -> Result<RedemptionSplit> {
+    verify_redemption(store, request)?;
+    let mut out = RedemptionSplit::default();
+    for id in &request.tickets {
+        let object = store
+            .get(id)
+            .map_err(|_| TicketError::TicketMissing(id.clone()))?;
+        let ticket = read_ticket(&object)?;
+        let split = split_ticket(store, &ticket, request.rate.creator_bps)?;
+        out.host_micro = out
+            .host_micro
+            .checked_add(split.host_micro)
+            .ok_or(TicketError::Overflow)?;
+        for (author, micro) in split.creator_micro {
+            let entry = out.creator_micro.entry(author).or_insert(0);
+            *entry = entry.checked_add(micro).ok_or(TicketError::Overflow)?;
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -949,6 +994,45 @@ mod tests {
             cost.costs[0].creator_micro.get(author.did().as_str()),
             Some(&80)
         );
+    }
+
+    #[test]
+    fn settlement_uses_the_tickets_signed_share_not_the_requests() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (host, host_dev) = person(10);
+        let (consumer, consumer_dev) = person(20);
+        let (author, author_dev) = person(30);
+        let post = post_by(&author, &author_dev, &mut store, 1);
+        let mut f = fields(&host.did(), 1_000_000, Vec::new());
+        f.creator_bps = Some(4000);
+        f.served = vec![ServedObject {
+            object: post,
+            bytes: 1_000_000,
+        }];
+        let ticket = issue_ticket(&consumer.did(), &consumer_dev, &f, 10, 1).unwrap();
+        store.insert(&ticket).unwrap();
+        // 1 MB at 100 micro: the signed 40% gives the author 40, the host 60,
+        // whatever share the claimant writes into the request.
+        for stated in [0u16, 10_000] {
+            let rate = Rate {
+                micro_mini_per_mb: 100,
+                creator_bps: stated,
+            };
+            let request = build_redemption(
+                &store,
+                &host.did(),
+                &host_dev,
+                &[ticket.id().clone()],
+                rate,
+                20,
+                1 + u64::from(stated),
+            )
+            .unwrap();
+            let request = read_redemption(&request).unwrap();
+            let split = settle_split(&store, &request).unwrap();
+            assert_eq!(split.host_micro, 60);
+            assert_eq!(split.creator_micro.get(author.did().as_str()), Some(&40));
+        }
     }
 
     #[test]
