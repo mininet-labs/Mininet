@@ -537,6 +537,17 @@ impl Request {
                     ));
                 }
             }
+            Command::CommunityVote {
+                community_id,
+                target_id,
+                ..
+            } => {
+                for id in [community_id, target_id] {
+                    if id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES {
+                        return Err(ProtocolError::LimitExceeded("community vote object id"));
+                    }
+                }
+            }
             Command::StorageStatus
             | Command::CacheRetentionGet
             | Command::Status
@@ -704,6 +715,13 @@ pub enum Command {
     /// Free-space level of the device holding the profile. The core also runs
     /// its safe automatic clean-ups before answering.
     StorageStatus,
+    /// Count the up/down votes on `target_id` for `community_id` as of
+    /// `closes_at_ms` (member ballots only, one per identity root).
+    CommunityVote {
+        community_id: String,
+        target_id: String,
+        closes_at_ms: u64,
+    },
     /// Read how long other people's re-fetchable cached content is kept.
     CacheRetentionGet,
     /// Set the retention: 0 = short (7 days), 1 = standard (30 days),
@@ -891,6 +909,15 @@ pub enum Reply {
         level: u8,
         free_mib: u64,
         freed_kib: u64,
+    },
+    /// Result of [`Command::CommunityVote`]. `standing_checked` is false when
+    /// the device has no personhood evidence to judge who is at Full standing:
+    /// then every member's ballot is counted and the UI must say so.
+    CommunityVote {
+        yes: u32,
+        no: u32,
+        not_counted: u32,
+        standing_checked: bool,
     },
     /// Current cache retention (see [`Command::CacheRetentionSet`]) and how
     /// much cached content the last automatic pass removed.
@@ -1121,6 +1148,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
     match command {
         Command::Status => encoder.u8(0),
         Command::StorageStatus => encoder.u8(47),
+        Command::CommunityVote {
+            community_id,
+            target_id,
+            closes_at_ms,
+        } => {
+            encoder.u8(50);
+            encoder.string(community_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.string(target_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u64(*closes_at_ms);
+        }
         Command::CacheRetentionGet => encoder.u8(48),
         Command::CacheRetentionSet { value } => {
             encoder.u8(49);
@@ -1438,6 +1475,11 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
     match decoder.u8()? {
         0 => Ok(Command::Status),
         47 => Ok(Command::StorageStatus),
+        50 => Ok(Command::CommunityVote {
+            community_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            target_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            closes_at_ms: decoder.u64()?,
+        }),
         48 => Ok(Command::CacheRetentionGet),
         49 => {
             let value = decoder.u8()?;
@@ -1862,6 +1904,18 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
             encoder.u8(46);
             encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
         }
+        Reply::CommunityVote {
+            yes,
+            no,
+            not_counted,
+            standing_checked,
+        } => {
+            encoder.u8(49);
+            encoder.u32(*yes);
+            encoder.u32(*no);
+            encoder.u32(*not_counted);
+            encoder.u8(u8::from(*standing_checked));
+        }
         Reply::CacheRetention { value, freed_kib } => {
             encoder.u8(48);
             encoder.u8(*value);
@@ -2009,6 +2063,16 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
         }),
         46 => Ok(Reply::BetaGrantCreated {
             grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        49 => Ok(Reply::CommunityVote {
+            yes: decoder.u32()?,
+            no: decoder.u32()?,
+            not_counted: decoder.u32()?,
+            standing_checked: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid standing flag".into())),
+            },
         }),
         48 => {
             let value = decoder.u8()?;
@@ -2919,6 +2983,11 @@ mod tests {
             Command::StorageStatus,
             Command::CacheRetentionGet,
             Command::CacheRetentionSet { value: 3 },
+            Command::CommunityVote {
+                community_id: "zcommunity".into(),
+                target_id: "zpost".into(),
+                closes_at_ms: 1234,
+            },
             policy_create(),
             Command::BetaGrantCreate {
                 operation_id: "op-6".to_string(),
@@ -2992,6 +3061,12 @@ mod tests {
             Reply::CacheRetention {
                 value: 1,
                 freed_kib: 2048,
+            },
+            Reply::CommunityVote {
+                yes: 3,
+                no: 1,
+                not_counted: 2,
+                standing_checked: false,
             },
         ] {
             let response = Response::ok(6, reply);

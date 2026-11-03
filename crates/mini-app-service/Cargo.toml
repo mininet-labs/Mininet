@@ -19,6 +19,7 @@ mini-app-protocol = { path = "../mini-app-protocol" }
 mini-durable = { path = "../mini-durable" }
 mini-objects = { path = "../mini-objects" }
 mini-social = { path = "../mini-social" }
+mini-uniqueness = { path = "../mini-uniqueness" }
 mini-store = { path = "../mini-store" }
 mini-sync = { path = "../mini-sync" }
 mini-windows-vault = { path = "../mini-windows-vault" }
