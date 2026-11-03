@@ -304,6 +304,34 @@ impl<V: IdentityVault> Core<V> {
                 policy_id,
                 grant_id,
             } => self.beta_grant_status(&policy_id, &grant_id),
+            Command::CommunityVote {
+                community_id,
+                target_id,
+                closes_at_ms,
+            } => {
+                let community = ObjectId::parse(&community_id).map_err(|_| {
+                    ServiceError::new(ErrorCode::BadRequest, "invalid community ID")
+                })?;
+                let target = ObjectId::parse(&target_id)
+                    .map_err(|_| ServiceError::new(ErrorCode::BadRequest, "invalid target ID"))?;
+                // This device has no personhood evidence store yet, so standing
+                // cannot be judged: every member's ballot is counted and the
+                // reply says so (`standing_checked: false`).
+                let vote = mini_social::community_vote(
+                    &self.store,
+                    &community,
+                    &target,
+                    closes_at_ms,
+                    |_| mini_uniqueness::Standing::Full,
+                )
+                .map_err(storage_or_social)?;
+                Ok(Reply::CommunityVote {
+                    yes: vote.tally.yes,
+                    no: vote.tally.no,
+                    not_counted: vote.not_counted,
+                    standing_checked: false,
+                })
+            }
             Command::CacheRetentionGet => Ok(Reply::CacheRetention {
                 value: self.cache_retention.to_u8(),
                 freed_kib: self.cache_freed_bytes / 1024,
@@ -2845,6 +2873,7 @@ mod tests {
 
     mod beta_wallet_tests;
     mod cache_policy_tests;
+    mod community_vote_tests;
 
     #[derive(Debug, Clone)]
     struct MemoryVault {

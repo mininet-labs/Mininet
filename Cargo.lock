@@ -2710,6 +2710,7 @@ dependencies = [
  "mini-store",
  "mini-sync",
  "mini-transport-security",
+ "mini-uniqueness",
  "mini-windows-vault",
 ]
 
