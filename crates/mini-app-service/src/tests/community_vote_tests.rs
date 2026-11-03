@@ -83,3 +83,39 @@ fn a_community_vote_counts_member_ballots_and_says_standing_was_not_checked() {
         .unwrap_err();
     assert_eq!(bad.code, ErrorCode::BadRequest);
 }
+
+#[test]
+fn a_downvote_is_published_idempotently_and_conflicting_reuse_is_refused() {
+    let root = temp_root("downvote");
+    let mut core = Core::open_inner(root, MemoryVault::seeded(), false).unwrap();
+    core.handle(Command::UnlockIdentity).unwrap();
+    let Reply::Published(post) = core
+        .handle(Command::PublishPost {
+            operation_id: "post:1".into(),
+            text: "proposal".into(),
+        })
+        .unwrap()
+    else {
+        panic!("post");
+    };
+    let command = Command::SetDownvote {
+        operation_id: "down:1".into(),
+        target_id: post.object_id.clone(),
+        active: true,
+    };
+    let first = core.handle(command.clone()).unwrap();
+    let again = core.handle(command).unwrap();
+    let (Reply::Published(a), Reply::Published(b)) = (first, again) else {
+        panic!("published");
+    };
+    assert_eq!(a.object_id, b.object_id);
+    assert!(b.duplicate);
+    // A different payload under the same operation ID is refused.
+    assert!(core
+        .handle(Command::SetDownvote {
+            operation_id: "down:1".into(),
+            target_id: post.object_id,
+            active: false,
+        })
+        .is_err());
+}

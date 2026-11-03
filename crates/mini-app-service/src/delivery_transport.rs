@@ -192,14 +192,15 @@ pub(crate) fn public_object_view(object: &Object) -> Result<DeliveryObjectView, 
         }
         kind if *kind == ObjectType::REACTION => {
             let (target, kind, state) = mini_social::decode_reaction(object).map_err(rejected)?;
-            if kind != mini_social::ReactionKind::Like {
-                return Err(DeliveryFailure::Rejected);
-            }
+            let label = match (kind, state) {
+                (mini_social::ReactionKind::Like, true) => "Like",
+                (mini_social::ReactionKind::Like, false) => "Unlike",
+                (mini_social::ReactionKind::Downvote, true) => "Downvote",
+                (mini_social::ReactionKind::Downvote, false) => "Remove downvote",
+                _ => return Err(DeliveryFailure::Rejected),
+            };
             targets.push(target.as_str().into());
-            (
-                ObjectKind::Reaction,
-                if state { "Like" } else { "Unlike" }.into(),
-            )
+            (ObjectKind::Reaction, label.into())
         }
         kind if *kind == ObjectType::COMMENT => {
             let comment = mini_social::decode_comment(object).map_err(rejected)?;
