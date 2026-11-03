@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1278,
     "headings": 4268,
-    "rust_symbols": 15363
+    "rust_symbols": 15376
   },
   "crates": {
     "askama_derive": {
@@ -39365,7 +39365,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 451216,
+      "bytes": 452595,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -39394,9 +39394,9 @@
         "lockidentity",
         "lockafterprofile"
       ],
-      "lines": 10559,
+      "lines": 10585,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "ee672bc625543b53c19ed3f9e1eff39840dab957f2fd72dc74693b02577880bf",
+      "sha256": "40acffbc02ec7cff54a27eee1a1b449f3135d29094613b42ab990755d5c6564a",
       "symbols": [
         {
           "kind": "mod",
@@ -40940,15 +40940,15 @@
       "title": "use std::time::{Duration, Instant};"
     },
     {
-      "bytes": 44953,
+      "bytes": 47476,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "const",
         "self",
         "std",
-        "frame",
         "one",
+        "frame",
         "usize",
         "bearer",
         "sync",
@@ -40957,8 +40957,8 @@
         "new",
         "exchange",
         "boundedbearer",
-        "charge",
         "inner",
+        "charge",
         "intent",
         "protocol",
         "mini_bearer",
@@ -40969,403 +40969,413 @@
         "received",
         "send"
       ],
-      "lines": 1237,
+      "lines": 1304,
       "path": "crates/mini-desktop/src/peer_link.rs",
-      "sha256": "70aa3d1e71e925d27904aaec7177876f443730b0bd7676796e7eab8853d35d73",
+      "sha256": "32c9006e8efd4f6865a76f07f6ebde5ce8a8d77bbe480f6282dcafe0dee85cd2",
       "symbols": [
         {
           "kind": "const",
-          "line": 35,
+          "line": 36,
           "name": "INTENT_AAD"
         },
         {
           "kind": "const",
-          "line": 36,
+          "line": 37,
           "name": "INTENT_PUBLIC"
         },
         {
           "kind": "const",
-          "line": 37,
+          "line": 38,
           "name": "INTENT_PRIVATE"
         },
         {
           "kind": "const",
-          "line": 38,
+          "line": 39,
           "name": "INTENT_SEARCH"
         },
         {
           "kind": "const",
-          "line": 39,
+          "line": 40,
           "name": "INTENT_FETCH"
         },
         {
           "kind": "const",
-          "line": 40,
+          "line": 41,
           "name": "SEARCH_AAD"
         },
         {
           "kind": "const",
-          "line": 41,
+          "line": 42,
           "name": "FETCH_AAD"
         },
         {
           "kind": "const",
-          "line": 42,
+          "line": 43,
           "name": "MAX_SEARCH_RESULT_BYTES"
         },
         {
           "kind": "const",
-          "line": 44,
+          "line": 45,
           "name": "MAX_FORWARDED_PEERS"
         },
         {
           "kind": "const",
-          "line": 47,
+          "line": 48,
           "name": "FORWARD_DEADLINE"
         },
         {
           "kind": "const",
-          "line": 52,
+          "line": 53,
           "name": "MAX_REMEMBERED_ORIGINS"
         },
         {
           "kind": "const",
-          "line": 57,
+          "line": 58,
           "name": "FETCH_STATUS_SERVING"
         },
         {
           "kind": "const",
-          "line": 58,
+          "line": 59,
           "name": "FETCH_STATUS_FETCHING_FROM_ORIGIN"
         },
         {
           "kind": "const",
-          "line": 59,
+          "line": 60,
           "name": "FETCH_STATUS_UNKNOWN"
         },
         {
           "kind": "const",
-          "line": 61,
+          "line": 62,
           "name": "MAX_CONCURRENT_CONNECTIONS"
         },
         {
           "kind": "const",
-          "line": 62,
+          "line": 63,
           "name": "ACCEPT_POLL"
         },
         {
           "kind": "const",
-          "line": 66,
+          "line": 67,
           "name": "EXCHANGE_DEADLINE"
         },
         {
           "kind": "const",
-          "line": 68,
+          "line": 69,
           "name": "EXCHANGE_BYTE_BUDGET"
         },
         {
           "kind": "struct",
-          "line": 73,
+          "line": 74,
           "name": "BoundedBearer"
         },
         {
           "kind": "impl",
-          "line": 80,
+          "line": 81,
           "name": "BoundedBearer<B>"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 82,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 92,
           "name": "received_bytes"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 96,
           "name": "charge"
         },
         {
           "kind": "impl",
-          "line": 107,
+          "line": 108,
           "name": "Bearer"
         },
         {
           "kind": "fn",
-          "line": 108,
+          "line": 109,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 114,
           "name": "recv"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 122,
           "name": "try_recv"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 132,
           "name": "max_frame_bytes"
         },
         {
           "kind": "type",
-          "line": 136,
+          "line": 137,
           "name": "Link"
         },
         {
           "kind": "fn",
-          "line": 138,
+          "line": 139,
           "name": "bound"
         },
         {
           "kind": "fn",
-          "line": 142,
+          "line": 143,
           "name": "bound_within"
         },
         {
           "kind": "enum",
-          "line": 148,
+          "line": 149,
           "name": "Intent"
         },
         {
           "kind": "impl",
-          "line": 162,
+          "line": 163,
           "name": "Intent"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 164,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 196,
           "name": "decode"
         },
         {
           "kind": "enum",
-          "line": 234,
+          "line": 235,
           "name": "PrivateOutcome"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 242,
           "name": "resolve"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 250,
           "name": "connect"
         },
         {
           "kind": "fn",
-          "line": 253,
+          "line": 254,
           "name": "connect_within"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 272,
           "name": "accept"
         },
         {
           "kind": "fn",
-          "line": 283,
+          "line": 284,
           "name": "send_intent"
         },
         {
           "kind": "fn",
-          "line": 290,
+          "line": 291,
           "name": "recv_intent"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 299,
           "name": "public_summary"
         },
         {
           "kind": "const",
-          "line": 305,
+          "line": 306,
           "name": "HELLO_AAD"
         },
         {
           "kind": "const",
-          "line": 306,
+          "line": 307,
           "name": "TICKET_AAD"
         },
         {
           "kind": "const",
-          "line": 307,
+          "line": 308,
           "name": "MAX_HELLO_BYTES"
         },
         {
           "kind": "const",
-          "line": 308,
+          "line": 309,
           "name": "MAX_TICKET_OBJECT_BYTES"
         },
         {
           "kind": "const",
-          "line": 312,
+          "line": 313,
           "name": "TICKET_MIN_BYTES"
         },
         {
           "kind": "fn",
-          "line": 314,
+          "line": 315,
           "name": "send_sealed"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 327,
           "name": "recv_sealed"
         },
         {
           "kind": "struct",
-          "line": 343,
+          "line": 344,
           "name": "PeerHello"
         },
         {
           "kind": "fn",
-          "line": 352,
+          "line": 353,
           "name": "exchange_hello"
         },
         {
           "kind": "fn",
-          "line": 384,
+          "line": 385,
           "name": "my_rates"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 391,
           "name": "complete_manifests"
         },
         {
           "kind": "struct",
-          "line": 409,
+          "line": 410,
           "name": "TicketOutcome"
         },
         {
           "kind": "impl",
-          "line": 421,
+          "line": 422,
           "name": "TicketOutcome"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 423,
           "name": "summary"
         },
         {
           "kind": "fn",
-          "line": 449,
+          "line": 450,
           "name": "exchange_tickets"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 558,
           "name": "load_identity"
         },
         {
           "kind": "fn",
-          "line": 559,
+          "line": 567,
           "name": "dial_public"
         },
         {
           "kind": "fn",
-          "line": 607,
+          "line": 619,
+          "name": "all_known"
+        },
+        {
+          "kind": "fn",
+          "line": 629,
+          "name": "newly_served"
+        },
+        {
+          "kind": "fn",
+          "line": 665,
           "name": "newly_completed"
         },
         {
           "kind": "fn",
-          "line": 623,
+          "line": 681,
           "name": "dial_private"
         },
         {
           "kind": "fn",
-          "line": 678,
+          "line": 737,
           "name": "dial_search"
         },
         {
           "kind": "fn",
-          "line": 686,
+          "line": 745,
           "name": "dial_search_hops"
         },
         {
           "kind": "enum",
-          "line": 722,
+          "line": 781,
           "name": "FetchOutcome"
         },
         {
           "kind": "fn",
-          "line": 733,
+          "line": 792,
           "name": "dial_fetch"
         },
         {
           "kind": "fn",
-          "line": 785,
+          "line": 847,
           "name": "dial_fetch_patiently"
         },
         {
           "kind": "fn",
-          "line": 809,
+          "line": 871,
           "name": "origin_key"
         },
         {
           "kind": "fn",
-          "line": 813,
+          "line": 875,
           "name": "remember_origin"
         },
         {
           "kind": "fn",
-          "line": 828,
+          "line": 890,
           "name": "origin_of"
         },
         {
           "kind": "fn",
-          "line": 835,
+          "line": 897,
           "name": "proxy_fetch_in_flight"
         },
         {
           "kind": "fn",
-          "line": 848,
+          "line": 910,
           "name": "forwarded_results"
         },
         {
           "kind": "fn",
-          "line": 897,
+          "line": 959,
           "name": "start_proxy_fetch"
         },
         {
           "kind": "fn",
-          "line": 926,
+          "line": 988,
           "name": "serve"
         },
         {
           "kind": "enum",
-          "line": 1115,
+          "line": 1182,
           "name": "HostEvent"
         },
         {
           "kind": "fn",
-          "line": 1131,
+          "line": 1198,
           "name": "run_host"
         },
         {
           "kind": "mod",
-          "line": 1196,
+          "line": 1263,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 1200,
+          "line": 1267,
           "name": "intent_frames_round_trip_and_reject_wrong_lengths"
         },
         {
           "kind": "fn",
-          "line": 1221,
+          "line": 1288,
           "name": "bounded_bearer_stops_at_deadline_and_byte_budget"
         }
       ],
@@ -97562,38 +97572,38 @@
       "title": "LEAF: no mini-value / mini-bounty / mini-treasury, no mini-forge / mini-chain,"
     },
     {
-      "bytes": 31616,
+      "bytes": 43244,
       "group": "crate:mini-ticket",
       "headings": [],
       "keywords": [
         "ticketerror",
-        "service",
+        "one",
         "object",
         "write",
-        "one",
-        "std",
-        "tickets",
-        "const",
-        "self",
-        "fmt",
         "ticket",
+        "const",
+        "std",
+        "service",
+        "tickets",
+        "fmt",
+        "ledger",
         "result",
+        "signed",
         "provider",
         "error",
-        "code",
-        "str",
-        "ledger",
         "bytes",
-        "media",
+        "share",
         "author",
         "receiver",
         "store",
+        "usize",
         "redemption",
-        "match"
+        "self",
+        "str"
       ],
-      "lines": 879,
+      "lines": 1169,
       "path": "crates/mini-ticket/src/lib.rs",
-      "sha256": "90128ec9a10ac0868eda9535dbc7dc0ff69a0f3f896893fd17a0f974852db6d4",
+      "sha256": "5d197a1281973d0c614e473ac3d2c6172a6d0daf330eaa33ddca4048fd55e641",
       "symbols": [
         {
           "kind": "const",
@@ -97607,282 +97617,337 @@
         },
         {
           "kind": "const",
-          "line": 42,
+          "line": 44,
           "name": "TICKET_VERSION"
         },
         {
           "kind": "const",
-          "line": 43,
+          "line": 45,
+          "name": "TICKET_VERSION_V1"
+        },
+        {
+          "kind": "const",
+          "line": 46,
           "name": "REDEMPTION_VERSION"
         },
         {
           "kind": "const",
-          "line": 45,
+          "line": 48,
           "name": "MAX_TICKET_MANIFESTS"
         },
         {
           "kind": "const",
-          "line": 47,
+          "line": 51,
+          "name": "MAX_TICKET_SERVED"
+        },
+        {
+          "kind": "const",
+          "line": 56,
+          "name": "CREATOR_FLOOR_BPS"
+        },
+        {
+          "kind": "const",
+          "line": 58,
           "name": "MAX_REDEMPTION_TICKETS"
         },
         {
           "kind": "const",
-          "line": 48,
+          "line": 59,
           "name": "MAX_DID_BYTES"
         },
         {
           "kind": "enum",
-          "line": 51,
+          "line": 62,
           "name": "TicketError"
         },
         {
           "kind": "impl",
-          "line": 65,
+          "line": 76,
           "name": "std::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 66,
+          "line": 77,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 87,
+          "line": 98,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 89,
+          "line": 100,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 93,
+          "line": 104,
           "name": "Service"
         },
         {
           "kind": "impl",
-          "line": 100,
+          "line": 111,
           "name": "Service"
         },
         {
           "kind": "fn",
-          "line": 101,
+          "line": 112,
           "name": "code"
         },
         {
           "kind": "fn",
-          "line": 108,
+          "line": 119,
           "name": "from_code"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 127,
           "name": "label"
         },
         {
           "kind": "struct",
-          "line": 127,
+          "line": 138,
           "name": "CompletedMedia"
         },
         {
           "kind": "struct",
-          "line": 134,
+          "line": 146,
+          "name": "ServedObject"
+        },
+        {
+          "kind": "struct",
+          "line": 153,
           "name": "TicketFields"
         },
         {
           "kind": "struct",
-          "line": 150,
+          "line": 176,
           "name": "ServiceTicket"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 184,
           "name": "put_u64"
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 188,
           "name": "put_u32"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 192,
           "name": "put_str"
         },
         {
           "kind": "struct",
-          "line": 171,
+          "line": 197,
           "name": "Reader"
         },
         {
           "kind": "impl",
-          "line": 176,
+          "line": 202,
           "name": "Reader<'a>"
         },
         {
           "kind": "fn",
-          "line": 177,
+          "line": 203,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 187,
+          "line": 213,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 217,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 222,
           "name": "u64"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 229,
           "name": "bytes32"
         },
         {
           "kind": "fn",
-          "line": 210,
+          "line": 236,
           "name": "str"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 244,
           "name": "done"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 253,
           "name": "encode_ticket"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 298,
           "name": "issue_ticket"
         },
         {
           "kind": "fn",
-          "line": 272,
+          "line": 320,
           "name": "read_ticket"
         },
         {
           "kind": "struct",
-          "line": 342,
+          "line": 424,
           "name": "Rate"
         },
         {
           "kind": "impl",
-          "line": 350,
+          "line": 432,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 351,
+          "line": 433,
           "name": "default"
         },
         {
           "kind": "impl",
-          "line": 359,
+          "line": 441,
           "name": "Rate"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 442,
           "name": "validate"
         },
         {
           "kind": "fn",
-          "line": 369,
+          "line": 451,
           "name": "price"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 457,
           "name": "agree"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 463,
           "name": "price_at"
         },
         {
           "kind": "struct",
-          "line": 396,
+          "line": 479,
+          "name": "TicketSplit"
+        },
+        {
+          "kind": "fn",
+          "line": 497,
+          "name": "split_ticket"
+        },
+        {
+          "kind": "struct",
+          "line": 549,
           "name": "LedgerEntry"
         },
         {
           "kind": "struct",
-          "line": 407,
+          "line": 560,
           "name": "Ledger"
         },
         {
           "kind": "impl",
-          "line": 428,
+          "line": 587,
           "name": "Ledger"
         },
         {
           "kind": "fn",
-          "line": 430,
+          "line": 589,
           "name": "collect"
         },
         {
           "kind": "struct",
-          "line": 530,
+          "line": 677,
           "name": "RedemptionRequest"
         },
         {
           "kind": "fn",
-          "line": 546,
+          "line": 693,
           "name": "build_redemption"
         },
         {
           "kind": "fn",
-          "line": 598,
+          "line": 745,
           "name": "read_redemption"
         },
         {
           "kind": "fn",
-          "line": 645,
+          "line": 792,
           "name": "verify_redemption"
         },
         {
           "kind": "mod",
-          "line": 677,
+          "line": 824,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 683,
+          "line": 830,
           "name": "person"
         },
         {
           "kind": "fn",
-          "line": 699,
+          "line": 846,
           "name": "fields"
         },
         {
           "kind": "fn",
-          "line": 713,
+          "line": 862,
           "name": "ticket_round_trips_and_rejects_tampering"
         },
         {
           "kind": "fn",
-          "line": 745,
+          "line": 893,
+          "name": "post_by"
+        },
+        {
+          "kind": "fn",
+          "line": 910,
+          "name": "v2_ticket_signs_the_split_and_attributes_every_received_object"
+        },
+        {
+          "kind": "fn",
+          "line": 950,
+          "name": "a_signed_share_below_the_floor_is_raised_to_it"
+        },
+        {
+          "kind": "fn",
+          "line": 975,
+          "name": "a_receiver_never_owes_themselves_for_their_own_content"
+        },
+        {
+          "kind": "fn",
+          "line": 995,
+          "name": "v2_attribution_must_be_consistent"
+        },
+        {
+          "kind": "fn",
+          "line": 1035,
           "name": "ledger_credits_host_and_creator_and_dedups"
         },
         {
           "kind": "fn",
-          "line": 832,
+          "line": 1122,
           "name": "ledger_prices_from_the_ticket_not_the_device"
         },
         {
           "kind": "fn",
-          "line": 863,
+          "line": 1153,
           "name": "rate_prices_through_the_shared_convention"
         }
       ],
@@ -113760,7 +113825,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 27026,
+      "bytes": 27585,
       "group": "docs",
       "headings": [
         {
@@ -113915,9 +113980,9 @@
         "status",
         "target"
       ],
-      "lines": 325,
+      "lines": 327,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "f897280c0140a874655ce74f3b9a990c5d21d1127869fb69e209cec5981b5f96",
+      "sha256": "adcd83c3dffeec4dafde8a467ea6ffa5723a9b1ac9277423bf2dfa3cd4a15316",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -114249,7 +114314,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1587864,
+      "bytes": 1591048,
       "group": "docs",
       "headings": [
         {
@@ -114670,18 +114735,18 @@
         "batch",
         "design",
         "audit",
+        "signed",
         "roadmap",
         "closes",
         "decision",
         "local",
         "first",
-        "signed",
         "one",
         "new"
       ],
-      "lines": 26255,
+      "lines": 26307,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "dc330836dfe761cefda0e401770b9abf8bac037c5c64be5e4f6a3834dbc8a9b0",
+      "sha256": "f1b03f80b5dfaa14bec161e544e6f67bff709d79692d9c6379e1fde571d3c7e9",
       "symbols": [],
       "title": "Decision Log"
     },

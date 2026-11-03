@@ -39,10 +39,21 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const TICKET_TYPE: &str = "mininet/service-ticket/v1";
 pub const REDEMPTION_TYPE: &str = "mininet/ticket-redemption/v1";
-const TICKET_VERSION: u8 = 1;
+/// Current ticket encoding. Version 1 (no signed split, no per-object
+/// attribution) is still read; the ledger then falls back to the local rate.
+const TICKET_VERSION: u8 = 2;
+const TICKET_VERSION_V1: u8 = 1;
 const REDEMPTION_VERSION: u8 = 1;
 /// Manifests one ticket may attribute; more are counted as plain bytes.
 pub const MAX_TICKET_MANIFESTS: usize = 64;
+/// Non-media objects one ticket may attribute to their authors; more are
+/// counted as plain host bytes.
+pub const MAX_TICKET_SERVED: usize = 256;
+/// Published minimum share for content authors on a version-2 ticket, in basis
+/// points. A receiver and a host who both want authors to earn nothing could
+/// otherwise sign a share of 0; the ledger raises any signed share to this
+/// floor. A starting point, changed only by a new ticket version.
+pub const CREATOR_FLOOR_BPS: u16 = 2000;
 /// Tickets one redemption request may reference (object link cap).
 pub const MAX_REDEMPTION_TICKETS: usize = 200;
 const MAX_DID_BYTES: usize = 256;
@@ -129,6 +140,14 @@ pub struct CompletedMedia {
     pub bytes: u64,
 }
 
+/// A non-media object (a post, comment, ...) received during the exchange,
+/// with its size, so its author earns a share like a media creator does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServedObject {
+    pub object: ObjectId,
+    pub bytes: u64,
+}
+
 /// The fields a receiver attests to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TicketFields {
@@ -143,6 +162,13 @@ pub struct TicketFields {
     pub channel_binding: [u8; 32],
     pub nonce: [u8; 32],
     pub completed_media: Vec<CompletedMedia>,
+    /// Share of attributed bytes that goes to content authors rather than the
+    /// host, in basis points, agreed for this exchange and signed by the
+    /// receiver so both ledgers compute the same split. `None` on version-1
+    /// tickets, which fall back to the ledger's local rate.
+    pub creator_bps: Option<u16>,
+    /// Non-media objects received, attributed to their authors.
+    pub served: Vec<ServedObject>,
 }
 
 /// A decoded ticket.
@@ -225,11 +251,25 @@ impl<'a> Reader<'a> {
 }
 
 fn encode_ticket(fields: &TicketFields) -> Result<Vec<u8>> {
-    if fields.completed_media.len() > MAX_TICKET_MANIFESTS {
+    if fields.completed_media.len() > MAX_TICKET_MANIFESTS
+        || fields.served.len() > MAX_TICKET_SERVED
+    {
         return Err(TicketError::TooManyManifests);
     }
+    // A ticket with no agreed share is a version-1 ticket (and cannot carry
+    // per-object attribution); anything else is version 2.
+    let v2 = match fields.creator_bps {
+        Some(bps) if bps > 10_000 => return Err(TicketError::Malformed),
+        Some(_) => true,
+        None if fields.served.is_empty() => false,
+        None => return Err(TicketError::Malformed),
+    };
     let mut out = Vec::new();
-    out.push(TICKET_VERSION);
+    out.push(if v2 {
+        TICKET_VERSION
+    } else {
+        TICKET_VERSION_V1
+    });
     put_str(&mut out, fields.provider.as_str());
     out.push(fields.service.code());
     put_u64(&mut out, fields.rate_micro_per_mb);
@@ -241,6 +281,14 @@ fn encode_ticket(fields: &TicketFields) -> Result<Vec<u8>> {
     for media in &fields.completed_media {
         put_str(&mut out, media.manifest.as_str());
         put_u64(&mut out, media.bytes);
+    }
+    if let Some(creator_bps) = fields.creator_bps {
+        out.extend_from_slice(&creator_bps.to_be_bytes());
+        put_u32(&mut out, fields.served.len() as u32);
+        for served in &fields.served {
+            put_str(&mut out, served.object.as_str());
+            put_u64(&mut out, served.bytes);
+        }
     }
     Ok(out)
 }
@@ -277,7 +325,8 @@ pub fn read_ticket(object: &Object) -> Result<ServiceTicket> {
         return Err(TicketError::Malformed);
     };
     let mut r = Reader { bytes, pos: 0 };
-    if r.u8()? != TICKET_VERSION {
+    let version = r.u8()?;
+    if version != TICKET_VERSION && version != TICKET_VERSION_V1 {
         return Err(TicketError::Malformed);
     }
     let provider = Did::parse(&r.str(MAX_DID_BYTES)?).map_err(|_| TicketError::Malformed)?;
@@ -302,6 +351,35 @@ pub fn read_ticket(object: &Object) -> Result<ServiceTicket> {
             .ok_or(TicketError::Overflow)?;
         completed_media.push(CompletedMedia { manifest, bytes });
     }
+    let mut creator_bps = None;
+    let mut served = Vec::new();
+    let mut served_bytes: u64 = 0;
+    if version == TICKET_VERSION {
+        let bps = r.take(2)?;
+        let value = u16::from_be_bytes([bps[0], bps[1]]);
+        if value > 10_000 {
+            return Err(TicketError::Malformed);
+        }
+        creator_bps = Some(value);
+        let served_count = r.u32()? as usize;
+        if served_count > MAX_TICKET_SERVED {
+            return Err(TicketError::Malformed);
+        }
+        let mut seen: BTreeSet<String> = BTreeSet::new();
+        for _ in 0..served_count {
+            let object =
+                ObjectId::parse(&r.str(MAX_DID_BYTES)?).map_err(|_| TicketError::Malformed)?;
+            let bytes = r.u64()?;
+            // One line per object: a repeat would count its bytes twice.
+            if !seen.insert(object.as_str().to_owned()) {
+                return Err(TicketError::Malformed);
+            }
+            served_bytes = served_bytes
+                .checked_add(bytes)
+                .ok_or(TicketError::Overflow)?;
+            served.push(ServedObject { object, bytes });
+        }
+    }
     r.done()?;
     // Every attributed manifest must also be a link, and attributed media
     // cannot exceed what was received at all.
@@ -315,7 +393,9 @@ pub fn read_ticket(object: &Object) -> Result<ServiceTicket> {
         || completed_media
             .iter()
             .any(|media| !links.contains(media.manifest.as_str()))
-        || media_bytes > bytes_received
+        || media_bytes
+            .checked_add(served_bytes)
+            .is_none_or(|attributed| attributed > bytes_received)
     {
         return Err(TicketError::Malformed);
     }
@@ -331,6 +411,8 @@ pub fn read_ticket(object: &Object) -> Result<ServiceTicket> {
             channel_binding,
             nonce,
             completed_media,
+            creator_bps,
+            served,
         },
         timestamp_ms: object.timestamp_ms,
     })
@@ -391,6 +473,77 @@ pub fn price_at(micro_mini_per_mb: u64, bytes: u64) -> Result<u64> {
     }
 }
 
+/// How one ticket's price divides between the host who served it (the
+/// seeder) and the authors of the content (the owners).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TicketSplit {
+    /// What the receiver owes in all for this exchange.
+    pub total_micro: u64,
+    /// The seeder's part: total minus what authors earn.
+    pub host_micro: u64,
+    /// Each author's part, by author DID.
+    pub creator_micro: BTreeMap<String, u64>,
+}
+
+/// Divide `ticket`'s price between its host and the authors of the content it
+/// attributes (completed media, then other received objects).
+///
+/// The share is the ticket's own signed `creator_bps`, raised to
+/// [`CREATOR_FLOOR_BPS`] if lower; only a version-1 ticket, which has none,
+/// uses `fallback_bps`. A receiver never owes
+/// themselves: bytes of content the receiver authored go to the host.
+/// Content not found on this device cannot be attributed and also goes to
+/// the host.
+pub fn split_ticket<B: Backend>(
+    store: &Store<B>,
+    ticket: &ServiceTicket,
+    fallback_bps: u16,
+) -> Result<TicketSplit> {
+    let bps = match ticket.fields.creator_bps {
+        Some(signed) => signed.max(CREATOR_FLOOR_BPS),
+        None => fallback_bps,
+    };
+    if bps > 10_000 {
+        return Err(TicketError::Malformed);
+    }
+    let rate = ticket.fields.rate_micro_per_mb;
+    let mut creator_micro: BTreeMap<String, u64> = BTreeMap::new();
+    let mut credit = |author: &Did, bytes: u64| -> Result<()> {
+        if author == &ticket.consumer {
+            return Ok(());
+        }
+        let share = price_at(rate, bytes)?
+            .checked_mul(u64::from(bps))
+            .ok_or(TicketError::Overflow)?
+            / 10_000;
+        let entry = creator_micro.entry(author.as_str().to_owned()).or_insert(0);
+        *entry = entry.checked_add(share).ok_or(TicketError::Overflow)?;
+        Ok(())
+    };
+    for media in &ticket.fields.completed_media {
+        let Ok(object) = store.get(&media.manifest) else {
+            continue;
+        };
+        if read_manifest(&object).is_err() {
+            continue;
+        }
+        credit(&object.author_human, media.bytes)?;
+    }
+    for served in &ticket.fields.served {
+        let Ok(object) = store.get(&served.object) else {
+            continue;
+        };
+        credit(&object.author_human, served.bytes)?;
+    }
+    let total_micro = price_at(rate, ticket.fields.bytes_received)?;
+    let creator_total: u64 = creator_micro.values().sum();
+    Ok(TicketSplit {
+        total_micro,
+        host_micro: total_micro.saturating_sub(creator_total),
+        creator_micro,
+    })
+}
+
 /// One line of a ledger.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerEntry {
@@ -417,8 +570,14 @@ pub struct Ledger {
     pub issued: Vec<ServiceTicket>,
     /// Bytes `me` received according to issued tickets.
     pub bytes_received: u64,
-    /// Micro-MINI `me` owes others for what it received, at `rate`.
+    /// Micro-MINI `me` owes others for what it received.
     pub owed_micro: u64,
+    /// Of `owed_micro`: what goes to the hosts who served it (seeders).
+    pub owed_to_hosts_micro: u64,
+    /// Of `owed_micro`: what goes to the authors of the content (owners).
+    pub owed_to_creators_micro: u64,
+    /// One line per exchange `me` paid for, with the seeder/owner split.
+    pub costs: Vec<LedgerEntry>,
     /// Duplicate tickets ignored (same consumer and nonce).
     pub duplicates: usize,
     /// Objects of the ticket type that failed strict decoding.
@@ -454,6 +613,7 @@ impl Ledger {
                 ledger.duplicates += 1;
                 continue;
             }
+            let split = split_ticket(store, &ticket, rate.creator_bps)?;
             if &ticket.consumer == me {
                 ledger.bytes_received = ledger
                     .bytes_received
@@ -461,42 +621,29 @@ impl Ledger {
                     .ok_or(TicketError::Overflow)?;
                 ledger.owed_micro = ledger
                     .owed_micro
-                    .checked_add(price_at(
-                        ticket.fields.rate_micro_per_mb,
-                        ticket.fields.bytes_received,
-                    )?)
+                    .checked_add(split.total_micro)
                     .ok_or(TicketError::Overflow)?;
+                ledger.owed_to_hosts_micro = ledger
+                    .owed_to_hosts_micro
+                    .checked_add(split.host_micro)
+                    .ok_or(TicketError::Overflow)?;
+                ledger.owed_to_creators_micro = ledger
+                    .owed_to_creators_micro
+                    .checked_add(split.total_micro.saturating_sub(split.host_micro))
+                    .ok_or(TicketError::Overflow)?;
+                ledger.costs.push(LedgerEntry {
+                    ticket: ticket.clone(),
+                    host_micro: split.host_micro,
+                    creator_micro: split.creator_micro.clone(),
+                });
                 ledger.issued.push(ticket);
                 continue;
             }
-            // Creator attribution for media completed in this exchange.
-            let mut creator_micro: BTreeMap<String, u64> = BTreeMap::new();
-            let mut media_bytes: u64 = 0;
-            for media in &ticket.fields.completed_media {
-                let Ok(object) = store.get(&media.manifest) else {
-                    continue;
-                };
-                if read_manifest(&object).is_err() {
-                    continue;
-                }
-                media_bytes = media_bytes
-                    .checked_add(media.bytes)
-                    .ok_or(TicketError::Overflow)?;
-                let share = price_at(ticket.fields.rate_micro_per_mb, media.bytes)?
-                    .checked_mul(u64::from(rate.creator_bps))
-                    .ok_or(TicketError::Overflow)?
-                    / 10_000;
-                let entry = creator_micro
-                    .entry(object.author_human.as_str().to_owned())
-                    .or_insert(0);
-                *entry = entry.checked_add(share).ok_or(TicketError::Overflow)?;
-            }
-            let total = price_at(
-                ticket.fields.rate_micro_per_mb,
-                ticket.fields.bytes_received,
-            )?;
-            let creator_total: u64 = creator_micro.values().sum();
-            let host_micro = total.saturating_sub(creator_total);
+            let TicketSplit {
+                host_micro,
+                creator_micro,
+                ..
+            } = split;
             if &ticket.fields.provider == me {
                 ledger.host_micro = ledger
                     .host_micro
@@ -706,6 +853,8 @@ mod tests {
             channel_binding: mini_crypto::random_32().unwrap(),
             nonce: mini_crypto::random_32().unwrap(),
             completed_media: media,
+            creator_bps: None,
+            served: Vec::new(),
         }
     }
 
@@ -739,6 +888,147 @@ mod tests {
             .sign(&consumer.did(), &consumer_dev)
             .unwrap();
         assert_eq!(read_ticket(&forged), Err(TicketError::Malformed));
+    }
+
+    fn post_by(
+        who: &Controller,
+        dev: &Controller,
+        store: &mut Store<MemoryBackend>,
+        n: u64,
+    ) -> ObjectId {
+        let post = ObjectBuilder::new(ObjectType::POST)
+            .timestamp_ms(n)
+            .sequence(n)
+            .payload(Payload::Public(format!("post {n}").into_bytes()))
+            .sign(&who.did(), dev)
+            .unwrap();
+        store.insert(&post).unwrap();
+        post.id().clone()
+    }
+
+    #[test]
+    fn v2_ticket_signs_the_split_and_attributes_every_received_object() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (host, _) = person(10);
+        let (consumer, consumer_dev) = person(20);
+        let (author, author_dev) = person(30);
+        let post = post_by(&author, &author_dev, &mut store, 1);
+        let mut f = fields(&host.did(), 2_000_000, Vec::new());
+        f.creator_bps = Some(4000);
+        f.served = vec![ServedObject {
+            object: post.clone(),
+            bytes: 1_500_000,
+        }];
+        let object = issue_ticket(&consumer.did(), &consumer_dev, &f, 10, 1).unwrap();
+        assert_eq!(read_ticket(&object).unwrap().fields, f);
+        store.insert(&object).unwrap();
+
+        // The ledger's own local share (10%) is ignored for a v2 ticket.
+        let local = Rate {
+            micro_mini_per_mb: 100,
+            creator_bps: 1000,
+        };
+        // 2 MB at 100 = 200 micro; the author's 40% of 1.5 MB (2 MB rounded
+        // up to 2 whole MB when priced = 200) is 80, so the host keeps 120.
+        let author_ledger = Ledger::collect(&store, &author.did(), local).unwrap();
+        assert_eq!(author_ledger.creator_micro, 80);
+        let host_ledger = Ledger::collect(&store, &host.did(), local).unwrap();
+        assert_eq!(host_ledger.host_micro, 120);
+        // The receiver's costs show the same seeder/owner split.
+        let cost = Ledger::collect(&store, &consumer.did(), local).unwrap();
+        assert_eq!(cost.owed_micro, 200);
+        assert_eq!(cost.owed_to_hosts_micro, 120);
+        assert_eq!(cost.owed_to_creators_micro, 80);
+        assert_eq!(cost.costs.len(), 1);
+        assert_eq!(
+            cost.costs[0].creator_micro.get(author.did().as_str()),
+            Some(&80)
+        );
+    }
+
+    #[test]
+    fn a_signed_share_below_the_floor_is_raised_to_it() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (host, _) = person(10);
+        let (consumer, consumer_dev) = person(20);
+        let (author, author_dev) = person(30);
+        let post = post_by(&author, &author_dev, &mut store, 1);
+        let mut f = fields(&host.did(), 1_000_000, Vec::new());
+        f.creator_bps = Some(0);
+        f.served = vec![ServedObject {
+            object: post,
+            bytes: 1_000_000,
+        }];
+        store
+            .insert(&issue_ticket(&consumer.did(), &consumer_dev, &f, 10, 1).unwrap())
+            .unwrap();
+        let rate = Rate {
+            micro_mini_per_mb: 100,
+            creator_bps: 0,
+        };
+        // 1 MB at 100 = 100 micro; the floor (20%) gives the author 20.
+        let author_ledger = Ledger::collect(&store, &author.did(), rate).unwrap();
+        assert_eq!(author_ledger.creator_micro, 20);
+    }
+
+    #[test]
+    fn a_receiver_never_owes_themselves_for_their_own_content() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (host, _) = person(10);
+        let (consumer, consumer_dev) = person(20);
+        let own = post_by(&consumer, &consumer_dev, &mut store, 1);
+        let mut f = fields(&host.did(), 1_000_000, Vec::new());
+        f.creator_bps = Some(5000);
+        f.served = vec![ServedObject {
+            object: own,
+            bytes: 1_000_000,
+        }];
+        store
+            .insert(&issue_ticket(&consumer.did(), &consumer_dev, &f, 10, 2).unwrap())
+            .unwrap();
+        let cost = Ledger::collect(&store, &consumer.did(), Rate::default()).unwrap();
+        assert_eq!(cost.owed_to_creators_micro, 0);
+        assert_eq!(cost.owed_to_hosts_micro, cost.owed_micro);
+    }
+
+    #[test]
+    fn v2_attribution_must_be_consistent() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (host, _) = person(10);
+        let (consumer, consumer_dev) = person(20);
+        let (author, author_dev) = person(30);
+        let post = post_by(&author, &author_dev, &mut store, 1);
+        let base = |bytes: u64, served: Vec<ServedObject>, bps: Option<u16>| {
+            let mut f = fields(&host.did(), bytes, Vec::new());
+            f.creator_bps = bps;
+            f.served = served;
+            let object = ObjectBuilder::new(ObjectType::Custom(TICKET_TYPE.into()))
+                .payload(Payload::Public(encode_ticket(&f).unwrap_or_default()))
+                .sign(&consumer.did(), &consumer_dev)
+                .unwrap();
+            read_ticket(&object)
+        };
+        let line = |bytes| ServedObject {
+            object: post.clone(),
+            bytes,
+        };
+        assert!(base(100, vec![line(100)], Some(1000)).is_ok());
+        // More attributed than received.
+        assert!(base(100, vec![line(101)], Some(1000)).is_err());
+        // The same object twice would double count its bytes.
+        assert!(base(500, vec![line(100), line(100)], Some(1000)).is_err());
+        // Attribution without a signed share cannot be encoded at all.
+        assert!(encode_ticket(&TicketFields {
+            served: vec![line(10)],
+            ..fields(&host.did(), 100, Vec::new())
+        })
+        .is_err());
+        // A share above 100% is refused.
+        assert!(encode_ticket(&TicketFields {
+            creator_bps: Some(10_001),
+            ..fields(&host.did(), 100, Vec::new())
+        })
+        .is_err());
     }
 
     #[test]

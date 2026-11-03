@@ -22,7 +22,8 @@ use mini_sync::{
     IngestOutcome, KelCache, SyncError, SyncRole,
 };
 use mini_ticket::{
-    issue_ticket, read_ticket, CompletedMedia, Service, TicketFields, MAX_TICKET_MANIFESTS,
+    issue_ticket, read_ticket, CompletedMedia, Rate, ServedObject, Service, TicketFields,
+    CREATOR_FLOOR_BPS, MAX_TICKET_MANIFESTS, MAX_TICKET_SERVED,
 };
 use std::collections::BTreeMap;
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
@@ -459,6 +460,7 @@ fn exchange_tickets(
     bytes_received: u64,
     objects_received: u32,
     completed_media: Vec<CompletedMedia>,
+    served: Vec<ServedObject>,
 ) -> TicketOutcome {
     let me = identity.root.did();
     let mut outcome = TicketOutcome {
@@ -466,8 +468,10 @@ fn exchange_tickets(
         rate_micro_per_mb: agreed_rate_micro_per_mb,
         ..Default::default()
     };
-    let worth_attesting =
-        objects_received > 0 || !completed_media.is_empty() || bytes_received >= TICKET_MIN_BYTES;
+    let worth_attesting = objects_received > 0
+        || !completed_media.is_empty()
+        || !served.is_empty()
+        || bytes_received >= TICKET_MIN_BYTES;
     let issue = || -> Result<Vec<u8>, String> {
         if !worth_attesting {
             return Ok(Vec::new());
@@ -482,6 +486,10 @@ fn exchange_tickets(
             channel_binding: channel.channel_binding(),
             nonce,
             completed_media,
+            // The share content authors earn, signed so both ledgers agree;
+            // the ledger raises it to the published floor if lower.
+            creator_bps: Some(Rate::default().creator_bps.max(CREATOR_FLOOR_BPS)),
+            served,
         };
         let sequence = crate::next_object_sequence(store, Some(&me))?;
         let object = issue_ticket(&me, &identity.device, &fields, crate::now_ms(), sequence)
@@ -572,6 +580,7 @@ pub fn dial_public(root: &Path, endpoint: &str) -> Result<String, String> {
     let peer = hello.did.clone();
     let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
     let before = complete_manifests(&store);
+    let before_ids = all_known(&store);
     let start = bearer.received_bytes();
     let report = sync_bidirectional(
         &mut bearer,
@@ -583,6 +592,7 @@ pub fn dial_public(root: &Path, endpoint: &str) -> Result<String, String> {
     .map_err(|error| error.to_string())?;
     let received = bearer.received_bytes().saturating_sub(start);
     let completed = newly_completed(&before, &complete_manifests(&store));
+    let served = newly_served(&store, &before_ids, received, &completed);
     let tickets = exchange_tickets(
         &mut bearer,
         &mut channel,
@@ -596,12 +606,60 @@ pub fn dial_public(root: &Path, endpoint: &str) -> Result<String, String> {
         received,
         report.accepted as u32,
         completed,
+        served,
     );
     Ok(format!(
         "Peer sync complete: {}. Tickets: {}.",
         public_summary(&report),
         tickets.summary()
     ))
+}
+
+/// Every object id on the device, to tell afterwards what an exchange added.
+fn all_known(store: &Store<FsBackend>) -> std::collections::BTreeSet<String> {
+    store
+        .all_ids()
+        .map(|ids| ids.into_iter().map(|id| id.as_str().to_owned()).collect())
+        .unwrap_or_default()
+}
+
+/// Objects that arrived during the exchange and are not media or tickets,
+/// so their authors earn a share like media creators do. Sizes are checked
+/// against what was actually received, so the ticket stays consistent.
+fn newly_served(
+    store: &Store<FsBackend>,
+    before: &std::collections::BTreeSet<String>,
+    received: u64,
+    completed: &[CompletedMedia],
+) -> Vec<ServedObject> {
+    let mut budget = received.saturating_sub(completed.iter().map(|media| media.bytes).sum());
+    let Ok(ids) = store.all_ids() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for id in ids {
+        if out.len() >= MAX_TICKET_SERVED {
+            break;
+        }
+        if before.contains(id.as_str()) {
+            continue;
+        }
+        let Ok(object) = store.get(&id) else { continue };
+        let skip = match &object.object_type {
+            ObjectType::Custom(name) => {
+                name.starts_with("mininet/service-ticket")
+                    || name.starts_with("mininet/ticket-redemption")
+            }
+            other => *other == ObjectType::MEDIA_MANIFEST,
+        };
+        let bytes = object.to_bytes().len() as u64;
+        if skip || bytes > budget {
+            continue;
+        }
+        budget -= bytes;
+        out.push(ServedObject { object: id, bytes });
+    }
+    out
 }
 
 fn newly_completed(
@@ -661,6 +719,7 @@ pub fn dial_private(
                 Service::PrivateSync,
                 received,
                 report.accepted as u32,
+                Vec::new(),
                 Vec::new(),
             );
             Ok(PrivateOutcome::Synced {
@@ -751,12 +810,14 @@ pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<Fet
         _ => return Err("that peer does not hold it and knows no peer that does".into()),
     }
     let before = complete_manifests(&store);
+    let before_ids = all_known(&store);
     let start = bearer.received_bytes();
     let report =
         mini_sync::request_retrieval(&mut bearer, &mut channel, &mut store, &mut cache, posts)
             .map_err(|error| error.to_string())?;
     let received = bearer.received_bytes().saturating_sub(start);
     let completed = newly_completed(&before, &complete_manifests(&store));
+    let served = newly_served(&store, &before_ids, received, &completed);
     let tickets = exchange_tickets(
         &mut bearer,
         &mut channel,
@@ -770,6 +831,7 @@ pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<Fet
         received,
         report.ingest.accepted as u32,
         completed,
+        served,
     );
     Ok(FetchOutcome::Done(format!(
         "Fetched {} of {} object(s) ({}). Tickets: {}.",
@@ -1030,6 +1092,7 @@ pub fn serve(
                 received,
                 0,
                 Vec::new(),
+                Vec::new(),
             );
             Ok(format!(
                 "fetch: served {} object(s); tickets: {}",
@@ -1039,6 +1102,7 @@ pub fn serve(
         }
         Intent::Public => {
             let before = complete_manifests(&store);
+            let before_ids = all_known(&store);
             let start = bearer.received_bytes();
             let report = sync_bidirectional(
                 &mut bearer,
@@ -1050,6 +1114,7 @@ pub fn serve(
             .map_err(|error| error.to_string())?;
             let received = bearer.received_bytes().saturating_sub(start);
             let completed = newly_completed(&before, &complete_manifests(&store));
+            let served = newly_served(&store, &before_ids, received, &completed);
             let tickets = exchange_tickets(
                 &mut bearer,
                 &mut channel,
@@ -1063,6 +1128,7 @@ pub fn serve(
                 received,
                 report.accepted as u32,
                 completed,
+                served,
             );
             Ok(format!(
                 "public exchange: {}; tickets: {}",
@@ -1092,6 +1158,7 @@ pub fn serve(
                         Service::PrivateSync,
                         received,
                         report.accepted as u32,
+                        Vec::new(),
                         Vec::new(),
                     );
                     Ok(format!(
