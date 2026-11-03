@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1275,
+    "files": 1276,
     "headings": 4267,
-    "rust_symbols": 15338
+    "rust_symbols": 15350
   },
   "crates": {
     "askama_derive": {
@@ -7155,7 +7155,99 @@
       "title": "use crate::error::{AirdropError, Result};"
     },
     {
-      "bytes": 3449,
+      "bytes": 6416,
+      "group": "crate:mini-airdrop",
+      "headings": [],
+      "keywords": [
+        "standing",
+        "held",
+        "policy",
+        "root",
+        "record",
+        "u64",
+        "personhoodpolicy",
+        "humanrecord",
+        "pay_now",
+        "released",
+        "out",
+        "entitlement",
+        "snapshotbuilder",
+        "identity_root",
+        "builder",
+        "reason",
+        "snapshot",
+        "did",
+        "unwrap",
+        "assert_eq",
+        "gradedoutcome",
+        "releaseoutcome",
+        "add_release",
+        "now"
+      ],
+      "lines": 198,
+      "path": "crates/mini-airdrop/src/graded.rs",
+      "sha256": "7f86a90637ef8965831b455470023e9ae5544ee825b7274fb53a01a4f5bdfa46",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 22,
+          "name": "GradedOutcome"
+        },
+        {
+          "kind": "fn",
+          "line": 35,
+          "name": "add_graded"
+        },
+        {
+          "kind": "struct",
+          "line": 64,
+          "name": "ReleaseOutcome"
+        },
+        {
+          "kind": "fn",
+          "line": 73,
+          "name": "add_release"
+        },
+        {
+          "kind": "mod",
+          "line": 101,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "root"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
+          "name": "unvouched_root_gets_nothing_now_and_everything_held"
+        },
+        {
+          "kind": "fn",
+          "line": 123,
+          "name": "release_of_an_unvouched_root_stays_held"
+        },
+        {
+          "kind": "fn",
+          "line": 133,
+          "name": "vouched"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "provisional_gets_a_share_now_and_the_rest_is_held_then_released_at_full"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "full_standing_is_paid_in_full"
+        }
+      ],
+      "title": "use did_mini::Did;"
+    },
+    {
+      "bytes": 3535,
       "group": "crate:mini-airdrop",
       "headings": [],
       "keywords": [
@@ -7169,6 +7261,7 @@
         "mini-airdrop",
         "error",
         "file_registry",
+        "graded",
         "cryptography",
         "root",
         "itself",
@@ -7181,12 +7274,11 @@
         "already-reviewed",
         "primitives",
         "new",
-        "one",
-        "airdropsnapshot"
+        "one"
       ],
-      "lines": 72,
+      "lines": 74,
       "path": "crates/mini-airdrop/src/lib.rs",
-      "sha256": "99257f22b1557ba14cacab9a6750c8033304b1a995501f23a407873ef2216bec",
+      "sha256": "22f3d42fcc0c112e25529ccfc8f9523001124e3911a8af2a146ec03f90e240f3",
       "symbols": [
         {
           "kind": "mod",
@@ -7206,11 +7298,16 @@
         {
           "kind": "mod",
           "line": 58,
-          "name": "registry"
+          "name": "graded"
         },
         {
           "kind": "mod",
           "line": 59,
+          "name": "registry"
+        },
+        {
+          "kind": "mod",
+          "line": 60,
           "name": "snapshot"
         }
       ],
