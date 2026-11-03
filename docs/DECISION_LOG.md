@@ -26352,3 +26352,42 @@ settlement layer read tickets' signed share via `split_ticket`.
 
 **Supersedes / superseded by:** amends D-0543's default creator share (30%) and
 floor (20%) to 5% and 2%; D-0543 otherwise stands. D-0543 is not edited.
+
+
+### D-0545 — Comment fees reach the hosts that kept the comment available; settlement reads the tickets' signed share  ·  *Shipped*
+
+**Decision:** two follow-ups to D-0543/D-0544. (1) A comment's fee is shared
+among the distinct providers whose deduplicated tickets list that comment as
+received (`comment_fee::host_shares`), weighted by the bytes each attested;
+any remainder goes to the first provider by DID so shares sum to the fee. A
+comment no ticket lists earns nobody anything; its fee stays owed but
+unclaimed. The ledger reports `comment_fees_earned_micro` for a host. (2)
+`settle_split` verifies a redemption request and divides it between host and
+authors from the tickets' own signed shares (raised to the floor), never from
+the share the request states; a claimant stating 0% or 100% changes nothing for
+version-2 tickets. The desktop shows the earned comment-fee line and the price
+notice in the discussion composer as well as reply boxes.
+
+**Reason:** D-0544 left two gaps: nobody was paid the comment fee, and a
+redemption request still carried a share the claimant chose.
+
+**Constitutional impact:** Directive 5, Directive 16, Directive 18, P1. No
+dependency edge changed; no vote conferred; no Tier-F row touched. Unaudited
+value-adjacent prototype; D-0037/D-0047 gate unchanged.
+
+**Implementation status:** shipped in `mini-ticket` (`host_shares`,
+`settle_split`, ledger field; 2 new tests) and `mini-desktop` (display).
+
+**Failure point:** host shares rest on receivers' own lists of what they
+received, so a receiver can leave a comment off a ticket (its host earns less)
+but cannot add money; colluding receivers and hosts could still concentrate
+shares on a favoured host by issuing tickets for it. Backdated comment times
+still evade the fee until hosts apply it on arrival. Nothing is paid; the
+settlement layer that must call `settle_split` is the externally audited one
+and is not wired. Counts identity roots, not humans.
+
+**Required follow-up:** wire `settle_split` and `host_shares` into the audited
+settlement path when D-0047 clears; apply `comment_fees` on arrival at hosts;
+a collusion study on ticket issuance (roadmap #18 for Sybil).
+
+**Supersedes / superseded by:** extends D-0543 and D-0544; supersedes neither.

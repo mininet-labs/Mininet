@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1279,
     "headings": 4268,
-    "rust_symbols": 15391
+    "rust_symbols": 15398
   },
   "crates": {
     "askama_derive": {
@@ -39365,7 +39365,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 454330,
+      "bytes": 454790,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -39394,9 +39394,9 @@
         "lockidentity",
         "lockafterprofile"
       ],
-      "lines": 10619,
+      "lines": 10631,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "2b4b0f750d7ccfc641d483b7fae49424f3203203fbe53acc7451de31b15adbb4",
+      "sha256": "fe863836d595e6efc0cc41912f78803817244880ce046ff176cb5ef6840e2095",
       "symbols": [
         {
           "kind": "mod",
@@ -97572,114 +97572,134 @@
       "title": "LEAF: no mini-value / mini-bounty / mini-treasury, no mini-forge / mini-chain,"
     },
     {
-      "bytes": 9012,
+      "bytes": 14048,
       "group": "crate:mini-ticket",
       "headings": [],
       "keywords": [
         "comment",
-        "author",
         "comments",
-        "store",
+        "author",
         "fee",
+        "store",
         "u64",
-        "u32",
         "fees",
+        "commentfees",
+        "u32",
         "prior_in_window",
         "timestamp_ms",
-        "error",
-        "mine",
-        "commentfees",
         "window",
         "allowance",
-        "ticketerror",
+        "objectid",
         "fee_micro",
+        "mine",
         "comment_fee",
         "free_comments_per_window",
         "commentfeeline",
-        "cost",
-        "const",
-        "ids",
-        "object"
+        "one",
+        "device",
+        "btreemap",
+        "result",
+        "ticketerror"
       ],
-      "lines": 237,
+      "lines": 354,
       "path": "crates/mini-ticket/src/comment_fee.rs",
-      "sha256": "6f0255fd8fa667506083d263768e6c7ea5d7fed041196b22647a78ecb3d8c421",
+      "sha256": "c00531e700130e7397557bcb125398fe9f4748928caa8bae56453f58f6a0ce2b",
       "symbols": [
         {
           "kind": "const",
-          "line": 31,
+          "line": 33,
           "name": "FEE_WINDOW_MS"
         },
         {
           "kind": "const",
-          "line": 33,
+          "line": 35,
           "name": "FREE_COMMENTS_PER_WINDOW"
         },
         {
           "kind": "const",
-          "line": 35,
+          "line": 37,
           "name": "BASE_COMMENT_FEE_MICRO"
         },
         {
           "kind": "const",
-          "line": 38,
+          "line": 40,
           "name": "MAX_DOUBLINGS"
         },
         {
           "kind": "fn",
-          "line": 43,
+          "line": 45,
           "name": "comment_fee"
         },
         {
           "kind": "struct",
-          "line": 53,
+          "line": 55,
           "name": "CommentFeeLine"
         },
         {
           "kind": "struct",
-          "line": 63,
+          "line": 65,
           "name": "CommentFees"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 74,
+          "name": "fees_for"
+        },
+        {
+          "kind": "fn",
+          "line": 104,
+          "name": "comments_by_author"
+        },
+        {
+          "kind": "fn",
+          "line": 123,
           "name": "comment_fees"
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 134,
+          "name": "host_shares"
+        },
+        {
+          "kind": "fn",
+          "line": 173,
           "name": "next_comment_fee"
         },
         {
           "kind": "mod",
-          "line": 135,
+          "line": 193,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 141,
+          "line": 199,
           "name": "person"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 212,
           "name": "comment"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 230,
           "name": "the_fee_is_free_then_small_then_doubles"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 253,
           "name": "a_normal_commenter_pays_nothing_and_a_burst_gets_expensive"
+        },
+        {
+          "kind": "fn",
+          "line": 296,
+          "name": "a_comment_fee_is_shared_among_the_hosts_that_kept_it_available"
         }
       ],
-      "title": "use did_mini::Did;"
+      "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 43459,
+      "bytes": 46868,
       "group": "crate:mini-ticket",
       "headings": [],
       "keywords": [
@@ -97708,9 +97728,9 @@
         "self",
         "str"
       ],
-      "lines": 1174,
+      "lines": 1258,
       "path": "crates/mini-ticket/src/lib.rs",
-      "sha256": "63b498e4c55d8105bcda0913e08d48769a99ba140e300255b97956b67afa3a67",
+      "sha256": "e8d25d02d9ddb5e50112631cab2b94c9c3a963c2b4157f3297c52b517269be6c",
       "symbols": [
         {
           "kind": "mod",
@@ -97974,92 +97994,107 @@
         },
         {
           "kind": "impl",
-          "line": 591,
+          "line": 594,
           "name": "Ledger"
         },
         {
           "kind": "fn",
-          "line": 593,
+          "line": 596,
           "name": "collect"
         },
         {
           "kind": "struct",
-          "line": 682,
+          "line": 691,
           "name": "RedemptionRequest"
         },
         {
           "kind": "fn",
-          "line": 698,
+          "line": 707,
           "name": "build_redemption"
         },
         {
           "kind": "fn",
-          "line": 750,
+          "line": 759,
           "name": "read_redemption"
         },
         {
           "kind": "fn",
-          "line": 797,
+          "line": 806,
           "name": "verify_redemption"
         },
         {
+          "kind": "struct",
+          "line": 843,
+          "name": "RedemptionSplit"
+        },
+        {
+          "kind": "fn",
+          "line": 849,
+          "name": "settle_split"
+        },
+        {
           "kind": "mod",
-          "line": 829,
+          "line": 874,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 835,
+          "line": 880,
           "name": "person"
         },
         {
           "kind": "fn",
-          "line": 851,
+          "line": 896,
           "name": "fields"
         },
         {
           "kind": "fn",
-          "line": 867,
+          "line": 912,
           "name": "ticket_round_trips_and_rejects_tampering"
         },
         {
           "kind": "fn",
-          "line": 898,
+          "line": 943,
           "name": "post_by"
         },
         {
           "kind": "fn",
-          "line": 915,
+          "line": 960,
           "name": "v2_ticket_signs_the_split_and_attributes_every_received_object"
         },
         {
           "kind": "fn",
-          "line": 955,
+          "line": 1000,
+          "name": "settlement_uses_the_tickets_signed_share_not_the_requests"
+        },
+        {
+          "kind": "fn",
+          "line": 1039,
           "name": "a_signed_share_below_the_floor_is_raised_to_it"
         },
         {
           "kind": "fn",
-          "line": 980,
+          "line": 1064,
           "name": "a_receiver_never_owes_themselves_for_their_own_content"
         },
         {
           "kind": "fn",
-          "line": 1000,
+          "line": 1084,
           "name": "v2_attribution_must_be_consistent"
         },
         {
           "kind": "fn",
-          "line": 1040,
+          "line": 1124,
           "name": "ledger_credits_host_and_creator_and_dedups"
         },
         {
           "kind": "fn",
-          "line": 1127,
+          "line": 1211,
           "name": "ledger_prices_from_the_ticket_not_the_device"
         },
         {
           "kind": "fn",
-          "line": 1158,
+          "line": 1242,
           "name": "rate_prices_through_the_shared_convention"
         }
       ],
@@ -113937,7 +113972,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 28034,
+      "bytes": 28392,
       "group": "docs",
       "headings": [
         {
@@ -114092,9 +114127,9 @@
         "status",
         "target"
       ],
-      "lines": 329,
+      "lines": 331,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "29fbb449733faa90f12f1d39758c00f43bdd32ad470c0ae16a5edf91e791c7a2",
+      "sha256": "936174b6691e5c8775a2814207089cbca1f7fe66da6bb8546fa2005a98140336",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -114426,7 +114461,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1593937,
+      "bytes": 1596193,
       "group": "docs",
       "headings": [
         {
@@ -114846,8 +114881,8 @@
         "phase",
         "batch",
         "design",
-        "audit",
         "signed",
+        "audit",
         "roadmap",
         "closes",
         "decision",
@@ -114856,9 +114891,9 @@
         "one",
         "new"
       ],
-      "lines": 26355,
+      "lines": 26394,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e4f67e38ef5db727d002d5a151012f0fd363f82114dd282ea2d6c910f1637409",
+      "sha256": "03ffc3d354a7c83a8bdd4aae84f17cfd49f64164cdae891659fe92ffd2153b52",
       "symbols": [],
       "title": "Decision Log"
     },

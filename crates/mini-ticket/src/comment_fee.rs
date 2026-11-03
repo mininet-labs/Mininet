@@ -21,11 +21,13 @@
 //! - How the fee is shared among the hosts that kept the comment available is
 //!   not built.
 
+use std::collections::BTreeMap;
+
 use did_mini::Did;
 use mini_objects::{ObjectId, ObjectType};
 use mini_store::{Backend, Store};
 
-use crate::{Result, TicketError};
+use crate::{Result, ServiceTicket, TicketError};
 
 /// Trailing window, in milliseconds, over which an author's comments count.
 pub const FEE_WINDOW_MS: u64 = 60 * 60 * 1000;
@@ -68,20 +70,8 @@ pub struct CommentFees {
     pub comments: usize,
 }
 
-/// Comment fees owed by `author`, from their comment objects in `store`.
-pub fn comment_fees<B: Backend>(store: &Store<B>, author: &Did) -> Result<CommentFees> {
-    let ids = store
-        .by_type(&ObjectType::COMMENT)
-        .map_err(|error| TicketError::Store(error.to_string()))?;
-    let mut mine: Vec<(u64, ObjectId)> = Vec::new();
-    for id in ids {
-        let object = store
-            .get(&id)
-            .map_err(|error| TicketError::Store(error.to_string()))?;
-        if &object.author_human == author {
-            mine.push((object.timestamp_ms, id));
-        }
-    }
+/// Fee lines for one author's comments, oldest first.
+fn fees_for(mut mine: Vec<(u64, ObjectId)>) -> Result<CommentFees> {
     mine.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.as_str().cmp(b.1.as_str())));
     let mut fees = CommentFees {
         comments: mine.len(),
@@ -108,6 +98,74 @@ pub fn comment_fees<B: Backend>(store: &Store<B>, author: &Did) -> Result<Commen
         }
     }
     Ok(fees)
+}
+
+/// Every author's comments on this device, as `(timestamp, id)`.
+fn comments_by_author<B: Backend>(
+    store: &Store<B>,
+) -> Result<BTreeMap<String, Vec<(u64, ObjectId)>>> {
+    let ids = store
+        .by_type(&ObjectType::COMMENT)
+        .map_err(|error| TicketError::Store(error.to_string()))?;
+    let mut out: BTreeMap<String, Vec<(u64, ObjectId)>> = BTreeMap::new();
+    for id in ids {
+        let object = store
+            .get(&id)
+            .map_err(|error| TicketError::Store(error.to_string()))?;
+        out.entry(object.author_human.as_str().to_owned())
+            .or_default()
+            .push((object.timestamp_ms, id));
+    }
+    Ok(out)
+}
+
+/// Comment fees owed by `author`, from their comment objects in `store`.
+pub fn comment_fees<B: Backend>(store: &Store<B>, author: &Did) -> Result<CommentFees> {
+    let mut all = comments_by_author(store)?;
+    fees_for(all.remove(author.as_str()).unwrap_or_default())
+}
+
+/// How every comment fee on this device is shared among the hosts that kept
+/// the comment available: the fee on a comment is divided between the distinct
+/// providers whose (deduplicated) tickets list that comment as received,
+/// weighted by the bytes each attested; any remainder goes to the first
+/// provider by DID so the shares always add up to the fee. A comment no ticket
+/// lists earns nobody anything: its fee stays owed but unclaimed.
+pub fn host_shares<B: Backend>(
+    store: &Store<B>,
+    tickets: &[ServiceTicket],
+) -> Result<BTreeMap<String, u64>> {
+    // comment id -> provider -> bytes attested
+    let mut served: BTreeMap<&str, BTreeMap<&str, u64>> = BTreeMap::new();
+    for ticket in tickets {
+        for object in &ticket.fields.served {
+            let weight = served
+                .entry(object.object.as_str())
+                .or_default()
+                .entry(ticket.fields.provider.as_str())
+                .or_insert(0);
+            *weight = weight.saturating_add(object.bytes.max(1));
+        }
+    }
+    let mut shares: BTreeMap<String, u64> = BTreeMap::new();
+    for (_, mine) in comments_by_author(store)? {
+        for line in fees_for(mine)?.lines {
+            let Some(hosts) = served.get(line.comment.as_str()) else {
+                continue;
+            };
+            let total_weight: u128 = hosts.values().map(|w| u128::from(*w)).sum();
+            let mut paid: u64 = 0;
+            for (host, weight) in hosts {
+                let part = (u128::from(line.fee_micro) * u128::from(*weight) / total_weight) as u64;
+                paid += part;
+                *shares.entry((*host).to_owned()).or_insert(0) += part;
+            }
+            if let Some((first, _)) = hosts.iter().next() {
+                *shares.entry((*first).to_owned()).or_insert(0) += line.fee_micro - paid;
+            }
+        }
+    }
+    Ok(shares)
 }
 
 /// What the author's next comment, made at `now_ms`, would cost. For showing
@@ -232,5 +290,64 @@ mod tests {
         // An hour later the window has emptied and the price drops back.
         let later = next_comment_fee(&store, &spammer.0.did(), 5_000 + 2 * hour).unwrap();
         assert_eq!(later, 0);
+    }
+
+    #[test]
+    fn a_comment_fee_is_shared_among_the_hosts_that_kept_it_available() {
+        use crate::{ServedObject, Service, TicketFields};
+        let mut store = Store::new(MemoryBackend::new());
+        let author = person(10);
+        let host_a = person(20);
+        let host_b = person(30);
+        let consumer = person(40);
+        let parent = ObjectBuilder::new(ObjectType::POST)
+            .payload(Payload::Public(b"post".to_vec()))
+            .sign(&author.0.did(), &author.1)
+            .unwrap();
+        store.insert(&parent).unwrap();
+        // Five quick comments: the 4th costs 10, the 5th costs 20.
+        for n in 0..5u64 {
+            comment(&mut store, &author, parent.id(), 1_000 + n, n + 1);
+        }
+        let fees = comment_fees(&store, &author.0.did()).unwrap();
+        assert_eq!(fees.total_micro, 30);
+        let fourth = fees.lines[0].comment.clone();
+        let fifth = fees.lines[1].comment.clone();
+        let ticket = |provider: &Did, object: &ObjectId, bytes: u64, nonce: u8| ServiceTicket {
+            id: object.clone(),
+            consumer: consumer.0.did(),
+            fields: TicketFields {
+                provider: provider.clone(),
+                service: Service::PublicSync,
+                rate_micro_per_mb: 0,
+                bytes_received: bytes,
+                objects_received: 1,
+                channel_binding: [0; 32],
+                nonce: [nonce; 32],
+                completed_media: Vec::new(),
+                creator_bps: Some(500),
+                served: vec![ServedObject {
+                    object: object.clone(),
+                    bytes,
+                }],
+            },
+            timestamp_ms: 10,
+        };
+        let tickets = vec![
+            // Both hosts served the 4th comment (fee 10), A twice as many bytes.
+            ticket(&host_a.0.did(), &fourth, 200, 1),
+            ticket(&host_b.0.did(), &fourth, 100, 2),
+            // Only A served the 5th (fee 20).
+            ticket(&host_a.0.did(), &fifth, 100, 3),
+        ];
+        let shares = host_shares(&store, &tickets).unwrap();
+        let a = shares.get(host_a.0.did().as_str()).copied().unwrap_or(0);
+        let b = shares.get(host_b.0.did().as_str()).copied().unwrap_or(0);
+        // Shares always add up to the fees of comments someone kept available.
+        assert_eq!(a + b, 30);
+        assert_eq!(b, 3); // 10 * 100 / 300
+        assert_eq!(a, 27); // 6 + remainder 1 from the 4th, plus all 20 of the 5th
+                           // Nobody served them: nobody earns.
+        assert!(host_shares(&store, &[]).unwrap().is_empty());
     }
 }

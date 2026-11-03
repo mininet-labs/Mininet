@@ -6998,6 +6998,15 @@ No tracking. No forced updates.",
                 mini_ticket::CREATOR_FLOOR_BPS / 100,
             ),
         );
+        if ledger.comment_fees_earned_micro > 0 {
+            theme::muted(
+                ui,
+                &format!(
+                    "Earned from comment fees as a host that kept those comments available: {}.",
+                    mini(ledger.comment_fees_earned_micro)
+                ),
+            );
+        }
         if ledger.comment_fees_owed_micro > 0 {
             ui.colored_label(
                 theme::WARN_AMBER,
@@ -8267,6 +8276,9 @@ No tracking. No forced updates.",
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed discussion object",
             );
+            if let Some(notice) = self.comment_fee_notice() {
+                ui.colored_label(theme::WARN_AMBER, notice);
+            }
             if ui.add(theme::primary_button("Post discussion")).clicked() {
                 let title = self.discussion_title.trim();
                 let body = self.discussion_body.trim();
