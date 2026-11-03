@@ -10535,7 +10535,7 @@
       "title": "use mini_app_protocol::{read_request, write_response, Command, ErrorCode, Response, ServiceError};"
     },
     {
-      "bytes": 37024,
+      "bytes": 37015,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -10566,7 +10566,7 @@
       ],
       "lines": 958,
       "path": "crates/mini-app-service/src/outbox.rs",
-      "sha256": "b92a8d80e3e86bf0744567a6192f6115f4f40d23de789e42cdbdc71716fdfeee",
+      "sha256": "78adb64011475d324ef7c4e623a3c4a7eaadcb7a8154e0f202ec52738e35435f",
       "symbols": [
         {
           "kind": "const",
@@ -113625,7 +113625,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 24761,
+      "bytes": 25197,
       "group": "docs",
       "headings": [
         {
@@ -113780,9 +113780,9 @@
         "status",
         "target"
       ],
-      "lines": 316,
+      "lines": 318,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "db80e8428395326f48f83e551bb853a86ca4f1ab5723f740c7669114675a99b7",
+      "sha256": "882fac533ae7a43dd8ab1152361251a429b0cde342eab675553679d8413870e8",
       "symbols": [],
       "title": "Open Beta status"
     },

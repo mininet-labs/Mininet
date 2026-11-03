@@ -350,7 +350,7 @@ impl Outbox {
                 finished.push((modified, record.operation_id, path));
             }
         }
-        finished.sort_by(|a, b| a.0.cmp(&b.0));
+        finished.sort_by_key(|a| a.0);
         let mut removed = 0;
         for (_, id, path) in finished.into_iter().take(limit) {
             mini_durable::remove_file(&path).map_err(io)?;
