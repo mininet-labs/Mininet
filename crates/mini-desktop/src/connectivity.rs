@@ -62,7 +62,7 @@ impl Default for ConnectionSettings {
             forward_searches: true,
             rate_micro_per_mb: 10,
             max_pay_micro_per_mb: 50,
-            creator_bps: 3000,
+            creator_bps: 500,
             peers: Vec::new(),
         }
     }

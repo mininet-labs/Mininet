@@ -29,6 +29,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod comment_fee;
+
 use did_mini::{Controller, Did};
 use mini_media::read_manifest;
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
@@ -53,7 +55,7 @@ pub const MAX_TICKET_SERVED: usize = 256;
 /// points. A receiver and a host who both want authors to earn nothing could
 /// otherwise sign a share of 0; the ledger raises any signed share to this
 /// floor. A starting point, changed only by a new ticket version.
-pub const CREATOR_FLOOR_BPS: u16 = 2000;
+pub const CREATOR_FLOOR_BPS: u16 = 200;
 /// Tickets one redemption request may reference (object link cap).
 pub const MAX_REDEMPTION_TICKETS: usize = 200;
 const MAX_DID_BYTES: usize = 256;
@@ -433,7 +435,7 @@ impl Default for Rate {
     fn default() -> Self {
         Self {
             micro_mini_per_mb: 10,
-            creator_bps: 3000,
+            creator_bps: 500,
         }
     }
 }
@@ -570,6 +572,8 @@ pub struct Ledger {
     pub issued: Vec<ServiceTicket>,
     /// Bytes `me` received according to issued tickets.
     pub bytes_received: u64,
+    /// Micro-MINI `me` owes in comment fees (see [`comment_fee`]).
+    pub comment_fees_owed_micro: u64,
     /// Micro-MINI `me` owes others for what it received.
     pub owed_micro: u64,
     /// Of `owed_micro`: what goes to the hosts who served it (seeders).
@@ -668,6 +672,7 @@ impl Ledger {
                 });
             }
         }
+        ledger.comment_fees_owed_micro = comment_fee::comment_fees(store, me)?.total_micro;
         Ok(ledger)
     }
 }
@@ -966,9 +971,9 @@ mod tests {
             micro_mini_per_mb: 100,
             creator_bps: 0,
         };
-        // 1 MB at 100 = 100 micro; the floor (20%) gives the author 20.
+        // 1 MB at 100 = 100 micro; the floor (2%) gives the author 2.
         let author_ledger = Ledger::collect(&store, &author.did(), rate).unwrap();
-        assert_eq!(author_ledger.creator_micro, 20);
+        assert_eq!(author_ledger.creator_micro, 2);
     }
 
     #[test]
