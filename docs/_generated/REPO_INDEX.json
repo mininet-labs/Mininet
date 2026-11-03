@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1277,
     "headings": 4268,
-    "rust_symbols": 15357
+    "rust_symbols": 15359
   },
   "crates": {
     "askama_derive": {
@@ -10535,38 +10535,38 @@
       "title": "use mini_app_protocol::{read_request, write_response, Command, ErrorCode, Response, ServiceError};"
     },
     {
-      "bytes": 32858,
+      "bytes": 37015,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
         "serviceerror",
         "string",
-        "object",
         "std",
-        "return",
-        "record",
-        "bad",
         "component",
         "name",
+        "return",
+        "const",
+        "record",
+        "bad",
+        "directory",
         "err",
         "outbox",
-        "directory",
-        "const",
-        "map_err",
         "new",
-        "object_bytes",
         "root",
+        "map_err",
         "len",
-        "bytes",
         "hex",
-        "is_empty",
         "max_object",
         "storage",
-        "valid_id"
+        "valid_id",
+        "path",
+        "object",
+        "errorcode",
+        "pathbuf"
       ],
-      "lines": 861,
+      "lines": 958,
       "path": "crates/mini-app-service/src/outbox.rs",
-      "sha256": "b0e8fa1803c63dbd8aac27c061ac2a3dbacd042c746064f5d37c884f187d2338",
+      "sha256": "78adb64011475d324ef7c4e623a3c4a7eaadcb7a8154e0f202ec52738e35435f",
       "symbols": [
         {
           "kind": "const",
@@ -10600,237 +10600,247 @@
         },
         {
           "kind": "fn",
-          "line": 49,
+          "line": 54,
           "name": "bad"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 57,
           "name": "storage"
         },
         {
           "kind": "fn",
-          "line": 55,
+          "line": 60,
           "name": "io"
         },
         {
           "kind": "fn",
-          "line": 58,
+          "line": 63,
           "name": "valid_id"
         },
         {
           "kind": "fn",
-          "line": 61,
+          "line": 66,
           "name": "filename"
         },
         {
           "kind": "fn",
-          "line": 70,
+          "line": 75,
           "name": "record_name"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 85,
           "name": "orphan_name"
         },
         {
           "kind": "fn",
-          "line": 98,
+          "line": 103,
           "name": "directory"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 132,
           "name": "validate"
         },
         {
           "kind": "impl",
-          "line": 162,
+          "line": 167,
           "name": "Outbox"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 168,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 196,
           "name": "path"
         },
         {
           "kind": "fn",
-          "line": 194,
+          "line": 199,
           "name": "read"
         },
         {
           "kind": "fn",
-          "line": 222,
+          "line": 227,
           "name": "scan"
         },
         {
           "kind": "fn",
-          "line": 256,
+          "line": 261,
           "name": "retained_count"
         },
         {
           "kind": "fn",
-          "line": 286,
+          "line": 291,
           "name": "write"
         },
         {
           "kind": "fn",
-          "line": 312,
+          "line": 364,
           "name": "next_due"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 378,
           "name": "enqueue"
         },
         {
           "kind": "fn",
-          "line": 366,
+          "line": 427,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 436,
           "name": "list"
         },
         {
           "kind": "fn",
-          "line": 378,
+          "line": 439,
           "name": "list_after"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 462,
           "name": "require"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 466,
           "name": "begin_attempt"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 484,
           "name": "retry"
         },
         {
           "kind": "fn",
-          "line": 442,
+          "line": 503,
           "name": "acknowledge"
         },
         {
           "kind": "fn",
-          "line": 456,
+          "line": 517,
           "name": "cancel"
         },
         {
           "kind": "fn",
-          "line": 471,
+          "line": 532,
           "name": "text"
         },
         {
           "kind": "fn",
-          "line": 475,
+          "line": 536,
           "name": "encode"
         },
         {
           "kind": "struct",
-          "line": 499,
+          "line": 560,
           "name": "Reader"
         },
         {
           "kind": "impl",
-          "line": 503,
+          "line": 564,
           "name": "Reader<'a>"
         },
         {
           "kind": "fn",
-          "line": 504,
+          "line": 565,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 516,
+          "line": 577,
           "name": "number"
         },
         {
           "kind": "fn",
-          "line": 523,
+          "line": 584,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 533,
+          "line": 594,
           "name": "decode"
         },
         {
           "kind": "mod",
-          "line": 587,
+          "line": 648,
           "name": "tests"
         },
         {
           "kind": "struct",
-          "line": 591,
+          "line": 652,
           "name": "Directory"
         },
         {
           "kind": "impl",
-          "line": 592,
+          "line": 653,
           "name": "Directory"
         },
         {
           "kind": "fn",
-          "line": 593,
+          "line": 654,
           "name": "new"
         },
         {
           "kind": "impl",
-          "line": 610,
+          "line": 671,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 611,
+          "line": 672,
           "name": "drop"
         },
         {
           "kind": "fn",
-          "line": 615,
+          "line": 676,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 632,
+          "line": 693,
           "name": "bounded_pages_reach_operations_after_terminal_receipts"
         },
         {
           "kind": "fn",
-          "line": 659,
+          "line": 720,
+          "name": "a_full_outbox_of_finished_work_keeps_accepting_and_never_drops_pending"
+        },
+        {
+          "kind": "fn",
+          "line": 741,
+          "name": "a_full_outbox_of_pending_work_still_refuses"
+        },
+        {
+          "kind": "fn",
+          "line": 756,
           "name": "restart_recovers_attempt_without_resigning_and_receipts_are_idempotent"
         },
         {
           "kind": "fn",
-          "line": 708,
+          "line": 805,
           "name": "earliest_due_operation_prevents_lexical_retry_starvation"
         },
         {
           "kind": "fn",
-          "line": 735,
+          "line": 832,
           "name": "retry_backoff_and_terminal_transitions_are_bounded_and_saturating"
         },
         {
           "kind": "fn",
-          "line": 798,
+          "line": 895,
           "name": "invalid_and_oversized_records_fail_before_recovery_changes_state"
         },
         {
           "kind": "fn",
-          "line": 848,
+          "line": 945,
           "name": "symlink_records_and_symlink_roots_are_not_followed"
         }
       ],
@@ -113693,7 +113703,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 25347,
+      "bytes": 25782,
       "group": "docs",
       "headings": [
         {
@@ -113848,9 +113858,9 @@
         "status",
         "target"
       ],
-      "lines": 318,
+      "lines": 319,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "333f8cd4289bf16c3395bf00fdd3425388c7d38cdf9b0095b4d0d8a8b7e4488c",
+      "sha256": "92a36ec4198063adf955893effb112f45e81e05753a243ac0f32f7d3de82996a",
       "symbols": [],
       "title": "Open Beta status"
     },
