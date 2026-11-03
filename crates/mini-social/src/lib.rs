@@ -37,6 +37,7 @@ mod pairing;
 mod post;
 mod private_graph;
 mod spam;
+mod votes;
 mod wall;
 
 pub use discovery::{
@@ -50,6 +51,7 @@ pub use post::{
 };
 
 pub use spam::{PostRateLimiter, MAX_TRACKED_AUTHORS};
+pub use votes::{community_vote, CommunityVote};
 
 pub use pairing::{
     create_pairing_acceptance, create_pairing_offer, receive_pairing_acceptance,
