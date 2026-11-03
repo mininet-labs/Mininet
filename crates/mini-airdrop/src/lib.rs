@@ -55,6 +55,7 @@
 mod claim;
 mod error;
 mod file_registry;
+mod graded;
 mod registry;
 mod snapshot;
 
@@ -64,6 +65,7 @@ pub use claim::{
 };
 pub use error::{AirdropError, Result};
 pub use file_registry::FileClaimedRegistry;
+pub use graded::{add_graded, add_release, GradedOutcome, ReleaseOutcome};
 pub use registry::{ClaimedRegistry, InMemoryClaimedRegistry, ReservationOutcome};
 pub use snapshot::{
     AirdropSnapshot, AllocationEntry, SnapshotBuilder, MAX_CAMPAIGN_ID_BYTES, MAX_ENTRIES,

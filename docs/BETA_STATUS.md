@@ -311,3 +311,5 @@ remaining substantive safety gates still have to be proven.
 ## Graded standing (policy v3)
 
 `PersonhoodPolicy::standing` grades roots Full / Provisional / Unvouched; value is split into pay-now and held (never forfeited) and ballots count when the root is Full at close (`mini_uniqueness::tally`); `vouch_strengths` turns graph trust into a per-node strength that does not lock newcomers out (three vouches reach Full) while making a fake identity cost about three colluder vouches. Nothing in a payout or quorum path calls these yet; enabling them is a deliberate step. See the design note for the simulator tables and the remaining limits.
+
+- **Graded airdrop payouts (opt-in):** `mini_airdrop::add_graded` / `add_release` apply a published `PersonhoodPolicy`'s standing to snapshot building: Full is paid in full, Provisional gets the policy share now with the rest reported as held, Unvouched gets nothing now. Held value is released at Full standing, never forfeited. Callers must store the held amounts durably; this crate does not. Quorum voting (`tally`) is still not wired into forge/chain voting. Counts identity roots, not humans; unaudited (D-0047).
