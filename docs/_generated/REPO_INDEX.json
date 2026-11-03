@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1278,
     "headings": 4268,
-    "rust_symbols": 15361
+    "rust_symbols": 15363
   },
   "crates": {
     "askama_derive": {
@@ -7624,7 +7624,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 135798,
+      "bytes": 136975,
       "group": "crate:mini-app-protocol",
       "headings": [],
       "keywords": [
@@ -7653,9 +7653,9 @@
         "publicprofiledetails",
         "new"
       ],
-      "lines": 3989,
+      "lines": 4024,
       "path": "crates/mini-app-protocol/src/lib.rs",
-      "sha256": "f185b3591280d7724ffd29b4a63220c783db9e95fe666a0bfda6dea98fb7bea6",
+      "sha256": "763238f9c3ab17c915f2abbfad89b7cf6f8667f6363849c950f3d536e60846a6",
       "symbols": [
         {
           "kind": "const",
@@ -7939,597 +7939,597 @@
         },
         {
           "kind": "const",
-          "line": 564,
+          "line": 569,
           "name": "MAX_BETA_CAMPAIGNS"
         },
         {
           "kind": "const",
-          "line": 565,
+          "line": 570,
           "name": "MAX_BETA_ACCOUNTS"
         },
         {
           "kind": "const",
-          "line": 566,
+          "line": 571,
           "name": "MAX_BETA_MEMO_BYTES"
         },
         {
           "kind": "fn",
-          "line": 568,
+          "line": 573,
           "name": "validate_beta_grant_ids"
         },
         {
           "kind": "const",
-          "line": 578,
+          "line": 583,
           "name": "MAX_BETA_GRANT_MEMBERS"
         },
         {
           "kind": "const",
-          "line": 579,
+          "line": 584,
           "name": "MAX_BETA_REWARD_BANDS"
         },
         {
           "kind": "fn",
-          "line": 581,
+          "line": 586,
           "name": "validate_beta_grant_policy"
         },
         {
           "kind": "fn",
-          "line": 613,
+          "line": 618,
           "name": "validate_beta_grant"
         },
         {
           "kind": "enum",
-          "line": 636,
+          "line": 641,
           "name": "BetaGrantClass"
         },
         {
           "kind": "struct",
-          "line": 643,
+          "line": 648,
           "name": "BetaAccountBalance"
         },
         {
           "kind": "struct",
-          "line": 651,
+          "line": 656,
           "name": "BetaBalancesView"
         },
         {
           "kind": "enum",
-          "line": 660,
+          "line": 665,
           "name": "Command"
         },
         {
           "kind": "struct",
-          "line": 855,
+          "line": 866,
           "name": "Response"
         },
         {
           "kind": "impl",
-          "line": 861,
+          "line": 872,
           "name": "Response"
         },
         {
           "kind": "fn",
-          "line": 862,
+          "line": 873,
           "name": "ok"
         },
         {
           "kind": "fn",
-          "line": 870,
+          "line": 881,
           "name": "error"
         },
         {
           "kind": "enum",
-          "line": 880,
+          "line": 891,
           "name": "ResponseBody"
         },
         {
           "kind": "enum",
-          "line": 886,
+          "line": 897,
           "name": "Reply"
         },
         {
           "kind": "enum",
-          "line": 950,
+          "line": 961,
           "name": "ErrorCode"
         },
         {
           "kind": "struct",
-          "line": 962,
+          "line": 973,
           "name": "ServiceError"
         },
         {
           "kind": "impl",
-          "line": 967,
+          "line": 978,
           "name": "ServiceError"
         },
         {
           "kind": "fn",
-          "line": 968,
+          "line": 979,
           "name": "new"
         },
         {
           "kind": "enum",
-          "line": 977,
+          "line": 988,
           "name": "ProtocolError"
         },
         {
           "kind": "impl",
-          "line": 986,
+          "line": 997,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 987,
+          "line": 998,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 1001,
+          "line": 1012,
           "name": "std::error::Error"
         },
         {
           "kind": "fn",
-          "line": 1003,
+          "line": 1014,
           "name": "validate_operation_id"
         },
         {
           "kind": "fn",
-          "line": 1018,
+          "line": 1029,
           "name": "write_request"
         },
         {
           "kind": "fn",
-          "line": 1027,
+          "line": 1038,
           "name": "read_request"
         },
         {
           "kind": "fn",
-          "line": 1042,
+          "line": 1053,
           "name": "write_response"
         },
         {
           "kind": "fn",
-          "line": 1064,
+          "line": 1075,
           "name": "read_response"
         },
         {
           "kind": "fn",
-          "line": 1093,
+          "line": 1104,
           "name": "encode_profile_details"
         },
         {
           "kind": "fn",
-          "line": 1113,
+          "line": 1124,
           "name": "decode_profile_details"
         },
         {
           "kind": "fn",
-          "line": 1147,
+          "line": 1158,
           "name": "encode_command"
         },
         {
           "kind": "fn",
-          "line": 1474,
+          "line": 1495,
           "name": "decode_command"
         },
         {
           "kind": "fn",
-          "line": 1731,
+          "line": 1761,
           "name": "validate_beta_campaigns"
         },
         {
           "kind": "fn",
-          "line": 1744,
+          "line": 1774,
           "name": "array32"
         },
         {
           "kind": "fn",
-          "line": 1750,
+          "line": 1780,
           "name": "encode_campaigns"
         },
         {
           "kind": "fn",
-          "line": 1759,
+          "line": 1789,
           "name": "decode_campaigns"
         },
         {
           "kind": "fn",
-          "line": 1769,
+          "line": 1799,
           "name": "encode_reply"
         },
         {
           "kind": "fn",
-          "line": 1957,
+          "line": 1987,
           "name": "decode_reply"
         },
         {
           "kind": "fn",
-          "line": 2135,
+          "line": 2165,
           "name": "encode_delivery"
         },
         {
           "kind": "fn",
-          "line": 2159,
+          "line": 2189,
           "name": "decode_delivery"
         },
         {
           "kind": "fn",
-          "line": 2193,
+          "line": 2223,
           "name": "encode_status"
         },
         {
           "kind": "fn",
-          "line": 2200,
+          "line": 2230,
           "name": "decode_status"
         },
         {
           "kind": "fn",
-          "line": 2209,
+          "line": 2239,
           "name": "encode_profile_option"
         },
         {
           "kind": "fn",
-          "line": 2223,
+          "line": 2253,
           "name": "decode_profile_option"
         },
         {
           "kind": "fn",
-          "line": 2235,
+          "line": 2265,
           "name": "encode_feed_card"
         },
         {
           "kind": "fn",
-          "line": 2253,
+          "line": 2283,
           "name": "decode_feed_card"
         },
         {
           "kind": "fn",
-          "line": 2284,
+          "line": 2314,
           "name": "encode_published"
         },
         {
           "kind": "fn",
-          "line": 2304,
+          "line": 2334,
           "name": "decode_published"
         },
         {
           "kind": "fn",
-          "line": 2328,
+          "line": 2358,
           "name": "encode_event"
         },
         {
           "kind": "fn",
-          "line": 2363,
+          "line": 2393,
           "name": "decode_event"
         },
         {
           "kind": "fn",
-          "line": 2401,
+          "line": 2431,
           "name": "encode_service_error"
         },
         {
           "kind": "fn",
-          "line": 2415,
+          "line": 2445,
           "name": "decode_service_error"
         },
         {
           "kind": "fn",
-          "line": 2437,
+          "line": 2467,
           "name": "write_frame"
         },
         {
           "kind": "fn",
-          "line": 2451,
+          "line": 2481,
           "name": "read_frame"
         },
         {
           "kind": "struct",
-          "line": 2474,
+          "line": 2504,
           "name": "Encoder"
         },
         {
           "kind": "impl",
-          "line": 2478,
+          "line": 2508,
           "name": "Encoder"
         },
         {
           "kind": "fn",
-          "line": 2479,
+          "line": 2509,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2483,
+          "line": 2513,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2487,
+          "line": 2517,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2491,
+          "line": 2521,
           "name": "bool"
         },
         {
           "kind": "fn",
-          "line": 2495,
+          "line": 2525,
           "name": "u16"
         },
         {
           "kind": "fn",
-          "line": 2499,
+          "line": 2529,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2503,
+          "line": 2533,
           "name": "u64"
         },
         {
           "kind": "fn",
-          "line": 2507,
+          "line": 2537,
           "name": "byte_string"
         },
         {
           "kind": "fn",
-          "line": 2516,
+          "line": 2546,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2527,
+          "line": 2557,
           "name": "option_string"
         },
         {
           "kind": "struct",
-          "line": 2537,
+          "line": 2567,
           "name": "Decoder"
         },
         {
           "kind": "impl",
-          "line": 2542,
+          "line": 2572,
           "name": "Decoder<'a>"
         },
         {
           "kind": "fn",
-          "line": 2543,
+          "line": 2573,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2547,
+          "line": 2577,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2555,
+          "line": 2585,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 2568,
+          "line": 2598,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2572,
+          "line": 2602,
           "name": "bool"
         },
         {
           "kind": "fn",
-          "line": 2582,
+          "line": 2612,
           "name": "u16"
         },
         {
           "kind": "fn",
-          "line": 2590,
+          "line": 2620,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2598,
+          "line": 2628,
           "name": "u64"
         },
         {
           "kind": "fn",
-          "line": 2606,
+          "line": 2636,
           "name": "byte_string"
         },
         {
           "kind": "fn",
-          "line": 2614,
+          "line": 2644,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2623,
+          "line": 2653,
           "name": "option_string"
         },
         {
           "kind": "mod",
-          "line": 2633,
+          "line": 2663,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 2637,
+          "line": 2667,
           "name": "delivery_peer_and_runtime_capabilities_round_trip_with_bounded_public_material"
         },
         {
           "kind": "fn",
-          "line": 2715,
+          "line": 2745,
           "name": "durable_delivery_contract_round_trips_and_rejects_unbounded_lists"
         },
         {
           "kind": "fn",
-          "line": 2795,
+          "line": 2825,
           "name": "request_round_trip_is_framed_versioned_and_bounded"
         },
         {
           "kind": "fn",
-          "line": 2810,
+          "line": 2840,
           "name": "response_round_trip_carries_feed_and_events"
         },
         {
           "kind": "fn",
-          "line": 2835,
+          "line": 2865,
           "name": "policy_create"
         },
         {
           "kind": "fn",
-          "line": 2851,
+          "line": 2881,
           "name": "malformed_beta_grant_creation_requests_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 2954,
+          "line": 2984,
           "name": "beta_wallet_commands_and_replies_round_trip_with_bounded_fields"
         },
         {
           "kind": "fn",
-          "line": 3083,
+          "line": 3118,
           "name": "malformed_or_oversized_beta_requests_are_rejected_before_dispatch"
         },
         {
           "kind": "fn",
-          "line": 3120,
+          "line": 3155,
           "name": "malformed_beta_grant_requests_are_rejected_before_dispatch"
         },
         {
           "kind": "fn",
-          "line": 3175,
+          "line": 3210,
           "name": "maximum_feed_response_fits_the_declared_frame"
         },
         {
           "kind": "fn",
-          "line": 3206,
+          "line": 3241,
           "name": "malformed_limits_are_rejected_before_dispatch"
         },
         {
           "kind": "fn",
-          "line": 3228,
+          "line": 3263,
           "name": "declared_oversized_frame_is_rejected_before_allocation"
         },
         {
           "kind": "fn",
-          "line": 3238,
+          "line": 3273,
           "name": "clean_eof_is_not_a_protocol_failure"
         },
         {
           "kind": "mod",
-          "line": 3244,
+          "line": 3279,
           "name": "follow_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3247,
+          "line": 3282,
           "name": "follow_command_and_published_events_round_trip_with_bounded_fields"
         },
         {
           "kind": "mod",
-          "line": 3306,
+          "line": 3341,
           "name": "like_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3309,
+          "line": 3344,
           "name": "like_command_publication_and_events_round_trip_and_reject_invalid_bounds"
         },
         {
           "kind": "mod",
-          "line": 3370,
+          "line": 3405,
           "name": "comment_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3373,
+          "line": 3408,
           "name": "comment_commands_publications_events_round_trip_and_text_is_bounded_nonblank"
         },
         {
           "kind": "mod",
-          "line": 3441,
+          "line": 3476,
           "name": "membership_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3444,
+          "line": 3479,
           "name": "membership_commands_publications_events_round_trip_and_bounds_reject"
         },
         {
           "kind": "mod",
-          "line": 3505,
+          "line": 3540,
           "name": "community_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3508,
+          "line": 3543,
           "name": "community_commands_publications_events_round_trip_and_name_charter_bounds_reject"
         },
         {
           "kind": "mod",
-          "line": 3574,
+          "line": 3609,
           "name": "public_delivery_preview_tests"
         },
         {
           "kind": "fn",
-          "line": 3577,
+          "line": 3612,
           "name": "public_preview_round_trips_bounded_metadata_and_rejects_larger_summaries_or_targets"
         },
         {
           "kind": "mod",
-          "line": 3639,
+          "line": 3674,
           "name": "profile_details_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3641,
+          "line": 3676,
           "name": "draft"
         },
         {
           "kind": "fn",
-          "line": 3661,
+          "line": 3696,
           "name": "profile_details_options_and_order_round_trip_and_every_field_limit_is_checked"
         },
         {
           "kind": "mod",
-          "line": 3763,
+          "line": 3798,
           "name": "profile_photo_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3765,
+          "line": 3800,
           "name": "draft"
         },
         {
           "kind": "fn",
-          "line": 3776,
+          "line": 3811,
           "name": "reviewed_photo_command_round_trip_rejects_large_empty_or_preexisting_avatar"
         },
         {
           "kind": "mod",
-          "line": 3819,
+          "line": 3854,
           "name": "wall_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3821,
+          "line": 3856,
           "name": "draft"
         },
         {
           "kind": "fn",
-          "line": 3830,
+          "line": 3865,
           "name": "wall_visibility_round_trips_and_all_draft_bounds_are_checked"
         },
         {
           "kind": "mod",
-          "line": 3920,
+          "line": 3955,
           "name": "media_post_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3923,
+          "line": 3958,
           "name": "media_caption_command_round_trips_blank_and_maximum_and_bounds_reject"
         }
       ],
@@ -9299,7 +9299,7 @@
       "title": "use crate::{"
     },
     {
-      "bytes": 31775,
+      "bytes": 31986,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9328,9 +9328,9 @@
         "interrupt",
         "post"
       ],
-      "lines": 875,
+      "lines": 876,
       "path": "crates/mini-app-service/src/delivery_transport.rs",
-      "sha256": "4b98790b85f08e8ba0573ec0b0421f114598bdfadd6a4452b410728263ed2bc8",
+      "sha256": "7289d128f14331f627b4f0c7cab36ccbc6812af49c75134c9c7ee35fed96899b",
       "symbols": [
         {
           "kind": "const",
@@ -9449,99 +9449,99 @@
         },
         {
           "kind": "fn",
-          "line": 256,
+          "line": 257,
           "name": "establish"
         },
         {
           "kind": "fn",
-          "line": 311,
+          "line": 312,
           "name": "gate_failure"
         },
         {
           "kind": "fn",
-          "line": 318,
+          "line": 319,
           "name": "check_stop"
         },
         {
           "kind": "fn",
-          "line": 325,
+          "line": 326,
           "name": "stopped_result"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 382,
           "name": "send_inner"
         },
         {
           "kind": "fn",
-          "line": 418,
+          "line": 419,
           "name": "receive_inner"
         },
         {
           "kind": "fn",
-          "line": 452,
+          "line": 453,
           "name": "ingest_post"
         },
         {
           "kind": "mod",
-          "line": 474,
+          "line": 475,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 482,
+          "line": 483,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 496,
+          "line": 497,
           "name": "local"
         },
         {
           "kind": "fn",
-          "line": 503,
+          "line": 504,
           "name": "post"
         },
         {
           "kind": "fn",
-          "line": 509,
+          "line": 510,
           "name": "lost_and_forged_acknowledgements_never_deliver_and_retry_is_one_exact_object"
         },
         {
           "kind": "fn",
-          "line": 614,
+          "line": 615,
           "name": "wrong_recipient_cannot_acknowledge_and_invalid_object_is_refused"
         },
         {
           "kind": "fn",
-          "line": 663,
+          "line": 664,
           "name": "whitelist_accepts_only_canonical_public_social_shapes_and_max_text_previews"
         },
         {
           "kind": "fn",
-          "line": 743,
+          "line": 744,
           "name": "late_stop_preserves_verified_success_and_classifies_only_failed_work"
         },
         {
           "kind": "fn",
-          "line": 764,
+          "line": 765,
           "name": "established_partial_frame_stops_promptly_without_inserting_or_acknowledging"
         },
         {
           "kind": "fn",
-          "line": 826,
+          "line": 827,
           "name": "held_stop_prevents_any_outbound_frame_and_allows_no_authorization"
         },
         {
           "kind": "fn",
-          "line": 845,
+          "line": 846,
           "name": "bounded_bearer_rejects_length_budget_and_absolute_dribble_deadline"
         }
       ],
       "title": "use crate::{delivery_interrupt::DeliveryInterrupt, outbox::DeliveryFailure};"
     },
     {
-      "bytes": 206893,
+      "bytes": 209864,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9570,9 +9570,9 @@
         "production",
         "join"
       ],
-      "lines": 5304,
+      "lines": 5384,
       "path": "crates/mini-app-service/src/lib.rs",
-      "sha256": "14766ecc4a0e49487477989ddcec1415498502d890529b1370eac6623899a99b",
+      "sha256": "026ccd03dc0d2b9ff1324cc95bd9fe714a8dde1c32282951f3675a1390fc267d",
       "symbols": [
         {
           "kind": "mod",
@@ -9761,697 +9761,702 @@
         },
         {
           "kind": "fn",
-          "line": 586,
+          "line": 593,
           "name": "queue_public_delivery"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 610,
           "name": "own_public_delivery_object"
         },
         {
           "kind": "fn",
-          "line": 636,
+          "line": 643,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 645,
+          "line": 652,
           "name": "current_profile"
         },
         {
           "kind": "fn",
-          "line": 655,
+          "line": 662,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 674,
+          "line": 681,
           "name": "unlock"
         },
         {
           "kind": "fn",
-          "line": 698,
+          "line": 705,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 705,
+          "line": 712,
           "name": "publish_post"
         },
         {
           "kind": "fn",
-          "line": 740,
+          "line": 747,
           "name": "publish_media_post"
         },
         {
           "kind": "fn",
-          "line": 823,
+          "line": 830,
           "name": "publish_wall"
         },
         {
           "kind": "fn",
-          "line": 872,
+          "line": 879,
           "name": "publish_profile_with_photo"
         },
         {
           "kind": "fn",
-          "line": 913,
+          "line": 920,
           "name": "publish_profile_details"
         },
         {
           "kind": "fn",
-          "line": 969,
+          "line": 976,
           "name": "publish_community"
         },
         {
           "kind": "fn",
-          "line": 1016,
+          "line": 1023,
           "name": "set_membership"
         },
         {
           "kind": "fn",
-          "line": 1062,
+          "line": 1069,
           "name": "publish_comment"
         },
         {
           "kind": "fn",
-          "line": 1111,
+          "line": 1118,
           "name": "set_like"
         },
         {
           "kind": "fn",
-          "line": 1166,
+          "line": 1128,
+          "name": "set_reaction_vote"
+        },
+        {
+          "kind": "fn",
+          "line": 1195,
           "name": "set_follow"
         },
         {
           "kind": "fn",
-          "line": 1204,
+          "line": 1233,
           "name": "publish_profile"
         },
         {
           "kind": "fn",
-          "line": 1245,
+          "line": 1274,
           "name": "finish_existing"
         },
         {
           "kind": "fn",
-          "line": 1272,
+          "line": 1301,
           "name": "ensure_signing_available"
         },
         {
           "kind": "fn",
-          "line": 1288,
+          "line": 1317,
           "name": "signing_identity"
         },
         {
           "kind": "fn",
-          "line": 1295,
+          "line": 1324,
           "name": "reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 1298,
+          "line": 1327,
           "name": "reserve_sequences"
         },
         {
           "kind": "fn",
-          "line": 1322,
+          "line": 1351,
           "name": "feed_snapshot"
         },
         {
           "kind": "fn",
-          "line": 1447,
+          "line": 1476,
           "name": "emit_published"
         },
         {
           "kind": "fn",
-          "line": 1455,
+          "line": 1484,
           "name": "emit"
         },
         {
           "kind": "fn",
-          "line": 1467,
+          "line": 1496,
           "name": "drain_events"
         },
         {
           "kind": "struct",
-          "line": 1474,
+          "line": 1503,
           "name": "FeedSeed"
         },
         {
           "kind": "fn",
-          "line": 1482,
+          "line": 1511,
           "name": "profile_view"
         },
         {
           "kind": "fn",
-          "line": 1491,
+          "line": 1520,
           "name": "delivery_view"
         },
         {
           "kind": "fn",
-          "line": 1514,
+          "line": 1543,
           "name": "root_from_seeds"
         },
         {
           "kind": "fn",
-          "line": 1583,
+          "line": 1612,
           "name": "storage_error"
         },
         {
           "kind": "fn",
-          "line": 1587,
+          "line": 1616,
           "name": "storage_or_social"
         },
         {
           "kind": "enum",
-          "line": 1592,
+          "line": 1621,
           "name": "MutationInput"
         },
         {
           "kind": "impl",
-          "line": 1637,
+          "line": 1670,
           "name": "MutationInput"
         },
         {
           "kind": "fn",
-          "line": 1638,
+          "line": 1671,
           "name": "kind"
         },
         {
           "kind": "struct",
-          "line": 1655,
+          "line": 1688,
           "name": "PendingMutation"
         },
         {
           "kind": "struct",
-          "line": 1662,
+          "line": 1695,
           "name": "MutationReceipt"
         },
         {
           "kind": "enum",
-          "line": 1670,
+          "line": 1703,
           "name": "ExistingMutation"
         },
         {
           "kind": "struct",
-          "line": 1676,
+          "line": 1709,
           "name": "MutationJournal"
         },
         {
           "kind": "impl",
-          "line": 1682,
+          "line": 1715,
           "name": "MutationJournal"
         },
         {
           "kind": "fn",
-          "line": 1683,
+          "line": 1716,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 1696,
+          "line": 1729,
           "name": "ensure_sequence_floor"
         },
         {
           "kind": "fn",
-          "line": 1711,
+          "line": 1744,
           "name": "persist_next_sequence"
         },
         {
           "kind": "fn",
-          "line": 1720,
+          "line": 1753,
           "name": "existing"
         },
         {
           "kind": "fn",
-          "line": 1746,
+          "line": 1779,
           "name": "write_pending"
         },
         {
           "kind": "fn",
-          "line": 1753,
+          "line": 1786,
           "name": "commit_and_complete"
         },
         {
           "kind": "fn",
-          "line": 1770,
+          "line": 1803,
           "name": "recover"
         },
         {
           "kind": "fn",
-          "line": 1835,
+          "line": 1868,
           "name": "write_receipt"
         },
         {
           "kind": "fn",
-          "line": 1841,
+          "line": 1874,
           "name": "read_pending"
         },
         {
           "kind": "fn",
-          "line": 1847,
+          "line": 1880,
           "name": "read_receipt"
         },
         {
           "kind": "fn",
-          "line": 1853,
+          "line": 1886,
           "name": "remove_pending"
         },
         {
           "kind": "fn",
-          "line": 1862,
+          "line": 1895,
           "name": "pending_path"
         },
         {
           "kind": "fn",
-          "line": 1867,
+          "line": 1900,
           "name": "receipt_path"
         },
         {
           "kind": "fn",
-          "line": 1873,
+          "line": 1906,
           "name": "profile_details_values"
         },
         {
           "kind": "fn",
-          "line": 1894,
+          "line": 1927,
           "name": "validate_profile_details_pair"
         },
         {
           "kind": "fn",
-          "line": 1927,
+          "line": 1960,
           "name": "commit_record"
         },
         {
           "kind": "fn",
-          "line": 2261,
+          "line": 2321,
           "name": "encode_pending"
         },
         {
           "kind": "fn",
-          "line": 2284,
+          "line": 2344,
           "name": "decode_pending"
         },
         {
           "kind": "fn",
-          "line": 2314,
+          "line": 2374,
           "name": "encode_receipt"
         },
         {
           "kind": "fn",
-          "line": 2333,
+          "line": 2393,
           "name": "decode_receipt"
         },
         {
           "kind": "fn",
-          "line": 2371,
+          "line": 2431,
           "name": "decode_sequence"
         },
         {
           "kind": "fn",
-          "line": 2388,
+          "line": 2448,
           "name": "read_optional"
         },
         {
           "kind": "fn",
-          "line": 2404,
+          "line": 2464,
           "name": "read_bounded"
         },
         {
           "kind": "const",
-          "line": 2414,
+          "line": 2474,
           "name": "HEX"
         },
         {
           "kind": "struct",
-          "line": 2424,
+          "line": 2484,
           "name": "JournalEncoder"
         },
         {
           "kind": "impl",
-          "line": 2428,
+          "line": 2488,
           "name": "JournalEncoder"
         },
         {
           "kind": "fn",
-          "line": 2429,
+          "line": 2489,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2436,
+          "line": 2496,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2446,
+          "line": 2506,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2450,
+          "line": 2510,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2454,
+          "line": 2514,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2468,
+          "line": 2528,
           "name": "bytes"
         },
         {
           "kind": "fn",
-          "line": 2482,
+          "line": 2542,
           "name": "details"
         },
         {
           "kind": "fn",
-          "line": 2511,
+          "line": 2571,
           "name": "input"
         },
         {
           "kind": "struct",
-          "line": 2592,
+          "line": 2657,
           "name": "JournalDecoder"
         },
         {
           "kind": "impl",
-          "line": 2597,
+          "line": 2662,
           "name": "JournalDecoder<'a>"
         },
         {
           "kind": "fn",
-          "line": 2598,
+          "line": 2663,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2615,
+          "line": 2680,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2626,
+          "line": 2691,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 2638,
+          "line": 2703,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2642,
+          "line": 2707,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2647,
+          "line": 2712,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2660,
+          "line": 2725,
           "name": "bytes"
         },
         {
           "kind": "fn",
-          "line": 2671,
+          "line": 2736,
           "name": "details"
         },
         {
           "kind": "fn",
-          "line": 2710,
+          "line": 2775,
           "name": "flag"
         },
         {
           "kind": "fn",
-          "line": 2720,
+          "line": 2785,
           "name": "input"
         },
         {
           "kind": "mod",
-          "line": 2870,
+          "line": 2950,
           "name": "tests"
         },
         {
           "kind": "mod",
-          "line": 2874,
+          "line": 2954,
           "name": "beta_wallet_tests"
         },
         {
           "kind": "mod",
-          "line": 2875,
+          "line": 2955,
           "name": "cache_policy_tests"
         },
         {
           "kind": "mod",
-          "line": 2876,
+          "line": 2956,
           "name": "community_vote_tests"
         },
         {
           "kind": "struct",
-          "line": 2879,
+          "line": 2959,
           "name": "MemoryVault"
         },
         {
           "kind": "impl",
-          "line": 2884,
+          "line": 2964,
           "name": "MemoryVault"
         },
         {
           "kind": "fn",
-          "line": 2885,
+          "line": 2965,
           "name": "empty"
         },
         {
           "kind": "fn",
-          "line": 2892,
+          "line": 2972,
           "name": "seeded"
         },
         {
           "kind": "impl",
-          "line": 2906,
+          "line": 2986,
           "name": "IdentityVault"
         },
         {
           "kind": "fn",
-          "line": 2907,
+          "line": 2987,
           "name": "root_exists"
         },
         {
           "kind": "fn",
-          "line": 2911,
+          "line": 2991,
           "name": "load_root"
         },
         {
           "kind": "fn",
-          "line": 2917,
+          "line": 2997,
           "name": "load_or_create_root"
         },
         {
           "kind": "fn",
-          "line": 2925,
+          "line": 3005,
           "name": "load_or_create_device"
         },
         {
           "kind": "fn",
-          "line": 2934,
+          "line": 3014,
           "name": "temp_root"
         },
         {
           "kind": "fn",
-          "line": 2946,
+          "line": 3026,
           "name": "forwarded_stop_prevents_another_scheduling_turn_until_control_is_processed"
         },
         {
           "kind": "fn",
-          "line": 2967,
+          "line": 3047,
           "name": "offline_delivery_recovers_and_reports_verified_remote_receipt_without_new_signature"
         },
         {
           "kind": "fn",
-          "line": 3125,
+          "line": 3205,
           "name": "revoked_recipient_never_connects_and_locked_identity_stops_listener"
         },
         {
           "kind": "fn",
-          "line": 3184,
+          "line": 3264,
           "name": "queued_public_post_survives_locked_restart_and_cancellation_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 3256,
+          "line": 3336,
           "name": "identity_profile_post_feed_and_restart_idempotency_share_one_authority"
         },
         {
           "kind": "fn",
-          "line": 3334,
+          "line": 3414,
           "name": "pending_exact_signed_post_is_recovered_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 3383,
+          "line": 3463,
           "name": "profile_pending_record_is_bound_to_requested_content"
         },
         {
           "kind": "fn",
-          "line": 3409,
+          "line": 3489,
           "name": "orphaned_atomic_replace_temp_does_not_block_recovery"
         },
         {
           "kind": "fn",
-          "line": 3424,
+          "line": 3504,
           "name": "production_lock_refuses_a_second_core_service_instance"
         },
         {
           "kind": "fn",
-          "line": 3435,
+          "line": 3515,
           "name": "follow_mutations_drive_feed_and_keep_exact_retry_identity_after_locked_restart"
         },
         {
           "kind": "fn",
-          "line": 3538,
+          "line": 3618,
           "name": "exact_pending_follow_recovers_but_tampered_input_never_inserts"
         },
         {
           "kind": "fn",
-          "line": 3588,
+          "line": 3668,
           "name": "like_count"
         },
         {
           "kind": "fn",
-          "line": 3597,
+          "line": 3677,
           "name": "like_unlike_counts_and_locked_retry_keep_exact_bytes_without_reviving_stale_like"
         },
         {
           "kind": "fn",
-          "line": 3667,
+          "line": 3747,
           "name": "missing_private_and_noncontent_like_targets_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 3705,
+          "line": 3785,
           "name": "pending_like_recovers_exact_bytes_and_refuses_tampered_action_or_kind"
         },
         {
           "kind": "fn",
-          "line": 3765,
+          "line": 3845,
           "name": "public_comments_thread_and_custom_parents_keep_locked_receipts_after_parent_removal"
         },
         {
           "kind": "fn",
-          "line": 3860,
+          "line": 3940,
           "name": "invalid_private_missing_or_blank_new_comments_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 3901,
+          "line": 3981,
           "name": "pending_comments_recover_exactly_and_reject_text_parent_link_or_type_tampering"
         },
         {
           "kind": "fn",
-          "line": 3966,
+          "line": 4046,
           "name": "membership_test_card"
         },
         {
           "kind": "fn",
-          "line": 3990,
+          "line": 4070,
           "name": "membership_open_join_leave_policy_and_locked_deleted_card_retry_are_exact"
         },
         {
           "kind": "fn",
-          "line": 4079,
+          "line": 4159,
           "name": "pending_membership_recovers_exactly_and_refuses_action_or_target_tampering"
         },
         {
           "kind": "fn",
-          "line": 4131,
+          "line": 4211,
           "name": "community_creation_is_open_and_exact_locked_receipts_do_not_replace_newer_cards"
         },
         {
           "kind": "fn",
-          "line": 4223,
+          "line": 4303,
           "name": "pending_community_recovers_exactly_and_refuses_name_charter_mode_link_type_tampering"
         },
         {
           "kind": "fn",
-          "line": 4298,
+          "line": 4378,
           "name": "public_delivery_preview_and_queue_require_exact_own_identity_and_expose_only_review"
         },
         {
           "kind": "fn",
-          "line": 4397,
+          "line": 4477,
           "name": "maximum_comment_publication_locked_receipt_and_pending_recovery_keep_journal_usable"
         },
         {
           "kind": "fn",
-          "line": 4477,
+          "line": 4557,
           "name": "details_test_draft"
         },
         {
           "kind": "fn",
-          "line": 4497,
+          "line": 4577,
           "name": "profile_details_all_fields_and_avatar_keep_exact_locked_receipts_and_invalid_input_no_sequence"
         },
         {
           "kind": "fn",
-          "line": 4624,
+          "line": 4704,
           "name": "pending_profile_details_validate_all_objects_before_any_insert"
         },
         {
           "kind": "fn",
-          "line": 4702,
+          "line": 4782,
           "name": "profile_photo_publishes_exact_four_objects_and_locked_receipt_while_invalid_input_does_not_reserve"
         },
         {
           "kind": "fn",
-          "line": 4783,
+          "line": 4863,
           "name": "photo_profile_pending_recovery_validates_every_object_before_inserting"
         },
         {
           "kind": "fn",
-          "line": 4875,
+          "line": 4955,
           "name": "photo_sequence_range_overflow_never_partially_reserves"
         },
         {
           "kind": "fn",
-          "line": 4887,
+          "line": 4967,
           "name": "wall_test_draft"
         },
         {
           "kind": "fn",
-          "line": 4896,
+          "line": 4976,
           "name": "wall_public_and_unlisted_heads_keep_locked_exact_receipts_and_no_profile_confusion"
         },
         {
           "kind": "fn",
-          "line": 4996,
+          "line": 5076,
           "name": "pending_wall_checks_visibility_header_links_head_label_and_time_before_any_insert"
         },
         {
           "kind": "fn",
-          "line": 5082,
+          "line": 5162,
           "name": "media_share_test_headers"
         },
         {
           "kind": "fn",
-          "line": 5117,
+          "line": 5197,
           "name": "media_share_accepts_three_public_headers_without_fetch_and_keeps_locked_exact_receipts"
         },
         {
           "kind": "fn",
-          "line": 5196,
+          "line": 5276,
           "name": "missing_private_unrelated_and_noncanonical_media_headers_never_reserve_sequence"
         },
         {
           "kind": "fn",
-          "line": 5236,
+          "line": 5316,
           "name": "pending_media_share_recovery_binds_exact_caption_media_and_no_extra_or_zero_links"
         }
       ],
@@ -11318,43 +11323,48 @@
       "title": "use super::*;"
     },
     {
-      "bytes": 2665,
+      "bytes": 3848,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
         "unwrap",
         "core",
+        "command",
+        "handle",
+        "post",
+        "reply",
         "did",
         "store",
         "a_dev",
         "target",
-        "command",
-        "reply",
+        "root",
+        "false",
         "did_mini",
         "controller",
         "insert",
+        "clone",
+        "true",
+        "target_id",
+        "published",
+        "object_id",
         "build_reaction",
         "reactionkind",
-        "handle",
         "b_dev",
-        "community",
-        "cid",
-        "post",
-        "true",
-        "communityvote",
-        "as_str",
-        "errorcode",
-        "build_community",
-        "build_post"
+        "community"
       ],
-      "lines": 86,
+      "lines": 122,
       "path": "crates/mini-app-service/src/tests/community_vote_tests.rs",
-      "sha256": "db58b27336bc11c7201070b4a3df59ad4c7e9a8691d8d0988bc3791794c5a483",
+      "sha256": "dc6f8a42932a0f5e90ac82ebf91f749d749e71bc31d9e8d82e79eaf0438c82ec",
       "symbols": [
         {
           "kind": "fn",
           "line": 8,
           "name": "a_community_vote_counts_member_ballots_and_says_standing_was_not_checked"
+        },
+        {
+          "kind": "fn",
+          "line": 88,
+          "name": "a_downvote_is_published_idempotently_and_conflicting_reuse_is_refused"
         }
       ],
       "title": "use super::*;"
@@ -39355,13 +39365,13 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 448085,
+      "bytes": 451216,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "string",
-        "self",
         "std",
+        "self",
         "fmt",
         "draft",
         "debug",
@@ -39370,6 +39380,7 @@
         "derive",
         "clone",
         "enum",
+        "bool",
         "conversation_state",
         "library",
         "media_share",
@@ -39381,12 +39392,11 @@
         "createroot",
         "unlockidentity",
         "lockidentity",
-        "lockafterprofile",
-        "publishprofile"
+        "lockafterprofile"
       ],
-      "lines": 10487,
+      "lines": 10559,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "f3a74dc6019647350c441819b5bfd83c3fa5d67ea074d825ca1500486d99707e",
+      "sha256": "ee672bc625543b53c19ed3f9e1eff39840dab957f2fd72dc74693b02577880bf",
       "symbols": [
         {
           "kind": "mod",
@@ -39540,853 +39550,853 @@
         },
         {
           "kind": "impl",
-          "line": 170,
+          "line": 174,
           "name": "std::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 171,
+          "line": 175,
           "name": "fmt"
         },
         {
           "kind": "enum",
-          "line": 201,
+          "line": 206,
           "name": "CommentDraft"
         },
         {
           "kind": "struct",
-          "line": 219,
+          "line": 224,
           "name": "ConversationPreview"
         },
         {
           "kind": "type",
-          "line": 230,
+          "line": 235,
           "name": "SearchAnswer"
         },
         {
           "kind": "struct",
-          "line": 234,
+          "line": 239,
           "name": "HostState"
         },
         {
           "kind": "impl",
-          "line": 245,
+          "line": 250,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 246,
+          "line": 251,
           "name": "drop"
         },
         {
           "kind": "struct",
-          "line": 252,
+          "line": 257,
           "name": "PrivacyState"
         },
         {
           "kind": "impl",
-          "line": 265,
+          "line": 270,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 266,
+          "line": 271,
           "name": "default"
         },
         {
           "kind": "struct",
-          "line": 277,
+          "line": 282,
           "name": "MininetApp"
         },
         {
           "kind": "struct",
-          "line": 461,
+          "line": 469,
           "name": "Workspace"
         },
         {
           "kind": "struct",
-          "line": 470,
+          "line": 478,
           "name": "DesktopIdentity"
         },
         {
           "kind": "fn",
-          "line": 475,
+          "line": 483,
           "name": "desktop_identity_from_seeds"
         },
         {
           "kind": "fn",
-          "line": 492,
+          "line": 500,
           "name": "load_desktop_identity"
         },
         {
           "kind": "impl",
-          "line": 508,
+          "line": 516,
           "name": "Workspace"
         },
         {
           "kind": "fn",
-          "line": 509,
+          "line": 517,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 541,
+          "line": 549,
           "name": "refresh"
         },
         {
           "kind": "fn",
-          "line": 551,
+          "line": 559,
           "name": "is_unlocked"
         },
         {
           "kind": "fn",
-          "line": 555,
+          "line": 563,
           "name": "root_created"
         },
         {
           "kind": "fn",
-          "line": 559,
+          "line": 567,
           "name": "has_public_account"
         },
         {
           "kind": "fn",
-          "line": 563,
+          "line": 571,
           "name": "human_did"
         },
         {
           "kind": "fn",
-          "line": 569,
+          "line": 577,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 573,
+          "line": 581,
           "name": "unlock"
         },
         {
           "kind": "fn",
-          "line": 585,
+          "line": 593,
           "name": "publish_custom_profile"
         },
         {
           "kind": "fn",
-          "line": 647,
+          "line": 655,
           "name": "publish_custom_profile_confirmed"
         },
         {
           "kind": "fn",
-          "line": 676,
+          "line": 684,
           "name": "known_profiles"
         },
         {
           "kind": "fn",
-          "line": 680,
+          "line": 688,
           "name": "current_profile"
         },
         {
           "kind": "fn",
-          "line": 686,
+          "line": 694,
           "name": "profile_needs_device_upgrade"
         },
         {
           "kind": "fn",
-          "line": 699,
+          "line": 707,
           "name": "upgrade_profile_for_sync"
         },
         {
           "kind": "fn",
-          "line": 715,
+          "line": 723,
           "name": "follows"
         },
         {
           "kind": "fn",
-          "line": 722,
+          "line": 730,
           "name": "is_friend"
         },
         {
           "kind": "fn",
-          "line": 732,
+          "line": 740,
           "name": "media_bytes"
         },
         {
           "kind": "fn",
-          "line": 750,
+          "line": 758,
           "name": "profile_image"
         },
         {
           "kind": "fn",
-          "line": 759,
+          "line": 767,
           "name": "publish_media_post"
         },
         {
           "kind": "fn",
-          "line": 798,
+          "line": 806,
           "name": "publish_media_post_confirmed"
         },
         {
           "kind": "fn",
-          "line": 815,
+          "line": 823,
           "name": "publish_file"
         },
         {
           "kind": "fn",
-          "line": 850,
+          "line": 858,
           "name": "build_redemption"
         },
         {
           "kind": "fn",
-          "line": 878,
+          "line": 886,
           "name": "build_redemption_confirmed"
         },
         {
           "kind": "fn",
-          "line": 896,
+          "line": 904,
           "name": "redemption_requests"
         },
         {
           "kind": "fn",
-          "line": 932,
+          "line": 940,
           "name": "export_bundle"
         },
         {
           "kind": "const",
-          "line": 933,
+          "line": 941,
           "name": "MAGIC"
         },
         {
           "kind": "const",
-          "line": 934,
+          "line": 942,
           "name": "MAX_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 935,
+          "line": 943,
           "name": "MAX_OBJECT_BYTES"
         },
         {
           "kind": "fn",
-          "line": 959,
+          "line": 967,
           "name": "import_bundle"
         },
         {
           "kind": "const",
-          "line": 960,
+          "line": 968,
           "name": "MAGIC"
         },
         {
           "kind": "const",
-          "line": 961,
+          "line": 969,
           "name": "MAX_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 962,
+          "line": 970,
           "name": "MAX_OBJECT_BYTES"
         },
         {
           "kind": "fn",
-          "line": 990,
+          "line": 998,
           "name": "following_count"
         },
         {
           "kind": "fn",
-          "line": 997,
+          "line": 1005,
           "name": "follower_count"
         },
         {
           "kind": "fn",
-          "line": 1004,
+          "line": 1012,
           "name": "mutual_follow_count"
         },
         {
           "kind": "fn",
-          "line": 1020,
+          "line": 1028,
           "name": "communities"
         },
         {
           "kind": "fn",
-          "line": 1036,
+          "line": 1044,
           "name": "create_beta_conversation"
         },
         {
           "kind": "fn",
-          "line": 1057,
+          "line": 1065,
           "name": "import_beta_conversation"
         },
         {
           "kind": "fn",
-          "line": 1079,
+          "line": 1087,
           "name": "pair_private"
         },
         {
           "kind": "fn",
-          "line": 1102,
+          "line": 1110,
           "name": "follow_privately"
         },
         {
           "kind": "fn",
-          "line": 1111,
+          "line": 1119,
           "name": "send_private_message"
         },
         {
           "kind": "fn",
-          "line": 1136,
+          "line": 1144,
           "name": "send_private_message_confirmed"
         },
         {
           "kind": "fn",
-          "line": 1148,
+          "line": 1156,
           "name": "private_messages"
         },
         {
           "kind": "fn",
-          "line": 1157,
+          "line": 1165,
           "name": "data_root"
         },
         {
           "kind": "fn",
-          "line": 1169,
+          "line": 1177,
           "name": "settings_path"
         },
         {
           "kind": "fn",
-          "line": 1173,
+          "line": 1181,
           "name": "encode_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1186,
+          "line": 1194,
           "name": "decode_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1203,
+          "line": 1211,
           "name": "load_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1210,
+          "line": 1218,
           "name": "save_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1215,
+          "line": 1223,
           "name": "now_ms"
         },
         {
           "kind": "fn",
-          "line": 1222,
+          "line": 1230,
           "name": "next_object_sequence"
         },
         {
           "kind": "fn",
-          "line": 1236,
+          "line": 1244,
           "name": "decode_profile_image"
         },
         {
           "kind": "const",
-          "line": 1237,
+          "line": 1245,
           "name": "MAX_DIMENSION"
         },
         {
           "kind": "const",
-          "line": 1238,
+          "line": 1246,
           "name": "MAX_DECODE_ALLOCATION"
         },
         {
           "kind": "fn",
-          "line": 1263,
+          "line": 1271,
           "name": "parse_profile_fields"
         },
         {
           "kind": "fn",
-          "line": 1303,
+          "line": 1311,
           "name": "atomic_write_file"
         },
         {
           "kind": "fn",
-          "line": 1322,
+          "line": 1330,
           "name": "read_u32"
         },
         {
           "kind": "fn",
-          "line": 1336,
+          "line": 1344,
           "name": "configure_peer_stream"
         },
         {
           "kind": "fn",
-          "line": 1346,
+          "line": 1354,
           "name": "nearby_endpoint_for"
         },
         {
           "kind": "fn",
-          "line": 1353,
+          "line": 1361,
           "name": "open_sync_state"
         },
         {
           "kind": "fn",
-          "line": 1373,
+          "line": 1381,
           "name": "accept_once"
         },
         {
           "kind": "fn",
-          "line": 1379,
+          "line": 1387,
           "name": "run_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 1388,
+          "line": 1396,
           "name": "run_private_sync"
         },
         {
           "kind": "fn",
-          "line": 1410,
+          "line": 1418,
           "name": "scan_nearby_profiles"
         },
         {
           "kind": "fn",
-          "line": 1439,
+          "line": 1447,
           "name": "run_discoverable_profile_sync"
         },
         {
           "kind": "impl",
-          "line": 1505,
+          "line": 1513,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 1506,
+          "line": 1514,
           "name": "default"
         },
         {
           "kind": "fn",
-          "line": 1730,
+          "line": 1740,
           "name": "comment_request_id"
         },
         {
           "kind": "fn",
-          "line": 1745,
+          "line": 1755,
           "name": "community_request_id"
         },
         {
           "kind": "fn",
-          "line": 1762,
+          "line": 1772,
           "name": "community_draft_matches"
         },
         {
           "kind": "fn",
-          "line": 1771,
+          "line": 1781,
           "name": "comment_draft_matches"
         },
         {
           "kind": "fn",
-          "line": 1780,
+          "line": 1790,
           "name": "follow_request_id"
         },
         {
           "kind": "fn",
-          "line": 1788,
+          "line": 1798,
           "name": "social_toggle_request_id"
         },
         {
           "kind": "fn",
-          "line": 1806,
+          "line": 1816,
           "name": "fresh_follow_endpoint"
         },
         {
           "kind": "impl",
-          "line": 1816,
+          "line": 1826,
           "name": "eframe::App"
         },
         {
           "kind": "fn",
-          "line": 1817,
+          "line": 1827,
           "name": "update"
         },
         {
           "kind": "impl",
-          "line": 1991,
+          "line": 2001,
           "name": "MininetApp"
         },
         {
           "kind": "fn",
-          "line": 1994,
+          "line": 2004,
           "name": "log_activity"
         },
         {
           "kind": "const",
-          "line": 1995,
+          "line": 2005,
           "name": "MAX_ACTIVITY"
         },
         {
           "kind": "fn",
-          "line": 2003,
+          "line": 2013,
           "name": "core_unlocked"
         },
         {
           "kind": "fn",
-          "line": 2009,
+          "line": 2019,
           "name": "core_available"
         },
         {
           "kind": "fn",
-          "line": 2013,
+          "line": 2023,
           "name": "start_core_action"
         },
         {
           "kind": "fn",
-          "line": 2034,
+          "line": 2044,
           "name": "retry_application_core"
         },
         {
           "kind": "fn",
-          "line": 2059,
+          "line": 2069,
           "name": "poll_vote"
         },
         {
           "kind": "fn",
-          "line": 2084,
+          "line": 2094,
           "name": "request_vote"
         },
         {
           "kind": "fn",
-          "line": 2104,
+          "line": 2121,
           "name": "poll_storage"
         },
         {
           "kind": "fn",
-          "line": 2155,
+          "line": 2172,
           "name": "request_core_status"
         },
         {
           "kind": "fn",
-          "line": 2168,
+          "line": 2185,
           "name": "post_operation_id"
         },
         {
           "kind": "fn",
-          "line": 2179,
+          "line": 2196,
           "name": "profile_operation_id"
         },
         {
           "kind": "fn",
-          "line": 2194,
+          "line": 2211,
           "name": "poll_app_service"
         },
         {
           "kind": "fn",
-          "line": 2311,
+          "line": 2328,
           "name": "finish_core_action"
         },
         {
           "kind": "fn",
-          "line": 2731,
+          "line": 2768,
           "name": "reload_workspace"
         },
         {
           "kind": "fn",
-          "line": 2747,
+          "line": 2784,
           "name": "rebuild_conversation_previews"
         },
         {
           "kind": "fn",
-          "line": 2791,
+          "line": 2828,
           "name": "save_connections"
         },
         {
           "kind": "fn",
-          "line": 2799,
+          "line": 2836,
           "name": "apply_launch_policy"
         },
         {
           "kind": "fn",
-          "line": 2818,
+          "line": 2855,
           "name": "start_host"
         },
         {
           "kind": "fn",
-          "line": 2864,
+          "line": 2901,
           "name": "stop_host"
         },
         {
           "kind": "fn",
-          "line": 2872,
+          "line": 2909,
           "name": "start_router_mapping"
         },
         {
           "kind": "fn",
-          "line": 2887,
+          "line": 2924,
           "name": "poll_router"
         },
         {
           "kind": "fn",
-          "line": 2937,
+          "line": 2974,
           "name": "poll_host"
         },
         {
           "kind": "fn",
-          "line": 2999,
+          "line": 3036,
           "name": "start_session"
         },
         {
           "kind": "fn",
-          "line": 3030,
+          "line": 3067,
           "name": "stop_session"
         },
         {
           "kind": "fn",
-          "line": 3037,
+          "line": 3074,
           "name": "schedule_session"
         },
         {
           "kind": "fn",
-          "line": 3086,
+          "line": 3123,
           "name": "poll_session"
         },
         {
           "kind": "fn",
-          "line": 3122,
+          "line": 3159,
           "name": "poll_dropped_files"
         },
         {
           "kind": "fn",
-          "line": 3152,
+          "line": 3189,
           "name": "poll_discovery"
         },
         {
           "kind": "fn",
-          "line": 3170,
+          "line": 3207,
           "name": "poll_one_shot_sync"
         },
         {
           "kind": "fn",
-          "line": 3203,
+          "line": 3240,
           "name": "poll_selftest"
         },
         {
           "kind": "fn",
-          "line": 3239,
+          "line": 3276,
           "name": "poll_visibility"
         },
         {
           "kind": "fn",
-          "line": 3271,
+          "line": 3308,
           "name": "connection_state"
         },
         {
           "kind": "fn",
-          "line": 3288,
+          "line": 3325,
           "name": "connection_summary"
         },
         {
           "kind": "fn",
-          "line": 3313,
+          "line": 3350,
           "name": "top_bar"
         },
         {
           "kind": "fn",
-          "line": 3401,
+          "line": 3438,
           "name": "navigation_rail"
         },
         {
           "kind": "fn",
-          "line": 3474,
+          "line": 3511,
           "name": "discovery_column"
         },
         {
           "kind": "fn",
-          "line": 3610,
+          "line": 3647,
           "name": "set_muted"
         },
         {
           "kind": "fn",
-          "line": 3628,
+          "line": 3665,
           "name": "peer_label"
         },
         {
           "kind": "fn",
-          "line": 3638,
+          "line": 3675,
           "name": "follow_suggestions"
         },
         {
           "kind": "fn",
-          "line": 3654,
+          "line": 3691,
           "name": "publish_comment_via_core"
         },
         {
           "kind": "fn",
-          "line": 3687,
+          "line": 3724,
           "name": "start_beta_wallet"
         },
         {
           "kind": "fn",
-          "line": 3795,
+          "line": 3832,
           "name": "set_like_via_core"
         },
         {
           "kind": "fn",
-          "line": 3816,
+          "line": 3853,
+          "name": "set_downvote_via_core"
+        },
+        {
+          "kind": "fn",
+          "line": 3874,
           "name": "follow_did"
         },
         {
           "kind": "fn",
-          "line": 3820,
+          "line": 3878,
           "name": "set_follow_via_core"
         },
         {
           "kind": "fn",
-          "line": 3856,
+          "line": 3914,
           "name": "poll_timeline"
         },
         {
           "kind": "fn",
-          "line": 3979,
+          "line": 4037,
           "name": "timeline_controls"
         },
         {
           "kind": "fn",
-          "line": 4025,
+          "line": 4083,
           "name": "render_timeline"
         },
         {
           "kind": "fn",
-          "line": 4093,
+          "line": 4151,
           "name": "discover"
         },
         {
           "kind": "fn",
-          "line": 4127,
+          "line": 4185,
           "name": "start_network_search"
         },
         {
           "kind": "fn",
-          "line": 4165,
+          "line": 4223,
           "name": "poll_netsearch"
         },
         {
           "kind": "fn",
-          "line": 4228,
+          "line": 4286,
           "name": "start_fetch"
         },
         {
           "kind": "fn",
-          "line": 4248,
+          "line": 4306,
           "name": "poll_catalog"
         },
         {
           "kind": "fn",
-          "line": 4295,
+          "line": 4353,
           "name": "thumbnail"
         },
         {
           "kind": "fn",
-          "line": 4347,
+          "line": 4405,
           "name": "media_timeline"
         },
         {
           "kind": "fn",
-          "line": 4515,
+          "line": 4573,
           "name": "catalog_grid"
         },
         {
           "kind": "fn",
-          "line": 4669,
+          "line": 4727,
           "name": "channel"
         },
         {
           "kind": "fn",
-          "line": 4794,
+          "line": 4852,
           "name": "media_texture"
         },
         {
           "kind": "fn",
-          "line": 4824,
+          "line": 4882,
           "name": "media_description"
         },
         {
           "kind": "fn",
-          "line": 4870,
+          "line": 4928,
           "name": "start_nearby_scan"
         },
         {
           "kind": "fn",
-          "line": 4887,
+          "line": 4945,
           "name": "start_profile_visibility"
         },
         {
           "kind": "fn",
-          "line": 4940,
+          "line": 4998,
           "name": "start_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 4966,
+          "line": 5024,
           "name": "start_private_sync"
         },
         {
           "kind": "fn",
-          "line": 5003,
+          "line": 5061,
           "name": "add_friend"
         },
         {
           "kind": "fn",
-          "line": 5016,
+          "line": 5074,
           "name": "post_card"
         },
         {
           "kind": "fn",
-          "line": 5175,
+          "line": 5233,
           "name": "thread"
         },
         {
           "kind": "const",
-          "line": 5176,
+          "line": 5234,
           "name": "MAX_SHOWN"
         },
         {
           "kind": "fn",
-          "line": 5249,
+          "line": 5307,
           "name": "nav_button"
         },
         {
           "kind": "fn",
-          "line": 5269,
+          "line": 5327,
           "name": "header"
         },
         {
           "kind": "fn",
-          "line": 5344,
+          "line": 5402,
           "name": "home"
         },
         {
           "kind": "fn",
-          "line": 5463,
+          "line": 5521,
           "name": "connections"
         },
         {
           "kind": "fn",
-          "line": 5900,
+          "line": 5958,
           "name": "onboarding"
         },
         {
           "kind": "fn",
-          "line": 6042,
+          "line": 6100,
           "name": "inbox"
         },
         {
           "kind": "fn",
-          "line": 6362,
+          "line": 6420,
           "name": "profile_texture"
         },
         {
           "kind": "fn",
-          "line": 6385,
+          "line": 6443,
           "name": "people"
-        },
-        {
-          "kind": "fn",
-          "line": 6581,
-          "name": "reload_library"
         }
       ],
       "title": "mod app_service;"
@@ -113750,7 +113760,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 26501,
+      "bytes": 27026,
       "group": "docs",
       "headings": [
         {
@@ -113905,9 +113915,9 @@
         "status",
         "target"
       ],
-      "lines": 323,
+      "lines": 325,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "01c70a9b8f9d6eea1156b5220a7553dc61ed0f2d4c8db39f1c718e43e655207b",
+      "sha256": "f897280c0140a874655ce74f3b9a990c5d21d1127869fb69e209cec5981b5f96",
       "symbols": [],
       "title": "Open Beta status"
     },

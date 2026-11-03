@@ -437,6 +437,11 @@ impl Request {
                 operation_id,
                 target_id,
                 ..
+            }
+            | Command::SetDownvote {
+                operation_id,
+                target_id,
+                ..
             } => {
                 validate_operation_id(operation_id)?;
                 if target_id.is_empty() || target_id.len() > MAX_OBJECT_ID_BYTES {
@@ -776,6 +781,12 @@ pub enum Command {
         text: String,
     },
     SetLike {
+        operation_id: String,
+        target_id: String,
+        active: bool,
+    },
+    /// Publish (or withdraw) a downvote on a public post or comment.
+    SetDownvote {
         operation_id: String,
         target_id: String,
         active: bool,
@@ -1374,6 +1385,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.u64(*amount);
             encoder.string(memo, MAX_BETA_MEMO_BYTES)?;
         }
+        Command::SetDownvote {
+            operation_id,
+            target_id,
+            active,
+        } => {
+            encoder.u8(51);
+            encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
+            encoder.string(target_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.u8(u8::from(*active));
+        }
         Command::SetLike {
             operation_id,
             target_id,
@@ -1656,6 +1677,15 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             contribution_id: decoder.option_string(MAX_OBJECT_ID_BYTES)?,
             amount: decoder.u64()?,
             memo: decoder.string(MAX_BETA_MEMO_BYTES)?,
+        }),
+        51 => Ok(Command::SetDownvote {
+            operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
+            target_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            active: match decoder.u8()? {
+                0 => false,
+                1 => true,
+                _ => return Err(ProtocolError::Decode("invalid downvote action".into())),
+            },
         }),
         25 => Ok(Command::SetLike {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
@@ -2983,6 +3013,11 @@ mod tests {
             Command::StorageStatus,
             Command::CacheRetentionGet,
             Command::CacheRetentionSet { value: 3 },
+            Command::SetDownvote {
+                operation_id: "down:1".into(),
+                target_id: "zpost".into(),
+                active: true,
+            },
             Command::CommunityVote {
                 community_id: "zcommunity".into(),
                 target_id: "zpost".into(),

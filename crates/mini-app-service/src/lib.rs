@@ -468,6 +468,13 @@ impl<V: IdentityVault> Core<V> {
             } => self
                 .set_like(&operation_id, &target_id, active)
                 .map(Reply::Published),
+            Command::SetDownvote {
+                operation_id,
+                target_id,
+                active,
+            } => self
+                .set_reaction_vote(&operation_id, &target_id, active, false)
+                .map(Reply::Published),
             Command::SetFollow {
                 operation_id,
                 target_did,
@@ -1114,6 +1121,17 @@ impl<V: IdentityVault> Core<V> {
         target_id: &str,
         active: bool,
     ) -> Result<PublishedObject, ServiceError> {
+        self.set_reaction_vote(operation_id, target_id, active, true)
+    }
+
+    /// Publish a Like (`up`) or Downvote (`!up`) reaction on a public post or comment.
+    fn set_reaction_vote(
+        &mut self,
+        operation_id: &str,
+        target_id: &str,
+        active: bool,
+        up: bool,
+    ) -> Result<PublishedObject, ServiceError> {
         validate_operation(operation_id)?;
         if target_id.is_empty() || target_id.len() > MAX_OBJECT_ID_BYTES {
             return Err(ServiceError::new(
@@ -1123,9 +1141,16 @@ impl<V: IdentityVault> Core<V> {
         }
         let target = ObjectId::parse(target_id)
             .map_err(|error| ServiceError::new(ErrorCode::BadRequest, error.to_string()))?;
-        let input = MutationInput::Like {
-            target_id: target.as_str().into(),
-            active,
+        let input = if up {
+            MutationInput::Like {
+                target_id: target.as_str().into(),
+                active,
+            }
+        } else {
+            MutationInput::Downvote {
+                target_id: target.as_str().into(),
+                active,
+            }
         };
         if let Some(existing) = self.journal.existing(operation_id, &input)? {
             return self.finish_existing(existing, ObjectKind::Reaction);
@@ -1146,7 +1171,11 @@ impl<V: IdentityVault> Core<V> {
             human,
             device,
             &target,
-            mini_social::ReactionKind::Like,
+            if up {
+                mini_social::ReactionKind::Like
+            } else {
+                mini_social::ReactionKind::Downvote
+            },
             active,
             now_ms(),
             sequence,
@@ -1620,6 +1649,10 @@ enum MutationInput {
         target_id: String,
         active: bool,
     },
+    Downvote {
+        target_id: String,
+        active: bool,
+    },
     Comment {
         parent_id: String,
         text: String,
@@ -1643,7 +1676,7 @@ impl MutationInput {
             Self::Post { .. } => ObjectKind::Post,
             Self::MediaPost { .. } => ObjectKind::MediaPost,
             Self::Follow { .. } => ObjectKind::Follow,
-            Self::Like { .. } => ObjectKind::Reaction,
+            Self::Like { .. } | Self::Downvote { .. } => ObjectKind::Reaction,
             Self::Comment { .. } => ObjectKind::Comment,
             Self::Membership { .. } => ObjectKind::Membership,
             Self::Community { .. } => ObjectKind::Community,
@@ -2154,6 +2187,33 @@ fn commit_record(
                 duplicate: false,
             })
         }
+        MutationInput::Downvote { target_id, active } => {
+            if record.objects.len() != 1 {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "downvote journal has wrong object count",
+                ));
+            }
+            let object = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
+            let (target, kind, state) =
+                mini_social::decode_reaction(&object).map_err(storage_or_social)?;
+            if object.to_bytes() != record.objects[0]
+                || target.as_str() != target_id
+                || kind != mini_social::ReactionKind::Downvote
+                || state != *active
+            {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "downvote journal does not match mutation input",
+                ));
+            }
+            store.insert(&object).map_err(storage_error)?;
+            Ok(PublishedObject {
+                kind: ObjectKind::Reaction,
+                object_id: object.id().as_str().into(),
+                duplicate: false,
+            })
+        }
         MutationInput::Follow {
             target_did,
             following,
@@ -2571,6 +2631,11 @@ impl JournalEncoder {
                 self.string(target_id, MAX_OBJECT_ID_BYTES)?;
                 self.u8(u8::from(*active));
             }
+            MutationInput::Downvote { target_id, active } => {
+                self.u8(11);
+                self.string(target_id, MAX_OBJECT_ID_BYTES)?;
+                self.u8(u8::from(*active));
+            }
             MutationInput::Follow {
                 target_did,
                 following,
@@ -2821,6 +2886,21 @@ impl<'a> JournalDecoder<'a> {
                     ));
                 }
                 Ok(MutationInput::Comment { parent_id, text })
+            }
+            11 => {
+                let target_id = self.string(MAX_OBJECT_ID_BYTES)?;
+                ObjectId::parse(&target_id).map_err(storage_error)?;
+                let active = match self.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => {
+                        return Err(ServiceError::new(
+                            ErrorCode::Storage,
+                            "invalid journal downvote action",
+                        ))
+                    }
+                };
+                Ok(MutationInput::Downvote { target_id, active })
             }
             3 => {
                 let target_id = self.string(MAX_OBJECT_ID_BYTES)?;

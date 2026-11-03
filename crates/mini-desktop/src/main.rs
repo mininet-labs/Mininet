@@ -152,6 +152,10 @@ enum CoreAction {
         target: String,
         active: bool,
     },
+    SetDownvote {
+        target: String,
+        active: bool,
+    },
     SetFollow {
         target: String,
         following: bool,
@@ -185,6 +189,7 @@ impl std::fmt::Debug for CoreAction {
             Self::PublishCommunity { .. } => "PublishCommunity",
             Self::SetMembership { .. } => "SetMembership",
             Self::SetLike { .. } => "SetLike",
+            Self::SetDownvote { .. } => "SetDownvote",
             Self::SetFollow { .. } => "SetFollow",
             Self::BetaRegisterAccount => "BetaRegisterAccount",
             Self::BetaBalances => "BetaBalances",
@@ -306,6 +311,9 @@ struct MininetApp {
     community_operation: Option<(String, String, String)>,
     membership_operation: Option<(String, bool, String)>,
     like_operation: Option<(String, bool, String)>,
+    downvote_operation: Option<(String, bool, String)>,
+    /// How long a vote stays open: 0 until now, 1 closes a day after posting, 2 a week.
+    vote_close: u8,
     follow_operation: Option<(String, bool, String)>,
     profile_operation: Option<(String, String, String)>,
     profile_details_operation: Option<(profile_editor::Intent, String)>,
@@ -1565,6 +1573,8 @@ impl Default for MininetApp {
             community_operation: None,
             membership_operation: None,
             like_operation: None,
+            downvote_operation: None,
+            vote_close: 0,
             comment_operation: None,
             view,
             privacy: load_privacy_settings(),
@@ -2085,16 +2095,23 @@ impl MininetApp {
         &mut self,
         community: &mini_objects::ObjectId,
         thread: &mini_objects::ObjectId,
+        posted_ms: u64,
     ) {
         if self.vote_rx.is_some() {
             return;
         }
         if let Some(client) = self.app_service.as_ref() {
-            // The vote is still open: count everything up to now.
+            let day = 86_400_000u64;
+            let closes_at_ms = match self.vote_close {
+                1 => posted_ms.saturating_add(day),
+                2 => posted_ms.saturating_add(7 * day),
+                // Still open: count everything up to now.
+                _ => u64::MAX,
+            };
             if let Ok(receiver) = client.request(AppCommand::CommunityVote {
                 community_id: community.as_str().into(),
                 target_id: thread.as_str().into(),
-                closes_at_ms: u64::MAX,
+                closes_at_ms,
             }) {
                 self.vote_rx = Some((thread.as_str().to_owned(), receiver));
             }
@@ -2588,6 +2605,26 @@ impl MininetApp {
                     "Like saved through the application core. Exchange with peers to share it."
                 } else {
                     "Like removed through the application core. Exchange with peers to share it."
+                }
+                .into();
+            }
+            (CoreAction::SetDownvote { target, active }, Ok(AppReply::Published(published)))
+                if published.kind == mini_app_protocol::ObjectKind::Reaction =>
+            {
+                if self
+                    .downvote_operation
+                    .as_ref()
+                    .is_some_and(|(old_target, old_state, _)| {
+                        old_target == &target && *old_state == active
+                    })
+                {
+                    self.downvote_operation = None;
+                }
+                self.reload_workspace();
+                self.notice = if active {
+                    "Downvote saved through the application core. Exchange with peers to share it."
+                } else {
+                    "Downvote removed through the application core. Exchange with peers to share it."
                 }
                 .into();
             }
@@ -3806,6 +3843,27 @@ No tracking. No forced updates.",
                 active,
             },
             AppCommand::SetLike {
+                operation_id,
+                target_id: target,
+                active,
+            },
+        );
+    }
+
+    fn set_downvote_via_core(&mut self, target: &mini_objects::ObjectId, active: bool) {
+        if self.app_action.is_some() {
+            self.notice = "Finish the pending signed action before reacting.".into();
+            return;
+        }
+        let target = target.as_str().to_string();
+        let operation_id =
+            social_toggle_request_id(&mut self.downvote_operation, "downvote", &target, active);
+        self.start_core_action(
+            CoreAction::SetDownvote {
+                target: target.clone(),
+                active,
+            },
+            AppCommand::SetDownvote {
                 operation_id,
                 target_id: target,
                 active,
@@ -8233,6 +8291,9 @@ No tracking. No forced updates.",
                         .strong()
                         .color(theme::TEXT_PRIMARY),
                 );
+                if theme::icon_action(ui, "⬇", "", theme::WARN_AMBER) {
+                    self.set_downvote_via_core(&node.id, true);
+                }
             });
             ui.vertical(|ui| {
                 ui.set_width(ui.available_width());
@@ -8294,8 +8355,19 @@ No tracking. No forced updates.",
                 });
                 if depth == 0 {
                     if let Some(community) = self.open_community.clone() {
+                        egui::ComboBox::from_id_salt(("vote-close", node.id.as_str()))
+                            .selected_text(match self.vote_close {
+                                1 => "Closes after 1 day",
+                                2 => "Closes after 7 days",
+                                _ => "Still open",
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.vote_close, 0, "Still open");
+                                ui.selectable_value(&mut self.vote_close, 1, "Closes after 1 day");
+                                ui.selectable_value(&mut self.vote_close, 2, "Closes after 7 days");
+                            });
                         if theme::icon_action(ui, "📊", "Result", theme::ACCENT) {
-                            self.request_vote(&community, &node.id);
+                            self.request_vote(&community, &node.id, node.timestamp_ms);
                         }
                     }
                     if let Some((thread, yes, no, not_counted, checked)) = &self.vote_result {
