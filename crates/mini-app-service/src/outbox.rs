@@ -14,6 +14,11 @@ const MAX_OPERATIONS: usize = 1024;
 const MAX_RECORD: usize = MAX_OBJECT + 1024;
 const MAX_ID: usize = 128;
 const MAX_BACKOFF_MS: u64 = 300_000;
+/// Delivered/cancelled records older than this may be pruned. Only these
+/// terminal records are ever pruned; queued, retrying and in-flight ones never
+/// are. The cost: a retry of an operation ID older than this could be sent
+/// again as a duplicate (receivers also dedupe by object ID).
+pub(crate) const TERMINAL_RETENTION_MS: u64 = 30 * 24 * 60 * 60 * 1000;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DeliveryState {
     Queued,
@@ -309,6 +314,53 @@ impl Outbox {
         *self.due.borrow_mut() = Some(cache);
         Ok(())
     }
+    /// Remove delivered/cancelled records whose file is at least `min_age_ms`
+    /// old (oldest first), up to `limit`. Returns how many were removed.
+    /// Queued, retrying and in-flight records are never touched.
+    pub(crate) fn prune_terminal(
+        &self,
+        min_age_ms: u64,
+        limit: usize,
+    ) -> Result<usize, ServiceError> {
+        let now = std::time::SystemTime::now();
+        let mut finished: Vec<(std::time::SystemTime, String, PathBuf)> = Vec::new();
+        for entry in fs::read_dir(&self.root).map_err(io)? {
+            let entry = entry.map_err(io)?;
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            if !record_name(name) {
+                continue;
+            }
+            let path = entry.path();
+            let record = self.read(&path)?;
+            if !matches!(
+                record.state,
+                DeliveryState::Delivered | DeliveryState::Cancelled
+            ) {
+                continue;
+            }
+            let modified = fs::symlink_metadata(&path)
+                .and_then(|m| m.modified())
+                .map_err(io)?;
+            let age_ms = now
+                .duration_since(modified)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            if age_ms >= min_age_ms {
+                finished.push((modified, record.operation_id, path));
+            }
+        }
+        finished.sort_by_key(|a| a.0);
+        let mut removed = 0;
+        for (_, id, path) in finished.into_iter().take(limit) {
+            mini_durable::remove_file(&path).map_err(io)?;
+            if let Some(cache) = self.due.borrow_mut().as_mut() {
+                cache.remove(&id);
+            }
+            removed += 1;
+        }
+        Ok(removed)
+    }
     pub fn next_due(&self, now_ms: u64) -> Result<Option<String>, ServiceError> {
         let cache = self.due.borrow();
         let cache = cache
@@ -358,7 +410,16 @@ impl Outbox {
             ));
         }
         if self.retained_count()? >= MAX_OPERATIONS {
-            return Err(bad("outbox retained operation capacity reached"));
+            // Make room from finished work only: first anything older than the
+            // retention window, then (last resort) the single oldest finished
+            // record. Pending work is never dropped.
+            self.prune_terminal(TERMINAL_RETENTION_MS, usize::MAX)?;
+            if self.retained_count()? >= MAX_OPERATIONS {
+                self.prune_terminal(0, 1)?;
+            }
+            if self.retained_count()? >= MAX_OPERATIONS {
+                return Err(bad("outbox retained operation capacity reached"));
+            }
         }
         self.write(&record)?;
         Ok(record)
@@ -653,6 +714,42 @@ mod tests {
             .list_after(Some("operation:064"), 64)
             .unwrap()
             .is_empty());
+    }
+
+    #[test]
+    fn a_full_outbox_of_finished_work_keeps_accepting_and_never_drops_pending() {
+        let dir = Directory::new();
+        let outbox = Outbox::open(dir.0.clone()).unwrap();
+        let object = object(false);
+        let bytes = object.to_bytes();
+        let id = object.id().as_str();
+        // One pending record that must survive, then fill with cancelled ones.
+        outbox.enqueue("pending", "peer", id, &bytes).unwrap();
+        for n in 0..MAX_OPERATIONS - 1 {
+            let op = format!("done:{n:04}");
+            outbox.enqueue(&op, "peer", id, &bytes).unwrap();
+            outbox.cancel(&op).unwrap();
+        }
+        // At capacity: the next send still works by evicting the oldest finished one.
+        outbox.enqueue("fresh", "peer", id, &bytes).unwrap();
+        assert!(outbox.get("pending").unwrap().is_some());
+        assert!(outbox.get("fresh").unwrap().is_some());
+        assert_eq!(outbox.retained_count().unwrap(), MAX_OPERATIONS);
+    }
+
+    #[test]
+    fn a_full_outbox_of_pending_work_still_refuses() {
+        let dir = Directory::new();
+        let outbox = Outbox::open(dir.0.clone()).unwrap();
+        let object = object(false);
+        let bytes = object.to_bytes();
+        let id = object.id().as_str();
+        for n in 0..MAX_OPERATIONS {
+            outbox
+                .enqueue(&format!("p:{n:04}"), "peer", id, &bytes)
+                .unwrap();
+        }
+        assert!(outbox.enqueue("one-more", "peer", id, &bytes).is_err());
     }
 
     #[test]
