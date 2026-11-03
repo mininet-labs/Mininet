@@ -26304,3 +26304,51 @@ eligibility (roadmap #18).
 
 **Supersedes / superseded by:** extends the ticket decision (creator share and
 host split) without superseding it; version-1 tickets remain valid.
+
+
+### D-0544 — Author royalty is a small cost-recovery fee; the only escalation is a fast-rising fee on heavy commenting (spam protection)  ·  *Shipped*
+
+**Decision:** founder direction on D-0543's open question: owners do **not**
+set their own royalty. (1) The share of attributed bytes that goes to content
+authors is a small flat fee that covers keeping data available to the public:
+default 5% (`Rate::default`), published floor 2% (`CREATOR_FLOOR_BPS`). It does
+not rise with popularity. (2) The only thing that rises is a fee on commenting
+as spam protection (`mini_ticket::comment_fee`): an author's first 3 comments
+in a trailing hour carry no fee; each further comment in that hour costs a base
+of 10 micro-MINI, doubling with every additional comment (capped at 20
+doublings). It is owed by the comment's author and computed from the author's
+own signed comment objects, so any device holding them computes the same
+amount. (3) The desktop shows the price of the next comment before posting once
+it is above zero, and the total owed in Earnings.
+
+**Reason:** a per-owner royalty is easy to game and hard to compare; a small
+uniform fee plus an expensive-by-the-dozen comment fee keeps ordinary use free
+and makes flooding costly quickly, without gatekeeping identities (Directive
+18, constitution principle 7).
+
+**Constitutional impact:** Directive 5, Directive 16, Directive 18, P1. No
+dependency edge changed (`mini-ticket` stays a leaf, no value/governance
+dependency); the fee confers no vote. No Tier-F row touched. Unaudited
+value-adjacent prototype; D-0037/D-0047 gate unchanged.
+
+**Implementation status:** shipped: `mini-ticket::comment_fee` (schedule,
+per-author ledger, next-comment price; 2 tests), ledger field
+`comment_fees_owed_micro`, defaults lowered, desktop notice and Earnings line.
+
+**Failure point:** a comment's time is declared by its author, so a custom
+client can backdate comments to spread them across windows; the fee only binds
+where a host or settlement layer applies the same function to comments it
+accepted on arrival, which is not built. The fee is per identity root: minting
+many roots pays the free allowance once per root (Sybil flooding is the
+personhood layer's job, roadmap #18). Nothing is charged or paid; the fee is
+unsettled credit and how it is shared among the hosts that kept a comment
+available is not built. The owner share is still one global default, not
+negotiable per content.
+
+**Required follow-up:** have hosts apply `comment_fees` to comments on arrival
+(so backdating gains nothing) and refuse or deprioritise unpaid heavy
+commenters; define how comment fees are shared among hosts; have the audited
+settlement layer read tickets' signed share via `split_ticket`.
+
+**Supersedes / superseded by:** amends D-0543's default creator share (30%) and
+floor (20%) to 5% and 2%; D-0543 otherwise stands. D-0543 is not edited.

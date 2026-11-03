@@ -5491,6 +5491,9 @@ No tracking. No forced updates.",
                         .desired_width(f32::INFINITY)
                         .desired_rows(2),
                 );
+                if let Some(notice) = self.comment_fee_notice() {
+                    ui.colored_label(theme::WARN_AMBER, notice);
+                }
                 ui.checkbox(
                     &mut self.signing_confirmation,
                     "I confirm this creates a signed reply",
@@ -6995,6 +6998,15 @@ No tracking. No forced updates.",
                 mini_ticket::CREATOR_FLOOR_BPS / 100,
             ),
         );
+        if ledger.comment_fees_owed_micro > 0 {
+            ui.colored_label(
+                theme::WARN_AMBER,
+                format!(
+                    "Comment fees you owe: {}. Commenting is free up to a few comments an hour; past that the fee doubles with each comment, to keep spam expensive.",
+                    mini(ledger.comment_fees_owed_micro)
+                ),
+            );
+        }
         if !ledger.costs.is_empty() {
             theme::card_frame().show(ui, |ui| {
                 theme::section_title(ui, "What you paid for");
@@ -7077,7 +7089,7 @@ No tracking. No forced updates.",
                     }
                 }
             });
-            theme::muted(ui, "Each exchange agrees a rate: the provider's ask, capped by the receiver's ceiling. The agreed rate is written into the ticket, so both ledgers compute the same credit. New tickets also carry the creator share (never below the published floor) and list the posts and media received, so every author earns, not only media creators. The share below applies only to older tickets that carry none.");
+            theme::muted(ui, "Each exchange agrees a rate: the provider's ask, capped by the receiver's ceiling. The agreed rate is written into the ticket, so both ledgers compute the same credit. New tickets also carry the creator share (never below the published floor) and list the posts and media received, so every author earns, not only media creators. The share is a small fee that covers keeping content available to the public; it does not rise with popularity. The setting below applies only to older tickets that carry none.");
         });
         ui.add_space(8.0);
         theme::card_frame().show(ui, |ui| {
@@ -7824,6 +7836,9 @@ No tracking. No forced updates.",
                         .desired_rows(2)
                         .desired_width(f32::INFINITY),
                 );
+                if let Some(notice) = self.comment_fee_notice() {
+                    ui.colored_label(theme::WARN_AMBER, notice);
+                }
                 ui.checkbox(
                     &mut self.signing_confirmation,
                     "I confirm this creates a signed reply",
@@ -8102,6 +8117,22 @@ No tracking. No forced updates.",
         {
             self.save_connections();
         }
+    }
+
+    /// A plain-language price notice for the next comment, or `None` while it
+    /// is still free (the first few comments in an hour carry no fee).
+    fn comment_fee_notice(&self) -> Option<String> {
+        let workspace = self.workspace.as_ref()?;
+        let me = workspace.human.as_ref()?;
+        let fee =
+            mini_ticket::comment_fee::next_comment_fee(&workspace.store, me, now_ms()).ok()?;
+        (fee > 0).then(|| {
+            format!(
+                "Heads up: your next comment carries a fee of {}.{:06} MINI because you have commented a lot in the last hour. The fee doubles with each extra comment and resets as the hour passes.",
+                fee / 1_000_000,
+                fee % 1_000_000
+            )
+        })
     }
 
     fn membership_can_join(&self, id: &mini_objects::ObjectId) -> bool {
@@ -8421,6 +8452,9 @@ No tracking. No forced updates.",
                             .desired_rows(2)
                             .desired_width(f32::INFINITY),
                     );
+                    if let Some(notice) = self.comment_fee_notice() {
+                        ui.colored_label(theme::WARN_AMBER, notice);
+                    }
                     ui.checkbox(
                         &mut self.signing_confirmation,
                         "I confirm this creates a signed reply",
