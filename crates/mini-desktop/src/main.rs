@@ -293,6 +293,10 @@ struct MininetApp {
     /// 2 long, 3 never delete. `None` until the core has answered.
     cache_retention: Option<u8>,
     retention_rx: Option<Receiver<Result<AppReply, String>>>,
+    /// In-flight vote count for one thread (thread id, reply channel).
+    vote_rx: Option<(String, Receiver<Result<AppReply, String>>)>,
+    /// Latest vote result shown: (thread id, yes, no, not counted, standing checked).
+    vote_result: Option<(String, u32, u32, u32, bool)>,
     app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
     app_events_rx: Option<Receiver<Result<AppReply, String>>>,
     app_events_due: Instant,
@@ -1546,6 +1550,8 @@ impl Default for MininetApp {
             storage_due: Instant::now(),
             cache_retention: None,
             retention_rx: None,
+            vote_rx: None,
+            vote_result: None,
             app_action: None,
             app_events_rx: None,
             app_events_due: Instant::now(),
@@ -1831,6 +1837,7 @@ impl eframe::App for MininetApp {
         }
         self.poll_app_service();
         self.poll_storage();
+        self.poll_vote();
         self.poll_profile_photo();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
@@ -2049,6 +2056,51 @@ impl MininetApp {
     /// Ask the core for device storage headroom about once a minute. The core
     /// runs its safe clean-ups first, so a `Low` answer means space is still
     /// short after Mininet freed what it safely could.
+    fn poll_vote(&mut self) {
+        let Some((thread, receiver)) = self.vote_rx.as_ref() else {
+            return;
+        };
+        match receiver.try_recv() {
+            Ok(result) => {
+                let thread = thread.clone();
+                self.vote_rx = None;
+                match result {
+                    Ok(AppReply::CommunityVote {
+                        yes,
+                        no,
+                        not_counted,
+                        standing_checked,
+                    }) => {
+                        self.vote_result = Some((thread, yes, no, not_counted, standing_checked));
+                    }
+                    _ => self.notice = "Could not count the votes.".into(),
+                }
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
+            Err(mpsc::TryRecvError::Disconnected) => self.vote_rx = None,
+        }
+    }
+
+    fn request_vote(
+        &mut self,
+        community: &mini_objects::ObjectId,
+        thread: &mini_objects::ObjectId,
+    ) {
+        if self.vote_rx.is_some() {
+            return;
+        }
+        if let Some(client) = self.app_service.as_ref() {
+            // The vote is still open: count everything up to now.
+            if let Ok(receiver) = client.request(AppCommand::CommunityVote {
+                community_id: community.as_str().into(),
+                target_id: thread.as_str().into(),
+                closes_at_ms: u64::MAX,
+            }) {
+                self.vote_rx = Some((thread.as_str().to_owned(), receiver));
+            }
+        }
+    }
+
     fn poll_storage(&mut self) {
         if let Some(receiver) = self.retention_rx.as_ref() {
             match receiver.try_recv() {
@@ -8240,6 +8292,30 @@ No tracking. No forced updates.",
                         self.discussion_dirty = true;
                     }
                 });
+                if depth == 0 {
+                    if let Some(community) = self.open_community.clone() {
+                        if theme::icon_action(ui, "📊", "Result", theme::ACCENT) {
+                            self.request_vote(&community, &node.id);
+                        }
+                    }
+                    if let Some((thread, yes, no, not_counted, checked)) = &self.vote_result {
+                        if thread == node.id.as_str() {
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "Result: {yes} for, {no} against, {not_counted} not counted. \
+                                     Counts community members, one ballot per identity root. {}",
+                                    if *checked {
+                                        "Only roots with full standing are counted."
+                                    } else {
+                                        "Personhood standing is not checked on this device yet, \
+                                         so this is not proof of one person, one vote."
+                                    }
+                                ),
+                            );
+                        }
+                    }
+                }
                 if self.discussion_reply_target.as_ref() == Some(&node.id) {
                     ui.add(
                         egui::TextEdit::multiline(&mut self.discussion_reply_text)
