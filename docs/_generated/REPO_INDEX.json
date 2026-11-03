@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1279,
-    "headings": 4268,
+    "files": 1280,
+    "headings": 4276,
     "rust_symbols": 15406
   },
   "crates": {
@@ -122744,6 +122744,83 @@
       "sha256": "3e1cb2897434a431d49d68c6cd34668cf814ee6b6f10e5a2d2d12d025c814647",
       "symbols": [],
       "title": "Decentralized Beta MINI grant acceptance"
+    },
+    {
+      "bytes": 7058,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "One identity root per physical device (\"burned device\") \u2014 founder proposal mapped to the tree"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "The requirement (founder, paraphrased)"
+        },
+        {
+          "level": 2,
+          "line": 18,
+          "text": "Why the requirement cannot ship as a mandatory network rule"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "Proposed form: an optional \"burned-device lane\""
+        },
+        {
+          "level": 2,
+          "line": 86,
+          "text": "What this honestly buys"
+        },
+        {
+          "level": 2,
+          "line": 97,
+          "text": "Decisions needed from the founder"
+        },
+        {
+          "level": 2,
+          "line": 109,
+          "text": "What would be built after approval (nothing yet)"
+        },
+        {
+          "level": 2,
+          "line": 120,
+          "text": "Not built, not decided"
+        }
+      ],
+      "keywords": [
+        "device",
+        "lane",
+        "key",
+        "founder",
+        "vendor",
+        "cannot",
+        "burn",
+        "attestation",
+        "root",
+        "phone",
+        "register",
+        "new",
+        "directive",
+        "attested",
+        "one",
+        "identity",
+        "per",
+        "physical",
+        "requirement",
+        "network",
+        "anyone",
+        "phones",
+        "never",
+        "burned"
+      ],
+      "lines": 124,
+      "path": "docs/design/device-burn-registration-lane-proposal.md",
+      "sha256": "9f248a1c31d88269709ba59a3da6d351abfc66e03d8ba102a9f70c2dd166bbbc",
+      "symbols": [],
+      "title": "One identity root per physical device (\"burned device\") \u2014 founder proposal mapped to the tree"
     },
     {
       "bytes": 8195,
