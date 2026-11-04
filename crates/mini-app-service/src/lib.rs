@@ -23,6 +23,11 @@ mod delivery_transport;
 mod outbox;
 mod profile_photo;
 
+/// Highest arrival-time fee, in micro-MINI, at which this host still accepts an
+/// incoming public object (0.01 MINI; about ten doublings past an allowance).
+/// Ordinary use never gets near it; a flood hits it quickly.
+pub(crate) const ARRIVAL_CEILING_MICRO: u64 = 10_000;
+
 use did_mini::{Capabilities, Controller, Did};
 use mini_app_protocol::{
     AccountStatus, Command, ErrorCode, FeedCard, FeedOrder, FeedReason, FeedScope, ObjectKind,
@@ -142,6 +147,8 @@ pub struct Core<V: IdentityVault> {
     delivery_listener: Option<std::net::TcpListener>,
     /// Escalating-work meter shared by every incoming delivery connection.
     delivery_admission: std::sync::Arc<std::sync::Mutex<mini_transport_security::AdmissionMeter>>,
+    /// What each author has sent this host lately, for pricing arrivals.
+    arrival_meter: mini_ticket::action_fee::ArrivalMeter,
     delivery_interrupt: DeliveryInterrupt,
     events: VecDeque<ServiceEvent>,
     next_event_id: u64,
@@ -215,6 +222,7 @@ impl<V: IdentityVault> Core<V> {
             delivery_policy,
             delivery_listener: None,
             delivery_admission: mini_transport_security::new_admission_meter(),
+            arrival_meter: mini_ticket::action_fee::ArrivalMeter::new(),
             delivery_interrupt: DeliveryInterrupt::default(),
             events: VecDeque::new(),
             next_event_id: 1,

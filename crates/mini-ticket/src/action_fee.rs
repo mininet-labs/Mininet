@@ -23,7 +23,7 @@
 //! - A reaction counts whether it adds or withdraws, so toggling a like back
 //!   and forth is spam like any other.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use did_mini::Did;
 use mini_objects::{ObjectId, ObjectType};
@@ -41,7 +41,7 @@ pub const MAX_DOUBLINGS: u32 = 20;
 const MEMBERSHIP_TYPE: &str = "mini/community-membership";
 
 /// A kind of action that anyone can repeat cheaply.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ActionKind {
     Post,
     Comment,
@@ -296,6 +296,102 @@ pub fn host_shares<B: Backend>(
     Ok(shares)
 }
 
+/// Which fee kind an object type belongs to, if any.
+pub fn kind_of(object_type: &ObjectType) -> Option<ActionKind> {
+    ALL_KINDS
+        .iter()
+        .copied()
+        .find(|kind| &kind.object_type() == object_type)
+}
+
+/// Most `(author, kind)` pairs one [`ArrivalMeter`] tracks at once.
+pub const MAX_METERED: usize = 50_000;
+
+/// A host's own count of how many objects each author has sent it lately.
+///
+/// Object times are chosen by their authors, so a fee computed from them can
+/// be dodged by backdating. This meter uses only the host's clock at the moment
+/// each object *arrives*, so spreading declared times gains nothing. It is
+/// local state, bounded in memory, and not shared: two hosts can see different
+/// counts, the same way two devices can show different feeds.
+#[derive(Debug, Default)]
+pub struct ArrivalMeter {
+    seen: HashMap<(String, ActionKind), VecDeque<u64>>,
+}
+
+impl ArrivalMeter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn prune(window: &mut VecDeque<u64>, now_ms: u64) {
+        while window
+            .front()
+            .is_some_and(|at| at.saturating_add(FEE_WINDOW_MS) <= now_ms)
+        {
+            window.pop_front();
+        }
+    }
+
+    /// The fee the author's next object of `kind` would carry at `now_ms`,
+    /// without recording it.
+    pub fn peek(&mut self, author: &Did, kind: ActionKind, now_ms: u64) -> u64 {
+        let key = (author.as_str().to_owned(), kind);
+        let prior = match self.seen.get_mut(&key) {
+            Some(window) => {
+                Self::prune(window, now_ms);
+                window.len()
+            }
+            None => 0,
+        };
+        action_fee(kind, u32::try_from(prior).unwrap_or(u32::MAX))
+    }
+
+    /// Record an arrival and return the fee it carried.
+    pub fn record(&mut self, author: &Did, kind: ActionKind, now_ms: u64) -> u64 {
+        let fee = self.peek(author, kind, now_ms);
+        if self.seen.len() >= MAX_METERED {
+            self.make_room(now_ms);
+        }
+        let (free, _) = kind.schedule();
+        // Beyond this many entries the price no longer changes, so older
+        // timestamps can be dropped without changing any answer.
+        let keep = (free as usize) + (MAX_DOUBLINGS as usize) + 1;
+        let window = self
+            .seen
+            .entry((author.as_str().to_owned(), kind))
+            .or_default();
+        window.push_back(now_ms);
+        if window.len() > keep {
+            window.pop_front();
+        }
+        fee
+    }
+
+    /// Forget expired entries; if still full, forget the least recently active.
+    fn make_room(&mut self, now_ms: u64) {
+        self.seen.retain(|_, window| {
+            Self::prune(window, now_ms);
+            !window.is_empty()
+        });
+        if self.seen.len() >= MAX_METERED {
+            if let Some(oldest) = self
+                .seen
+                .iter()
+                .min_by_key(|(_, window)| window.back().copied().unwrap_or(0))
+                .map(|(key, _)| key.clone())
+            {
+                self.seen.remove(&oldest);
+            }
+        }
+    }
+
+    /// How many `(author, kind)` pairs are tracked.
+    pub fn tracked(&self) -> usize {
+        self.seen.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -457,5 +553,44 @@ mod tests {
         assert_eq!(b, 3); // 10 * 100 / 300
         assert_eq!(a, 27); // 6 + remainder 1, plus all 20
         assert!(host_shares(&store, &[]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_arrival_meter_ignores_declared_times_and_stays_bounded() {
+        let mut meter = ArrivalMeter::new();
+        let spammer = person(10).0.did();
+        let other = person(20).0.did();
+        let (free, base) = ActionKind::Post.schedule();
+        // Free allowance first; the next arrival carries the base fee.
+        for n in 0..free {
+            assert_eq!(
+                meter.record(&spammer, ActionKind::Post, 1_000 + u64::from(n)),
+                0
+            );
+        }
+        assert_eq!(meter.peek(&spammer, ActionKind::Post, 2_000), base);
+        assert_eq!(meter.record(&spammer, ActionKind::Post, 2_000), base);
+        assert_eq!(meter.record(&spammer, ActionKind::Post, 2_001), 2 * base);
+        // Another author and another kind are unaffected.
+        assert_eq!(meter.peek(&other, ActionKind::Post, 2_001), 0);
+        assert_eq!(meter.peek(&spammer, ActionKind::Comment, 2_001), 0);
+        // The window empties an hour later.
+        assert_eq!(
+            meter.peek(&spammer, ActionKind::Post, 2_001 + FEE_WINDOW_MS),
+            0
+        );
+        // A long burst saturates at the cap without unbounded memory.
+        for n in 0..500u64 {
+            meter.record(&other, ActionKind::Reaction, 10_000 + n);
+        }
+        let (rfree, rbase) = ActionKind::Reaction.schedule();
+        assert_eq!(
+            meter.peek(&other, ActionKind::Reaction, 11_000),
+            rbase << MAX_DOUBLINGS
+        );
+        let _ = rfree;
+        assert!(meter.tracked() <= 3);
+        assert_eq!(kind_of(&ObjectType::POST), Some(ActionKind::Post));
+        assert_eq!(kind_of(&ObjectType::PROFILE), None);
     }
 }
