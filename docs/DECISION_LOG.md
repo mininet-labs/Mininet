@@ -26438,3 +26438,52 @@ settlement path when D-0047 clears.
 
 **Supersedes / superseded by:** extends D-0544 and D-0545 (their comment-only
 scope and `comment_fee` names); supersedes neither.
+
+
+### D-0547 — Hosts price arrivals by their own clock, so backdating no longer dodges the action fee; a flaky signer-journal test is made robust  ·  *Shipped*
+
+**Decision:** (1) `mini_ticket::action_fee::ArrivalMeter` counts, per author
+and fee kind, how many objects have *arrived at this host* in the trailing hour,
+using only the host's clock, in bounded memory (50,000 pairs; at most
+allowance + 21 timestamps per pair). The desktop's delivery receiver now prices
+each new public object it is sent: if the price exceeds the host's ceiling
+(`ARRIVAL_CEILING_MICRO`, 10,000 micro-MINI) the object is refused. A retry of an
+object the host already holds is not a new arrival and is never priced twice.
+This closes D-0544/D-0546's "backdating evades the fee" gap for hosts that
+meter arrivals; the author-time computation stays for ledgers. (2) The
+`mini-treasury` `frost_sign` tests reopen a journal through a helper that
+retries briefly when its lock reads busy, because a sibling test that spawns a
+child process can hold a duplicate of the lock descriptor for an instant after
+a drop.
+
+**Reason:** author-declared times can be spread across windows; arrival times
+cannot be chosen by the author. The flake had failed an unrelated docs-only PR.
+
+**Constitutional impact:** Directive 18 (nothing is required from a vendor),
+Directive 15 (honest majority never reaches the ceiling), constitution
+principle 7 (priced, not gated: the ceiling is high and local). No dependency
+edge to value or governance crates (`mini-app-service` -> `mini-ticket`, a
+leaf). No Tier-F row touched. Unaudited.
+
+**Implementation status:** shipped: `ArrivalMeter` (pure, injectable clock, 1
+test), delivery receive path (1 test over real connections: five posts fit,
+the sixth and seventh are refused even with declared times ten days apart, a
+retry of a held post is accepted), frost_sign test helper (0 failures in 150
+repeated runs).
+
+**Failure point:** local state, so two hosts can disagree and a restart
+clears the counts; an author who sends to many hosts gets each host's
+allowance; a NAT'd or shared sender is one author per identity root, not per
+network address. The ceiling and allowances are unmeasured starting points. The
+meter prices only the single-object delivery path, not bulk sync ingest.
+Objects refused here are reported to the sender as a rejection, which an honest
+client cannot tell from other rejections. The test helper masks a lock-descriptor
+race in tests; it does not change production locking. Counts identity roots, not
+humans.
+
+**Required follow-up:** meter the bulk sync ingest path; persist or share
+arrival counts across restarts; measure real usage to tune the ceiling and
+allowances.
+
+**Supersedes / superseded by:** closes the arrival-side item in D-0544, D-0545
+and D-0546's follow-ups; supersedes none.

@@ -2709,6 +2709,7 @@ dependencies = [
  "mini-social",
  "mini-store",
  "mini-sync",
+ "mini-ticket",
  "mini-transport-security",
  "mini-uniqueness",
  "mini-windows-vault",

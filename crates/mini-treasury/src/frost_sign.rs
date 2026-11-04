@@ -1180,6 +1180,21 @@ mod tests {
                 .as_nanos()
         ))
     }
+    /// Reopen a journal whose previous signer was just dropped. A sibling test
+    /// that spawns a child process can, for the instant between fork and exec,
+    /// hold a duplicate of the lock file's descriptor, so the lock may read as
+    /// busy for a few milliseconds after the drop. Retry only that case.
+    fn reopen_when_free(root: &std::path::Path, key: KeyPackage) -> DurableFrostSigner {
+        for _ in 0..200 {
+            match DurableFrostSigner::open(root, key.clone()) {
+                Err(TreasuryError::SigningJournal(message)) if message.contains("would block") => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                other => return other.unwrap(),
+            }
+        }
+        DurableFrostSigner::open(root, key).unwrap()
+    }
     fn disk_record(root: &std::path::Path, name: &str) -> NonceRecord {
         NonceRecord::decode(&std::fs::read(root.join(name)).unwrap()).unwrap()
     }
@@ -1188,8 +1203,8 @@ mod tests {
     fn durable_signers_burn_bound_transcripts_before_returning_valid_shares() {
         let (keys, public) = trusted_dealer_keygen(3, 2, ack()).unwrap();
         let roots = [journal_dir("round-a"), journal_dir("round-b")];
-        let mut a = DurableFrostSigner::open(&roots[0], keys[0].clone()).unwrap();
-        let mut b = DurableFrostSigner::open(&roots[1], keys[1].clone()).unwrap();
+        let mut a = reopen_when_free(&roots[0], keys[0].clone());
+        let mut b = reopen_when_free(&roots[1], keys[1].clone());
         let (na, ca) = a.commit().unwrap();
         let (nb, cb) = b.commit().unwrap();
         let names = [na.record.name(), nb.record.name()];
@@ -1213,7 +1228,7 @@ mod tests {
         drop(a);
         drop(b);
         for (root, key) in roots.iter().zip(&keys) {
-            drop(DurableFrostSigner::open(root, key.clone()).unwrap());
+            drop(reopen_when_free(root, key.clone()));
             std::fs::remove_dir_all(root).unwrap();
         }
     }
@@ -1222,11 +1237,11 @@ mod tests {
     fn reopen_burns_abandoned_round_and_refuses_prior_instance_handle() {
         let (keys, _) = trusted_dealer_keygen(1, 1, ack()).unwrap();
         let root = journal_dir("restart");
-        let mut signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let mut signer = reopen_when_free(&root, keys[0].clone());
         let (nonces, commitment) = signer.commit().unwrap();
         let name = nonces.record.name();
         drop(signer);
-        let mut reopened = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let mut reopened = reopen_when_free(&root, keys[0].clone());
         assert!(disk_record(&root, &name).burned);
         let package =
             SigningPackage::new(1, b"attempt after restart".to_vec(), vec![commitment]).unwrap();
@@ -1243,7 +1258,7 @@ mod tests {
         let (keys, _) = trusted_dealer_keygen(1, 1, ack()).unwrap();
         for after_burn in [false, true] {
             let root = journal_dir("burn-errors");
-            let mut signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+            let mut signer = reopen_when_free(&root, keys[0].clone());
             let (nonces, commitment) = signer.commit().unwrap();
             let name = nonces.record.name();
             let (_, foreign_commitment) = round1_commit(1).unwrap();
@@ -1264,7 +1279,7 @@ mod tests {
                 assert!(signer.commit().is_err());
             }
             drop(signer);
-            drop(DurableFrostSigner::open(&root, keys[0].clone()).unwrap());
+            drop(reopen_when_free(&root, keys[0].clone()));
             assert!(disk_record(&root, &name).burned);
             std::fs::remove_dir_all(root).unwrap();
         }
@@ -1274,7 +1289,7 @@ mod tests {
     fn failed_reservation_or_burn_poison_the_service_until_recovery() {
         let (keys, _) = trusted_dealer_keygen(1, 1, ack()).unwrap();
         let root = journal_dir("failed-write");
-        let mut signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let mut signer = reopen_when_free(&root, keys[0].clone());
         let (nonces, commitment) = signer.commit().unwrap();
         let path = root.join(nonces.record.name());
         std::fs::remove_file(&path).unwrap();
@@ -1292,7 +1307,7 @@ mod tests {
     fn manifest_binds_verification_share_and_all_reads_are_bounded() {
         let (keys, _) = trusted_dealer_keygen(1, 1, ack()).unwrap();
         let root = journal_dir("manifest-binding");
-        drop(DurableFrostSigner::open(&root, keys[0].clone()).unwrap());
+        drop(reopen_when_free(&root, keys[0].clone()));
         let mut changed = keys[0].clone();
         changed.secret_share += Scalar::ONE;
         assert!(DurableFrostSigner::open(&root, changed).is_err());
@@ -1308,7 +1323,7 @@ mod tests {
     fn modified_complete_record_and_runtime_deleted_manifest_fail_closed() {
         let (keys, _) = trusted_dealer_keygen(1, 1, ack()).unwrap();
         let root = journal_dir("corruption");
-        let mut signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let mut signer = reopen_when_free(&root, keys[0].clone());
         let (nonces, _) = signer.commit().unwrap();
         let path = root.join(nonces.record.name());
         let mut bytes = std::fs::read(&path).unwrap();
@@ -1318,7 +1333,7 @@ mod tests {
         drop(signer);
         assert!(DurableFrostSigner::open(&root, keys[0].clone()).is_err());
         std::fs::remove_dir_all(&root).unwrap();
-        let mut signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let mut signer = reopen_when_free(&root, keys[0].clone());
         std::fs::remove_file(root.join("signer.binding")).unwrap();
         assert!(signer.commit().is_err());
         drop(signer);
@@ -1331,7 +1346,7 @@ mod tests {
         let secret = format!("{:?}", keys[0].secret_share);
         assert!(!format!("{:?}", keys[0]).contains(&secret));
         let root = journal_dir("debug");
-        let signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let signer = reopen_when_free(&root, keys[0].clone());
         assert!(!format!("{signer:?}").contains(&secret));
         drop(signer);
         std::fs::remove_dir_all(root).unwrap();
@@ -1350,7 +1365,7 @@ mod tests {
         }
         let root = journal_dir("process-lock");
         let (keys, _) = trusted_dealer_keygen(1, 1, ack()).unwrap();
-        let signer = DurableFrostSigner::open(&root, keys[0].clone()).unwrap();
+        let signer = reopen_when_free(&root, keys[0].clone());
         let status = std::process::Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
