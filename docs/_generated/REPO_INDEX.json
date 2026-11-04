@@ -26326,7 +26326,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 9848,
+      "bytes": 13181,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -26355,9 +26355,9 @@
         "panic",
         "vec"
       ],
-      "lines": 347,
+      "lines": 436,
       "path": "crates/mini-cli/tests/beta_native_loop.rs",
-      "sha256": "15a3fe70ce046ef733a7d6cbc2e9c6479a75a5a6d13b836d12546a7614b8ea0c",
+      "sha256": "60031eaaf1c4c30d83cf48c2f348266d39806052684fe9afa77bc8fc9513c16b",
       "symbols": [
         {
           "kind": "const",
@@ -114012,7 +114012,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 28822,
+      "bytes": 29619,
       "group": "docs",
       "headings": [
         {
@@ -114082,62 +114082,62 @@
         },
         {
           "level": 3,
-          "line": 206,
+          "line": 207,
           "text": "Substantive production safety gates"
         },
         {
           "level": 2,
-          "line": 217,
+          "line": 218,
           "text": "Build and test"
         },
         {
           "level": 2,
-          "line": 244,
+          "line": 245,
           "text": "Overall readiness statement"
         },
         {
           "level": 2,
-          "line": 253,
+          "line": 254,
           "text": "Storage guard (full-disk protection)"
         },
         {
           "level": 2,
-          "line": 258,
+          "line": 259,
           "text": "Automatic housekeeping (no engineer needed)"
         },
         {
           "level": 2,
-          "line": 272,
+          "line": 273,
           "text": "Escalating admission cost (spam / flood protection)"
         },
         {
           "level": 2,
-          "line": 277,
+          "line": 278,
           "text": "Escalating admission cost is live on `mini service run`"
         },
         {
           "level": 2,
-          "line": 282,
+          "line": 283,
           "text": "Admission cost: more listeners"
         },
         {
           "level": 2,
-          "line": 287,
+          "line": 288,
           "text": "Storage warnings and automatic space-saving"
         },
         {
           "level": 2,
-          "line": 295,
+          "line": 296,
           "text": "Automatic cache eviction with an owner-chosen retention"
         },
         {
           "level": 2,
-          "line": 303,
+          "line": 304,
           "text": "Follow-through on the \"not done\" list"
         },
         {
           "level": 2,
-          "line": 311,
+          "line": 312,
           "text": "Graded standing (policy v3)"
         }
       ],
@@ -114167,9 +114167,9 @@
         "status",
         "target"
       ],
-      "lines": 333,
+      "lines": 334,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "f5fc6a0049286465ba6de38a44f35feaa4ce07de35e616744894ef3212caa3df",
+      "sha256": "969e475c06426fdeb0a289a5f707dd472d6a4d1e50f01a9dde934a7b14232f01",
       "symbols": [],
       "title": "Open Beta status"
     },

@@ -206,23 +206,112 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
         ),
         "task_id",
     );
-    // The tester claims the task natively.
-    cli.run(
+    // The tester claims the task natively (anonymously: a fresh signing identity).
+    let claim = field(
+        &cli.run(
+            &tester,
+            true,
+            &[
+                "beta",
+                "task",
+                "claim",
+                &task,
+                "--role",
+                "implementer",
+                "--expires-ms",
+                "99999999999999",
+                "--path",
+                "crates/mini-cli/src/cli.rs",
+            ],
+        ),
+        "claim_id",
+    );
+
+    // The tester hands off exact-state review evidence natively: a signed,
+    // content-addressed commit is the exact state, and the technical review
+    // handoff names that commit, the claim and the evidence. A handoff is
+    // evidence only; it records no approval.
+    let head = {
+        let mut store = mini_store::Store::new(
+            mini_store::FsBackend::open(std::path::Path::new(&cli.store)).unwrap(),
+        );
+        let tester_identity = mini_cli::identity::load(std::path::Path::new(&tester)).unwrap();
+        let file = mini_forge::put_file(
+            &mut store,
+            &tester_identity.human_did(),
+            &tester_identity.device,
+            b"// fixed help text\n",
+        )
+        .unwrap();
+        let tree = mini_forge::put_tree(
+            &mut store,
+            &tester_identity.human_did(),
+            &tester_identity.device,
+            &[mini_forge::TreeEntry {
+                name: "cli.rs".into(),
+                is_dir: false,
+                target: file,
+            }],
+        )
+        .unwrap();
+        mini_forge::commit(
+            &mut store,
+            &tester_identity.human_did(),
+            &tester_identity.device,
+            "fix help typo",
+            &tree,
+            &[],
+            0,
+            0,
+        )
+        .unwrap()
+        .id()
+        .as_str()
+        .to_string()
+    };
+    let review = cli.run(
         &tester,
         true,
         &[
-            "beta",
             "task",
-            "claim",
+            "review",
             &task,
-            "--role",
-            "implementer",
-            "--expires-ms",
-            "99999999999999",
-            "--path",
-            "crates/mini-cli/src/cli.rs",
+            "--claim",
+            &claim,
+            "--head",
+            &head,
+            "--kind",
+            "peer",
+            "--disposition",
+            "observations",
+            "--findings",
+            "help text corrected",
+            "--evidence",
+            "cargo test -p mini-cli",
+            "--limitations",
+            "self-reported; no external audit; no approval recorded",
         ],
     );
+    assert!(review.contains("\"kind\":\"task.review\""), "{review}");
+    // The review vocabulary has no approving disposition at all.
+    assert_eq!(field(&review, "disposition"), "observations");
+    assert_eq!(field(&review, "reviewed_head"), head);
+    // The operator reads the handoff back. `task show` lists only identities
+    // the viewer has explicitly trusted, so the operator first trusts the
+    // tester's key history, exactly as in `coordination_commands.rs`.
+    let tester_kel = cli.run(&tester, false, &["kel", "export"]);
+    cli.run(&operator, false, &["kel", "trust", tester_kel.trim()]);
+    let shown = cli.run(&operator, true, &["task", "show", &task]);
+    assert!(
+        shown.contains(&format!("\"reviewed_head\":\"{head}\"")),
+        "handoff names the exact commit: {shown}"
+    );
+    // KNOWN GAP, pinned on purpose: the anonymous claim signs with a fresh,
+    // unsaved identity, so no viewer can have trusted it in advance and
+    // `task show` does not list it. The claim is stored and signed
+    // (`claim_id` above) but invisible to the operator's view. When anonymous
+    // claims become visible, this assertion must change deliberately.
+    assert!(shown.contains("\"claims\":[]"), "{shown}");
 
     // The operator records the accepted contribution (fresh claim handle).
     let accepted = cli.run(
