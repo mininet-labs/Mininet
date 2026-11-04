@@ -354,6 +354,15 @@ pub(crate) fn send(
         interrupt,
     )
 }
+/// A host's own arrival-time pricing for incoming public objects: the meter
+/// counts what each author has sent *this host* lately, and an object whose
+/// price exceeds `max_fee_micro` is refused. Author-declared times play no part,
+/// so backdating gains nothing.
+pub(crate) struct ArrivalPolicy<'a> {
+    pub meter: &'a mut mini_ticket::action_fee::ArrivalMeter,
+    pub max_fee_micro: u64,
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn receive(
     stream: TcpStream,
@@ -363,6 +372,7 @@ pub(crate) fn receive(
     store: &mut Store<FsBackend>,
     now_ms: u64,
     gate: Option<&AdmissionGate>,
+    arrivals: Option<ArrivalPolicy<'_>>,
     interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
     stopped_result(
@@ -374,6 +384,7 @@ pub(crate) fn receive(
             store,
             now_ms,
             gate,
+            arrivals,
             interrupt,
         ),
         interrupt,
@@ -424,6 +435,7 @@ fn receive_inner(
     store: &mut Store<FsBackend>,
     now_ms: u64,
     gate: Option<&AdmissionGate>,
+    arrivals: Option<ArrivalPolicy<'_>>,
     interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
     check_stop(interrupt)?;
@@ -442,7 +454,15 @@ fn receive_inner(
         .strip_prefix(POST)
         .ok_or(DeliveryFailure::Rejected)?;
     check_stop(interrupt)?;
-    let id = ingest_post(peer_root, peer_device, store, bytes, interrupt)?;
+    let id = ingest_post(
+        peer_root,
+        peer_device,
+        store,
+        bytes,
+        now_ms,
+        arrivals,
+        interrupt,
+    )?;
     check_stop(interrupt)?;
     let mut receipt = ACK.to_vec();
     receipt.extend_from_slice(id.as_bytes());
@@ -455,6 +475,8 @@ fn ingest_post(
     peer_device: &Kel,
     store: &mut Store<FsBackend>,
     bytes: &[u8],
+    now_ms: u64,
+    arrivals: Option<ArrivalPolicy<'_>>,
     interrupt: &DeliveryInterrupt,
 ) -> Result<String, DeliveryFailure> {
     check_stop(interrupt)?;
@@ -464,9 +486,25 @@ fn ingest_post(
     }
     mini_objects::verify_provenance(&object, peer_root, peer_device).map_err(rejected)?;
     check_stop(interrupt)?;
+    // A retry of an object this host already holds (a lost acknowledgement) is
+    // not a new arrival and is never priced twice.
+    let mut metered = match (arrivals, store.get(object.id()).is_err()) {
+        (Some(policy), true) => {
+            mini_ticket::action_fee::kind_of(&object.object_type).map(|kind| (policy, kind))
+        }
+        _ => None,
+    };
+    if let Some((policy, kind)) = metered.as_mut() {
+        if policy.meter.peek(&object.author_human, *kind, now_ms) > policy.max_fee_micro {
+            return Err(DeliveryFailure::Rejected);
+        }
+    }
     store.insert(&object).map_err(unavailable)?;
     if store.get(object.id()).map_err(unavailable)?.to_bytes() != bytes {
         return Err(DeliveryFailure::Rejected);
+    }
+    if let Some((policy, kind)) = metered {
+        policy.meter.record(&object.author_human, kind, now_ms);
     }
     Ok(object.id().as_str().to_string())
 }
@@ -561,6 +599,8 @@ mod tests {
                         &sender_device_kel,
                         &mut store,
                         message.strip_prefix(POST).unwrap(),
+                        1000,
+                        None,
                         &DeliveryInterrupt::default(),
                     )
                     .unwrap();
@@ -582,6 +622,7 @@ mod tests {
                         &sender_device_kel,
                         &mut store,
                         1000,
+                        None,
                         None,
                         &DeliveryInterrupt::default()
                     )
@@ -609,6 +650,91 @@ mod tests {
             }
         }
         worker.join().unwrap();
+        std::fs::remove_dir_all(cleanup).unwrap();
+    }
+    #[test]
+    fn a_host_prices_arrivals_by_its_own_clock_not_the_authors_declared_times() {
+        let (sender, sender_device) = identity(12);
+        let (receiver, receiver_device) = identity(32);
+        // Eight posts whose declared times are ten days apart: if declared
+        // times counted, none would ever exceed the hourly allowance.
+        let day = 86_400_000u64;
+        let posts: Vec<Vec<u8>> = (0..7u64)
+            .map(|n| {
+                mini_social::build_post(
+                    &sender.did(),
+                    &sender_device,
+                    &format!("spread-out post {n}"),
+                    1_000 + n * 10 * day,
+                    n + 1,
+                )
+                .unwrap()
+                .to_bytes()
+            })
+            .collect();
+        // Sends: posts 0..7 in order, then a retry of post 2 (already held).
+        let mut sends: Vec<Vec<u8>> = posts.clone();
+        sends.push(posts[2].clone());
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let sender_root_kel = sender.kel();
+        let sender_device_kel = sender_device.kel();
+        let receiver_root_kel = receiver.kel();
+        let receiver_device_kel = receiver_device.kel();
+        let path = std::env::temp_dir().join(format!(
+            "mini-delivery-arrivals-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let cleanup = path.clone();
+        let rounds = sends.len();
+        let worker = thread::spawn(move || {
+            let mut store = Store::new(FsBackend::open(&path).unwrap());
+            let mut meter = mini_ticket::action_fee::ArrivalMeter::new();
+            let mut accepted = Vec::new();
+            for _ in 0..rounds {
+                let (stream, _) = listener.accept().unwrap();
+                let result = receive(
+                    stream,
+                    local(&receiver, &receiver_device),
+                    &sender_root_kel,
+                    &sender_device_kel,
+                    &mut store,
+                    1_000,
+                    None,
+                    // Strict host: nothing beyond the free allowance.
+                    Some(ArrivalPolicy {
+                        meter: &mut meter,
+                        max_fee_micro: 0,
+                    }),
+                    &DeliveryInterrupt::default(),
+                );
+                accepted.push(result.is_ok());
+            }
+            (accepted, store.all_ids().unwrap().len())
+        });
+        for bytes in &sends {
+            let _ = send(
+                TcpStream::connect(address).unwrap(),
+                local(&sender, &sender_device),
+                &receiver_root_kel,
+                &receiver_device_kel,
+                bytes,
+                1_000,
+                &DeliveryInterrupt::default(),
+            );
+        }
+        let (accepted, held) = worker.join().unwrap();
+        // Five posts fit the hourly allowance; the 6th and 7th are refused;
+        // the retry of a post the host already holds is not priced again.
+        assert_eq!(
+            accepted,
+            vec![true, true, true, true, true, false, false, true]
+        );
+        assert_eq!(held, 5);
         std::fs::remove_dir_all(cleanup).unwrap();
     }
     #[test]
@@ -792,6 +918,7 @@ mod tests {
                 &sender_kel,
                 &mut store,
                 1000,
+                None,
                 None,
                 &worker_interrupt,
             );

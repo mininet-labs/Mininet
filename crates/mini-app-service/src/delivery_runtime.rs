@@ -279,6 +279,10 @@ impl<V: IdentityVault> Core<V> {
                                     self.delivery_admission.clone(),
                                     source.ip(),
                                 )),
+                                Some(delivery_transport::ArrivalPolicy {
+                                    meter: &mut self.arrival_meter,
+                                    max_fee_micro: crate::ARRIVAL_CEILING_MICRO,
+                                }),
                                 &self.delivery_interrupt,
                             );
                             // Storage may have committed even when the ack was lost.
