@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1280,
+    "files": 1281,
     "headings": 4276,
-    "rust_symbols": 15419
+    "rust_symbols": 15451
   },
   "crates": {
     "askama_derive": {
@@ -21828,7 +21828,7 @@
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 30852,
+      "bytes": 42760,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21857,9 +21857,9 @@
         "pos",
         "ok_or_else"
       ],
-      "lines": 870,
+      "lines": 1166,
       "path": "crates/mini-cli/src/coordination.rs",
-      "sha256": "5be7c8fc87bc5a69e610a56736021f0334191a81c48f0437bfad0284d96debff",
+      "sha256": "6c85c49615ddbea7364d5a370b515013fbdca54f757ac8b93792e3c82b8e2e5a",
       "symbols": [
         {
           "kind": "fn",
@@ -21943,98 +21943,163 @@
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 336,
           "name": "task_claim"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 373,
           "name": "campaign_create"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 404,
           "name": "finding_create"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 437,
           "name": "disposition_create"
         },
         {
           "kind": "fn",
-          "line": 463,
+          "line": 477,
           "name": "campaign_show"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 544,
           "name": "campaign_json"
         },
         {
           "kind": "fn",
-          "line": 549,
+          "line": 563,
           "name": "finding_json"
         },
         {
           "kind": "fn",
-          "line": 571,
+          "line": 585,
           "name": "disposition_json"
         },
         {
           "kind": "fn",
-          "line": 593,
+          "line": 607,
           "name": "task_review"
         },
         {
           "kind": "fn",
-          "line": 637,
+          "line": 651,
           "name": "task_list_result"
         },
         {
           "kind": "fn",
-          "line": 658,
+          "line": 672,
           "name": "format_charter"
         },
         {
           "kind": "fn",
-          "line": 681,
+          "line": 695,
           "name": "format_snapshot"
         },
         {
           "kind": "fn",
-          "line": 734,
+          "line": 748,
           "name": "charter_json"
         },
         {
           "kind": "fn",
-          "line": 765,
+          "line": 779,
           "name": "task_json"
         },
         {
+          "kind": "const",
+          "line": 810,
+          "name": "MAX_UNTRUSTED_CLAIMS_SHOWN"
+        },
+        {
+          "kind": "const",
+          "line": 813,
+          "name": "UNTRUSTED_CLAIM_POOL"
+        },
+        {
+          "kind": "const",
+          "line": 815,
+          "name": "MAX_TASK_LINKS_EXAMINED"
+        },
+        {
+          "kind": "const",
+          "line": 818,
+          "name": "MAX_DEVICES_PER_AUTHOR"
+        },
+        {
+          "kind": "const",
+          "line": 820,
+          "name": "MAX_CARRIER_READS"
+        },
+        {
+          "kind": "struct",
+          "line": 826,
+          "name": "UntrustedClaims"
+        },
+        {
           "kind": "fn",
-          "line": 794,
+          "line": 838,
+          "name": "select_untrusted"
+        },
+        {
+          "kind": "fn",
+          "line": 872,
+          "name": "untrusted_claims"
+        },
+        {
+          "kind": "fn",
+          "line": 970,
+          "name": "format_untrusted"
+        },
+        {
+          "kind": "fn",
+          "line": 1005,
+          "name": "untrusted_claim_json"
+        },
+        {
+          "kind": "fn",
+          "line": 1022,
           "name": "claim_json"
         },
         {
           "kind": "fn",
-          "line": 818,
+          "line": 1046,
           "name": "review_json"
         },
         {
           "kind": "fn",
-          "line": 845,
+          "line": 1073,
           "name": "parse_limit"
         },
         {
           "kind": "fn",
-          "line": 855,
+          "line": 1083,
           "name": "reject_remaining"
         },
         {
           "kind": "fn",
-          "line": 864,
+          "line": 1092,
           "name": "next"
+        },
+        {
+          "kind": "mod",
+          "line": 1100,
+          "name": "selection_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 1104,
+          "name": "claim"
+        },
+        {
+          "kind": "fn",
+          "line": 1136,
+          "name": "the_cap_keeps_active_claims_newest_first_and_never_buries_them_under_expired_ones"
         }
       ],
       "title": "use std::path::Path;"
@@ -25587,7 +25652,7 @@
       "title": "use mini_durable::space::{self, SpaceLevel};"
     },
     {
-      "bytes": 9078,
+      "bytes": 12050,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25616,9 +25681,9 @@
         "commandresult",
         "join"
       ],
-      "lines": 217,
+      "lines": 279,
       "path": "crates/mini-cli/src/store.rs",
-      "sha256": "21038513974f61b5ff8b361bd512ca037177598328b45ca6257a75ef4b816ef5",
+      "sha256": "7f6cd913e08421778e76c7b4d01c1d88f527539ea98253736eebecf9651de23e",
       "symbols": [
         {
           "kind": "fn",
@@ -25686,8 +25751,28 @@
           "name": "build_oracle"
         },
         {
+          "kind": "const",
+          "line": 193,
+          "name": "MAX_CARRIER_AUTHORS"
+        },
+        {
+          "kind": "const",
+          "line": 198,
+          "name": "MAX_CARRIER_OBJECTS_PER_AUTHOR"
+        },
+        {
+          "kind": "const",
+          "line": 200,
+          "name": "MAX_CARRIER_KEL_BYTES"
+        },
+        {
           "kind": "fn",
-          "line": 199,
+          "line": 218,
+          "name": "add_carrier_kels"
+        },
+        {
+          "kind": "fn",
+          "line": 261,
           "name": "build_kel_cache"
         }
       ],
@@ -26055,6 +26140,118 @@
       "title": "mod common;"
     },
     {
+      "bytes": 12310,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "store",
+        "home",
+        "unwrap",
+        "self",
+        "run",
+        "world",
+        "task",
+        "path",
+        "trusted",
+        "std",
+        "str",
+        "string",
+        "to_str",
+        "mini-cli",
+        "claim",
+        "tag",
+        "tempdir",
+        "drop",
+        "claims",
+        "shown",
+        "identity",
+        "pathbuf",
+        "to_string",
+        "output"
+      ],
+      "lines": 401,
+      "path": "crates/mini-cli/tests/anonymous_claims.rs",
+      "sha256": "08686f9447ef3701032407106475184d42f809810de27f822f838484ff208243",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 14,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 27,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 32,
+          "name": "last_word"
+        },
+        {
+          "kind": "fn",
+          "line": 36,
+          "name": "value_after"
+        },
+        {
+          "kind": "struct",
+          "line": 47,
+          "name": "World"
+        },
+        {
+          "kind": "impl",
+          "line": 53,
+          "name": "World"
+        },
+        {
+          "kind": "fn",
+          "line": 54,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "anonymous_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 158,
+          "name": "show_json"
+        },
+        {
+          "kind": "impl",
+          "line": 172,
+          "name": "Drop"
+        },
+        {
+          "kind": "fn",
+          "line": 173,
+          "name": "drop"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "the_untrusted_list_is_capped_and_the_rest_are_counted"
+        },
+        {
+          "kind": "fn",
+          "line": 200,
+          "name": "a_claim_whose_signer_has_no_key_history_in_the_store_never_appears"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
+          "name": "a_peer_attaching_hundreds_of_claims_cannot_grow_the_view_and_the_newest_survive"
+        },
+        {
+          "kind": "fn",
+          "line": 343,
+          "name": "an_untrusted_persistent_peer_is_listed_as_untrusted_then_as_trusted_once_trusted"
+        }
+      ],
+      "title": "use std::fs;"
+    },
+    {
       "bytes": 4975,
       "group": "crate:mini-cli",
       "headings": [],
@@ -26331,7 +26528,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 13181,
+      "bytes": 13804,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -26360,9 +26557,9 @@
         "panic",
         "vec"
       ],
-      "lines": 436,
+      "lines": 454,
       "path": "crates/mini-cli/tests/beta_native_loop.rs",
-      "sha256": "60031eaaf1c4c30d83cf48c2f348266d39806052684fe9afa77bc8fc9513c16b",
+      "sha256": "837ee57f9af0426517309085854a1977ca876cfc6c9b29293629bafe48e093a8",
       "symbols": [
         {
           "kind": "const",
@@ -114077,7 +114274,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 30001,
+      "bytes": 30794,
       "group": "docs",
       "headings": [
         {
@@ -114234,7 +114431,7 @@
       ],
       "lines": 336,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "284f73076ebf5975187e12e9822e5597e1781c64b188fbe886e7f9130f545c36",
+      "sha256": "cb659a5afddc23408ab93db1b2ab4d00bbc5fd92091d5b696d98f7c3ddf2ada0",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -114566,7 +114763,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1601755,
+      "bytes": 1605509,
       "group": "docs",
       "headings": [
         {
@@ -114996,9 +115193,9 @@
         "first",
         "one"
       ],
-      "lines": 26490,
+      "lines": 26551,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "b88bd3aa16b264c076d94963a0af5f4beee42da2df9db894bb4b9bc52639dd4f",
+      "sha256": "bbd4e23333a74a8e803c9242091938cd68b5714e3eb63647913fca6cc5d2e0f4",
       "symbols": [],
       "title": "Decision Log"
     },

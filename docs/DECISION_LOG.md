@@ -26487,3 +26487,64 @@ allowances.
 
 **Supersedes / superseded by:** closes the arrival-side item in D-0544, D-0545
 and D-0546's follow-ups; supersedes none.
+
+
+### D-0548 — Claims from untrusted signers are shown to the operator as key-controlled only  ·  *Shipped*
+
+**Decision:** founder direction (delegating the choice to the engineering lead
+"based on the values we want"): a work claim whose signer the viewer has not
+trusted, most importantly the anonymous claim signed by the fresh unsaved
+identity `mini beta task claim` creates, is shown by `mini task show` in a
+separate `untrusted_claims` list, never inside the trusted `claims` list. Each
+entry carries `signer_trusted: false` and the key root as `controlled_key_root`.
+It is built from the self-certifying key-history carriers the store holds for
+the authors of objects linking to the task (`store::carrier_oracle_for`, using
+the per-author index; no trust granted to anyone). Unexpired claims are shown
+first, newest first; the list is capped at 32 and the rest are counted in
+`untrusted_claims_not_shown`. A claim whose signer has no key history in the
+store is not shown at all.
+
+**Reason:** the beta loop needs an operator to see that someone claimed a task,
+without the claimant giving up anonymity (Directive 9) and without the tool
+implying a known identity (Directive 8: the human is the root of trust; a
+throwaway key is not one). Review found the first draft overstated what the
+carriers prove: a persistent peer the viewer has simply not trusted appears in
+the same list, so the list and its text no longer claim the signer is
+throwaway.
+
+**Constitutional impact:** Directive 8, Directive 9, Directive 16, Directive
+18. No dependency edge changed; a claim carries no vote or value; the trusted
+claim list and its oracle are unchanged. No Tier-F row touched.
+
+**Implementation status:** shipped in `mini-cli` (`carrier_oracle_for`, `task
+show` JSON and human output, `select_untrusted`) with 3 integration tests, 1
+unit test of the selection order, and the native beta loop test.
+
+**Failure point:** it proves control of a key, nothing about who holds it, and a
+throwaway key looks the same as a persistent one. Anyone can mint any number of
+throwaway identities and claim a task; the cap keeps the view readable but does
+not prevent the flood, and a claim still has no effect on who may do the work.
+Claims by roots the viewer already trusts are never shown here: the local
+oracle, which holds their newest history including revocations, alone decides
+them, so a stale carrier cannot resurrect a revoked device's claim. Work is
+bounded: at most 10,000 objects linking to a task are examined; claims
+are grouped by author root; each author's stored objects are scanned once (up
+to 4,096, all of them, so a later revocation is merged whatever the store
+order) for the logs of that root and of up to 64 signing devices, the author's
+claims are verified against that directory, and the directory is dropped, so
+retained key-history bytes never exceed one author's slice and a many-device
+author is not rescanned per device; verified claims enter a pool of at most 256
+ordered live-lease first, then newest (so expired claims cannot displace a live
+one); keeping only logs for the author or the signing device; total key-history reads
+are capped at 200,000. Whenever a cap, eviction or truncation drops or skips
+something, the output says so (`untrusted_claims_older_not_examined`, and a
+warning line in human output even when no claim is shown). An author with more
+stored objects than the window may have their key history go unfound; that is
+reported as incomplete, not as an empty view. Claims are advisory
+coordination only.
+
+**Required follow-up:** let an operator dispose of (accept or reject) a specific
+claim from an untrusted signer; rate-limit such claims per task if flooding is
+observed.
+
+**Supersedes / superseded by:** none.

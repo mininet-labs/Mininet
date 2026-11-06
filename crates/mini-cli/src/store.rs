@@ -189,6 +189,68 @@ pub fn build_oracle(home: &Path, identity: &Identity) -> Result<KelDirectory> {
     Ok(dir)
 }
 
+/// Most distinct authors whose key histories one command loads from carriers.
+pub const MAX_CARRIER_AUTHORS: usize = 4_096;
+/// Most of one author's objects read while looking for their key history.
+/// An honest author's carriers are found within a handful; the cap only matters
+/// for an author who has stored a very large number of other objects, whose
+/// key history may then go unfound and whose claims are simply not displayed.
+const MAX_CARRIER_OBJECTS_PER_AUTHOR: usize = 4_096;
+/// Largest KEL carrier payload read (matches `mini-sync`'s ingest bound).
+const MAX_CARRIER_KEL_BYTES: usize = 1024 * 1024;
+
+/// Add to `dir` the key history the store holds for `author` (a human root) and
+/// its signing `devices` as KEL carriers, in one pass over the author's objects. Only logs for those two identifiers are
+/// parsed-then-kept, and every carrier in the bounded window is examined so a
+/// later extension (for example a revocation) is merged, not skipped.
+/// Returns how many of the author's objects were read and whether the author had
+/// more objects than the window, in which case a needed log may have been missed.
+///
+/// A carrier's embedded log proves itself (its identifier is derived from its
+/// own inception), so this establishes exactly one thing about an author: that
+/// whoever signed an object controls the key history the store holds for it.
+/// It says nothing about who that is, and a throwaway key looks the same as a
+/// persistent one. Never use the resulting directory where a known or trusted
+/// identity is required.
+///
+/// Work is proportional to this author's own objects, through the store's
+/// per-author index, never to how many carriers the store holds.
+pub fn add_carrier_kels<B: mini_store::Backend>(
+    store: &Store<B>,
+    dir: &mut KelDirectory,
+    author: &did_mini::Did,
+    devices: &[did_mini::Did],
+) -> Result<(usize, bool)> {
+    let carrier_type = mini_objects::ObjectType::Custom(mini_sync::KEL_CARRIER.to_string());
+    let ids = store
+        .by_author(author)
+        .map_err(|e| CliError::Store(e.to_string()))?;
+    let truncated = ids.len() > MAX_CARRIER_OBJECTS_PER_AUTHOR;
+    let mut read = 0usize;
+    for id in ids.into_iter().take(MAX_CARRIER_OBJECTS_PER_AUTHOR) {
+        read += 1;
+        let Ok(object) = store.get(&id) else { continue };
+        if object.object_type != carrier_type {
+            continue;
+        }
+        let mini_objects::Payload::Public(bytes) = &object.payload else {
+            continue;
+        };
+        if bytes.len() > MAX_CARRIER_KEL_BYTES {
+            continue;
+        }
+        // A log that does not verify, or conflicts with one already held, is
+        // skipped, never fatal to the command.
+        if let Ok(kel) = Kel::from_bytes(bytes) {
+            let did = kel.did();
+            if did == *author || devices.contains(&did) {
+                let _ = dir.try_insert_verified(kel);
+            }
+        }
+    }
+    Ok((read, truncated))
+}
+
 /// Build the [`KelCache`] `mini_sync`'s ingest pipeline checks incoming
 /// objects' authors against — the same trust set as [`build_oracle`]
 /// (this identity's own human + device KELs, plus every KEL this home has
