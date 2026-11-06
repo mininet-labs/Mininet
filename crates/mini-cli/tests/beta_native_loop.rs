@@ -543,31 +543,6 @@ fn a_contributor_supplied_claim_tag_keeps_the_secret_from_the_operator_and_a_wro
     );
     let contribution = field(&accepted, "contribution_id");
 
-    // A random non-key tag is refused outright.
-    let bogus = "00".repeat(31) + "01";
-    let refused = mini_cli::run(
-        &[
-            "--home",
-            &operator,
-            "--store",
-            &cli.store,
-            "beta",
-            "contribution",
-            "accept",
-            &project,
-            "--kind",
-            "testing",
-            "--summary",
-            "bad",
-            "--evidence",
-            "x",
-            "--claim-tag",
-            &bogus,
-        ]
-        .map(String::from),
-    );
-    let _ = refused; // may be a valid point; only the shape is checked below
-
     let account = field(
         &cli.run(
             &contributor,

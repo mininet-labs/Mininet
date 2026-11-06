@@ -26564,7 +26564,10 @@ both `BetaMiniLedger::apply_grant` and the grant-acceptance policy check
 (`validate_grant_against_policy`, used by the durable execution path)
 re-verify the proof and reject any mismatch (`BetaError::InvalidClaimProof`,
 `GrantRuleViolation`). `mini beta claim new|redeem` and `mini beta grant create
---redemption` expose it. `mini-beta` gains one dependency, `mini-crypto`
+--redemption` expose it; the contributor generates the key with `claim new` and
+hands the operator only the public tag (`contribution accept --claim-tag`), the
+bearer secret is read from a file or stdin (`--secret-file`), never argv, and a
+redemption is fully checked before any throwaway identity is stored. `mini-beta` gains one dependency, `mini-crypto`
 (reviewed primitives only); its dependency-wall test allowlist is extended by
 exactly that crate.
 
@@ -26589,7 +26592,7 @@ redirected; a redemption for another contribution is rejected; no cross-epoch
 use; legacy random-tag receipts cannot be redeemed), 1 acceptance test with
 threshold approvals, and the CLI beta loop now runs through redeem.
 
-**Failure point:** the claim secret is bearer material. Whoever holds it can
+**Failure point:** the privacy is scoped to the destination account and holds only when the accepted source is itself anonymous. The grant and the redemption both link to the contribution, which links to its source; if that source names an identity (a signed commit or review, a GitHub handle) anyone can join that identity to the account. Removing the join needs an unlinkable proof, which is not built and would need reviewed cryptography. Without `--claim-tag`, `contribution accept` generates the key itself, so the operator knows the secret (the output says so). The claim secret is bearer material. Whoever holds it can
 redeem to their own account, and a lost secret cannot be recovered; nothing here
 defends a leaked secret. The grant authorizers' own signing identities remain
 public by design (grant policy members are public DIDs). Redemption is

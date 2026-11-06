@@ -26782,7 +26782,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 18912,
+      "bytes": 18292,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -26811,9 +26811,9 @@
         "panic",
         "vec"
       ],
-      "lines": 637,
+      "lines": 612,
       "path": "crates/mini-cli/tests/beta_native_loop.rs",
-      "sha256": "6564dcae6a114571346cf993067aa6205908aae2e44269a8f402447716ac0589",
+      "sha256": "397c70852d24259f610d178139a3660a814efd79295436e07eb01b59a2e509f7",
       "symbols": [
         {
           "kind": "const",
@@ -114533,7 +114533,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 31418,
+      "bytes": 31741,
       "group": "docs",
       "headings": [
         {
@@ -114690,7 +114690,7 @@
       ],
       "lines": 336,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "d6ea581ddc1d5e1db27cb26e04ec044781ceef1e076e48876cc65d6eb5c9afce",
+      "sha256": "b6b8e09b8ebc163712fe28587c1de28953ca356614506be83a0b660de1930f1f",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -115022,7 +115022,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1608887,
+      "bytes": 1609720,
       "group": "docs",
       "headings": [
         {
@@ -115452,9 +115452,9 @@
         "first",
         "one"
       ],
-      "lines": 26605,
+      "lines": 26608,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "9065890b54d9017357cd200139f8e448986eccdc8224166766abb74731bb7461",
+      "sha256": "4bf1e174b4b683b9a2648b72a880ede23e086a55ddac25fb218fc2dc87e1eaf2",
       "symbols": [],
       "title": "Decision Log"
     },
