@@ -26524,15 +26524,19 @@ unit test of the selection order, and the native beta loop test.
 throwaway key looks the same as a persistent one. Anyone can mint any number of
 throwaway identities and claim a task; the cap keeps the view readable but does
 not prevent the flood, and a claim still has no effect on who may do the work.
-Work is bounded: at most 100,000 objects linking to a task are examined; only the
-newest 256 verified untrusted claims are held in memory (a claim must beat the
-pool's oldest before it is verified, and is verified before it can displace one,
-so unverifiable spam cannot crowd out real claims); key histories load for at
-most 4,096 distinct authors and 4,096 of one author's objects, stopping as soon
-as both the root and device logs are found. An author with more stored objects
-than that may have their key history go unfound, in which case their claims are
-simply not displayed. When the task has more claims than the pool, the output
-says so (`untrusted_claims_older_not_examined`). Claims are advisory
+Work is bounded: at most 10,000 objects linking to a task are examined; each
+claim is verified, against key histories loaded for its own (author, device)
+pair, before it enters a pool of at most 256 ordered live-lease first, then
+newest (so expired claims cannot displace a live one); only the 64 most recent
+pairs' key histories are held in memory at once (the cache is cleared and
+reloaded when full); for each pair up to 4,096 of the author's objects are
+read, all of them (so a later revocation is merged whatever the store order),
+keeping only logs for the author or the signing device; total key-history reads
+are capped at 200,000. Whenever a cap, eviction or truncation drops or skips
+something, the output says so (`untrusted_claims_older_not_examined`, and a
+warning line in human output even when no claim is shown). An author with more
+stored objects than the window may have their key history go unfound; that is
+reported as incomplete, not as an empty view. Claims are advisory
 coordination only.
 
 **Required follow-up:** let an operator dispose of (accept or reject) a specific

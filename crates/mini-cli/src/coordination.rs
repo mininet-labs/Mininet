@@ -17,7 +17,7 @@ use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
 use crate::project as project_alias;
 use crate::sequence;
-use crate::store::{add_carrier_kels, build_oracle, open_store, MAX_CARRIER_AUTHORS};
+use crate::store::{add_carrier_kels, build_oracle, open_store};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
@@ -813,6 +813,9 @@ const MAX_UNTRUSTED_CLAIMS_SHOWN: usize = 32;
 const UNTRUSTED_CLAIM_POOL: usize = 256;
 /// Most objects linking to a task examined in one `task show`.
 const MAX_TASK_LINKS_EXAMINED: usize = 10_000;
+/// Most (author, device) key-history pairs held in memory at once; the cache is
+/// cleared and reloaded when full, so retained key-history bytes stay bounded.
+const MAX_LOADED_PAIRS: usize = 64;
 /// Most stored objects read, across all authors, while loading key histories.
 const MAX_CARRIER_READS: usize = 200_000;
 
@@ -877,6 +880,8 @@ fn untrusted_claims<B: mini_store::Backend>(
         std::collections::BTreeMap::new();
     let mut incomplete = false;
     let mut reads = 0usize;
+    let trusted_ids: std::collections::HashSet<&ObjectId> =
+        snapshot.claims.iter().map(|known| &known.id).collect();
     let links = store
         .linking_to(&snapshot.task.id)
         .map_err(|e| CliError::Store(e.to_string()))?;
@@ -885,7 +890,7 @@ fn untrusted_claims<B: mini_store::Backend>(
     }
     for id in links.into_iter().take(MAX_TASK_LINKS_EXAMINED) {
         let Ok(object) = store.get(&id) else { continue };
-        if object.object_type != claim_type || snapshot.claims.iter().any(|known| known.id == id) {
+        if object.object_type != claim_type || trusted_ids.contains(&id) {
             continue;
         }
         let pair = (
@@ -893,13 +898,19 @@ fn untrusted_claims<B: mini_store::Backend>(
             object.author_device.as_str().to_owned(),
         );
         if !loaded.contains(&pair) {
-            if loaded.len() >= MAX_CARRIER_AUTHORS || reads >= MAX_CARRIER_READS {
+            if reads >= MAX_CARRIER_READS {
                 incomplete = true;
                 continue;
             }
+            if loaded.len() >= MAX_LOADED_PAIRS {
+                loaded.clear();
+                dir = mini_forge::KelDirectory::new();
+            }
             loaded.insert(pair);
-            reads +=
+            let (read, truncated) =
                 add_carrier_kels(store, &mut dir, &object.author_human, &object.author_device)?;
+            reads += read;
+            incomplete |= truncated;
         }
         let Ok(claim) = mini_forge::read_work_claim(store, &dir, &id) else {
             continue;
@@ -929,7 +940,11 @@ fn untrusted_claims<B: mini_store::Backend>(
 
 fn format_untrusted(claims: &UntrustedClaims) -> String {
     if claims.shown.is_empty() {
-        return String::new();
+        return if claims.older_not_examined {
+            "(some claims from untrusted signers may not have been considered: the task has more than the view examines or holds)\n".to_string()
+        } else {
+            String::new()
+        };
     }
     let mut out = String::from(
         "claims from signers you have not trusted (this proves control of the key, not who holds it; an anonymous throwaway key looks the same as a persistent one):\n",

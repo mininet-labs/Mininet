@@ -203,7 +203,8 @@ const MAX_CARRIER_KEL_BYTES: usize = 1024 * 1024;
 /// its signing `device` as KEL carriers. Only logs for those two identifiers are
 /// parsed-then-kept, and every carrier in the bounded window is examined so a
 /// later extension (for example a revocation) is merged, not skipped.
-/// Returns how many of the author's objects were read.
+/// Returns how many of the author's objects were read and whether the author had
+/// more objects than the window, in which case a needed log may have been missed.
 ///
 /// A carrier's embedded log proves itself (its identifier is derived from its
 /// own inception), so this establishes exactly one thing about an author: that
@@ -219,11 +220,12 @@ pub fn add_carrier_kels<B: mini_store::Backend>(
     dir: &mut KelDirectory,
     author: &did_mini::Did,
     device: &did_mini::Did,
-) -> Result<usize> {
+) -> Result<(usize, bool)> {
     let carrier_type = mini_objects::ObjectType::Custom(mini_sync::KEL_CARRIER.to_string());
     let ids = store
         .by_author(author)
         .map_err(|e| CliError::Store(e.to_string()))?;
+    let truncated = ids.len() > MAX_CARRIER_OBJECTS_PER_AUTHOR;
     let mut read = 0usize;
     for id in ids.into_iter().take(MAX_CARRIER_OBJECTS_PER_AUTHOR) {
         read += 1;
@@ -246,7 +248,7 @@ pub fn add_carrier_kels<B: mini_store::Backend>(
             }
         }
     }
-    Ok(read)
+    Ok((read, truncated))
 }
 
 /// Build the [`KelCache`] `mini_sync`'s ingest pipeline checks incoming

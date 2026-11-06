@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1281,
     "headings": 4276,
-    "rust_symbols": 15449
+    "rust_symbols": 15451
   },
   "crates": {
     "askama_derive": {
@@ -21828,7 +21828,7 @@
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 39982,
+      "bytes": 41309,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21857,9 +21857,9 @@
         "pos",
         "ok_or_else"
       ],
-      "lines": 1109,
+      "lines": 1137,
       "path": "crates/mini-cli/src/coordination.rs",
-      "sha256": "f8fb73868b1510daf625652e31e07fb14d7fab5e77223bcbc43a5b1d4f656275",
+      "sha256": "2470cf1cf5d7d43a32f4ee9f3ad8c9679252a317e78900eae99256d72dc66830",
       "symbols": [
         {
           "kind": "fn",
@@ -22027,68 +22027,78 @@
           "name": "MAX_TASK_LINKS_EXAMINED"
         },
         {
+          "kind": "const",
+          "line": 818,
+          "name": "MAX_LOADED_PAIRS"
+        },
+        {
+          "kind": "const",
+          "line": 820,
+          "name": "MAX_CARRIER_READS"
+        },
+        {
           "kind": "struct",
-          "line": 821,
+          "line": 826,
           "name": "UntrustedClaims"
         },
         {
           "kind": "fn",
-          "line": 833,
+          "line": 838,
           "name": "select_untrusted"
         },
         {
           "kind": "fn",
-          "line": 862,
+          "line": 869,
           "name": "untrusted_claims"
         },
         {
           "kind": "fn",
-          "line": 917,
+          "line": 941,
           "name": "format_untrusted"
         },
         {
           "kind": "fn",
-          "line": 948,
+          "line": 976,
           "name": "untrusted_claim_json"
         },
         {
           "kind": "fn",
-          "line": 965,
+          "line": 993,
           "name": "claim_json"
         },
         {
           "kind": "fn",
-          "line": 989,
+          "line": 1017,
           "name": "review_json"
         },
         {
           "kind": "fn",
-          "line": 1016,
+          "line": 1044,
           "name": "parse_limit"
         },
         {
           "kind": "fn",
-          "line": 1026,
+          "line": 1054,
           "name": "reject_remaining"
         },
         {
           "kind": "fn",
-          "line": 1035,
+          "line": 1063,
           "name": "next"
         },
         {
           "kind": "mod",
-          "line": 1043,
+          "line": 1071,
           "name": "selection_tests"
         },
         {
           "kind": "fn",
-          "line": 1047,
+          "line": 1075,
           "name": "claim"
         },
         {
           "kind": "fn",
-          "line": 1079,
+          "line": 1107,
           "name": "the_cap_keeps_active_claims_newest_first_and_never_buries_them_under_expired_ones"
         }
       ],
@@ -25642,7 +25652,7 @@
       "title": "use mini_durable::space::{self, SpaceLevel};"
     },
     {
-      "bytes": 11578,
+      "bytes": 11999,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25671,9 +25681,9 @@
         "commandresult",
         "join"
       ],
-      "lines": 273,
+      "lines": 279,
       "path": "crates/mini-cli/src/store.rs",
-      "sha256": "5f61619538682b5950cc61ce9fa3ce885d6d800f5ceeb81e4d6c35ff68080d3f",
+      "sha256": "5457deef93db02167a5e8a2f96e296aad0c75edcbf6db1523cc2fa478e413eb2",
       "symbols": [
         {
           "kind": "fn",
@@ -25757,12 +25767,12 @@
         },
         {
           "kind": "fn",
-          "line": 214,
+          "line": 218,
           "name": "add_carrier_kels"
         },
         {
           "kind": "fn",
-          "line": 255,
+          "line": 261,
           "name": "build_kel_cache"
         }
       ],
@@ -114753,7 +114763,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1604909,
+      "bytes": 1605195,
       "group": "docs",
       "headings": [
         {
@@ -115183,9 +115193,9 @@
         "first",
         "one"
       ],
-      "lines": 26543,
+      "lines": 26547,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "1bfd153d0d6b398d44fef538d2379f1d9f17c646411c13dc5f56e83086e58f8c",
+      "sha256": "fe9a74dab0b4315ec69b6686fdff113dcd2fa21f424ddba1a370f76aea7543b0",
       "symbols": [],
       "title": "Decision Log"
     },
