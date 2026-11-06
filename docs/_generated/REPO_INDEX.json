@@ -21828,7 +21828,7 @@
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 41309,
+      "bytes": 41815,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21857,9 +21857,9 @@
         "pos",
         "ok_or_else"
       ],
-      "lines": 1137,
+      "lines": 1147,
       "path": "crates/mini-cli/src/coordination.rs",
-      "sha256": "2470cf1cf5d7d43a32f4ee9f3ad8c9679252a317e78900eae99256d72dc66830",
+      "sha256": "dc95e0abfe6dd37ffde06dcd5b2ddf9d5158eb96b3f37c5aedd6f552b813a5e9",
       "symbols": [
         {
           "kind": "fn",
@@ -22048,57 +22048,57 @@
         },
         {
           "kind": "fn",
-          "line": 869,
+          "line": 872,
           "name": "untrusted_claims"
         },
         {
           "kind": "fn",
-          "line": 941,
+          "line": 951,
           "name": "format_untrusted"
         },
         {
           "kind": "fn",
-          "line": 976,
+          "line": 986,
           "name": "untrusted_claim_json"
         },
         {
           "kind": "fn",
-          "line": 993,
+          "line": 1003,
           "name": "claim_json"
         },
         {
           "kind": "fn",
-          "line": 1017,
+          "line": 1027,
           "name": "review_json"
         },
         {
           "kind": "fn",
-          "line": 1044,
+          "line": 1054,
           "name": "parse_limit"
         },
         {
           "kind": "fn",
-          "line": 1054,
+          "line": 1064,
           "name": "reject_remaining"
         },
         {
           "kind": "fn",
-          "line": 1063,
+          "line": 1073,
           "name": "next"
         },
         {
           "kind": "mod",
-          "line": 1071,
+          "line": 1081,
           "name": "selection_tests"
         },
         {
           "kind": "fn",
-          "line": 1075,
+          "line": 1085,
           "name": "claim"
         },
         {
           "kind": "fn",
-          "line": 1107,
+          "line": 1117,
           "name": "the_cap_keeps_active_claims_newest_first_and_never_buries_them_under_expired_ones"
         }
       ],
@@ -114763,7 +114763,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1605195,
+      "bytes": 1605415,
       "group": "docs",
       "headings": [
         {
@@ -115193,9 +115193,9 @@
         "first",
         "one"
       ],
-      "lines": 26547,
+      "lines": 26550,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "fe9a74dab0b4315ec69b6686fdff113dcd2fa21f424ddba1a370f76aea7543b0",
+      "sha256": "b90a744ba56877ec6246726f96b7bc009dff0b9fae2ddb41d4d721e4559c9fb3",
       "symbols": [],
       "title": "Decision Log"
     },

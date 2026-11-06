@@ -305,7 +305,7 @@ pub fn task_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
     let oracle = build_oracle(home, &identity)?;
     let snapshot =
         task_snapshot(&store, &oracle, &id).map_err(|error| CliError::Forge(error.to_string()))?;
-    let untrusted = untrusted_claims(&store, &snapshot)?;
+    let untrusted = untrusted_claims(&store, &oracle, &snapshot)?;
     let mut human = format_snapshot(&snapshot);
     human.push_str(&format_untrusted(&untrusted));
     Ok(CommandResult::new(human)
@@ -859,6 +859,9 @@ fn select_untrusted(
 /// Claims that verify against the store's own key-history carriers but are not
 /// already listed as trusted claims. They prove control of a key, not identity.
 ///
+/// Claims by roots the viewer already trusts are skipped here; the trusted
+/// list (local oracle) alone decides them.
+///
 /// Claims stream through a pool of at most `UNTRUSTED_CLAIM_POOL` verified
 /// ones, ordered live-lease first, then newest. Each claim is verified against
 /// key histories loaded for its own (author, device) only, and only logs for
@@ -868,6 +871,7 @@ fn select_untrusted(
 /// hitting any cap sets the incomplete flag.
 fn untrusted_claims<B: mini_store::Backend>(
     store: &mini_store::Store<B>,
+    oracle: &mini_forge::KelDirectory,
     snapshot: &mini_forge::TaskSnapshot,
 ) -> Result<UntrustedClaims> {
     let claim_type = mini_objects::ObjectType::Custom(mini_forge::WORK_CLAIM_TYPE.to_string());
@@ -891,6 +895,12 @@ fn untrusted_claims<B: mini_store::Backend>(
     for id in links.into_iter().take(MAX_TASK_LINKS_EXAMINED) {
         let Ok(object) = store.get(&id) else { continue };
         if object.object_type != claim_type || trusted_ids.contains(&id) {
+            continue;
+        }
+        // A root the viewer already trusts is judged only by the local oracle
+        // (which holds its newest history, revocations included); a stale
+        // carrier must never resurrect or relabel its claims.
+        if mini_forge::IdentityOracle::kel(oracle, &object.author_human).is_some() {
             continue;
         }
         let pair = (

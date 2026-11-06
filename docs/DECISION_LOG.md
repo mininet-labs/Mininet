@@ -26524,7 +26524,10 @@ unit test of the selection order, and the native beta loop test.
 throwaway key looks the same as a persistent one. Anyone can mint any number of
 throwaway identities and claim a task; the cap keeps the view readable but does
 not prevent the flood, and a claim still has no effect on who may do the work.
-Work is bounded: at most 10,000 objects linking to a task are examined; each
+Claims by roots the viewer already trusts are never shown here: the local
+oracle, which holds their newest history including revocations, alone decides
+them, so a stale carrier cannot resurrect a revoked device's claim. Work is
+bounded: at most 10,000 objects linking to a task are examined; each
 claim is verified, against key histories loaded for its own (author, device)
 pair, before it enters a pool of at most 256 ordered live-lease first, then
 newest (so expired claims cannot displace a live one); only the 64 most recent
