@@ -306,12 +306,30 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
         shown.contains(&format!("\"reviewed_head\":\"{head}\"")),
         "handoff names the exact commit: {shown}"
     );
-    // KNOWN GAP, pinned on purpose: the anonymous claim signs with a fresh,
-    // unsaved identity, so no viewer can have trusted it in advance and
-    // `task show` does not list it. The claim is stored and signed
-    // (`claim_id` above) but invisible to the operator's view. When anonymous
-    // claims become visible, this assertion must change deliberately.
+    // The anonymous claim signs with a fresh, unsaved identity, so no viewer
+    // can have trusted it and it is not in the trusted `claims` list. It is
+    // shown separately, as key-controlled only: the store holds the fresh
+    // identity's self-certifying key history, which proves who controls the
+    // key and nothing about who that is.
     assert!(shown.contains("\"claims\":[]"), "{shown}");
+    assert!(shown.contains("\"anonymous_claims\":["), "{shown}");
+    assert!(
+        shown.contains(&format!(
+            "\"id\":\"{claim}\",\"anonymous\":true,\"controlled_key_root\":"
+        )),
+        "anonymous claim listed and labelled: {shown}"
+    );
+    assert!(
+        shown.contains("\"anonymous_claims_not_shown\":0"),
+        "{shown}"
+    );
+    // The human view says the same thing in words.
+    let human = cli.run(&operator, false, &["task", "show", &task]);
+    assert!(
+        human.contains("anonymous claims (key-controlled only"),
+        "{human}"
+    );
+    assert!(human.contains(&claim), "{human}");
 
     // The operator records the accepted contribution (fresh claim handle).
     let accepted = cli.run(

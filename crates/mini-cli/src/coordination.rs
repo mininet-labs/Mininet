@@ -17,7 +17,7 @@ use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
 use crate::project as project_alias;
 use crate::sequence;
-use crate::store::{build_oracle, open_store};
+use crate::store::{build_oracle, carrier_oracle, open_store};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
@@ -305,12 +305,22 @@ pub fn task_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
     let oracle = build_oracle(home, &identity)?;
     let snapshot =
         task_snapshot(&store, &oracle, &id).map_err(|error| CliError::Forge(error.to_string()))?;
-    let human = format_snapshot(&snapshot);
+    let anonymous = anonymous_claims(&store, &snapshot)?;
+    let mut human = format_snapshot(&snapshot);
+    human.push_str(&format_anonymous(&anonymous));
     Ok(CommandResult::new(human)
         .field("task", task_json(&snapshot.task))
         .field(
             "claims",
             JsonValue::Array(snapshot.claims.iter().map(claim_json).collect()),
+        )
+        .field(
+            "anonymous_claims",
+            JsonValue::Array(anonymous.shown.iter().map(anonymous_claim_json).collect()),
+        )
+        .field(
+            "anonymous_claims_not_shown",
+            JsonValue::num(anonymous.not_shown as u64),
         )
         .field(
             "reviews",
@@ -787,6 +797,81 @@ fn task_json(task: &mini_forge::TaskBrief) -> JsonValue {
         (
             "evidence".to_string(),
             JsonValue::strs(task.evidence.clone()),
+        ),
+    ])
+}
+
+/// Most anonymous claims one `task show` lists; the rest are only counted, so a
+/// flood of throwaway identities cannot bury the view.
+const MAX_ANONYMOUS_CLAIMS_SHOWN: usize = 32;
+
+/// Claims signed by a key history the viewer has not trusted but that the store
+/// holds self-certifying carriers for.
+struct AnonymousClaims {
+    shown: Vec<mini_forge::WorkClaim>,
+    not_shown: usize,
+}
+
+/// Claims that verify against the store's own key-history carriers but are not
+/// already listed as trusted claims. They prove control of a key, not identity.
+fn anonymous_claims<B: mini_store::Backend>(
+    store: &mini_store::Store<B>,
+    snapshot: &mini_forge::TaskSnapshot,
+) -> Result<AnonymousClaims> {
+    let oracle = carrier_oracle(store)?;
+    let all = mini_forge::list_work_claims(store, &oracle, &snapshot.task.id)
+        .map_err(|error| CliError::Forge(error.to_string()))?;
+    let mut rest: Vec<mini_forge::WorkClaim> = all
+        .into_iter()
+        .filter(|claim| !snapshot.claims.iter().any(|known| known.id == claim.id))
+        .collect();
+    let not_shown = rest.len().saturating_sub(MAX_ANONYMOUS_CLAIMS_SHOWN);
+    rest.truncate(MAX_ANONYMOUS_CLAIMS_SHOWN);
+    Ok(AnonymousClaims {
+        shown: rest,
+        not_shown,
+    })
+}
+
+fn format_anonymous(anonymous: &AnonymousClaims) -> String {
+    if anonymous.shown.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(
+        "anonymous claims (key-controlled only; the signer is a throwaway identity, not a known or trusted one):\n",
+    );
+    for claim in &anonymous.shown {
+        out.push_str(&format!(
+            "  {} key {} role {} expires {} paths {}\n",
+            claim.id.as_str(),
+            claim.author.as_str(),
+            claim.role,
+            claim.lease_expires_ms,
+            claim.paths.join(", ")
+        ));
+    }
+    if anonymous.not_shown > 0 {
+        out.push_str(&format!(
+            "  ... and {} more anonymous claim(s) not shown\n",
+            anonymous.not_shown
+        ));
+    }
+    out
+}
+
+fn anonymous_claim_json(claim: &mini_forge::WorkClaim) -> JsonValue {
+    JsonValue::Object(vec![
+        ("id".to_string(), JsonValue::str(claim.id.as_str())),
+        ("anonymous".to_string(), JsonValue::Bool(true)),
+        (
+            "controlled_key_root".to_string(),
+            JsonValue::str(claim.author.as_str()),
+        ),
+        ("role".to_string(), JsonValue::str(claim.role.as_str())),
+        ("paths".to_string(), JsonValue::strs(claim.paths.clone())),
+        (
+            "lease_expires_ms".to_string(),
+            JsonValue::num(claim.lease_expires_ms),
         ),
     ])
 }

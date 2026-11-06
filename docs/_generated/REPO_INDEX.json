@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 93,
-    "files": 1280,
+    "files": 1281,
     "headings": 4276,
-    "rust_symbols": 15419
+    "rust_symbols": 15441
   },
   "crates": {
     "askama_derive": {
@@ -21828,7 +21828,7 @@
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 30852,
+      "bytes": 33895,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21857,9 +21857,9 @@
         "pos",
         "ok_or_else"
       ],
-      "lines": 870,
+      "lines": 955,
       "path": "crates/mini-cli/src/coordination.rs",
-      "sha256": "5be7c8fc87bc5a69e610a56736021f0334191a81c48f0437bfad0284d96debff",
+      "sha256": "e8fa1dc4b835201c604024bbfc92b67c178429feb960bb5cf8f9af94abe2f5e9",
       "symbols": [
         {
           "kind": "fn",
@@ -21943,97 +21943,122 @@
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 332,
           "name": "task_claim"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 369,
           "name": "campaign_create"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 400,
           "name": "finding_create"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 433,
           "name": "disposition_create"
         },
         {
           "kind": "fn",
-          "line": 463,
+          "line": 473,
           "name": "campaign_show"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 540,
           "name": "campaign_json"
         },
         {
           "kind": "fn",
-          "line": 549,
+          "line": 559,
           "name": "finding_json"
         },
         {
           "kind": "fn",
-          "line": 571,
+          "line": 581,
           "name": "disposition_json"
         },
         {
           "kind": "fn",
-          "line": 593,
+          "line": 603,
           "name": "task_review"
         },
         {
           "kind": "fn",
-          "line": 637,
+          "line": 647,
           "name": "task_list_result"
         },
         {
           "kind": "fn",
-          "line": 658,
+          "line": 668,
           "name": "format_charter"
         },
         {
           "kind": "fn",
-          "line": 681,
+          "line": 691,
           "name": "format_snapshot"
         },
         {
           "kind": "fn",
-          "line": 734,
+          "line": 744,
           "name": "charter_json"
         },
         {
           "kind": "fn",
-          "line": 765,
+          "line": 775,
           "name": "task_json"
         },
         {
+          "kind": "const",
+          "line": 806,
+          "name": "MAX_ANONYMOUS_CLAIMS_SHOWN"
+        },
+        {
+          "kind": "struct",
+          "line": 810,
+          "name": "AnonymousClaims"
+        },
+        {
           "kind": "fn",
-          "line": 794,
+          "line": 817,
+          "name": "anonymous_claims"
+        },
+        {
+          "kind": "fn",
+          "line": 836,
+          "name": "format_anonymous"
+        },
+        {
+          "kind": "fn",
+          "line": 862,
+          "name": "anonymous_claim_json"
+        },
+        {
+          "kind": "fn",
+          "line": 879,
           "name": "claim_json"
         },
         {
           "kind": "fn",
-          "line": 818,
+          "line": 903,
           "name": "review_json"
         },
         {
           "kind": "fn",
-          "line": 845,
+          "line": 930,
           "name": "parse_limit"
         },
         {
           "kind": "fn",
-          "line": 855,
+          "line": 940,
           "name": "reject_remaining"
         },
         {
           "kind": "fn",
-          "line": 864,
+          "line": 949,
           "name": "next"
         }
       ],
@@ -25587,7 +25612,7 @@
       "title": "use mini_durable::space::{self, SpaceLevel};"
     },
     {
-      "bytes": 9078,
+      "bytes": 10780,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25616,9 +25641,9 @@
         "commandresult",
         "join"
       ],
-      "lines": 217,
+      "lines": 254,
       "path": "crates/mini-cli/src/store.rs",
-      "sha256": "21038513974f61b5ff8b361bd512ca037177598328b45ca6257a75ef4b816ef5",
+      "sha256": "8d1bb5a4765eb70016ac08825daed2ebb1b9ca66b52938b6f573bcd77b6e92c6",
       "symbols": [
         {
           "kind": "fn",
@@ -25686,8 +25711,23 @@
           "name": "build_oracle"
         },
         {
+          "kind": "const",
+          "line": 193,
+          "name": "MAX_CARRIER_KELS"
+        },
+        {
+          "kind": "const",
+          "line": 195,
+          "name": "MAX_CARRIER_KEL_BYTES"
+        },
+        {
           "kind": "fn",
-          "line": 199,
+          "line": 206,
+          "name": "carrier_oracle"
+        },
+        {
+          "kind": "fn",
+          "line": 236,
           "name": "build_kel_cache"
         }
       ],
@@ -26055,6 +26095,113 @@
       "title": "mod common;"
     },
     {
+      "bytes": 7510,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "store",
+        "home",
+        "unwrap",
+        "self",
+        "run",
+        "world",
+        "task",
+        "path",
+        "shown",
+        "std",
+        "str",
+        "string",
+        "to_str",
+        "mini-cli",
+        "claim",
+        "tag",
+        "tempdir",
+        "drop",
+        "anonymous",
+        "claims",
+        "identity",
+        "trusted",
+        "show",
+        "pathbuf"
+      ],
+      "lines": 265,
+      "path": "crates/mini-cli/tests/anonymous_claims.rs",
+      "sha256": "cda81ac39a3d51af8f1d8ffcc5e836cae7148b91ec8a206115d5840e377a8e5b",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 13,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 26,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 31,
+          "name": "last_word"
+        },
+        {
+          "kind": "fn",
+          "line": 35,
+          "name": "value_after"
+        },
+        {
+          "kind": "struct",
+          "line": 46,
+          "name": "World"
+        },
+        {
+          "kind": "impl",
+          "line": 52,
+          "name": "World"
+        },
+        {
+          "kind": "fn",
+          "line": 53,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 138,
+          "name": "anonymous_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "show_json"
+        },
+        {
+          "kind": "impl",
+          "line": 171,
+          "name": "Drop"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
+          "name": "drop"
+        },
+        {
+          "kind": "fn",
+          "line": 179,
+          "name": "the_anonymous_list_is_capped_and_the_rest_are_counted"
+        },
+        {
+          "kind": "fn",
+          "line": 195,
+          "name": "a_claim_whose_signer_has_no_key_history_in_the_store_never_appears"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "a_trusted_claim_is_listed_once_as_trusted_and_not_as_anonymous"
+        }
+      ],
+      "title": "use std::fs;"
+    },
+    {
       "bytes": 4975,
       "group": "crate:mini-cli",
       "headings": [],
@@ -26331,7 +26478,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 13181,
+      "bytes": 13795,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -26360,9 +26507,9 @@
         "panic",
         "vec"
       ],
-      "lines": 436,
+      "lines": 454,
       "path": "crates/mini-cli/tests/beta_native_loop.rs",
-      "sha256": "60031eaaf1c4c30d83cf48c2f348266d39806052684fe9afa77bc8fc9513c16b",
+      "sha256": "40697d2080ec90e5616d3890d62aa68380eebf8727afa47b2788bc6b586476e3",
       "symbols": [
         {
           "kind": "const",
@@ -114077,7 +114224,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 30001,
+      "bytes": 30169,
       "group": "docs",
       "headings": [
         {
@@ -114234,7 +114381,7 @@
       ],
       "lines": 336,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "284f73076ebf5975187e12e9822e5597e1781c64b188fbe886e7f9130f545c36",
+      "sha256": "1250cad007c52dd4dec1da9304221e53a2a02d6df2d61a20ef815dfcab44e779",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -114566,7 +114713,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1601755,
+      "bytes": 1603768,
       "group": "docs",
       "headings": [
         {
@@ -114996,9 +115143,9 @@
         "first",
         "one"
       ],
-      "lines": 26490,
+      "lines": 26527,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "b88bd3aa16b264c076d94963a0af5f4beee42da2df9db894bb4b9bc52639dd4f",
+      "sha256": "9756a6dc7cc3a3f4d0e96890d2d6edd793370cb7ee7bf7e6f472b07d623f8a58",
       "symbols": [],
       "title": "Decision Log"
     },
