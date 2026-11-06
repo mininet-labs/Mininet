@@ -26548,3 +26548,57 @@ claim from an untrusted signer; rate-limit such claims per task if flooding is
 observed.
 
 **Supersedes / superseded by:** none.
+
+### D-0549 — Participation claims are redeemed with a one-time claim key, so a reward destination is private and cannot be redirected  ·  *Shipped*
+
+**Decision:** an accepted contribution receipt's `ClaimTag` is now the public
+half of a one-time Ed25519 claim key (`mini_beta::ClaimKey`) that the
+contributor generated for exactly that contribution. The contributor redeems
+the claim by publishing a `mininet.beta/claim-redemption/v1` object holding a
+signature, made with the claim key, over `(contribution id, epoch, account)`.
+The redemption is authored by any fresh throwaway identity, so no GitHub handle,
+DID or persistent pseudonym is bound to the destination account. A participation
+grant may cite a redemption (`build_redeemed_participation_grant`); the account,
+contribution, campaign and epoch then come from the verified redemption, and
+both `BetaMiniLedger::apply_grant` and the grant-acceptance policy check
+(`validate_grant_against_policy`, used by the durable execution path)
+re-verify the proof and reject any mismatch (`BetaError::InvalidClaimProof`,
+`GrantRuleViolation`). `mini beta claim new|redeem` and `mini beta grant create
+--redemption` expose it. `mini-beta` gains one dependency, `mini-crypto`
+(reviewed primitives only); its dependency-wall test allowlist is extended by
+exactly that crate.
+
+**Reason:** the previous commitment was a hash of a secret, which could only be
+used by revealing the secret, and a revealed secret can be copied by any
+observer who then redeems to their own account first. A signature binds the
+destination, so an observer cannot redirect it. Separate contributions use
+separate keys, so they are not linked. This is #337's "private fresh claim
+path" and Directive 9 (the safest information is information the network never
+learns).
+
+**Constitutional impact:** Directive 9, Directive 16, Directive 18. No new
+cryptographic construction: Ed25519 from `mini-crypto` only (no inventing
+cryptography). No value, governance, settlement or personhood dependency
+added; Beta MINI amounts still confer no authority and no conversion promise.
+No Tier-F row touched.
+
+**Implementation status:** shipped in `mini-beta` (`claim.rs`), `mini-beta-grants`
+(policy check) and `mini-cli`; 7 adversarial tests in `claim_redemption.rs`
+(holder redeems once; non-holder cannot; a copied redemption cannot be
+redirected; a redemption for another contribution is rejected; no cross-epoch
+use; legacy random-tag receipts cannot be redeemed), 1 acceptance test with
+threshold approvals, and the CLI beta loop now runs through redeem.
+
+**Failure point:** the claim secret is bearer material. Whoever holds it can
+redeem to their own account, and a lost secret cannot be recovered; nothing here
+defends a leaked secret. The grant authorizers' own signing identities remain
+public by design (grant policy members are public DIDs). Redemption is
+optional: a participation grant that names an account directly still works (the
+older path, and the desktop wallet's), so privacy depends on the authorizer
+using the redeemed path. Receipts created before this change carry random tags
+and cannot be redeemed. The desktop panel does not yet expose redeem.
+
+**Required follow-up:** expose redeem in the desktop BETA wallet; consider
+requiring a redemption for every participation grant once all producers use it.
+
+**Supersedes / superseded by:** none.

@@ -11,5 +11,6 @@ publish = false
 
 [dependencies]
 did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }

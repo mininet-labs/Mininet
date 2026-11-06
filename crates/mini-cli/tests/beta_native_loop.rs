@@ -392,6 +392,25 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
         ),
         "policy_id",
     );
+    // The tester redeems the private claim to that account under a throwaway
+    // identity; the operator's grant takes the account from the redemption.
+    let claim_secret = field(&accepted, "claim_secret");
+    let redeemed = cli.run(
+        &tester,
+        true,
+        &[
+            "beta",
+            "claim",
+            "redeem",
+            "--contribution",
+            &contribution,
+            "--secret",
+            &claim_secret,
+            "--account",
+            &account,
+        ],
+    );
+    let redemption = field(&redeemed, "redemption_id");
     let grant = field(
         &cli.run(
             &operator,
@@ -403,12 +422,10 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
                 &campaign,
                 "--epoch",
                 EPOCH,
-                "--account",
-                &account,
                 "--class",
                 "participation",
-                "--contribution",
-                &contribution,
+                "--redemption",
+                &redemption,
                 "--amount",
                 "100",
                 "--memo",

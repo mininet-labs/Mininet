@@ -509,6 +509,18 @@ pub fn validate_grant_against_policy<B: Backend>(
             if contribution.campaign_id.as_ref() != Some(&policy.campaign_id) {
                 return Err(GrantAcceptanceError::GrantRuleViolation);
             }
+            // A grant that cites a claim redemption must match it exactly: the
+            // destination account is whatever the claim-key holder signed.
+            if let Some(redemption_id) = grant.redemption_id.as_ref() {
+                let redemption = mini_beta::verify_claim_redemption(store, redemption_id)
+                    .map_err(|_| GrantAcceptanceError::GrantRuleViolation)?;
+                if redemption.contribution_id != *contribution_id
+                    || redemption.account != grant.account
+                    || redemption.epoch != grant.epoch
+                {
+                    return Err(GrantAcceptanceError::GrantRuleViolation);
+                }
+            }
         }
     }
     Ok(grant)
