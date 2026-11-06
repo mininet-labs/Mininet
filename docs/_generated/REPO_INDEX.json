@@ -21828,7 +21828,7 @@
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 41815,
+      "bytes": 42760,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21857,9 +21857,9 @@
         "pos",
         "ok_or_else"
       ],
-      "lines": 1147,
+      "lines": 1166,
       "path": "crates/mini-cli/src/coordination.rs",
-      "sha256": "dc95e0abfe6dd37ffde06dcd5b2ddf9d5158eb96b3f37c5aedd6f552b813a5e9",
+      "sha256": "6c85c49615ddbea7364d5a370b515013fbdca54f757ac8b93792e3c82b8e2e5a",
       "symbols": [
         {
           "kind": "fn",
@@ -22029,7 +22029,7 @@
         {
           "kind": "const",
           "line": 818,
-          "name": "MAX_LOADED_PAIRS"
+          "name": "MAX_DEVICES_PER_AUTHOR"
         },
         {
           "kind": "const",
@@ -22053,52 +22053,52 @@
         },
         {
           "kind": "fn",
-          "line": 951,
+          "line": 970,
           "name": "format_untrusted"
         },
         {
           "kind": "fn",
-          "line": 986,
+          "line": 1005,
           "name": "untrusted_claim_json"
         },
         {
           "kind": "fn",
-          "line": 1003,
+          "line": 1022,
           "name": "claim_json"
         },
         {
           "kind": "fn",
-          "line": 1027,
+          "line": 1046,
           "name": "review_json"
         },
         {
           "kind": "fn",
-          "line": 1054,
+          "line": 1073,
           "name": "parse_limit"
         },
         {
           "kind": "fn",
-          "line": 1064,
+          "line": 1083,
           "name": "reject_remaining"
         },
         {
           "kind": "fn",
-          "line": 1073,
+          "line": 1092,
           "name": "next"
         },
         {
           "kind": "mod",
-          "line": 1081,
+          "line": 1100,
           "name": "selection_tests"
         },
         {
           "kind": "fn",
-          "line": 1085,
+          "line": 1104,
           "name": "claim"
         },
         {
           "kind": "fn",
-          "line": 1117,
+          "line": 1136,
           "name": "the_cap_keeps_active_claims_newest_first_and_never_buries_them_under_expired_ones"
         }
       ],
@@ -25652,7 +25652,7 @@
       "title": "use mini_durable::space::{self, SpaceLevel};"
     },
     {
-      "bytes": 11999,
+      "bytes": 12050,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25683,7 +25683,7 @@
       ],
       "lines": 279,
       "path": "crates/mini-cli/src/store.rs",
-      "sha256": "5457deef93db02167a5e8a2f96e296aad0c75edcbf6db1523cc2fa478e413eb2",
+      "sha256": "7f6cd913e08421778e76c7b4d01c1d88f527539ea98253736eebecf9651de23e",
       "symbols": [
         {
           "kind": "fn",
@@ -114763,7 +114763,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1605415,
+      "bytes": 1605509,
       "group": "docs",
       "headings": [
         {
@@ -115193,9 +115193,9 @@
         "first",
         "one"
       ],
-      "lines": 26550,
+      "lines": 26551,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "b90a744ba56877ec6246726f96b7bc009dff0b9fae2ddb41d4d721e4559c9fb3",
+      "sha256": "bbd4e23333a74a8e803c9242091938cd68b5714e3eb63647913fca6cc5d2e0f4",
       "symbols": [],
       "title": "Decision Log"
     },

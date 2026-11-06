@@ -813,9 +813,9 @@ const MAX_UNTRUSTED_CLAIMS_SHOWN: usize = 32;
 const UNTRUSTED_CLAIM_POOL: usize = 256;
 /// Most objects linking to a task examined in one `task show`.
 const MAX_TASK_LINKS_EXAMINED: usize = 10_000;
-/// Most (author, device) key-history pairs held in memory at once; the cache is
-/// cleared and reloaded when full, so retained key-history bytes stay bounded.
-const MAX_LOADED_PAIRS: usize = 64;
+/// Most distinct signing devices of one author whose key histories are loaded
+/// together; further devices are skipped and reported as incomplete.
+const MAX_DEVICES_PER_AUTHOR: usize = 64;
 /// Most stored objects read, across all authors, while loading key histories.
 const MAX_CARRIER_READS: usize = 200_000;
 
@@ -862,13 +862,13 @@ fn select_untrusted(
 /// Claims by roots the viewer already trusts are skipped here; the trusted
 /// list (local oracle) alone decides them.
 ///
-/// Claims stream through a pool of at most `UNTRUSTED_CLAIM_POOL` verified
-/// ones, ordered live-lease first, then newest. Each claim is verified against
-/// key histories loaded for its own (author, device) only, and only logs for
-/// those two identifiers are kept, so a peer attaching many claims, claims that
-/// do not verify, or unrelated carriers cannot grow memory without bound or
-/// crowd out a live claim. Link examination and key-history reads are capped;
-/// hitting any cap sets the incomplete flag.
+/// Candidate claims are grouped by author root (metadata only), then each
+/// author's stored objects are scanned once for the logs of that root and of the
+/// signing devices in the group (at most `MAX_DEVICES_PER_AUTHOR`), the author's
+/// claims are verified against that directory, and the directory is dropped. The
+/// verified claims go through a pool of at most `UNTRUSTED_CLAIM_POOL`, ordered
+/// live-lease first, then newest. Link examination and key-history reads are
+/// capped; hitting any cap, eviction or truncation sets the incomplete flag.
 fn untrusted_claims<B: mini_store::Backend>(
     store: &mini_store::Store<B>,
     oracle: &mini_forge::KelDirectory,
@@ -876,8 +876,6 @@ fn untrusted_claims<B: mini_store::Backend>(
 ) -> Result<UntrustedClaims> {
     let claim_type = mini_objects::ObjectType::Custom(mini_forge::WORK_CLAIM_TYPE.to_string());
     let now_ms = sequence::now_ms();
-    let mut dir = mini_forge::KelDirectory::new();
-    let mut loaded = std::collections::BTreeSet::<(String, String)>::new();
     // Ordered by (lease still live, timestamp, id); the smallest is evicted, so
     // a live claim is never displaced by expired ones.
     let mut pool: std::collections::BTreeMap<(bool, u64, String), mini_forge::WorkClaim> =
@@ -892,6 +890,11 @@ fn untrusted_claims<B: mini_store::Backend>(
     if links.len() > MAX_TASK_LINKS_EXAMINED {
         incomplete = true;
     }
+    // Phase 1: group candidate claims by author root (metadata only).
+    let mut by_author: std::collections::BTreeMap<String, Vec<(ObjectId, did_mini::Did, u64)>> =
+        std::collections::BTreeMap::new();
+    let mut author_dids: std::collections::BTreeMap<String, did_mini::Did> =
+        std::collections::BTreeMap::new();
     for id in links.into_iter().take(MAX_TASK_LINKS_EXAMINED) {
         let Ok(object) = store.get(&id) else { continue };
         if object.object_type != claim_type || trusted_ids.contains(&id) {
@@ -903,40 +906,56 @@ fn untrusted_claims<B: mini_store::Backend>(
         if mini_forge::IdentityOracle::kel(oracle, &object.author_human).is_some() {
             continue;
         }
-        let pair = (
-            object.author_human.as_str().to_owned(),
-            object.author_device.as_str().to_owned(),
-        );
-        if !loaded.contains(&pair) {
-            if reads >= MAX_CARRIER_READS {
-                incomplete = true;
+        let key = object.author_human.as_str().to_owned();
+        author_dids
+            .entry(key.clone())
+            .or_insert_with(|| object.author_human.clone());
+        by_author.entry(key).or_default().push((
+            id,
+            object.author_device.clone(),
+            object.timestamp_ms,
+        ));
+    }
+    // Phase 2: one bounded scan per author, then verify that author's claims
+    // against a directory that is dropped afterwards, so retained key-history
+    // bytes never exceed one author's slice.
+    for (key, candidates) in by_author {
+        if reads >= MAX_CARRIER_READS {
+            incomplete = true;
+            break;
+        }
+        let author = &author_dids[&key];
+        let mut devices: Vec<did_mini::Did> = Vec::new();
+        for (_, device, _) in &candidates {
+            if !devices.contains(device) {
+                if devices.len() >= MAX_DEVICES_PER_AUTHOR {
+                    incomplete = true;
+                    continue;
+                }
+                devices.push(device.clone());
+            }
+        }
+        let mut dir = mini_forge::KelDirectory::new();
+        let (read, truncated) = add_carrier_kels(store, &mut dir, author, &devices)?;
+        reads += read;
+        incomplete |= truncated;
+        for (id, _, timestamp_ms) in candidates {
+            let Ok(claim) = mini_forge::read_work_claim(store, &dir, &id) else {
+                continue;
+            };
+            if claim.task_id != snapshot.task.id {
                 continue;
             }
-            if loaded.len() >= MAX_LOADED_PAIRS {
-                loaded.clear();
-                dir = mini_forge::KelDirectory::new();
+            let key = (
+                claim.lease_expires_ms > now_ms,
+                timestamp_ms,
+                id.as_str().to_owned(),
+            );
+            pool.insert(key, claim);
+            if pool.len() > UNTRUSTED_CLAIM_POOL {
+                pool.pop_first();
+                incomplete = true;
             }
-            loaded.insert(pair);
-            let (read, truncated) =
-                add_carrier_kels(store, &mut dir, &object.author_human, &object.author_device)?;
-            reads += read;
-            incomplete |= truncated;
-        }
-        let Ok(claim) = mini_forge::read_work_claim(store, &dir, &id) else {
-            continue;
-        };
-        if claim.task_id != snapshot.task.id {
-            continue;
-        }
-        let key = (
-            claim.lease_expires_ms > now_ms,
-            object.timestamp_ms,
-            id.as_str().to_owned(),
-        );
-        pool.insert(key, claim);
-        if pool.len() > UNTRUSTED_CLAIM_POOL {
-            pool.pop_first();
-            incomplete = true;
         }
     }
     let mut selected = select_untrusted(

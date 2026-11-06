@@ -200,7 +200,7 @@ const MAX_CARRIER_OBJECTS_PER_AUTHOR: usize = 4_096;
 const MAX_CARRIER_KEL_BYTES: usize = 1024 * 1024;
 
 /// Add to `dir` the key history the store holds for `author` (a human root) and
-/// its signing `device` as KEL carriers. Only logs for those two identifiers are
+/// its signing `devices` as KEL carriers, in one pass over the author's objects. Only logs for those two identifiers are
 /// parsed-then-kept, and every carrier in the bounded window is examined so a
 /// later extension (for example a revocation) is merged, not skipped.
 /// Returns how many of the author's objects were read and whether the author had
@@ -219,7 +219,7 @@ pub fn add_carrier_kels<B: mini_store::Backend>(
     store: &Store<B>,
     dir: &mut KelDirectory,
     author: &did_mini::Did,
-    device: &did_mini::Did,
+    devices: &[did_mini::Did],
 ) -> Result<(usize, bool)> {
     let carrier_type = mini_objects::ObjectType::Custom(mini_sync::KEL_CARRIER.to_string());
     let ids = store
@@ -243,7 +243,7 @@ pub fn add_carrier_kels<B: mini_store::Backend>(
         // skipped, never fatal to the command.
         if let Ok(kel) = Kel::from_bytes(bytes) {
             let did = kel.did();
-            if did == *author || did == *device {
+            if did == *author || devices.contains(&did) {
                 let _ = dir.try_insert_verified(kel);
             }
         }

@@ -26527,14 +26527,15 @@ not prevent the flood, and a claim still has no effect on who may do the work.
 Claims by roots the viewer already trusts are never shown here: the local
 oracle, which holds their newest history including revocations, alone decides
 them, so a stale carrier cannot resurrect a revoked device's claim. Work is
-bounded: at most 10,000 objects linking to a task are examined; each
-claim is verified, against key histories loaded for its own (author, device)
-pair, before it enters a pool of at most 256 ordered live-lease first, then
-newest (so expired claims cannot displace a live one); only the 64 most recent
-pairs' key histories are held in memory at once (the cache is cleared and
-reloaded when full); for each pair up to 4,096 of the author's objects are
-read, all of them (so a later revocation is merged whatever the store order),
-keeping only logs for the author or the signing device; total key-history reads
+bounded: at most 10,000 objects linking to a task are examined; claims
+are grouped by author root; each author's stored objects are scanned once (up
+to 4,096, all of them, so a later revocation is merged whatever the store
+order) for the logs of that root and of up to 64 signing devices, the author's
+claims are verified against that directory, and the directory is dropped, so
+retained key-history bytes never exceed one author's slice and a many-device
+author is not rescanned per device; verified claims enter a pool of at most 256
+ordered live-lease first, then newest (so expired claims cannot displace a live
+one); keeping only logs for the author or the signing device; total key-history reads
 are capped at 200,000. Whenever a cap, eviction or truncation drops or skips
 something, the output says so (`untrusted_claims_older_not_examined`, and a
 warning line in human output even when no claim is shown). An author with more
