@@ -1,8 +1,9 @@
-//! Anonymous work claims are shown to the operator as key-controlled only.
+//! Claims from signers the operator has not trusted are shown as key-controlled only.
 //!
 //! `mini beta task claim` signs with a fresh, unsaved identity, so no viewer can
 //! have trusted it. `mini task show` therefore lists it apart from the trusted
-//! `claims`, labelled anonymous, from the self-certifying key history the store
+//! `claims`, as `untrusted_claims` (which also covers any peer the operator
+//! simply has not trusted), from the self-certifying key history the store
 //! holds. These tests pin the safety properties of that view: the list is
 //! capped, a claim whose signer has no key history in the store never appears,
 //! and a claim by a trusted identity is listed once, as trusted.
@@ -176,15 +177,19 @@ impl Drop for World {
 }
 
 #[test]
-fn the_anonymous_list_is_capped_and_the_rest_are_counted() {
+fn the_untrusted_list_is_capped_and_the_rest_are_counted() {
     let world = World::new("cap");
     for _ in 0..34 {
         world.anonymous_claim();
     }
     let shown = world.show_json();
-    assert_eq!(shown.matches("\"anonymous\":true").count(), 32, "{shown}");
+    assert_eq!(
+        shown.matches("\"signer_trusted\":false").count(),
+        32,
+        "{shown}"
+    );
     assert!(
-        shown.contains("\"anonymous_claims_not_shown\":2"),
+        shown.contains("\"untrusted_claims_not_shown\":2"),
         "{shown}"
     );
     // None of them is a trusted claim.
@@ -196,7 +201,7 @@ fn a_claim_whose_signer_has_no_key_history_in_the_store_never_appears() {
     let world = World::new("forged");
     world.anonymous_claim();
     // A claim signed by an identity whose key history was never stored: it
-    // verifies against nothing, so it must not be listed as anonymous either.
+    // verifies against nothing, so it must not be listed as untrusted either.
     let mut store = mini_store::Store::new(
         mini_store::FsBackend::open(std::path::Path::new(&world.store)).unwrap(),
     );
@@ -230,18 +235,34 @@ fn a_claim_whose_signer_has_no_key_history_in_the_store_never_appears() {
     .unwrap();
     drop(store);
     let shown = world.show_json();
-    assert_eq!(shown.matches("\"anonymous\":true").count(), 1, "{shown}");
+    assert_eq!(
+        shown.matches("\"signer_trusted\":false").count(),
+        1,
+        "{shown}"
+    );
     assert!(!shown.contains("impostor"), "{shown}");
 }
 
 #[test]
-fn a_trusted_claim_is_listed_once_as_trusted_and_not_as_anonymous() {
+fn an_untrusted_persistent_peer_is_listed_as_untrusted_then_as_trusted_once_trusted() {
     let world = World::new("trusted");
     let bob = tempdir("trusted-bob");
     let (h, s) = (world.home.to_str().unwrap(), world.store.to_str().unwrap());
     run(&["--home", bob.to_str().unwrap(), "identity", "init"]);
-    let bob_kel = run(&["--home", bob.to_str().unwrap(), "kel", "export"]);
-    run(&["--home", h, "kel", "trust", bob_kel.trim()]);
+    // Bob is an ordinary peer with a persistent identity, not an anonymous
+    // claimant. His key history reaches the store (as it would over sync) but
+    // the operator has not trusted it.
+    {
+        let identity = mini_cli::identity::load(&bob).unwrap();
+        let mut store = mini_store::Store::new(
+            mini_store::FsBackend::open(std::path::Path::new(&world.store)).unwrap(),
+        );
+        for kel in [identity.human.kel(), identity.device.kel()] {
+            let carrier =
+                mini_sync::kel_carrier(&kel, &identity.human_did(), &identity.device).unwrap();
+            store.insert(&carrier).unwrap();
+        }
+    }
     run(&[
         "--home",
         bob.to_str().unwrap(),
@@ -257,8 +278,27 @@ fn a_trusted_claim_is_listed_once_as_trusted_and_not_as_anonymous() {
         "--expires-ms",
         "4102444800000",
     ]);
-    let shown = world.show_json();
-    assert!(shown.contains("rust contributor"), "{shown}");
-    assert!(shown.contains("\"anonymous_claims\":[]"), "{shown}");
+    // Untrusted: listed apart from trusted claims, and not called throwaway.
+    let before = world.show_json();
+    assert!(before.contains("\"claims\":[]"), "{before}");
+    assert!(before.contains("\"signer_trusted\":false"), "{before}");
+    assert!(before.contains("rust contributor"), "{before}");
+    let human = run(&["--home", h, "--store", s, "task", "show", &world.task]);
+    assert!(
+        human.contains("claims from signers you have not trusted"),
+        "{human}"
+    );
+    assert!(
+        !human.contains("throwaway identity, not a known"),
+        "{human}"
+    );
+    // Once the operator trusts Bob, the claim moves to the trusted list and is
+    // not listed twice.
+    let bob_kel = run(&["--home", bob.to_str().unwrap(), "kel", "export"]);
+    run(&["--home", h, "kel", "trust", bob_kel.trim()]);
+    let after = world.show_json();
+    assert!(after.contains("rust contributor"), "{after}");
+    assert!(after.contains("\"untrusted_claims\":[]"), "{after}");
+    assert!(!after.contains("\"claims\":[]"), "{after}");
     let _ = fs::remove_dir_all(bob);
 }

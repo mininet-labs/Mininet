@@ -17,7 +17,7 @@ use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
 use crate::project as project_alias;
 use crate::sequence;
-use crate::store::{build_oracle, carrier_oracle, open_store};
+use crate::store::{build_oracle, carrier_oracle_for, open_store};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
@@ -305,9 +305,9 @@ pub fn task_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
     let oracle = build_oracle(home, &identity)?;
     let snapshot =
         task_snapshot(&store, &oracle, &id).map_err(|error| CliError::Forge(error.to_string()))?;
-    let anonymous = anonymous_claims(&store, &snapshot)?;
+    let untrusted = untrusted_claims(&store, &snapshot)?;
     let mut human = format_snapshot(&snapshot);
-    human.push_str(&format_anonymous(&anonymous));
+    human.push_str(&format_untrusted(&untrusted));
     Ok(CommandResult::new(human)
         .field("task", task_json(&snapshot.task))
         .field(
@@ -315,12 +315,12 @@ pub fn task_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
             JsonValue::Array(snapshot.claims.iter().map(claim_json).collect()),
         )
         .field(
-            "anonymous_claims",
-            JsonValue::Array(anonymous.shown.iter().map(anonymous_claim_json).collect()),
+            "untrusted_claims",
+            JsonValue::Array(untrusted.shown.iter().map(untrusted_claim_json).collect()),
         )
         .field(
-            "anonymous_claims_not_shown",
-            JsonValue::num(anonymous.not_shown as u64),
+            "untrusted_claims_not_shown",
+            JsonValue::num(untrusted.not_shown as u64),
         )
         .field(
             "reviews",
@@ -801,46 +801,85 @@ fn task_json(task: &mini_forge::TaskBrief) -> JsonValue {
     ])
 }
 
-/// Most anonymous claims one `task show` lists; the rest are only counted, so a
-/// flood of throwaway identities cannot bury the view.
-const MAX_ANONYMOUS_CLAIMS_SHOWN: usize = 32;
+/// Most claims from untrusted signers one `task show` lists; the rest are only
+/// counted, so a flood of throwaway identities cannot bury the view.
+const MAX_UNTRUSTED_CLAIMS_SHOWN: usize = 32;
+/// Most objects linking to a task read when looking for claim authors.
+const MAX_TASK_LINKS_READ: usize = 8_192;
 
 /// Claims signed by a key history the viewer has not trusted but that the store
-/// holds self-certifying carriers for.
-struct AnonymousClaims {
+/// holds self-certifying carriers for. Includes anonymous claims, whose signer is
+/// a fresh throwaway key, and also any persistent peer the viewer simply has not
+/// trusted: the carriers cannot tell the two apart.
+struct UntrustedClaims {
     shown: Vec<mini_forge::WorkClaim>,
     not_shown: usize,
 }
 
+/// Choose which untrusted claims to display: claims whose lease has not expired
+/// first, newest first, then expired ones, newest first. A cap that kept the
+/// oldest would hide a fresh active claim behind expired ones.
+fn select_untrusted(
+    mut claims: Vec<mini_forge::WorkClaim>,
+    now_ms: u64,
+    cap: usize,
+) -> UntrustedClaims {
+    claims.sort_by(|a, b| {
+        let (a_live, b_live) = (a.lease_expires_ms > now_ms, b.lease_expires_ms > now_ms);
+        b_live
+            .cmp(&a_live)
+            .then_with(|| b.timestamp_ms.cmp(&a.timestamp_ms))
+            .then_with(|| a.id.as_str().cmp(b.id.as_str()))
+    });
+    let not_shown = claims.len().saturating_sub(cap);
+    claims.truncate(cap);
+    UntrustedClaims {
+        shown: claims,
+        not_shown,
+    }
+}
+
 /// Claims that verify against the store's own key-history carriers but are not
 /// already listed as trusted claims. They prove control of a key, not identity.
-fn anonymous_claims<B: mini_store::Backend>(
+fn untrusted_claims<B: mini_store::Backend>(
     store: &mini_store::Store<B>,
     snapshot: &mini_forge::TaskSnapshot,
-) -> Result<AnonymousClaims> {
-    let oracle = carrier_oracle(store)?;
+) -> Result<UntrustedClaims> {
+    // Look up key histories only for the authors of objects that link to this
+    // task, through the store's per-author index.
+    let mut authors = Vec::new();
+    for id in store
+        .linking_to(&snapshot.task.id)
+        .map_err(|e| CliError::Store(e.to_string()))?
+        .into_iter()
+        .take(MAX_TASK_LINKS_READ)
+    {
+        if let Ok(object) = store.get(&id) {
+            authors.push(object.author_human);
+        }
+    }
+    let oracle = carrier_oracle_for(store, &authors)?;
     let all = mini_forge::list_work_claims(store, &oracle, &snapshot.task.id)
         .map_err(|error| CliError::Forge(error.to_string()))?;
-    let mut rest: Vec<mini_forge::WorkClaim> = all
+    let rest: Vec<mini_forge::WorkClaim> = all
         .into_iter()
         .filter(|claim| !snapshot.claims.iter().any(|known| known.id == claim.id))
         .collect();
-    let not_shown = rest.len().saturating_sub(MAX_ANONYMOUS_CLAIMS_SHOWN);
-    rest.truncate(MAX_ANONYMOUS_CLAIMS_SHOWN);
-    Ok(AnonymousClaims {
-        shown: rest,
-        not_shown,
-    })
+    Ok(select_untrusted(
+        rest,
+        sequence::now_ms(),
+        MAX_UNTRUSTED_CLAIMS_SHOWN,
+    ))
 }
 
-fn format_anonymous(anonymous: &AnonymousClaims) -> String {
-    if anonymous.shown.is_empty() {
+fn format_untrusted(claims: &UntrustedClaims) -> String {
+    if claims.shown.is_empty() {
         return String::new();
     }
     let mut out = String::from(
-        "anonymous claims (key-controlled only; the signer is a throwaway identity, not a known or trusted one):\n",
+        "claims from signers you have not trusted (this proves control of the key, not who holds it; an anonymous throwaway key looks the same as a persistent one):\n",
     );
-    for claim in &anonymous.shown {
+    for claim in &claims.shown {
         out.push_str(&format!(
             "  {} key {} role {} expires {} paths {}\n",
             claim.id.as_str(),
@@ -850,19 +889,19 @@ fn format_anonymous(anonymous: &AnonymousClaims) -> String {
             claim.paths.join(", ")
         ));
     }
-    if anonymous.not_shown > 0 {
+    if claims.not_shown > 0 {
         out.push_str(&format!(
-            "  ... and {} more anonymous claim(s) not shown\n",
-            anonymous.not_shown
+            "  ... and {} more claim(s) from untrusted signers not shown\n",
+            claims.not_shown
         ));
     }
     out
 }
 
-fn anonymous_claim_json(claim: &mini_forge::WorkClaim) -> JsonValue {
+fn untrusted_claim_json(claim: &mini_forge::WorkClaim) -> JsonValue {
     JsonValue::Object(vec![
         ("id".to_string(), JsonValue::str(claim.id.as_str())),
-        ("anonymous".to_string(), JsonValue::Bool(true)),
+        ("signer_trusted".to_string(), JsonValue::Bool(false)),
         (
             "controlled_key_root".to_string(),
             JsonValue::str(claim.author.as_str()),
@@ -951,4 +990,72 @@ fn next(args: &mut Vec<String>, context: &str) -> Result<String> {
         return Err(CliError::Usage(format!("{context}: missing argument")));
     }
     Ok(args.remove(0))
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::*;
+    use mini_objects::{ObjectBuilder, ObjectType, Payload};
+
+    fn claim(n: u8, timestamp_ms: u64, lease_expires_ms: u64) -> mini_forge::WorkClaim {
+        let mut root = did_mini::Controller::incept_single().unwrap();
+        let device = did_mini::Controller::incept_device(
+            &root.did(),
+            vec![mini_crypto::SigningKey::generate().unwrap()],
+            1,
+            vec![mini_crypto::SigningKey::generate().unwrap()],
+            1,
+        )
+        .unwrap();
+        root.delegate_device(&device.did(), did_mini::Capabilities::POST)
+            .unwrap();
+        let object = ObjectBuilder::new(ObjectType::POST)
+            .sequence(u64::from(n) + 1)
+            .payload(Payload::Public(vec![n]))
+            .sign(&root.did(), &device)
+            .unwrap();
+        mini_forge::WorkClaim {
+            id: object.id().clone(),
+            author: root.did(),
+            task_id: object.id().clone(),
+            role: format!("role {n}"),
+            paths: Vec::new(),
+            base_id: None,
+            lease_expires_ms,
+            notes: String::new(),
+            timestamp_ms,
+            sequence: 1,
+        }
+    }
+
+    #[test]
+    fn the_cap_keeps_active_claims_newest_first_and_never_buries_them_under_expired_ones() {
+        let now = 1_000_000;
+        // Three old expired claims, then two newer active ones (the newest last).
+        let claims = vec![
+            claim(1, 10, 100),
+            claim(2, 20, 200),
+            claim(3, 30, 300),
+            claim(4, 400_000, now + 5_000),
+            claim(5, 500_000, now + 9_000),
+        ];
+        let kept = select_untrusted(claims, now, 2);
+        let roles: Vec<&str> = kept.shown.iter().map(|c| c.role.as_str()).collect();
+        // Both active claims survive the cap, newest first; expired ones are counted.
+        assert_eq!(roles, ["role 5", "role 4"]);
+        assert_eq!(kept.not_shown, 3);
+        // With room to spare, expired claims follow the active ones, newest first.
+        let all = select_untrusted(
+            vec![
+                claim(1, 10, 100),
+                claim(2, 20, 200),
+                claim(4, 400_000, now + 1),
+            ],
+            now,
+            10,
+        );
+        let order: Vec<&str> = all.shown.iter().map(|c| c.role.as_str()).collect();
+        assert_eq!(order, ["role 4", "role 2", "role 1"]);
+        assert_eq!(all.not_shown, 0);
+    }
 }

@@ -312,21 +312,21 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
     // identity's self-certifying key history, which proves who controls the
     // key and nothing about who that is.
     assert!(shown.contains("\"claims\":[]"), "{shown}");
-    assert!(shown.contains("\"anonymous_claims\":["), "{shown}");
+    assert!(shown.contains("\"untrusted_claims\":["), "{shown}");
     assert!(
         shown.contains(&format!(
-            "\"id\":\"{claim}\",\"anonymous\":true,\"controlled_key_root\":"
+            "\"id\":\"{claim}\",\"signer_trusted\":false,\"controlled_key_root\":"
         )),
         "anonymous claim listed and labelled: {shown}"
     );
     assert!(
-        shown.contains("\"anonymous_claims_not_shown\":0"),
+        shown.contains("\"untrusted_claims_not_shown\":0"),
         "{shown}"
     );
     // The human view says the same thing in words.
     let human = cli.run(&operator, false, &["task", "show", &task]);
     assert!(
-        human.contains("anonymous claims (key-controlled only"),
+        human.contains("claims from signers you have not trusted"),
         "{human}"
     );
     assert!(human.contains(&claim), "{human}");

@@ -189,38 +189,58 @@ pub fn build_oracle(home: &Path, identity: &Identity) -> Result<KelDirectory> {
     Ok(dir)
 }
 
-/// Most KEL carriers [`carrier_oracle`] will read from one store.
-pub const MAX_CARRIER_KELS: usize = 10_000;
+/// Most distinct authors [`carrier_oracle_for`] will look up in one call.
+pub const MAX_CARRIER_AUTHORS: usize = 4_096;
+/// Most objects read per author when looking for their key history.
+const MAX_CARRIER_OBJECTS_PER_AUTHOR: usize = 16;
 /// Largest KEL carrier payload read (matches `mini-sync`'s ingest bound).
 const MAX_CARRIER_KEL_BYTES: usize = 1024 * 1024;
 
 /// A key-history directory built **only** from the self-certifying KEL carriers
-/// already in the store, with no trust in anyone.
+/// the store holds for the given authors, with no trust in anyone.
 ///
 /// A carrier's embedded log proves itself (its identifier is derived from its
 /// own inception), so this establishes exactly one thing about an author: that
 /// whoever signed an object controls the key history the store holds for it.
-/// It says nothing about who that is. That is what an anonymous artifact needs:
-/// "someone who controls this fresh key made this claim". Never use it where a
-/// known or trusted identity is required.
-pub fn carrier_oracle<B: mini_store::Backend>(store: &Store<B>) -> Result<KelDirectory> {
+/// It says nothing about who that is, and a throwaway key looks the same as a
+/// persistent one. Never use it where a known or trusted identity is required.
+///
+/// Work is proportional to the authors asked about, not to how many carriers
+/// the store holds: it uses the store's per-author index, so a store flooded
+/// with unrelated carriers costs nothing here.
+pub fn carrier_oracle_for<B: mini_store::Backend>(
+    store: &Store<B>,
+    authors: &[did_mini::Did],
+) -> Result<KelDirectory> {
     let carrier_type = mini_objects::ObjectType::Custom(mini_sync::KEL_CARRIER.to_string());
-    let ids = store
-        .by_type(&carrier_type)
-        .map_err(|e| CliError::Store(e.to_string()))?;
     let mut dir = KelDirectory::new();
-    for id in ids.into_iter().take(MAX_CARRIER_KELS) {
-        let Ok(object) = store.get(&id) else { continue };
-        let mini_objects::Payload::Public(bytes) = &object.payload else {
-            continue;
-        };
-        if bytes.len() > MAX_CARRIER_KEL_BYTES {
+    let mut seen = std::collections::BTreeSet::new();
+    for author in authors {
+        if !seen.insert(author.as_str().to_owned()) {
             continue;
         }
-        // A log that does not verify, or conflicts with one already held, is
-        // skipped, never fatal to the command.
-        if let Ok(kel) = Kel::from_bytes(bytes) {
-            let _ = dir.try_insert_verified(kel);
+        if seen.len() > MAX_CARRIER_AUTHORS {
+            break;
+        }
+        let ids = store
+            .by_author(author)
+            .map_err(|e| CliError::Store(e.to_string()))?;
+        for id in ids.into_iter().take(MAX_CARRIER_OBJECTS_PER_AUTHOR) {
+            let Ok(object) = store.get(&id) else { continue };
+            if object.object_type != carrier_type {
+                continue;
+            }
+            let mini_objects::Payload::Public(bytes) = &object.payload else {
+                continue;
+            };
+            if bytes.len() > MAX_CARRIER_KEL_BYTES {
+                continue;
+            }
+            // A log that does not verify, or conflicts with one already held,
+            // is skipped, never fatal to the command.
+            if let Ok(kel) = Kel::from_bytes(bytes) {
+                let _ = dir.try_insert_verified(kel);
+            }
         }
     }
     Ok(dir)

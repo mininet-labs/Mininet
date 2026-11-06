@@ -26489,38 +26489,46 @@ allowances.
 and D-0546's follow-ups; supersedes none.
 
 
-### D-0548 — Anonymous work claims are shown to the operator as key-controlled only  ·  *Shipped*
+### D-0548 — Claims from untrusted signers are shown to the operator as key-controlled only  ·  *Shipped*
 
 **Decision:** founder direction (delegating the choice to the engineering lead
-"based on the values we want"): an anonymous work claim, signed by the fresh
-unsaved identity `mini beta task claim` creates, is shown by `mini task show` in
-a separate `anonymous_claims` list, never inside the trusted `claims` list. Each
-entry is labelled `anonymous` and carries the throwaway key root as
-`controlled_key_root`. It is built from the self-certifying key-history carriers
-already in the store (`store::carrier_oracle`, no trust granted to anyone). The
-list is capped at 32 entries; the rest are counted in
-`anonymous_claims_not_shown`. A claim whose signer has no key history in the
+"based on the values we want"): a work claim whose signer the viewer has not
+trusted, most importantly the anonymous claim signed by the fresh unsaved
+identity `mini beta task claim` creates, is shown by `mini task show` in a
+separate `untrusted_claims` list, never inside the trusted `claims` list. Each
+entry carries `signer_trusted: false` and the key root as `controlled_key_root`.
+It is built from the self-certifying key-history carriers the store holds for
+the authors of objects linking to the task (`store::carrier_oracle_for`, using
+the per-author index; no trust granted to anyone). Unexpired claims are shown
+first, newest first; the list is capped at 32 and the rest are counted in
+`untrusted_claims_not_shown`. A claim whose signer has no key history in the
 store is not shown at all.
 
 **Reason:** the beta loop needs an operator to see that someone claimed a task,
 without the claimant giving up anonymity (Directive 9) and without the tool
 implying a known identity (Directive 8: the human is the root of trust; a
-throwaway key is not one).
+throwaway key is not one). Review found the first draft overstated what the
+carriers prove: a persistent peer the viewer has simply not trusted appears in
+the same list, so the list and its text no longer claim the signer is
+throwaway.
 
 **Constitutional impact:** Directive 8, Directive 9, Directive 16, Directive
 18. No dependency edge changed; a claim carries no vote or value; the trusted
 claim list and its oracle are unchanged. No Tier-F row touched.
 
-**Implementation status:** shipped in `mini-cli` (`carrier_oracle`, `task show`
-JSON and human output) with 3 new tests plus the native beta loop test.
+**Implementation status:** shipped in `mini-cli` (`carrier_oracle_for`, `task
+show` JSON and human output, `select_untrusted`) with 3 integration tests, 1
+unit test of the selection order, and the native beta loop test.
 
-**Failure point:** it proves control of a key, nothing about who holds it.
-Anyone can mint any number of throwaway identities and claim a task; the cap
-keeps the view readable but does not prevent the flood, and a claim still has no
-effect on who may do the work. A hostile store can hold many carriers; reads are
-bounded at 10,000. Claims are advisory coordination only.
+**Failure point:** it proves control of a key, nothing about who holds it, and a
+throwaway key looks the same as a persistent one. Anyone can mint any number of
+throwaway identities and claim a task; the cap keeps the view readable but does
+not prevent the flood, and a claim still has no effect on who may do the work.
+Reading the objects that link to a task is bounded at 8,192 and key histories at
+16 objects per author and 4,096 authors. Claims are advisory coordination only.
 
 **Required follow-up:** let an operator dispose of (accept or reject) a specific
-anonymous claim; rate-limit anonymous claims per task if flooding is observed.
+claim from an untrusted signer; rate-limit such claims per task if flooding is
+observed.
 
 **Supersedes / superseded by:** none.
