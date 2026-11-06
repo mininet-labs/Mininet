@@ -244,6 +244,102 @@ fn a_claim_whose_signer_has_no_key_history_in_the_store_never_appears() {
 }
 
 #[test]
+fn a_peer_attaching_hundreds_of_claims_cannot_grow_the_view_and_the_newest_survive() {
+    let world = World::new("flood");
+    let mut store = mini_store::Store::new(
+        mini_store::FsBackend::open(std::path::Path::new(&world.store)).unwrap(),
+    );
+    // One peer, two key-history carriers, 300 valid claims with rising times;
+    // all leases are in the future. Another 40 claims are signed by a
+    // different identity whose key history is not in the store, with the very
+    // newest times: they verify against nothing and must not push real ones
+    // out of the pool.
+    let mut human = did_mini::Controller::incept_single().unwrap();
+    let device = did_mini::Controller::incept_device(
+        &human.did(),
+        vec![mini_crypto::SigningKey::generate().unwrap()],
+        1,
+        vec![mini_crypto::SigningKey::generate().unwrap()],
+        1,
+    )
+    .unwrap();
+    human
+        .delegate_device(&device.did(), did_mini::Capabilities::POST)
+        .unwrap();
+    for kel in [human.kel(), device.kel()] {
+        store
+            .insert(&mini_sync::kel_carrier(&kel, &human.did(), &device).unwrap())
+            .unwrap();
+    }
+    let task_id = mini_objects::ObjectId::parse(&world.task).unwrap();
+    for n in 1..=300u64 {
+        mini_forge::create_work_claim(
+            &mut store,
+            &human.did(),
+            &device,
+            &task_id,
+            &format!("flood {n}"),
+            &["crates/mini-cli/**".to_string()],
+            None,
+            4_102_444_800_000,
+            "",
+            n,
+            n,
+        )
+        .unwrap();
+    }
+    let mut stranger = did_mini::Controller::incept_single().unwrap();
+    let stranger_device = did_mini::Controller::incept_device(
+        &stranger.did(),
+        vec![mini_crypto::SigningKey::generate().unwrap()],
+        1,
+        vec![mini_crypto::SigningKey::generate().unwrap()],
+        1,
+    )
+    .unwrap();
+    stranger
+        .delegate_device(&stranger_device.did(), did_mini::Capabilities::POST)
+        .unwrap();
+    for n in 1..=40u64 {
+        mini_forge::create_work_claim(
+            &mut store,
+            &stranger.did(),
+            &stranger_device,
+            &task_id,
+            &format!("unverifiable {n}"),
+            &["crates/mini-cli/**".to_string()],
+            None,
+            4_102_444_800_000,
+            "",
+            1_000 + n,
+            n,
+        )
+        .unwrap();
+    }
+    drop(store);
+    let shown = world.show_json();
+    // Only 32 listed, the pool (256) minus the 32 shown is counted, and the
+    // task is flagged as having older claims that were not examined.
+    assert_eq!(
+        shown.matches("\"signer_trusted\":false").count(),
+        32,
+        "{shown}"
+    );
+    assert!(
+        shown.contains("\"untrusted_claims_not_shown\":224"),
+        "{shown}"
+    );
+    assert!(
+        shown.contains("\"untrusted_claims_older_not_examined\":true"),
+        "{shown}"
+    );
+    // The newest real claims are the ones kept; unverifiable ones never appear.
+    assert!(shown.contains("flood 300"), "{shown}");
+    assert!(!shown.contains("unverifiable"), "{shown}");
+    assert!(!shown.contains("flood 1\""), "{shown}");
+}
+
+#[test]
 fn an_untrusted_persistent_peer_is_listed_as_untrusted_then_as_trusted_once_trusted() {
     let world = World::new("trusted");
     let bob = tempdir("trusted-bob");

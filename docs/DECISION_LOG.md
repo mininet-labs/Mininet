@@ -26524,8 +26524,16 @@ unit test of the selection order, and the native beta loop test.
 throwaway key looks the same as a persistent one. Anyone can mint any number of
 throwaway identities and claim a task; the cap keeps the view readable but does
 not prevent the flood, and a claim still has no effect on who may do the work.
-Reading the objects that link to a task is bounded at 8,192 and key histories at
-16 objects per author and 4,096 authors. Claims are advisory coordination only.
+Work is bounded: at most 100,000 objects linking to a task are examined; only the
+newest 256 verified untrusted claims are held in memory (a claim must beat the
+pool's oldest before it is verified, and is verified before it can displace one,
+so unverifiable spam cannot crowd out real claims); key histories load for at
+most 4,096 distinct authors and 4,096 of one author's objects, stopping as soon
+as both the root and device logs are found. An author with more stored objects
+than that may have their key history go unfound, in which case their claims are
+simply not displayed. When the task has more claims than the pool, the output
+says so (`untrusted_claims_older_not_examined`). Claims are advisory
+coordination only.
 
 **Required follow-up:** let an operator dispose of (accept or reject) a specific
 claim from an untrusted signer; rate-limit such claims per task if flooding is

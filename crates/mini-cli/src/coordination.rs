@@ -17,7 +17,7 @@ use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
 use crate::project as project_alias;
 use crate::sequence;
-use crate::store::{build_oracle, carrier_oracle_for, open_store};
+use crate::store::{add_carrier_kels, build_oracle, open_store, MAX_CARRIER_AUTHORS};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
@@ -321,6 +321,10 @@ pub fn task_show(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
         .field(
             "untrusted_claims_not_shown",
             JsonValue::num(untrusted.not_shown as u64),
+        )
+        .field(
+            "untrusted_claims_older_not_examined",
+            JsonValue::Bool(untrusted.older_not_examined),
         )
         .field(
             "reviews",
@@ -804,16 +808,23 @@ fn task_json(task: &mini_forge::TaskBrief) -> JsonValue {
 /// Most claims from untrusted signers one `task show` lists; the rest are only
 /// counted, so a flood of throwaway identities cannot bury the view.
 const MAX_UNTRUSTED_CLAIMS_SHOWN: usize = 32;
-/// Most objects linking to a task read when looking for claim authors.
-const MAX_TASK_LINKS_READ: usize = 8_192;
+/// How many of a task's newest verified untrusted claims are held in memory at
+/// once. Memory is bounded by this however many claims a peer attaches.
+const UNTRUSTED_CLAIM_POOL: usize = 256;
+/// Most objects linking to a task examined in one `task show`.
+const MAX_TASK_LINKS_EXAMINED: usize = 100_000;
 
 /// Claims signed by a key history the viewer has not trusted but that the store
 /// holds self-certifying carriers for. Includes anonymous claims, whose signer is
-/// a fresh throwaway key, and also any persistent peer the viewer simply has not
+/// a fresh throwaway key, and also any persistent peer the viewer has not yet
 /// trusted: the carriers cannot tell the two apart.
 struct UntrustedClaims {
     shown: Vec<mini_forge::WorkClaim>,
+    /// Verified claims in the pool beyond the display cap.
     not_shown: usize,
+    /// True when the task has more claim objects than the pool examines, so
+    /// some older ones were not considered at all.
+    older_not_examined: bool,
 }
 
 /// Choose which untrusted claims to display: claims whose lease has not expired
@@ -836,40 +847,71 @@ fn select_untrusted(
     UntrustedClaims {
         shown: claims,
         not_shown,
+        older_not_examined: false,
     }
 }
 
 /// Claims that verify against the store's own key-history carriers but are not
 /// already listed as trusted claims. They prove control of a key, not identity.
+///
+/// Claims stream through a pool of the newest `UNTRUSTED_CLAIM_POOL` verified
+/// ones. A claim must beat the pool's oldest member before it is verified, and
+/// is verified (against key histories loaded only for its own author) before it
+/// can displace one, so a peer attaching thousands of claims, or claims that do
+/// not verify, cannot grow memory or crowd out real ones.
 fn untrusted_claims<B: mini_store::Backend>(
     store: &mini_store::Store<B>,
     snapshot: &mini_forge::TaskSnapshot,
 ) -> Result<UntrustedClaims> {
-    // Look up key histories only for the authors of objects that link to this
-    // task, through the store's per-author index.
-    let mut authors = Vec::new();
+    let claim_type = mini_objects::ObjectType::Custom(mini_forge::WORK_CLAIM_TYPE.to_string());
+    let mut dir = mini_forge::KelDirectory::new();
+    let mut loaded = std::collections::BTreeSet::<String>::new();
+    let mut pool: std::collections::BTreeMap<(u64, String), mini_forge::WorkClaim> =
+        std::collections::BTreeMap::new();
+    let mut seen = 0usize;
     for id in store
         .linking_to(&snapshot.task.id)
         .map_err(|e| CliError::Store(e.to_string()))?
         .into_iter()
-        .take(MAX_TASK_LINKS_READ)
+        .take(MAX_TASK_LINKS_EXAMINED)
     {
-        if let Ok(object) = store.get(&id) {
-            authors.push(object.author_human);
+        let Ok(object) = store.get(&id) else { continue };
+        if object.object_type != claim_type || snapshot.claims.iter().any(|known| known.id == id) {
+            continue;
+        }
+        seen += 1;
+        let key = (object.timestamp_ms, id.as_str().to_owned());
+        if pool.len() >= UNTRUSTED_CLAIM_POOL
+            && pool.keys().next().is_some_and(|oldest| key <= *oldest)
+        {
+            continue;
+        }
+        let author = object.author_human.clone();
+        if !loaded.contains(author.as_str()) {
+            if loaded.len() >= MAX_CARRIER_AUTHORS {
+                continue;
+            }
+            loaded.insert(author.as_str().to_owned());
+            add_carrier_kels(store, &mut dir, &author, &object.author_device)?;
+        }
+        let Ok(claim) = mini_forge::read_work_claim(store, &dir, &id) else {
+            continue;
+        };
+        if claim.task_id != snapshot.task.id {
+            continue;
+        }
+        pool.insert(key, claim);
+        if pool.len() > UNTRUSTED_CLAIM_POOL {
+            pool.pop_first();
         }
     }
-    let oracle = carrier_oracle_for(store, &authors)?;
-    let all = mini_forge::list_work_claims(store, &oracle, &snapshot.task.id)
-        .map_err(|error| CliError::Forge(error.to_string()))?;
-    let rest: Vec<mini_forge::WorkClaim> = all
-        .into_iter()
-        .filter(|claim| !snapshot.claims.iter().any(|known| known.id == claim.id))
-        .collect();
-    Ok(select_untrusted(
-        rest,
+    let mut selected = select_untrusted(
+        pool.into_values().collect(),
         sequence::now_ms(),
         MAX_UNTRUSTED_CLAIMS_SHOWN,
-    ))
+    );
+    selected.older_not_examined = seen > UNTRUSTED_CLAIM_POOL;
+    Ok(selected)
 }
 
 fn format_untrusted(claims: &UntrustedClaims) -> String {
@@ -894,6 +936,11 @@ fn format_untrusted(claims: &UntrustedClaims) -> String {
             "  ... and {} more claim(s) from untrusted signers not shown\n",
             claims.not_shown
         ));
+    }
+    if claims.older_not_examined {
+        out.push_str(
+            "  (this task has more claims than are examined; older ones were not considered)\n",
+        );
     }
     out
 }

@@ -3,7 +3,7 @@
     "crates": 93,
     "files": 1281,
     "headings": 4276,
-    "rust_symbols": 15447
+    "rust_symbols": 15449
   },
   "crates": {
     "askama_derive": {
@@ -21828,7 +21828,7 @@
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 37892,
+      "bytes": 39982,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21857,9 +21857,9 @@
         "pos",
         "ok_or_else"
       ],
-      "lines": 1062,
+      "lines": 1109,
       "path": "crates/mini-cli/src/coordination.rs",
-      "sha256": "fb63d98cfc7a819466c3dc1968236fd6cabe273b1d8a541c1764b932c08d7bf4",
+      "sha256": "f8fb73868b1510daf625652e31e07fb14d7fab5e77223bcbc43a5b1d4f656275",
       "symbols": [
         {
           "kind": "fn",
@@ -21943,147 +21943,152 @@
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 336,
           "name": "task_claim"
         },
         {
           "kind": "fn",
-          "line": 369,
+          "line": 373,
           "name": "campaign_create"
         },
         {
           "kind": "fn",
-          "line": 400,
+          "line": 404,
           "name": "finding_create"
         },
         {
           "kind": "fn",
-          "line": 433,
+          "line": 437,
           "name": "disposition_create"
         },
         {
           "kind": "fn",
-          "line": 473,
+          "line": 477,
           "name": "campaign_show"
         },
         {
           "kind": "fn",
-          "line": 540,
+          "line": 544,
           "name": "campaign_json"
         },
         {
           "kind": "fn",
-          "line": 559,
+          "line": 563,
           "name": "finding_json"
         },
         {
           "kind": "fn",
-          "line": 581,
+          "line": 585,
           "name": "disposition_json"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 607,
           "name": "task_review"
         },
         {
           "kind": "fn",
-          "line": 647,
+          "line": 651,
           "name": "task_list_result"
         },
         {
           "kind": "fn",
-          "line": 668,
+          "line": 672,
           "name": "format_charter"
         },
         {
           "kind": "fn",
-          "line": 691,
+          "line": 695,
           "name": "format_snapshot"
         },
         {
           "kind": "fn",
-          "line": 744,
+          "line": 748,
           "name": "charter_json"
         },
         {
           "kind": "fn",
-          "line": 775,
+          "line": 779,
           "name": "task_json"
         },
         {
           "kind": "const",
-          "line": 806,
+          "line": 810,
           "name": "MAX_UNTRUSTED_CLAIMS_SHOWN"
         },
         {
           "kind": "const",
-          "line": 808,
-          "name": "MAX_TASK_LINKS_READ"
+          "line": 813,
+          "name": "UNTRUSTED_CLAIM_POOL"
+        },
+        {
+          "kind": "const",
+          "line": 815,
+          "name": "MAX_TASK_LINKS_EXAMINED"
         },
         {
           "kind": "struct",
-          "line": 814,
+          "line": 821,
           "name": "UntrustedClaims"
         },
         {
           "kind": "fn",
-          "line": 822,
+          "line": 833,
           "name": "select_untrusted"
         },
         {
           "kind": "fn",
-          "line": 844,
+          "line": 862,
           "name": "untrusted_claims"
         },
         {
           "kind": "fn",
-          "line": 875,
+          "line": 917,
           "name": "format_untrusted"
         },
         {
           "kind": "fn",
-          "line": 901,
+          "line": 948,
           "name": "untrusted_claim_json"
         },
         {
           "kind": "fn",
-          "line": 918,
+          "line": 965,
           "name": "claim_json"
         },
         {
           "kind": "fn",
-          "line": 942,
+          "line": 989,
           "name": "review_json"
         },
         {
           "kind": "fn",
-          "line": 969,
+          "line": 1016,
           "name": "parse_limit"
         },
         {
           "kind": "fn",
-          "line": 979,
+          "line": 1026,
           "name": "reject_remaining"
         },
         {
           "kind": "fn",
-          "line": 988,
+          "line": 1035,
           "name": "next"
         },
         {
           "kind": "mod",
-          "line": 996,
+          "line": 1043,
           "name": "selection_tests"
         },
         {
           "kind": "fn",
-          "line": 1000,
+          "line": 1047,
           "name": "claim"
         },
         {
           "kind": "fn",
-          "line": 1032,
+          "line": 1079,
           "name": "the_cap_keeps_active_claims_newest_first_and_never_buries_them_under_expired_ones"
         }
       ],
@@ -25637,7 +25642,7 @@
       "title": "use mini_durable::space::{self, SpaceLevel};"
     },
     {
-      "bytes": 11549,
+      "bytes": 11578,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -25666,9 +25671,9 @@
         "commandresult",
         "join"
       ],
-      "lines": 274,
+      "lines": 273,
       "path": "crates/mini-cli/src/store.rs",
-      "sha256": "3f885a6a1adf2b58c2c08fc6c73c4ddfb2313d0874d161fea80cf7f91af0c879",
+      "sha256": "5f61619538682b5950cc61ce9fa3ce885d6d800f5ceeb81e4d6c35ff68080d3f",
       "symbols": [
         {
           "kind": "fn",
@@ -25742,22 +25747,22 @@
         },
         {
           "kind": "const",
-          "line": 195,
+          "line": 198,
           "name": "MAX_CARRIER_OBJECTS_PER_AUTHOR"
         },
         {
           "kind": "const",
-          "line": 197,
+          "line": 200,
           "name": "MAX_CARRIER_KEL_BYTES"
         },
         {
           "kind": "fn",
-          "line": 211,
-          "name": "carrier_oracle_for"
+          "line": 214,
+          "name": "add_carrier_kels"
         },
         {
           "kind": "fn",
-          "line": 256,
+          "line": 255,
           "name": "build_kel_cache"
         }
       ],
@@ -26125,7 +26130,7 @@
       "title": "mod common;"
     },
     {
-      "bytes": 9095,
+      "bytes": 12310,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -26154,9 +26159,9 @@
         "to_string",
         "output"
       ],
-      "lines": 305,
+      "lines": 401,
       "path": "crates/mini-cli/tests/anonymous_claims.rs",
-      "sha256": "bb8aa3b34a62b0ce5a3ea8e46bc215c13a61970959e52ab6eeceaa7f6a259caf",
+      "sha256": "08686f9447ef3701032407106475184d42f809810de27f822f838484ff208243",
       "symbols": [
         {
           "kind": "fn",
@@ -26226,6 +26231,11 @@
         {
           "kind": "fn",
           "line": 247,
+          "name": "a_peer_attaching_hundreds_of_claims_cannot_grow_the_view_and_the_newest_survive"
+        },
+        {
+          "kind": "fn",
+          "line": 343,
           "name": "an_untrusted_persistent_peer_is_listed_as_untrusted_then_as_trusted_once_trusted"
         }
       ],
@@ -114254,7 +114264,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 30569,
+      "bytes": 30794,
       "group": "docs",
       "headings": [
         {
@@ -114411,7 +114421,7 @@
       ],
       "lines": 336,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "206e492cd15e1429e6fb4b47d119813dfb740f1ab46d7cb2d26856431e02f3fa",
+      "sha256": "cb659a5afddc23408ab93db1b2ab4d00bbc5fd92091d5b696d98f7c3ddf2ada0",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -114743,7 +114753,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1604345,
+      "bytes": 1604909,
       "group": "docs",
       "headings": [
         {
@@ -115173,9 +115183,9 @@
         "first",
         "one"
       ],
-      "lines": 26535,
+      "lines": 26543,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "5863b04872443d1bf09f5725d015606d7dff640cea644b3cd94b17ab501d18d1",
+      "sha256": "1bfd153d0d6b398d44fef538d2379f1d9f17c646411c13dc5f56e83086e58f8c",
       "symbols": [],
       "title": "Decision Log"
     },
