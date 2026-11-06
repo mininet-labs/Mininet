@@ -50,5 +50,10 @@ fn beta_manifest_contains_only_the_expected_runtime_dependencies() {
         .filter_map(|line| line.split('=').next().map(str::trim))
         .collect();
 
-    assert_eq!(names, ["did-mini", "mini-objects", "mini-store"]);
+    // `mini-crypto` (reviewed primitives only: Ed25519 for the one-time claim key,
+    // D-0549) is the single addition; it carries no value or authority.
+    assert_eq!(
+        names,
+        ["did-mini", "mini-crypto", "mini-objects", "mini-store"]
+    );
 }

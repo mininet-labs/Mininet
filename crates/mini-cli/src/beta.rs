@@ -15,10 +15,11 @@ use std::path::Path;
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_beta::{
-    create_campaign, create_contribution_receipt, create_finding, create_finding_disposition,
-    read_campaign, read_contribution_receipt, read_finding, read_finding_disposition, BetaEpochId,
-    ClaimTag, ContributionKind, EvidenceClass, FindingSeverity, FindingState, SubmissionTag,
-    BETA_CAMPAIGN_TYPE, BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
+    build_claim_redemption, create_campaign, create_contribution_receipt, create_finding,
+    create_finding_disposition, read_campaign, read_contribution_receipt, read_finding,
+    read_finding_disposition, BetaAccountId, BetaEpochId, ClaimKey, ClaimTag, ContributionKind,
+    EvidenceClass, FindingSeverity, FindingState, SubmissionTag, BETA_CAMPAIGN_TYPE,
+    BETA_CONTRIBUTION_TYPE, BETA_FINDING_DISPOSITION_TYPE, BETA_FINDING_TYPE,
 };
 use mini_crypto::{random_32, SigningKey};
 use mini_forge::{create_task_brief, create_work_claim};
@@ -31,8 +32,6 @@ use crate::json::{CommandResult, JsonValue};
 use crate::project as project_alias;
 use crate::sequence;
 use crate::store::open_store;
-
-const CLAIM_DOMAIN: &[u8] = b"mininet/beta/claim-secret/v1";
 
 pub(crate) fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|value| value == flag)?;
@@ -179,6 +178,13 @@ fn parse_contribution_kind(value: &str) -> Result<ContributionKind> {
 /// until it has signed its one artifact; dropping them destroys local signing
 /// continuity by design.
 fn ephemeral_artifact_signer<B: Backend>(store: &mut Store<B>) -> Result<(Controller, Controller)> {
+    let (human, device) = new_ephemeral_signer()?;
+    persist_signer_carriers(store, &human, &device)?;
+    Ok((human, device))
+}
+
+/// A fresh artifact-scoped root + POST-only delegated device, not yet stored.
+fn new_ephemeral_signer() -> Result<(Controller, Controller)> {
     let mut human = Controller::incept_single().map_err(|e| CliError::Identity(e.to_string()))?;
     let current = SigningKey::generate().map_err(crypto_err)?;
     let next = SigningKey::generate().map_err(crypto_err)?;
@@ -187,13 +193,20 @@ fn ephemeral_artifact_signer<B: Backend>(store: &mut Store<B>) -> Result<(Contro
     human
         .delegate_device(&device.did(), Capabilities::POST)
         .map_err(|e| CliError::Identity(e.to_string()))?;
+    Ok((human, device))
+}
 
-    // Device carrier can self-authenticate its embedded KEL.  The root carrier
-    // is signed by the delegated device and becomes fully provenance-verifiable
-    // once both carriers are present at the receiving ingest boundary.
-    let device_carrier = kel_carrier(&device.kel(), &human.did(), &device)
+/// Device carrier can self-authenticate its embedded KEL.  The root carrier
+/// is signed by the delegated device and becomes fully provenance-verifiable
+/// once both carriers are present at the receiving ingest boundary.
+fn persist_signer_carriers<B: Backend>(
+    store: &mut Store<B>,
+    human: &Controller,
+    device: &Controller,
+) -> Result<()> {
+    let device_carrier = kel_carrier(&device.kel(), &human.did(), device)
         .map_err(|e| CliError::Object(e.to_string()))?;
-    let root_carrier = kel_carrier(&human.kel(), &human.did(), &device)
+    let root_carrier = kel_carrier(&human.kel(), &human.did(), device)
         .map_err(|e| CliError::Object(e.to_string()))?;
     store
         .insert(&device_carrier)
@@ -201,7 +214,7 @@ fn ephemeral_artifact_signer<B: Backend>(store: &mut Store<B>) -> Result<(Contro
     store
         .insert(&root_carrier)
         .map_err(|e| CliError::Store(e.to_string()))?;
-    Ok((human, device))
+    Ok(())
 }
 
 /// Parse exactly 32 bytes of lowercase or uppercase hex (an epoch, account or
@@ -229,19 +242,13 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
         })
 }
 
-/// Generate a secret and publishable commitment.  Only the commitment goes in
-/// the contribution receipt.  A future private-claim path can require the
-/// preimage; publishing the preimage would destroy bearer privacy.
+/// Generate a one-time claim key. Only its public half (the claim tag) goes in
+/// the contribution receipt; the secret is bearer material used later by
+/// `beta claim redeem`. Publishing the secret would let anyone redeem.
 fn fresh_claim_secret() -> Result<([u8; 32], ClaimTag)> {
-    let secret = random_32().map_err(crypto_err)?;
-    let mut material = Vec::with_capacity(CLAIM_DOMAIN.len() + secret.len());
-    material.extend_from_slice(CLAIM_DOMAIN);
-    material.extend_from_slice(&secret);
-    let digest = blake3::hash(&material);
-    let mut commitment = [0u8; 32];
-    commitment.copy_from_slice(digest.as_bytes());
-    let tag = ClaimTag::new(commitment).map_err(beta_err)?;
-    Ok((secret, tag))
+    let key = ClaimKey::generate().map_err(beta_err)?;
+    let tag = key.claim_tag().map_err(beta_err)?;
+    Ok((key.secret(), tag))
 }
 
 pub fn campaign_list(
@@ -713,9 +720,35 @@ pub fn contribution_accept(
     )?)?;
     let summary = required_flag(&mut args, "--summary", "beta contribution accept")?;
     let evidence = required_items(&mut args, "--evidence", "beta contribution accept")?;
+    let supplied_claim_tag = extract_flag(&mut args, "--claim-tag")
+        .map(|value| -> Result<ClaimTag> {
+            let tag = ClaimTag::new(parse_hex32(&value, "--claim-tag")?).map_err(beta_err)?;
+            // Must be a real Ed25519 public key or the claim can never be redeemed.
+            mini_crypto::VerifyingKey::from_suite_bytes(
+                mini_crypto::SignatureSuite::Ed25519,
+                tag.as_bytes(),
+            )
+            .map_err(|_| {
+                CliError::Usage(
+                    "beta contribution accept: --claim-tag is not a valid claim public key".into(),
+                )
+            })?;
+            Ok(tag)
+        })
+        .transpose()?;
     reject_remaining(args, "beta contribution accept")?;
 
-    let (claim_secret, claim_tag) = fresh_claim_secret()?;
+    // A contributor can generate their own claim key (`beta claim new`) and hand
+    // over only the public tag, so the accepting operator never holds the
+    // secret. Without `--claim-tag` this process generates the key, which means
+    // the operator knows the secret and could redeem it: say so in the output.
+    let (claim_secret, claim_tag) = match supplied_claim_tag {
+        Some(tag) => (None, tag),
+        None => {
+            let (secret, tag) = fresh_claim_secret()?;
+            (Some(secret), tag)
+        }
+    };
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     let object = create_contribution_receipt(
@@ -733,16 +766,30 @@ pub fn contribution_accept(
     )
     .map_err(beta_err)?;
 
-    Ok(CommandResult::new(format!(
-        "accepted contribution recorded: {}\nPRIVATE claim secret: {}\npublic claim commitment: {}\nDo not post the claim secret in GitHub, logs, or public evidence.",
-        object.id().as_str(),
-        hex(&claim_secret),
-        hex(claim_tag.as_bytes())
-    ))
-    .field("contribution_id", JsonValue::str(object.id().as_str()))
-    .field("claim_secret", JsonValue::str(hex(&claim_secret)))
-    .field("claim_commitment", JsonValue::str(hex(claim_tag.as_bytes())))
-    .field("sensitive_output", JsonValue::Bool(true)))
+    let mut result = match claim_secret {
+        Some(secret) => CommandResult::new(format!(
+            "accepted contribution recorded: {}\nPRIVATE claim secret: {}\npublic claim commitment: {}\nThis process generated the claim key, so the accepting operator knows the secret and could redeem it. For a claim only the contributor can redeem, have them run `beta claim new` and pass the public tag with --claim-tag. Do not post the claim secret in GitHub, logs, or public evidence.",
+            object.id().as_str(),
+            hex(&secret),
+            hex(claim_tag.as_bytes())
+        ))
+        .field("claim_secret", JsonValue::str(hex(&secret)))
+        .field("operator_generated_claim_key", JsonValue::Bool(true))
+        .field("sensitive_output", JsonValue::Bool(true)),
+        None => CommandResult::new(format!(
+            "accepted contribution recorded: {}\npublic claim commitment: {}\nThe claim key was supplied by the contributor; this process never saw its secret.",
+            object.id().as_str(),
+            hex(claim_tag.as_bytes())
+        ))
+        .field("operator_generated_claim_key", JsonValue::Bool(false)),
+    };
+    result = result
+        .field("contribution_id", JsonValue::str(object.id().as_str()))
+        .field(
+            "claim_commitment",
+            JsonValue::str(hex(claim_tag.as_bytes())),
+        );
+    Ok(result)
 }
 
 pub fn contribution_show(
@@ -792,13 +839,76 @@ pub fn claim_new(_home: &Path, _store_path: &Path, args: Vec<String>) -> Result<
     reject_remaining(args, "beta claim new")?;
     let (secret, tag) = fresh_claim_secret()?;
     Ok(CommandResult::new(format!(
-        "PRIVATE claim secret: {}\npublic claim commitment: {}\nThis proves a claim only. A separate authenticated Beta account registration is required before receiving rewards.",
+        "PRIVATE claim secret: {}\npublic claim tag: {}\nGive only the public tag to the operator (`beta contribution accept ... --claim-tag <tag>`), then redeem with `beta claim redeem --contribution <id> --secret-file <file|-> --account <account>`; the claim secret is bearer material, whoever holds it can redeem.",
         hex(&secret), hex(tag.as_bytes())
     ))
     .field("claim_secret", JsonValue::str(hex(&secret)))
     .field("claim_commitment", JsonValue::str(hex(tag.as_bytes())))
     .field("account_registration_required", JsonValue::Bool(true))
     .field("sensitive_output", JsonValue::Bool(true)))
+}
+
+/// Redeem a private claim: sign (contribution, epoch, account) with the claim
+/// key and publish the redemption under a fresh throwaway identity, so no
+/// persistent identity is bound to the destination account.
+pub fn claim_redeem(
+    _home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+) -> Result<CommandResult> {
+    const CTX: &str = "beta claim redeem";
+    let contribution_id = parse_id(&required_flag(&mut args, "--contribution", CTX)?)?;
+    // The bearer secret is read from a file or stdin, never from argv, so it is
+    // not retained in shell history or visible to process listings.
+    let secret_source = required_flag(&mut args, "--secret-file", CTX)?;
+    let account = BetaAccountId::new(parse_hex32(
+        &required_flag(&mut args, "--account", CTX)?,
+        "--account",
+    )?)
+    .map_err(beta_err)?;
+    reject_remaining(args, CTX)?;
+
+    let raw = if secret_source == "-" {
+        let mut text = String::new();
+        std::io::Read::read_to_string(&mut std::io::Read::take(std::io::stdin(), 256), &mut text)
+            .map_err(|e| CliError::Io(e.to_string()))?;
+        text
+    } else {
+        let bytes = std::fs::read(&secret_source).map_err(|e| CliError::Io(e.to_string()))?;
+        if bytes.len() > 256 {
+            return Err(CliError::Usage(format!("{CTX}: secret file is too large")));
+        }
+        String::from_utf8(bytes)
+            .map_err(|_| CliError::Usage(format!("{CTX}: secret file is not text")))?
+    };
+    let key = ClaimKey::from_secret(&parse_hex32(&raw, "claim secret")?);
+
+    let mut store = open_store(store_path)?;
+    // Check the whole claim (contribution, campaign, key match) before any
+    // throwaway identity is persisted, so a wrong secret leaves the store alone.
+    let (human, device) = new_ephemeral_signer()?;
+    let object = build_claim_redemption(
+        &store,
+        &human.did(),
+        &device,
+        &contribution_id,
+        account,
+        &key,
+        sequence::now_ms(),
+        1,
+    )
+    .map_err(beta_err)?;
+    persist_signer_carriers(&mut store, &human, &device)?;
+    store
+        .insert(&object)
+        .map_err(|e| CliError::Store(e.to_string()))?;
+    Ok(CommandResult::new(format!(
+        "claim redemption recorded: {}\nThe publishing identity was fresh and is not saved. Give this redemption id to a grant authorizer; the claim key now binds only this destination account.\nPrivacy limit: the grant and redemption link to the contribution, so if the accepted source itself names an identity (a signed commit, a GitHub handle), anyone can join that identity to this account.",
+        object.id().as_str()
+    ))
+    .field("redemption_id", JsonValue::str(object.id().as_str()))
+    .field("contribution_id", JsonValue::str(contribution_id.as_str()))
+    .field("account", JsonValue::str(hex(account.as_bytes()))))
 }
 
 fn disposition_trust(
