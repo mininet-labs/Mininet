@@ -200,7 +200,10 @@ const MAX_CARRIER_OBJECTS_PER_AUTHOR: usize = 4_096;
 const MAX_CARRIER_KEL_BYTES: usize = 1024 * 1024;
 
 /// Add to `dir` the key history the store holds for `author` (a human root) and
-/// its signing `device` as KEL carriers, stopping as soon as both are present.
+/// its signing `device` as KEL carriers. Only logs for those two identifiers are
+/// parsed-then-kept, and every carrier in the bounded window is examined so a
+/// later extension (for example a revocation) is merged, not skipped.
+/// Returns how many of the author's objects were read.
 ///
 /// A carrier's embedded log proves itself (its identifier is derived from its
 /// own inception), so this establishes exactly one thing about an author: that
@@ -216,16 +219,14 @@ pub fn add_carrier_kels<B: mini_store::Backend>(
     dir: &mut KelDirectory,
     author: &did_mini::Did,
     device: &did_mini::Did,
-) -> Result<()> {
-    use mini_forge::IdentityOracle;
+) -> Result<usize> {
     let carrier_type = mini_objects::ObjectType::Custom(mini_sync::KEL_CARRIER.to_string());
     let ids = store
         .by_author(author)
         .map_err(|e| CliError::Store(e.to_string()))?;
+    let mut read = 0usize;
     for id in ids.into_iter().take(MAX_CARRIER_OBJECTS_PER_AUTHOR) {
-        if dir.kel(author).is_some() && dir.kel(device).is_some() {
-            break;
-        }
+        read += 1;
         let Ok(object) = store.get(&id) else { continue };
         if object.object_type != carrier_type {
             continue;
@@ -239,10 +240,13 @@ pub fn add_carrier_kels<B: mini_store::Backend>(
         // A log that does not verify, or conflicts with one already held, is
         // skipped, never fatal to the command.
         if let Ok(kel) = Kel::from_bytes(bytes) {
-            let _ = dir.try_insert_verified(kel);
+            let did = kel.did();
+            if did == *author || did == *device {
+                let _ = dir.try_insert_verified(kel);
+            }
         }
     }
-    Ok(())
+    Ok(read)
 }
 
 /// Build the [`KelCache`] `mini_sync`'s ingest pipeline checks incoming

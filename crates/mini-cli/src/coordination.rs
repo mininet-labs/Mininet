@@ -812,7 +812,9 @@ const MAX_UNTRUSTED_CLAIMS_SHOWN: usize = 32;
 /// once. Memory is bounded by this however many claims a peer attaches.
 const UNTRUSTED_CLAIM_POOL: usize = 256;
 /// Most objects linking to a task examined in one `task show`.
-const MAX_TASK_LINKS_EXAMINED: usize = 100_000;
+const MAX_TASK_LINKS_EXAMINED: usize = 10_000;
+/// Most stored objects read, across all authors, while loading key histories.
+const MAX_CARRIER_READS: usize = 200_000;
 
 /// Claims signed by a key history the viewer has not trusted but that the store
 /// holds self-certifying carriers for. Includes anonymous claims, whose signer is
@@ -822,8 +824,8 @@ struct UntrustedClaims {
     shown: Vec<mini_forge::WorkClaim>,
     /// Verified claims in the pool beyond the display cap.
     not_shown: usize,
-    /// True when the task has more claim objects than the pool examines, so
-    /// some older ones were not considered at all.
+    /// True when some claims were not considered: pool eviction, the link
+    /// examination cap, or the key-history lookup budget was hit.
     older_not_examined: bool,
 }
 
@@ -854,45 +856,50 @@ fn select_untrusted(
 /// Claims that verify against the store's own key-history carriers but are not
 /// already listed as trusted claims. They prove control of a key, not identity.
 ///
-/// Claims stream through a pool of the newest `UNTRUSTED_CLAIM_POOL` verified
-/// ones. A claim must beat the pool's oldest member before it is verified, and
-/// is verified (against key histories loaded only for its own author) before it
-/// can displace one, so a peer attaching thousands of claims, or claims that do
-/// not verify, cannot grow memory or crowd out real ones.
+/// Claims stream through a pool of at most `UNTRUSTED_CLAIM_POOL` verified
+/// ones, ordered live-lease first, then newest. Each claim is verified against
+/// key histories loaded for its own (author, device) only, and only logs for
+/// those two identifiers are kept, so a peer attaching many claims, claims that
+/// do not verify, or unrelated carriers cannot grow memory without bound or
+/// crowd out a live claim. Link examination and key-history reads are capped;
+/// hitting any cap sets the incomplete flag.
 fn untrusted_claims<B: mini_store::Backend>(
     store: &mini_store::Store<B>,
     snapshot: &mini_forge::TaskSnapshot,
 ) -> Result<UntrustedClaims> {
     let claim_type = mini_objects::ObjectType::Custom(mini_forge::WORK_CLAIM_TYPE.to_string());
+    let now_ms = sequence::now_ms();
     let mut dir = mini_forge::KelDirectory::new();
-    let mut loaded = std::collections::BTreeSet::<String>::new();
-    let mut pool: std::collections::BTreeMap<(u64, String), mini_forge::WorkClaim> =
+    let mut loaded = std::collections::BTreeSet::<(String, String)>::new();
+    // Ordered by (lease still live, timestamp, id); the smallest is evicted, so
+    // a live claim is never displaced by expired ones.
+    let mut pool: std::collections::BTreeMap<(bool, u64, String), mini_forge::WorkClaim> =
         std::collections::BTreeMap::new();
-    let mut seen = 0usize;
-    for id in store
+    let mut incomplete = false;
+    let mut reads = 0usize;
+    let links = store
         .linking_to(&snapshot.task.id)
-        .map_err(|e| CliError::Store(e.to_string()))?
-        .into_iter()
-        .take(MAX_TASK_LINKS_EXAMINED)
-    {
+        .map_err(|e| CliError::Store(e.to_string()))?;
+    if links.len() > MAX_TASK_LINKS_EXAMINED {
+        incomplete = true;
+    }
+    for id in links.into_iter().take(MAX_TASK_LINKS_EXAMINED) {
         let Ok(object) = store.get(&id) else { continue };
         if object.object_type != claim_type || snapshot.claims.iter().any(|known| known.id == id) {
             continue;
         }
-        seen += 1;
-        let key = (object.timestamp_ms, id.as_str().to_owned());
-        if pool.len() >= UNTRUSTED_CLAIM_POOL
-            && pool.keys().next().is_some_and(|oldest| key <= *oldest)
-        {
-            continue;
-        }
-        let author = object.author_human.clone();
-        if !loaded.contains(author.as_str()) {
-            if loaded.len() >= MAX_CARRIER_AUTHORS {
+        let pair = (
+            object.author_human.as_str().to_owned(),
+            object.author_device.as_str().to_owned(),
+        );
+        if !loaded.contains(&pair) {
+            if loaded.len() >= MAX_CARRIER_AUTHORS || reads >= MAX_CARRIER_READS {
+                incomplete = true;
                 continue;
             }
-            loaded.insert(author.as_str().to_owned());
-            add_carrier_kels(store, &mut dir, &author, &object.author_device)?;
+            loaded.insert(pair);
+            reads +=
+                add_carrier_kels(store, &mut dir, &object.author_human, &object.author_device)?;
         }
         let Ok(claim) = mini_forge::read_work_claim(store, &dir, &id) else {
             continue;
@@ -900,17 +907,23 @@ fn untrusted_claims<B: mini_store::Backend>(
         if claim.task_id != snapshot.task.id {
             continue;
         }
+        let key = (
+            claim.lease_expires_ms > now_ms,
+            object.timestamp_ms,
+            id.as_str().to_owned(),
+        );
         pool.insert(key, claim);
         if pool.len() > UNTRUSTED_CLAIM_POOL {
             pool.pop_first();
+            incomplete = true;
         }
     }
     let mut selected = select_untrusted(
         pool.into_values().collect(),
-        sequence::now_ms(),
+        now_ms,
         MAX_UNTRUSTED_CLAIMS_SHOWN,
     );
-    selected.older_not_examined = seen > UNTRUSTED_CLAIM_POOL;
+    selected.older_not_examined = incomplete;
     Ok(selected)
 }
 
@@ -939,7 +952,7 @@ fn format_untrusted(claims: &UntrustedClaims) -> String {
     }
     if claims.older_not_examined {
         out.push_str(
-            "  (this task has more claims than are examined; older ones were not considered)\n",
+            "  (some claims were not considered: the task has more than the view examines or holds)\n",
         );
     }
     out
