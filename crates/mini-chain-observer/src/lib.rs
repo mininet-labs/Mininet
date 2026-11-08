@@ -270,6 +270,10 @@ pub struct Assessment {
 struct Held {
     transfer: Transfer,
     report: SourceReport,
+    /// The same source sent two different reports with the same timestamp, so
+    /// arrival order must not decide between them: the source counts as
+    /// contradicting itself until it sends a strictly newer report.
+    conflicted: bool,
 }
 
 /// Collects reports and weighs them. Pure logic; no clock of its own.
@@ -320,13 +324,33 @@ impl Observer {
             return Err(Refusal::Stale);
         }
         let by_source = self.reports.entry(transfer.tx_hash).or_default();
-        // The latest report from a source replaces its earlier one.
-        let replace = by_source
-            .get(&report.source)
-            .map(|held| held.report.observed_at_ms <= report.observed_at_ms)
-            .unwrap_or(true);
-        if replace {
-            by_source.insert(report.source, Held { transfer, report });
+        match by_source.get_mut(&report.source) {
+            None => {
+                by_source.insert(
+                    report.source,
+                    Held {
+                        transfer,
+                        report,
+                        conflicted: false,
+                    },
+                );
+            }
+            // A strictly newer report from a source replaces its earlier one.
+            Some(held) if report.observed_at_ms > held.report.observed_at_ms => {
+                *held = Held {
+                    transfer,
+                    report,
+                    conflicted: false,
+                };
+            }
+            // Same instant: identical is a no-op; different is a conflict that
+            // does not depend on which arrived first.
+            Some(held) if report.observed_at_ms == held.report.observed_at_ms => {
+                if held.transfer != transfer || held.report != report {
+                    held.conflicted = true;
+                }
+            }
+            Some(_) => {}
         }
         Ok(())
     }
@@ -349,6 +373,13 @@ impl Observer {
             .collect();
         if live.is_empty() {
             return none;
+        }
+        if live.iter().any(|held| held.conflicted) {
+            return Assessment {
+                status: Status::Ambiguous,
+                agreeing_sources: 0,
+                inclusion: None,
+            };
         }
         // Reports that say "found" must describe the identical transfer.
         let found: Vec<&&Held> = live
@@ -439,10 +470,13 @@ const MAX_JOURNAL_RECORDS: usize = 65_536;
 /// One durable line per transfer: the strongest honest statement so far.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Receipt {
-    /// The transfer hash.
-    pub tx_hash: [u8; 32],
     /// The chain.
     pub chain: Chain,
+    /// The chain's network (mainnet, testnet, ...): part of the receipt's
+    /// identity, so test-network evidence can never pass for mainnet evidence.
+    pub network: u32,
+    /// The transfer hash.
+    pub tx_hash: [u8; 32],
     /// The last recorded status.
     pub status: Status,
     /// The agreed inclusion, if any.
@@ -451,12 +485,20 @@ pub struct Receipt {
     pub contradicted_after_finality: bool,
 }
 
+type ReceiptKey = (u8, u32, [u8; 32]);
+
+fn key_of(chain: Chain, network: u32, tx_hash: [u8; 32]) -> ReceiptKey {
+    (chain.tag(), network, tx_hash)
+}
+
 /// A durable, idempotent receipt journal. The whole file is rewritten
-/// atomically, so a crash leaves either the old or the new journal.
+/// atomically, so a crash leaves either the old or the new journal; every
+/// update takes an exclusive lock and re-reads the file first, so two
+/// instances (or processes) on one path cannot overwrite each other's records.
 #[derive(Debug)]
 pub struct ReceiptJournal {
     path: PathBuf,
-    receipts: BTreeMap<[u8; 32], Receipt>,
+    receipts: BTreeMap<ReceiptKey, Receipt>,
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -478,8 +520,13 @@ impl ReceiptJournal {
     /// Open (or start) the journal at `path`.
     pub fn open(path: impl Into<PathBuf>) -> std::io::Result<Self> {
         let path = path.into();
+        let receipts = Self::load(&path)?;
+        Ok(Self { path, receipts })
+    }
+
+    fn load(path: &Path) -> std::io::Result<BTreeMap<ReceiptKey, Receipt>> {
         let mut receipts = BTreeMap::new();
-        match std::fs::read_to_string(&path) {
+        match std::fs::read_to_string(path) {
             Ok(text) => {
                 for line in text.lines().take(MAX_JOURNAL_RECORDS) {
                     let receipt = Self::parse(line).ok_or_else(|| {
@@ -488,18 +535,32 @@ impl ReceiptJournal {
                             "corrupt receipt journal",
                         )
                     })?;
-                    receipts.insert(receipt.tx_hash, receipt);
+                    receipts.insert(
+                        key_of(receipt.chain, receipt.network, receipt.tx_hash),
+                        receipt,
+                    );
                 }
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(e),
         }
-        Ok(Self { path, receipts })
+        Ok(receipts)
+    }
+
+    fn lock_path(&self) -> PathBuf {
+        let mut name = self
+            .path
+            .file_name()
+            .map(|n| n.to_os_string())
+            .unwrap_or_default();
+        name.push(".lock");
+        self.path.with_file_name(name)
     }
 
     fn parse(line: &str) -> Option<Receipt> {
         let mut parts = line.split(' ');
         let chain = Chain::from_tag(parts.next()?.parse().ok()?)?;
+        let network: u32 = parts.next()?.parse().ok()?;
         let tx_hash = unhex32(parts.next()?)?;
         let status = Status::from_tag(parts.next()?.parse().ok()?)?;
         let height: u64 = parts.next()?.parse().ok()?;
@@ -514,15 +575,16 @@ impl ReceiptJournal {
             return None;
         }
         Some(Receipt {
-            tx_hash,
             chain,
+            network,
+            tx_hash,
             status,
             inclusion,
             contradicted_after_finality: contradicted,
         })
     }
 
-    fn render_of(receipts: &BTreeMap<[u8; 32], Receipt>) -> String {
+    fn render_of(receipts: &BTreeMap<ReceiptKey, Receipt>) -> String {
         let mut out = String::new();
         for receipt in receipts.values() {
             let (height, block) = receipt
@@ -530,8 +592,9 @@ impl ReceiptJournal {
                 .map(|(h, b)| (h, hex(&b)))
                 .unwrap_or((0, "-".to_string()));
             out.push_str(&format!(
-                "{} {} {} {} {} {}\n",
+                "{} {} {} {} {} {} {}\n",
                 receipt.chain.tag(),
+                receipt.network,
                 hex(&receipt.tx_hash),
                 receipt.status.tag(),
                 height,
@@ -542,14 +605,15 @@ impl ReceiptJournal {
         out
     }
 
-    /// The receipt for a transfer, if any.
-    pub fn get(&self, tx_hash: &[u8; 32]) -> Option<&Receipt> {
-        self.receipts.get(tx_hash)
+    /// The receipt for a transfer on one chain and network, if any.
+    pub fn get(&self, chain: Chain, network: u32, tx_hash: &[u8; 32]) -> Option<&Receipt> {
+        self.receipts.get(&key_of(chain, network, *tx_hash))
     }
 
     /// Record an assessment. Idempotent, and durable before it is visible: the
-    /// new state is written first and only then becomes the in-memory state, so
-    /// a failed write changes nothing and a retry writes again.
+    /// journal is locked and re-read, the new state is written, and only then
+    /// does it become the in-memory state, so a failed write changes nothing
+    /// and a retry writes it.
     ///
     /// A finalized receipt is never silently downgraded or removed. Report
     /// expiry or a temporary loss of quorum (`Unobserved`, `Observed`, or
@@ -560,13 +624,19 @@ impl ReceiptJournal {
     pub fn record(
         &mut self,
         chain: Chain,
+        network: u32,
         tx_hash: [u8; 32],
         assessment: &Assessment,
     ) -> Result<&Receipt, Refusal> {
-        if !self.receipts.contains_key(&tx_hash) && self.receipts.len() >= MAX_JOURNAL_RECORDS {
+        let _lock =
+            mini_durable::lock_exclusive(&self.lock_path()).map_err(|_| Refusal::JournalWrite)?;
+        // Another instance may have written since we last looked.
+        self.receipts = Self::load(&self.path).map_err(|_| Refusal::JournalWrite)?;
+        let key = key_of(chain, network, tx_hash);
+        if !self.receipts.contains_key(&key) && self.receipts.len() >= MAX_JOURNAL_RECORDS {
             return Err(Refusal::JournalFull);
         }
-        let next = match self.receipts.get(&tx_hash).cloned() {
+        let next = match self.receipts.get(&key).cloned() {
             Some(prev) if prev.contradicted_after_finality => prev,
             Some(prev) if prev.status == Status::Finalized => {
                 let contradicted = match assessment.status {
@@ -587,21 +657,22 @@ impl ReceiptJournal {
                 }
             }
             _ => Receipt {
-                tx_hash,
                 chain,
+                network,
+                tx_hash,
                 status: assessment.status,
                 inclusion: assessment.inclusion,
                 contradicted_after_finality: false,
             },
         };
-        if self.receipts.get(&tx_hash) != Some(&next) {
+        if self.receipts.get(&key) != Some(&next) {
             let mut staged = self.receipts.clone();
-            staged.insert(tx_hash, next);
+            staged.insert(key, next);
             mini_durable::atomic_replace(&self.path, Self::render_of(&staged).as_bytes())
                 .map_err(|_| Refusal::JournalWrite)?;
             self.receipts = staged;
         }
-        Ok(&self.receipts[&tx_hash])
+        Ok(&self.receipts[&key])
     }
 
     /// The journal's file path.

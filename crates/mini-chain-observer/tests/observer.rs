@@ -282,11 +282,11 @@ fn the_journal_is_idempotent_durable_and_survives_restart() {
     let dir = tempdir("journal-restart");
     let path = dir.join("receipts");
     let mut journal = ReceiptJournal::open(&path).unwrap();
-    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
-    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
     drop(journal);
     let reopened = ReceiptJournal::open(&path).unwrap();
-    let receipt: &Receipt = reopened.get(&TX).unwrap();
+    let receipt: &Receipt = reopened.get(Chain::Xrpl, 0, &TX).unwrap();
     assert_eq!(receipt.status, Status::Finalized);
     assert_eq!(receipt.inclusion, Some((100, [1; 32])));
     assert!(!receipt.contradicted_after_finality);
@@ -297,25 +297,33 @@ fn a_finalized_receipt_contradicted_later_is_marked_forever_never_erased() {
     let dir = tempdir("journal-reorg");
     let path = dir.join("receipts");
     let mut journal = ReceiptJournal::open(&path).unwrap();
-    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
     let reorged = Assessment {
         status: Status::Finalized,
         agreeing_sources: 2,
         inclusion: Some((101, [2; 32])),
     };
-    let receipt = journal.record(Chain::Xrpl, TX, &reorged).unwrap().clone();
+    let receipt = journal
+        .record(Chain::Xrpl, 0, TX, &reorged)
+        .unwrap()
+        .clone();
     assert_eq!(receipt.status, Status::Ambiguous);
     assert!(receipt.contradicted_after_finality);
     // Even a later "finalized again" cannot clear it.
     let again = journal
-        .record(Chain::Xrpl, TX, &finalized())
+        .record(Chain::Xrpl, 0, TX, &finalized())
         .unwrap()
         .clone();
     assert!(again.contradicted_after_finality);
     assert!(!again.status.is_final_evidence());
     drop(journal);
     let reopened = ReceiptJournal::open(&path).unwrap();
-    assert!(reopened.get(&TX).unwrap().contradicted_after_finality);
+    assert!(
+        reopened
+            .get(Chain::Xrpl, 0, &TX)
+            .unwrap()
+            .contradicted_after_finality
+    );
 }
 
 #[test]
@@ -378,14 +386,14 @@ fn a_profile_that_could_finalize_on_no_evidence_or_never_is_refused() {
 fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
     let dir = tempdir("journal-expiry");
     let mut journal = ReceiptJournal::open(dir.join("receipts")).unwrap();
-    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
     for status in [Status::Unobserved, Status::Observed] {
         let quiet = Assessment {
             status,
             agreeing_sources: 0,
             inclusion: None,
         };
-        let receipt = journal.record(Chain::Xrpl, TX, &quiet).unwrap();
+        let receipt = journal.record(Chain::Xrpl, 0, TX, &quiet).unwrap();
         assert_eq!(receipt.status, Status::Finalized);
         assert!(!receipt.contradicted_after_finality);
     }
@@ -395,7 +403,7 @@ fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
         agreeing_sources: 1,
         inclusion: Some((100, [1; 32])),
     };
-    let receipt = journal.record(Chain::Xrpl, TX, &thinner).unwrap();
+    let receipt = journal.record(Chain::Xrpl, 0, TX, &thinner).unwrap();
     assert_eq!(receipt.status, Status::Finalized);
     // An explicit ambiguity or failure is real contradictory evidence.
     let failed = Assessment {
@@ -403,7 +411,7 @@ fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
         agreeing_sources: 2,
         inclusion: None,
     };
-    let receipt = journal.record(Chain::Xrpl, TX, &failed).unwrap();
+    let receipt = journal.record(Chain::Xrpl, 0, TX, &failed).unwrap();
     assert!(receipt.contradicted_after_finality);
 }
 
@@ -414,16 +422,91 @@ fn a_failed_journal_write_changes_nothing_and_a_retry_writes_it() {
     let path = parent.join("receipts");
     let mut journal = ReceiptJournal::open(&path).unwrap();
     assert_eq!(
-        journal.record(Chain::Xrpl, TX, &finalized()).unwrap_err(),
+        journal
+            .record(Chain::Xrpl, 0, TX, &finalized())
+            .unwrap_err(),
         Refusal::JournalWrite
     );
     assert!(
-        journal.get(&TX).is_none(),
+        journal.get(Chain::Xrpl, 0, &TX).is_none(),
         "a failed write must not leave a receipt"
     );
     std::fs::create_dir_all(&parent).unwrap();
-    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
     drop(journal);
     let reopened = ReceiptJournal::open(&path).unwrap();
-    assert_eq!(reopened.get(&TX).unwrap().status, Status::Finalized);
+    assert_eq!(
+        reopened.get(Chain::Xrpl, 0, &TX).unwrap().status,
+        Status::Finalized
+    );
+}
+
+#[test]
+fn conflicting_same_instant_reports_from_one_source_are_ambiguous_in_either_order() {
+    let failed = SourceReport {
+        source: src(1),
+        transfer_hash: TX,
+        tip_height: 110,
+        seen: Seen::Failed,
+        observed_at_ms: NOW,
+    };
+    let inc = included(1, 110, 100, 1, true, NOW);
+    let second = included(2, 110, 100, 1, true, NOW);
+    for order in [[failed, inc], [inc, failed]] {
+        let mut o = xrpl();
+        for report in order {
+            o.record(transfer(Chain::Xrpl, 5), report, NOW).unwrap();
+        }
+        o.record(transfer(Chain::Xrpl, 5), second, NOW).unwrap();
+        assert_eq!(o.assess(&TX, NOW).status, Status::Ambiguous);
+    }
+    // A strictly newer report from that source clears its own conflict.
+    let mut o = xrpl();
+    o.record(transfer(Chain::Xrpl, 5), failed, NOW).unwrap();
+    o.record(transfer(Chain::Xrpl, 5), inc, NOW).unwrap();
+    o.record(
+        transfer(Chain::Xrpl, 5),
+        included(1, 110, 100, 1, true, NOW + 1),
+        NOW + 1,
+    )
+    .unwrap();
+    o.record(
+        transfer(Chain::Xrpl, 5),
+        included(2, 110, 100, 1, true, NOW + 1),
+        NOW + 1,
+    )
+    .unwrap();
+    assert_eq!(o.assess(&TX, NOW + 1).status, Status::Finalized);
+}
+
+#[test]
+fn two_journal_instances_on_one_path_do_not_lose_each_others_records() {
+    let dir = tempdir("journal-concurrent");
+    let path = dir.join("receipts");
+    let mut a = ReceiptJournal::open(&path).unwrap();
+    let mut b = ReceiptJournal::open(&path).unwrap();
+    let other = [8u8; 32];
+    a.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    b.record(Chain::Xrpl, 0, other, &finalized()).unwrap();
+    let reopened = ReceiptJournal::open(&path).unwrap();
+    assert!(reopened.get(Chain::Xrpl, 0, &TX).is_some());
+    assert!(reopened.get(Chain::Xrpl, 0, &other).is_some());
+}
+
+#[test]
+fn receipts_for_different_networks_never_alias() {
+    let dir = tempdir("journal-network");
+    let path = dir.join("receipts");
+    let mut journal = ReceiptJournal::open(&path).unwrap();
+    journal.record(Chain::Xrpl, 1, TX, &finalized()).unwrap();
+    assert!(
+        journal.get(Chain::Xrpl, 0, &TX).is_none(),
+        "testnet evidence is not mainnet evidence"
+    );
+    assert!(journal.get(Chain::Monero, 1, &TX).is_none());
+    drop(journal);
+    let reopened = ReceiptJournal::open(&path).unwrap();
+    let receipt = reopened.get(Chain::Xrpl, 1, &TX).unwrap();
+    assert_eq!(receipt.network, 1);
+    assert!(reopened.get(Chain::Xrpl, 0, &TX).is_none());
 }

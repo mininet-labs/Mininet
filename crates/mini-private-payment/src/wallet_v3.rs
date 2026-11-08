@@ -67,33 +67,55 @@ pub fn recognizes_v3(
     })
 }
 
-/// Recognize payments in one claim and open their memos. `Ok(vec![])` means
-/// "not mine"; `Err` means an output is addressed here but its memo did not open.
-pub fn scan_one_v3(
+/// Scan one claim output by output. Readable outputs are kept even when another
+/// output of the same claim is malformed; the flag reports that at least one
+/// output addressed here could not be read (its memo would not open, or its
+/// note did not open its commitment).
+fn scan_claim_v3(
     view_secret: &[u8],
     spend_public: &[u8],
     claim: &VerifiedPrivateClaimV3,
-) -> Result<Vec<RecognizedPaymentV3>> {
+) -> (Vec<RecognizedPaymentV3>, bool) {
     let mut found = Vec::new();
+    let mut anomaly = false;
     for (index, output) in claim.claim().outputs.iter().enumerate() {
         let Some(shared) =
             recover_shared_secret_v3(&claim.claim().network_id, view_secret, spend_public, output)
         else {
             continue;
         };
-        let note = claim.open_memo(index, &shared)?;
+        let Ok(note) = claim.open_memo(index, &shared) else {
+            anomaly = true;
+            continue;
+        };
         // The memo is encrypted, so verification could not check it: a payer
         // can seal an amount and blinding that do not open the commitment.
         let opens = pedersen_commitment_v2(note.amount_micro, &note.blinding)
             .is_some_and(|c| c.as_slice() == output.amount_commitment.as_slice());
         if !opens {
-            return Err(PrivatePaymentError::MalformedMemo);
+            anomaly = true;
+            continue;
         }
         found.push(RecognizedPaymentV3 {
             claim: claim.clone(),
             output_index: index,
             note,
         });
+    }
+    (found, anomaly)
+}
+
+/// Recognize payments in one claim and open their memos. `Ok(vec![])` means
+/// "not mine"; `Err` means an output is addressed here but unreadable. Use
+/// [`scan_v3`] to keep the readable outputs of such a claim.
+pub fn scan_one_v3(
+    view_secret: &[u8],
+    spend_public: &[u8],
+    claim: &VerifiedPrivateClaimV3,
+) -> Result<Vec<RecognizedPaymentV3>> {
+    let (found, anomaly) = scan_claim_v3(view_secret, spend_public, claim);
+    if anomaly {
+        return Err(PrivatePaymentError::MalformedMemo);
     }
     Ok(found)
 }
@@ -103,18 +125,21 @@ pub fn scan_one_v3(
 pub struct ScanOutcomeV3 {
     /// Payments to these keys whose memos opened.
     pub payments: Vec<RecognizedPaymentV3>,
-    /// Claims addressed to these keys whose memos did not open. The value is
-    /// still there; only the stated purpose is missing.
+    /// Claims with at least one output addressed to these keys that could not
+    /// be read. Such a claim may also appear in `payments` for its readable
+    /// outputs. The value is still there; only the stated purpose is missing.
     pub unreadable: Vec<VerifiedPrivateClaimV3>,
 }
 
 impl ScanOutcomeV3 {
-    /// Every claim addressed to these keys, readable or not.
+    /// Every distinct claim addressed to these keys, readable or not.
     pub fn all_claims(&self) -> impl Iterator<Item = &VerifiedPrivateClaimV3> {
+        let mut seen = std::collections::BTreeSet::new();
         self.payments
             .iter()
             .map(|payment| &payment.claim)
             .chain(self.unreadable.iter())
+            .filter(move |claim| seen.insert(*claim.claim_id()))
     }
 }
 
@@ -126,9 +151,10 @@ pub fn scan_v3<'a>(
 ) -> ScanOutcomeV3 {
     let mut outcome = ScanOutcomeV3::default();
     for claim in claims {
-        match scan_one_v3(view_secret, spend_public, claim) {
-            Ok(payments) => outcome.payments.extend(payments),
-            Err(_) => outcome.unreadable.push(claim.clone()),
+        let (payments, anomaly) = scan_claim_v3(view_secret, spend_public, claim);
+        outcome.payments.extend(payments);
+        if anomaly {
+            outcome.unreadable.push(claim.clone());
         }
     }
     outcome
@@ -455,6 +481,62 @@ mod tests {
         );
         assert!(outcome.payments.is_empty());
         assert_eq!(outcome.unreadable.len(), 1);
+    }
+
+    #[test]
+    fn a_malformed_output_does_not_hide_a_readable_one_in_the_same_claim() {
+        let me = StealthKeypair::generate().unwrap();
+        let fee = quote_fee_micro(&POLICY, 1, 2);
+        let mut set = InMemoryOutputSet::new();
+        let add = |set: &mut InMemoryOutputSet, value: u64| {
+            let key = StealthKeypair::generate().unwrap();
+            let blinding = mini_value::random_scalar_bytes().unwrap();
+            let c = mini_value::pedersen_commitment_v2(value, &blinding).unwrap();
+            set.push(key.spend_public_bytes().to_vec(), c.to_vec());
+            (key, blinding)
+        };
+        for _ in 0..RING_SIZE_V3 * 4 {
+            add(&mut set, 1_000);
+        }
+        let (key, blinding) = add(&mut set, 10_000 + fee);
+        let spend = SpendableOutputV3 {
+            set_index: set.len() - 1,
+            one_time_secret: key.spend_secret_bytes(),
+            value_micro: 10_000 + fee,
+            blinding,
+        };
+        for _ in 0..4 {
+            add(&mut set, 1_000);
+        }
+        let recipient = |amount: u64| RecipientV3 {
+            spend_public: me.spend_public_bytes().to_vec(),
+            view_public: me.view_public_bytes().to_vec(),
+            amount_micro: amount,
+            purpose: PaymentPurpose::new(b"two".to_vec()),
+        };
+        let (claim, _) = build_v3(
+            &PaymentRequestV3 {
+                network_id: NETWORK,
+                fee_policy_id: POLICY,
+                spends: vec![spend],
+                recipients: vec![recipient(4_000), recipient(6_000)],
+            },
+            &Set(set),
+        )
+        .unwrap();
+        let donor = pay(&StealthKeypair::generate().unwrap(), 1_000);
+        let mut inner = verify_v3(&claim, &NETWORK).unwrap().claim().clone();
+        inner.outputs[1].sealed_memo = donor.claim().outputs[0].sealed_memo.clone();
+        let wrapped = VerifiedPrivateClaimV3::unverified_for_test(inner);
+        let outcome = scan_v3(
+            &me.view_secret_bytes(),
+            &me.spend_public_bytes(),
+            [&wrapped],
+        );
+        assert_eq!(outcome.payments.len(), 1, "the readable output is kept");
+        assert_eq!(outcome.payments[0].note.amount_micro, 4_000);
+        assert_eq!(outcome.unreadable.len(), 1, "and the anomaly is reported");
+        assert_eq!(outcome.all_claims().count(), 1);
     }
 
     #[test]

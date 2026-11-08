@@ -308,6 +308,10 @@ fn accepted_contribution_stores_only_claim_commitment_not_private_preimage() {
         .find_map(|line| line.strip_prefix("public claim commitment: "))
         .expect("claim commitment output");
     assert_ne!(secret_hex, commitment_hex);
+    assert!(
+        out.contains("NOT REDEEMABLE"),
+        "a receipt with no campaign must say it cannot be redeemed: {out}"
+    );
 
     let store = mini_cli::store::open_store(&store_path).unwrap();
     let ids = store

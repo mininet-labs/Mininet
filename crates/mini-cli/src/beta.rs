@@ -775,13 +775,19 @@ pub fn contribution_accept(
 
     let mut result = match claim_secret {
         Some(secret) => CommandResult::new(format!(
-            "accepted contribution recorded: {}\nPRIVATE claim secret: {}\npublic claim commitment: {}\nThis process generated the claim key, so the accepting operator knows the secret and could redeem it. For a claim only the contributor can redeem, have them run `beta claim new` and pass the public tag with --claim-tag. Do not post the claim secret in GitHub, logs, or public evidence.",
+            "accepted contribution recorded: {}\nPRIVATE claim secret: {}\npublic claim commitment: {}\n{}This process generated the claim key, so the accepting operator knows the secret and could redeem it. For a claim only the contributor can redeem, have them run `beta claim new` and pass the public tag with --claim-tag (with --campaign). Do not post the claim secret in GitHub, logs, or public evidence.",
             object.id().as_str(),
             hex(&secret),
-            hex(claim_tag.as_bytes())
+            hex(claim_tag.as_bytes()),
+            if campaign_id.is_some() {
+                ""
+            } else {
+                "NOT REDEEMABLE: this receipt has no --campaign, and a redemption signs the campaign's epoch, so the private claim path cannot be used for it.\n"
+            }
         ))
         .field("claim_secret", JsonValue::str(hex(&secret)))
         .field("operator_generated_claim_key", JsonValue::Bool(true))
+        .field("redeemable", JsonValue::Bool(campaign_id.is_some()))
         .field("sensitive_output", JsonValue::Bool(true)),
         None => CommandResult::new(format!(
             "accepted contribution recorded: {}\npublic claim commitment: {}\nThe claim key was supplied by the contributor; this process never saw its secret.",

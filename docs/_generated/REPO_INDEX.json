@@ -3,7 +3,7 @@
     "crates": 94,
     "files": 1295,
     "headings": 4290,
-    "rust_symbols": 15673
+    "rust_symbols": 15682
   },
   "crates": {
     "askama_derive": {
@@ -19990,7 +19990,7 @@
       "title": "mini-chain-observer"
     },
     {
-      "bytes": 21128,
+      "bytes": 23890,
       "group": "crate:mini-chain-observer",
       "headings": [],
       "keywords": [
@@ -20019,9 +20019,9 @@
         "network",
         "asset"
       ],
-      "lines": 612,
+      "lines": 683,
       "path": "crates/mini-chain-observer/src/lib.rs",
-      "sha256": "7e6522078fcc53c0a3412de39d7516142226da6387c2452be7998ab9e114a42e",
+      "sha256": "3b4fc79c5c0a742a6e54a045f88e4e48f52e4bfe74ad17757372e952063dbd3a",
       "symbols": [
         {
           "kind": "enum",
@@ -20135,99 +20135,119 @@
         },
         {
           "kind": "struct",
-          "line": 277,
+          "line": 281,
           "name": "Observer"
         },
         {
           "kind": "impl",
-          "line": 283,
+          "line": 287,
           "name": "Observer"
         },
         {
           "kind": "fn",
-          "line": 287,
+          "line": 291,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 296,
+          "line": 300,
           "name": "profile"
         },
         {
           "kind": "fn",
-          "line": 301,
+          "line": 305,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 335,
+          "line": 359,
           "name": "assess"
         },
         {
           "kind": "const",
-          "line": 437,
+          "line": 468,
           "name": "MAX_JOURNAL_RECORDS"
         },
         {
           "kind": "struct",
-          "line": 441,
+          "line": 472,
           "name": "Receipt"
         },
         {
+          "kind": "type",
+          "line": 488,
+          "name": "ReceiptKey"
+        },
+        {
+          "kind": "fn",
+          "line": 490,
+          "name": "key_of"
+        },
+        {
           "kind": "struct",
-          "line": 457,
+          "line": 499,
           "name": "ReceiptJournal"
         },
         {
           "kind": "fn",
-          "line": 462,
+          "line": 504,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 466,
+          "line": 508,
           "name": "unhex32"
         },
         {
           "kind": "impl",
-          "line": 477,
+          "line": 519,
           "name": "ReceiptJournal"
         },
         {
           "kind": "fn",
-          "line": 479,
+          "line": 521,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 500,
-          "name": "parse"
+          "line": 527,
+          "name": "load"
         },
         {
           "kind": "fn",
-          "line": 525,
-          "name": "render_of"
-        },
-        {
-          "kind": "fn",
-          "line": 546,
-          "name": "get"
+          "line": 550,
+          "name": "lock_path"
         },
         {
           "kind": "fn",
           "line": 560,
+          "name": "parse"
+        },
+        {
+          "kind": "fn",
+          "line": 587,
+          "name": "render_of"
+        },
+        {
+          "kind": "fn",
+          "line": 609,
+          "name": "get"
+        },
+        {
+          "kind": "fn",
+          "line": 624,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 608,
+          "line": 679,
           "name": "path"
         }
       ],
       "title": "use std::collections::{BTreeMap, BTreeSet};"
     },
     {
-      "bytes": 12118,
+      "bytes": 14869,
       "group": "crate:mini-chain-observer",
       "headings": [],
       "keywords": [
@@ -20256,9 +20276,9 @@
         "a_duplicate_source_counts_once",
         "unknown_sources_and_other_networks_are_refused"
       ],
-      "lines": 430,
+      "lines": 513,
       "path": "crates/mini-chain-observer/tests/observer.rs",
-      "sha256": "676c0c4ed509e5ac670aaebe57c7570e8b7cd90bd979d9dedf5d8f91e37675b1",
+      "sha256": "ff4f267ab977a25dcf6b53308bc68fdd4ad2b181a857b9fcc97f410a56e7b343",
       "symbols": [
         {
           "kind": "const",
@@ -20367,33 +20387,48 @@
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 330,
           "name": "a_corrupt_journal_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 330,
+          "line": 338,
           "name": "the_observer_crate_has_no_key_or_value_dependencies"
         },
         {
           "kind": "fn",
-          "line": 350,
+          "line": 358,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 365,
+          "line": 373,
           "name": "a_profile_that_could_finalize_on_no_evidence_or_never_is_refused"
         },
         {
           "kind": "fn",
-          "line": 378,
+          "line": 386,
           "name": "report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 419,
           "name": "a_failed_journal_write_changes_nothing_and_a_retry_writes_it"
+        },
+        {
+          "kind": "fn",
+          "line": 445,
+          "name": "conflicting_same_instant_reports_from_one_source_are_ambiguous_in_either_order"
+        },
+        {
+          "kind": "fn",
+          "line": 483,
+          "name": "two_journal_instances_on_one_path_do_not_lose_each_others_records"
+        },
+        {
+          "kind": "fn",
+          "line": 497,
+          "name": "receipts_for_different_networks_never_alias"
         }
       ],
       "title": "use std::collections::BTreeSet;"
@@ -21701,7 +21736,7 @@
       "title": "use crate::error::{CliError, Result};"
     },
     {
-      "bytes": 49451,
+      "bytes": 49796,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21730,9 +21765,9 @@
         "some",
         "else"
       ],
-      "lines": 1317,
+      "lines": 1323,
       "path": "crates/mini-cli/src/beta.rs",
-      "sha256": "875707e30b308676f9270dc87545d68d17feb0ee7f54cbb2a7f3305e067af456",
+      "sha256": "c20be9a6a9c8c14f45d4ddacde9a9f340250eb06019b311604fcc6e3b1cd39f7",
       "symbols": [
         {
           "kind": "fn",
@@ -21831,77 +21866,77 @@
         },
         {
           "kind": "fn",
-          "line": 802,
+          "line": 808,
           "name": "contribution_show"
         },
         {
           "kind": "fn",
-          "line": 845,
+          "line": 851,
           "name": "claim_new"
         },
         {
           "kind": "fn",
-          "line": 861,
+          "line": 867,
           "name": "claim_redeem"
         },
         {
           "kind": "const",
-          "line": 866,
+          "line": 872,
           "name": "CTX"
         },
         {
           "kind": "fn",
-          "line": 921,
+          "line": 927,
           "name": "disposition_trust"
         },
         {
           "kind": "fn",
-          "line": 938,
+          "line": 944,
           "name": "authorized_disposition"
         },
         {
           "kind": "fn",
-          "line": 950,
+          "line": 956,
           "name": "authorized_record"
         },
         {
           "kind": "fn",
-          "line": 974,
+          "line": 980,
           "name": "disposition_show"
         },
         {
           "kind": "fn",
-          "line": 1026,
+          "line": 1032,
           "name": "with_trust"
         },
         {
           "kind": "fn",
-          "line": 1040,
+          "line": 1046,
           "name": "trust_note"
         },
         {
           "kind": "fn",
-          "line": 1051,
+          "line": 1057,
           "name": "campaign_json"
         },
         {
           "kind": "fn",
-          "line": 1080,
+          "line": 1086,
           "name": "finding_json"
         },
         {
           "kind": "fn",
-          "line": 1123,
+          "line": 1129,
           "name": "contribution_json"
         },
         {
           "kind": "fn",
-          "line": 1151,
+          "line": 1157,
           "name": "disposition_list"
         },
         {
           "kind": "fn",
-          "line": 1241,
+          "line": 1247,
           "name": "contribution_list"
         }
       ],
@@ -27196,7 +27231,7 @@
       "title": "use std::path::PathBuf;"
     },
     {
-      "bytes": 15525,
+      "bytes": 15660,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -27225,9 +27260,9 @@
         "campaign",
         "alice_objects"
       ],
-      "lines": 508,
+      "lines": 512,
       "path": "crates/mini-cli/tests/beta_native_flow.rs",
-      "sha256": "b7aad1e60dc01c201fca66e4c692c1232814d89d84d4cb25fa3aa6d2d98d6502",
+      "sha256": "2a60584dfa6ff8a761403f027cbe5e3ca0131421a3c9159bb58d07ba78726090",
       "symbols": [
         {
           "kind": "fn",
@@ -27266,14 +27301,14 @@
         },
         {
           "kind": "fn",
-          "line": 338,
+          "line": 342,
           "name": "malformed_peer_records_cannot_block_lists_and_dispositions_require_operator_trust"
         }
       ],
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 18292,
+      "bytes": 18918,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -27302,9 +27337,9 @@
         "panic",
         "vec"
       ],
-      "lines": 612,
+      "lines": 637,
       "path": "crates/mini-cli/tests/beta_native_loop.rs",
-      "sha256": "397c70852d24259f610d178139a3660a814efd79295436e07eb01b59a2e509f7",
+      "sha256": "fb4713b22ff073ecf62b941e132a242befcafd6a21564120c1c035f900e47f26",
       "symbols": [
         {
           "kind": "const",
@@ -73109,38 +73144,38 @@
       "title": "use mini_value::{MininetStealthAddress, StealthAddressScheme};"
     },
     {
-      "bytes": 18286,
+      "bytes": 21633,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
         "claim",
         "output",
         "amount",
-        "memo",
-        "open",
         "note",
         "commitment",
+        "memo",
+        "open",
         "view",
-        "key",
-        "recognizedpaymentv3",
-        "scanoutcomev3",
-        "opening",
         "one",
-        "whose",
-        "blinding",
         "its",
-        "payments",
-        "verifiedprivateclaimv3",
-        "vec",
+        "key",
+        "scan",
+        "outputs",
+        "opening",
+        "blinding",
+        "recognizedpaymentv3",
         "wallet",
         "disclosure",
-        "scan",
+        "here",
         "payment",
-        "amounts"
+        "amounts",
+        "verifiedprivateclaimv3",
+        "view_secret",
+        "spend_public"
       ],
-      "lines": 483,
+      "lines": 565,
       "path": "crates/mini-private-payment/src/wallet_v3.rs",
-      "sha256": "9defd589bc645d9c329f4beab4540d22e13a601193da1b15c6e1d7a1af864e7b",
+      "sha256": "c43a0fe97eaf1a1d573ddb800f63cd917efb65572c5d55db4158a47170f4e815",
       "symbols": [
         {
           "kind": "struct",
@@ -73154,182 +73189,192 @@
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 74,
+          "name": "scan_claim_v3"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
           "name": "scan_one_v3"
         },
         {
           "kind": "struct",
-          "line": 103,
+          "line": 125,
           "name": "ScanOutcomeV3"
         },
         {
           "kind": "impl",
-          "line": 111,
+          "line": 134,
           "name": "ScanOutcomeV3"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 136,
           "name": "all_claims"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 147,
           "name": "scan_v3"
         },
         {
           "kind": "const",
-          "line": 138,
+          "line": 164,
           "name": "AMOUNT_DISCLOSURE_V3_DOMAIN"
         },
         {
           "kind": "const",
-          "line": 141,
+          "line": 167,
           "name": "AMOUNT_DISCLOSURE_V3_VERSION"
         },
         {
           "kind": "struct",
-          "line": 146,
+          "line": 172,
           "name": "AmountDisclosureV3"
         },
         {
           "kind": "impl",
-          "line": 153,
+          "line": 179,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 180,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 163,
+          "line": 189,
           "name": "AmountDisclosureV3"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 192,
           "name": "create"
         },
         {
           "kind": "fn",
-          "line": 184,
+          "line": 210,
           "name": "claim_id"
         },
         {
           "kind": "fn",
-          "line": 189,
+          "line": 215,
           "name": "output_index"
         },
         {
           "kind": "fn",
-          "line": 194,
+          "line": 220,
           "name": "claimed_amount_micro"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 225,
           "name": "open_against"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 243,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 229,
+          "line": 255,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 275,
           "name": "digest"
         },
         {
           "kind": "struct",
-          "line": 256,
+          "line": 282,
           "name": "OpenedPaymentV3"
         },
         {
           "kind": "struct",
-          "line": 269,
+          "line": 295,
           "name": "AuditedIncomeV3"
         },
         {
           "kind": "impl",
-          "line": 278,
+          "line": 304,
           "name": "AuditedIncomeV3"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 306,
           "name": "opened_total_micro"
         },
         {
           "kind": "fn",
-          "line": 289,
+          "line": 315,
           "name": "is_complete"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 324,
           "name": "audit_amounts_v3"
         },
         {
           "kind": "mod",
-          "line": 354,
+          "line": 380,
           "name": "tests"
         },
         {
           "kind": "const",
-          "line": 363,
+          "line": 389,
           "name": "NETWORK"
         },
         {
           "kind": "const",
-          "line": 364,
+          "line": 390,
           "name": "POLICY"
         },
         {
           "kind": "struct",
-          "line": 366,
+          "line": 392,
           "name": "Set"
         },
         {
           "kind": "impl",
-          "line": 367,
+          "line": 393,
           "name": "OutputSet"
         },
         {
           "kind": "fn",
-          "line": 368,
+          "line": 394,
           "name": "len"
         },
         {
           "kind": "fn",
-          "line": 371,
+          "line": 397,
           "name": "key_at"
         },
         {
           "kind": "fn",
-          "line": 374,
+          "line": 400,
           "name": "commitment_at"
         },
         {
           "kind": "fn",
-          "line": 379,
+          "line": 405,
           "name": "pay"
         },
         {
           "kind": "fn",
-          "line": 421,
+          "line": 447,
           "name": "a_note_that_does_not_open_its_commitment_is_never_a_payment"
         },
         {
           "kind": "fn",
-          "line": 461,
+          "line": 487,
+          "name": "a_malformed_output_does_not_hide_a_readable_one_in_the_same_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 543,
           "name": "one_unreadable_payment_cannot_blind_a_wallet_to_its_other_income"
         }
       ],
