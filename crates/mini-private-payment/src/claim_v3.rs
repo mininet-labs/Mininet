@@ -377,6 +377,19 @@ pub struct VerifiedPrivateClaimV3 {
     claim_id: [u8; 32],
 }
 
+#[cfg(test)]
+impl VerifiedPrivateClaimV3 {
+    /// Test-only: wrap a claim WITHOUT verifying it, to exercise wallet paths
+    /// (such as an unreadable memo) that a verified claim cannot reach from
+    /// outside the crate.
+    pub(crate) fn unverified_for_test(claim: PrivatePaymentClaimV3) -> Self {
+        Self {
+            claim_id: claim.claim_id(),
+            claim,
+        }
+    }
+}
+
 impl VerifiedPrivateClaimV3 {
     pub fn claim(&self) -> &PrivatePaymentClaimV3 {
         &self.claim
