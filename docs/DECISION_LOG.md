@@ -26605,3 +26605,54 @@ and cannot be redeemed. The desktop panel does not yet expose redeem.
 requiring a redemption for every participation grant once all producers use it.
 
 **Supersedes / superseded by:** none.
+
+### D-0550 — The XRPL/Monero cryptography research is implemented as engineering direction: one canonical V3 validator path, a read-only chain observer, and honest gaps  ·  *Shipped*
+
+**Decision:** founder chat direction (2026-11-08) to treat the research in PR #429
+as an executive decision and implement its coding. This is task authorization and
+engineering direction, not protocol authority and not a governance act. Implemented:
+(1) `mini-shielded-verify` gains `ClaimEvidencePoolV3` and `ShieldedClaimVerifierV3`,
+the V3 behind `mini-execution`'s existing `ClaimVerifier` boundary: evidence keyed
+by `claim_id` (a hash of every byte, so evidence cannot be replaced), canonical
+re-encoding required at admission, V3 range/MLSAG/balance verification, the fee
+taken from the deterministic quote, and genesis allocations accepted only on the
+V3 commitment basis; (2) V3 wallet scanning and amount disclosure in
+`mini-private-payment` (`scan_v3`, `AmountDisclosureV3`, `audit_amounts_v3`);
+(3) a guard test that no manifest outside `mini-treasury` enables a legacy
+hand-rolled FROST feature; (4) `mini-chain-observer`, a read-only XRPL/Monero
+observer; (5) an evidence packet for external review and a T01–T30 conformance
+matrix (`docs/design/xrpl-monero-research-conformance.md`). The research's six
+approval questions are answered there as the research's own recommended defaults,
+for correction.
+
+**Reason:** the research found the V3 primitives existed but no validator verified
+V3 claims; the highest-value, lowest-risk slice was the verifier behind the
+existing canonical boundary, proven through real quorum certificates, replay and
+snapshot restore, rather than a new payment engine. Directive 9 and the voice/value
+wall are preserved: the new verifier lives in the existing adapter crate, so
+`mini-execution`, `mini-consensus` and `mini-chain` still link no value crate.
+
+**Constitutional impact:** Directive 9, Directive 16 (P1), Directive 18, M1, M2, M3.
+No dependency edge between value and governance/review crates was added; the
+observer has no key or value dependency (enforced by a test); no Tier-F row is
+touched; no new cryptographic construction (existing reviewed primitives and the
+pinned `bulletproofs`/`frost-ristretto255` libraries only).
+
+**Implementation status:** shipped as code and tests; see the conformance matrix for
+which of T01–T30 are done, partial or not done. Nothing is activated on any network.
+
+**Failure point:** unaudited (Gate #72/#93 open); the fee function is a placeholder;
+there is no claim-evidence gossip or durable retention, so a validator can only
+verify claims it already holds; the transparent path is not retired and no state
+migration exists (needs an authorised decision with state-history rules); whole-disk
+restore of a FROST signer is not detectable locally; cost numbers are from a
+development sandbox, not a weak phone; observers cannot tell a lying quorum from an
+honest one, and Monero payments need a view-key or transaction-proof model that is
+out of scope. Real-value release remains NO-GO.
+
+**Required follow-up:** procure the external reviews; choose the acceptance-baseline
+device and run `budget_v3`; decide fee-policy activation and who controls it; design
+claim-evidence availability; decide and execute (or not) the transparent-path
+retirement; fuzz targets; a multiprocess partition test.
+
+**Supersedes / superseded by:** none.
