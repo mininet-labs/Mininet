@@ -1,0 +1,575 @@
+//! Read-only observation of external-chain transfers (research PR #429, P2-1).
+//!
+//! This crate decides one thing: *how sure are we that an external transfer
+//! happened*, from reports by independently operated sources. It is an edge
+//! service in the research's sense and deliberately powerless:
+//!
+//! - it holds **no keys** and signs nothing, so it cannot move funds;
+//! - it **mints nothing**: its strongest output, [`Status::Finalized`], is
+//!   evidence for a separately reviewed process to act on, never a credit;
+//! - it has **no network code**: callers feed it [`SourceReport`]s they fetched
+//!   (from their own pinned RPC clients), so a malicious RPC can only supply a
+//!   report, which is then weighed against the others;
+//! - it depends on nothing in the money, governance or personhood crates.
+//!
+//! ## Rules (each has a test)
+//!
+//! - Only sources in the configured allow-list count; others are ignored.
+//! - One source counts once, however many reports it sends (latest wins).
+//! - A report for another network (mainnet vs testnet) is refused.
+//! - Reports from the future, or older than the profile's age bound, are
+//!   dropped, so clock drift cannot hold a transfer open or fake freshness.
+//! - A transfer is [`Status::Finalized`] only when enough *distinct* sources
+//!   agree on the same inclusion block **and** each saw the profile's required
+//!   confirmations (XRPL additionally requires a *validated* ledger).
+//! - Sources disagreeing about a transfer's fields (amount, destination, asset)
+//!   or its inclusion block make it [`Status::Ambiguous`]; ambiguity never
+//!   upgrades on its own.
+//! - A transfer once finalized and later contradicted is reported
+//!   [`Status::Ambiguous`] and the contradiction is journaled, never erased.
+//!
+//! Honest limits: unaudited; it cannot tell a lying quorum from an honest one
+//! (the allow-list and its independence are an operator and legal question);
+//! a configured source that lies can block progress (liveness) but not forge a
+//! finalized status unless it controls a quorum. XRPL and Monero finality
+//! assumptions are encoded as profile *data*, to be checked against each
+//! chain's current rules before use. Monero payments are private by design, so
+//! "observing" one needs a view-key or transaction-proof model that is out of
+//! scope here; the shared core only weighs reports it is given.
+
+#![forbid(unsafe_code)]
+#![warn(missing_debug_implementations)]
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
+
+/// Which external chain a report is about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Chain {
+    /// XRP Ledger.
+    Xrpl,
+    /// Monero.
+    Monero,
+}
+
+impl Chain {
+    fn tag(self) -> u8 {
+        match self {
+            Chain::Xrpl => 1,
+            Chain::Monero => 2,
+        }
+    }
+    fn from_tag(tag: u8) -> Option<Self> {
+        match tag {
+            1 => Some(Chain::Xrpl),
+            2 => Some(Chain::Monero),
+            _ => None,
+        }
+    }
+}
+
+/// Exactly what a transfer is claimed to be. Every field must match for two
+/// reports to describe the same transfer; a differing field is a conflict.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Transfer {
+    /// The chain.
+    pub chain: Chain,
+    /// Chain network id (XRPL: 0 main, 1 test, 2 dev; Monero: 0 main, 1 test, 2 stage).
+    pub network: u32,
+    /// External transaction hash.
+    pub tx_hash: [u8; 32],
+    /// Asset identifier (XRPL currency/issuer hash, or the native asset).
+    pub asset: [u8; 32],
+    /// Hash of the destination (never the destination itself).
+    pub destination_hash: [u8; 32],
+    /// Amount in the chain's minor unit.
+    pub amount_minor: u64,
+}
+
+/// What one source says it sees.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Seen {
+    /// The source cannot find the transfer.
+    NotFound,
+    /// The transfer failed on chain (for example an XRPL `tec` result).
+    Failed,
+    /// Included in a block.
+    Included {
+        /// Block height.
+        height: u64,
+        /// Block hash.
+        block_hash: [u8; 32],
+        /// XRPL: the ledger is validated by consensus. Monero: always true.
+        validated: bool,
+    },
+}
+
+/// One source's report. The caller authenticates the transport to the source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceReport {
+    /// Identifier of the independently operated source.
+    pub source: [u8; 32],
+    /// The transfer the report is about.
+    pub transfer_hash: [u8; 32],
+    /// The chain tip height the source saw when it answered.
+    pub tip_height: u64,
+    /// What it saw.
+    pub seen: Seen,
+    /// When it answered, by the observer host's clock domain (ms).
+    pub observed_at_ms: u64,
+}
+
+/// The ladder. Only `Finalized` is evidence a downstream process may act on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Status {
+    /// No usable report.
+    Unobserved,
+    /// Some source reports it, but no block inclusion is agreed.
+    Observed,
+    /// Included, with too few agreeing sources or confirmations.
+    Included,
+    /// Enough independent sources agree with enough confirmations.
+    Finalized,
+    /// Sources disagree about the transfer or its block.
+    Ambiguous,
+    /// Enough sources agree it failed on chain.
+    Failed,
+}
+
+impl Status {
+    fn tag(self) -> u8 {
+        match self {
+            Status::Unobserved => 0,
+            Status::Observed => 1,
+            Status::Included => 2,
+            Status::Finalized => 3,
+            Status::Ambiguous => 4,
+            Status::Failed => 5,
+        }
+    }
+    fn from_tag(tag: u8) -> Option<Self> {
+        Some(match tag {
+            0 => Status::Unobserved,
+            1 => Status::Observed,
+            2 => Status::Included,
+            3 => Status::Finalized,
+            4 => Status::Ambiguous,
+            5 => Status::Failed,
+            _ => return None,
+        })
+    }
+
+    /// Whether a separately reviewed process may rely on this as "happened".
+    pub fn is_final_evidence(self) -> bool {
+        self == Status::Finalized
+    }
+}
+
+/// Per-chain finality policy, as data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FinalityProfile {
+    /// The chain this profile is for.
+    pub chain: Chain,
+    /// The only network accepted.
+    pub network: u32,
+    /// Distinct agreeing sources needed.
+    pub min_sources: usize,
+    /// Confirmations each source must have seen (tip - height).
+    pub confirmations: u64,
+    /// Whether inclusion must be marked validated (XRPL).
+    pub require_validated: bool,
+    /// Reports older than this are dropped (ms).
+    pub max_report_age_ms: u64,
+    /// Reports further in the future than this are dropped (ms).
+    pub max_future_skew_ms: u64,
+    /// The sources whose reports count.
+    pub sources: BTreeSet<[u8; 32]>,
+}
+
+impl FinalityProfile {
+    /// A conservative XRPL starting point. Confirm against current XRPL rules.
+    pub fn xrpl(network: u32, sources: BTreeSet<[u8; 32]>) -> Self {
+        Self {
+            chain: Chain::Xrpl,
+            network,
+            min_sources: 2,
+            confirmations: 1,
+            require_validated: true,
+            max_report_age_ms: 120_000,
+            max_future_skew_ms: 30_000,
+            sources,
+        }
+    }
+
+    /// A conservative Monero starting point (default unlock depth of 10).
+    pub fn monero(network: u32, sources: BTreeSet<[u8; 32]>) -> Self {
+        Self {
+            chain: Chain::Monero,
+            network,
+            min_sources: 2,
+            confirmations: 10,
+            require_validated: false,
+            max_report_age_ms: 600_000,
+            max_future_skew_ms: 60_000,
+            sources,
+        }
+    }
+}
+
+/// Why a report was not used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    /// Another chain or network.
+    WrongNetwork,
+    /// Not in the allow-list.
+    UnknownSource,
+    /// Older than the age bound.
+    Stale,
+    /// Further in the future than the skew bound.
+    FromTheFuture,
+    /// The journal is full.
+    JournalFull,
+    /// The journal could not be written durably.
+    JournalWrite,
+}
+
+/// The weighed result for one transfer hash.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Assessment {
+    /// The status.
+    pub status: Status,
+    /// How many distinct sources agree with the status's facts.
+    pub agreeing_sources: usize,
+    /// The agreed inclusion, when there is one.
+    pub inclusion: Option<(u64, [u8; 32])>,
+}
+
+#[derive(Debug, Clone)]
+struct Held {
+    transfer: Transfer,
+    report: SourceReport,
+}
+
+/// Collects reports and weighs them. Pure logic; no clock of its own.
+#[derive(Debug)]
+pub struct Observer {
+    profile: FinalityProfile,
+    // (transfer hash) -> source -> latest report with its claimed transfer.
+    reports: BTreeMap<[u8; 32], BTreeMap<[u8; 32], Held>>,
+}
+
+impl Observer {
+    /// An observer with the given policy.
+    pub fn new(profile: FinalityProfile) -> Self {
+        Self {
+            profile,
+            reports: BTreeMap::new(),
+        }
+    }
+
+    /// The policy in force.
+    pub fn profile(&self) -> &FinalityProfile {
+        &self.profile
+    }
+
+    /// Record one source's report about `transfer`.
+    pub fn record(
+        &mut self,
+        transfer: Transfer,
+        report: SourceReport,
+        now_ms: u64,
+    ) -> Result<(), Refusal> {
+        if transfer.chain != self.profile.chain
+            || transfer.network != self.profile.network
+            || report.transfer_hash != transfer.tx_hash
+        {
+            return Err(Refusal::WrongNetwork);
+        }
+        if !self.profile.sources.contains(&report.source) {
+            return Err(Refusal::UnknownSource);
+        }
+        if report.observed_at_ms > now_ms.saturating_add(self.profile.max_future_skew_ms) {
+            return Err(Refusal::FromTheFuture);
+        }
+        if now_ms.saturating_sub(report.observed_at_ms) > self.profile.max_report_age_ms {
+            return Err(Refusal::Stale);
+        }
+        let by_source = self.reports.entry(transfer.tx_hash).or_default();
+        // The latest report from a source replaces its earlier one.
+        let replace = by_source
+            .get(&report.source)
+            .map(|held| held.report.observed_at_ms <= report.observed_at_ms)
+            .unwrap_or(true);
+        if replace {
+            by_source.insert(report.source, Held { transfer, report });
+        }
+        Ok(())
+    }
+
+    /// Weigh everything currently held for `tx_hash` at `now_ms`.
+    pub fn assess(&self, tx_hash: &[u8; 32], now_ms: u64) -> Assessment {
+        let none = Assessment {
+            status: Status::Unobserved,
+            agreeing_sources: 0,
+            inclusion: None,
+        };
+        let Some(by_source) = self.reports.get(tx_hash) else {
+            return none;
+        };
+        let live: Vec<&Held> = by_source
+            .values()
+            .filter(|held| {
+                now_ms.saturating_sub(held.report.observed_at_ms) <= self.profile.max_report_age_ms
+            })
+            .collect();
+        if live.is_empty() {
+            return none;
+        }
+        // Reports that say "found" must describe the identical transfer.
+        let found: Vec<&&Held> = live
+            .iter()
+            .filter(|h| !matches!(h.report.seen, Seen::NotFound))
+            .collect();
+        let fields: BTreeSet<&Transfer> = found.iter().map(|h| &h.transfer).collect();
+        if fields.len() > 1 {
+            return Assessment {
+                status: Status::Ambiguous,
+                agreeing_sources: 0,
+                inclusion: None,
+            };
+        }
+        let failed = live
+            .iter()
+            .filter(|h| matches!(h.report.seen, Seen::Failed))
+            .count();
+        let mut inclusions: BTreeMap<(u64, [u8; 32]), (usize, usize)> = BTreeMap::new();
+        for held in &live {
+            if let Seen::Included {
+                height,
+                block_hash,
+                validated,
+            } = held.report.seen
+            {
+                let entry = inclusions.entry((height, block_hash)).or_default();
+                entry.0 += 1;
+                let deep =
+                    held.report.tip_height.saturating_sub(height) >= self.profile.confirmations;
+                if deep && (validated || !self.profile.require_validated) {
+                    entry.1 += 1;
+                }
+            }
+        }
+        if failed > 0 && !inclusions.is_empty() {
+            return Assessment {
+                status: Status::Ambiguous,
+                agreeing_sources: 0,
+                inclusion: None,
+            };
+        }
+        if failed >= self.profile.min_sources {
+            return Assessment {
+                status: Status::Failed,
+                agreeing_sources: failed,
+                inclusion: None,
+            };
+        }
+        if inclusions.len() > 1 {
+            // Two different blocks for one transfer: a fork, a reorg in
+            // progress, or a lying source. Deny until it resolves.
+            return Assessment {
+                status: Status::Ambiguous,
+                agreeing_sources: 0,
+                inclusion: None,
+            };
+        }
+        if let Some((&(height, block_hash), &(seen, deep))) = inclusions.iter().next() {
+            let status = if deep >= self.profile.min_sources {
+                Status::Finalized
+            } else {
+                Status::Included
+            };
+            return Assessment {
+                status,
+                agreeing_sources: if status == Status::Finalized {
+                    deep
+                } else {
+                    seen
+                },
+                inclusion: Some((height, block_hash)),
+            };
+        }
+        if found.is_empty() {
+            return none;
+        }
+        Assessment {
+            status: Status::Observed,
+            agreeing_sources: found.len(),
+            inclusion: None,
+        }
+    }
+}
+
+const MAX_JOURNAL_RECORDS: usize = 65_536;
+
+/// One durable line per transfer: the strongest honest statement so far.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Receipt {
+    /// The transfer hash.
+    pub tx_hash: [u8; 32],
+    /// The chain.
+    pub chain: Chain,
+    /// The last recorded status.
+    pub status: Status,
+    /// The agreed inclusion, if any.
+    pub inclusion: Option<(u64, [u8; 32])>,
+    /// Whether a finalized receipt was later contradicted. Never cleared.
+    pub contradicted_after_finality: bool,
+}
+
+/// A durable, idempotent receipt journal. The whole file is rewritten
+/// atomically, so a crash leaves either the old or the new journal.
+#[derive(Debug)]
+pub struct ReceiptJournal {
+    path: PathBuf,
+    receipts: BTreeMap<[u8; 32], Receipt>,
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn unhex32(text: &str) -> Option<[u8; 32]> {
+    if text.len() != 64 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (i, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(text.get(i * 2..i * 2 + 2)?, 16).ok()?;
+    }
+    Some(out)
+}
+
+impl ReceiptJournal {
+    /// Open (or start) the journal at `path`.
+    pub fn open(path: impl Into<PathBuf>) -> std::io::Result<Self> {
+        let path = path.into();
+        let mut receipts = BTreeMap::new();
+        match std::fs::read_to_string(&path) {
+            Ok(text) => {
+                for line in text.lines().take(MAX_JOURNAL_RECORDS) {
+                    let receipt = Self::parse(line).ok_or_else(|| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "corrupt receipt journal",
+                        )
+                    })?;
+                    receipts.insert(receipt.tx_hash, receipt);
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+        Ok(Self { path, receipts })
+    }
+
+    fn parse(line: &str) -> Option<Receipt> {
+        let mut parts = line.split(' ');
+        let chain = Chain::from_tag(parts.next()?.parse().ok()?)?;
+        let tx_hash = unhex32(parts.next()?)?;
+        let status = Status::from_tag(parts.next()?.parse().ok()?)?;
+        let height: u64 = parts.next()?.parse().ok()?;
+        let block = parts.next()?;
+        let contradicted = parts.next()? == "1";
+        let inclusion = if block == "-" {
+            None
+        } else {
+            Some((height, unhex32(block)?))
+        };
+        if parts.next().is_some() {
+            return None;
+        }
+        Some(Receipt {
+            tx_hash,
+            chain,
+            status,
+            inclusion,
+            contradicted_after_finality: contradicted,
+        })
+    }
+
+    fn render(&self) -> String {
+        let mut out = String::new();
+        for receipt in self.receipts.values() {
+            let (height, block) = receipt
+                .inclusion
+                .map(|(h, b)| (h, hex(&b)))
+                .unwrap_or((0, "-".to_string()));
+            out.push_str(&format!(
+                "{} {} {} {} {} {}\n",
+                receipt.chain.tag(),
+                hex(&receipt.tx_hash),
+                receipt.status.tag(),
+                height,
+                block,
+                u8::from(receipt.contradicted_after_finality)
+            ));
+        }
+        out
+    }
+
+    /// The receipt for a transfer, if any.
+    pub fn get(&self, tx_hash: &[u8; 32]) -> Option<&Receipt> {
+        self.receipts.get(tx_hash)
+    }
+
+    /// Record an assessment. Idempotent: repeating it changes nothing. A
+    /// finalized receipt is never silently downgraded or removed: if the new
+    /// assessment is not the same finalized inclusion, the receipt becomes
+    /// `Ambiguous` with `contradicted_after_finality` set for good.
+    pub fn record(
+        &mut self,
+        chain: Chain,
+        tx_hash: [u8; 32],
+        assessment: &Assessment,
+    ) -> Result<&Receipt, Refusal> {
+        if !self.receipts.contains_key(&tx_hash) && self.receipts.len() >= MAX_JOURNAL_RECORDS {
+            return Err(Refusal::JournalFull);
+        }
+        let previous = self.receipts.get(&tx_hash).cloned();
+        let next = match previous {
+            Some(prev) if prev.status == Status::Finalized || prev.contradicted_after_finality => {
+                let same = assessment.status == Status::Finalized
+                    && assessment.inclusion == prev.inclusion
+                    && !prev.contradicted_after_finality;
+                if same || prev.contradicted_after_finality {
+                    prev
+                } else {
+                    Receipt {
+                        status: Status::Ambiguous,
+                        contradicted_after_finality: true,
+                        ..prev
+                    }
+                }
+            }
+            _ => Receipt {
+                tx_hash,
+                chain,
+                status: assessment.status,
+                inclusion: assessment.inclusion,
+                contradicted_after_finality: false,
+            },
+        };
+        let changed = self.receipts.get(&tx_hash) != Some(&next);
+        self.receipts.insert(tx_hash, next);
+        if changed {
+            mini_durable::atomic_replace(&self.path, self.render().as_bytes())
+                .map_err(|_| Refusal::JournalWrite)?;
+        }
+        Ok(&self.receipts[&tx_hash])
+    }
+
+    /// The journal's file path.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}

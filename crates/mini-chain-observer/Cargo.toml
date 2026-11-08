@@ -1,0 +1,13 @@
+[package]
+name = "mini-chain-observer"
+version = "0.0.1"
+description = "Read-only XRP Ledger / Monero deposit observation at a replaceable edge (research PR #429, P2-1): independent-source quorum finality, honest status ladder and a durable idempotent receipt journal. Holds no keys, signs nothing, mints nothing."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-durable = { path = "../mini-durable" }
