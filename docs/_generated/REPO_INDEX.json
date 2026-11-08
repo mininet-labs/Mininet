@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 94,
-    "files": 1294,
-    "headings": 4289,
+    "files": 1295,
+    "headings": 4290,
     "rust_symbols": 15665
   },
   "crates": {
@@ -19946,6 +19946,48 @@
       "sha256": "bffe4d813a109d80efc3603f347438fb34f24fe7220b26c6424dae16047de9e3",
       "symbols": [],
       "title": "[package]"
+    },
+    {
+      "bytes": 1203,
+      "group": "crate:mini-chain-observer",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "mini-chain-observer"
+        }
+      ],
+      "keywords": [
+        "mini-chain-observer",
+        "one",
+        "finalized",
+        "needs",
+        "ledger",
+        "monero",
+        "question",
+        "reports",
+        "sources",
+        "nothing",
+        "network",
+        "strongest",
+        "status",
+        "never",
+        "block",
+        "source",
+        "receipt",
+        "honest",
+        "read-only",
+        "observation",
+        "external-chain",
+        "xrp",
+        "transfers",
+        "replaceable"
+      ],
+      "lines": 22,
+      "path": "crates/mini-chain-observer/README.md",
+      "sha256": "2b81f805ba086e23eb8e760317cb108eb1bd290018167638264301209002df30",
+      "symbols": [],
+      "title": "mini-chain-observer"
     },
     {
       "bytes": 19641,
@@ -86014,7 +86056,7 @@
       "title": "use crate::{Check, Outcome, Report};"
     },
     {
-      "bytes": 22158,
+      "bytes": 22390,
       "group": "crate:mini-selftest",
       "headings": [],
       "keywords": [
@@ -86043,9 +86085,9 @@
         "run",
         "process"
       ],
-      "lines": 636,
+      "lines": 642,
       "path": "crates/mini-selftest/src/coverage.rs",
-      "sha256": "25c76233459891ff4148c7972bf7947a10db96887734a40bff2df8227e08077a",
+      "sha256": "c80228221b2998ef6bebce5e8fdf4ba2d720a7b10fb2196fb9a3dd89f26e959f",
       "symbols": [
         {
           "kind": "enum",
@@ -86084,17 +86126,17 @@
         },
         {
           "kind": "fn",
-          "line": 605,
+          "line": 611,
           "name": "runnable_count"
         },
         {
           "kind": "fn",
-          "line": 613,
+          "line": 619,
           "name": "gaps"
         },
         {
           "kind": "fn",
-          "line": 624,
+          "line": 630,
           "name": "summary"
         }
       ],

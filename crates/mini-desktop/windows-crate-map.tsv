@@ -94,3 +94,4 @@ mini-mesh	none	node-service	Connections	W2	Multi-peer dedup flooding requires re
 mini-safety	none	core-service	Safety	W1	Viewer-local block/mute state only; never removes content from the network or denies access; community lists are explicit one-time import, never auto-subscribe
 mini-resident	direct	core-service	Resident AI	W3	Owner-granted context and reviewed patches; local model configuration and explicit consequential-action consent required
 mini-seed	none	node-service	Storage and Node	W2	Owner-controlled public-object seeding with explicit quotas; payment claims stay owner-supplied and unaudited until the value gates close
+mini-chain-observer	none	node-service	Wallet	W6	Read-only XRPL/Monero observation at a replaceable edge: holds no keys and mints nothing; needs independently operated sources, current chain finality rules and external review before any credit decision relies on it
