@@ -565,7 +565,11 @@ impl ReceiptJournal {
         let status = Status::from_tag(parts.next()?.parse().ok()?)?;
         let height: u64 = parts.next()?.parse().ok()?;
         let block = parts.next()?;
-        let contradicted = parts.next()? == "1";
+        let contradicted = match parts.next()? {
+            "0" => false,
+            "1" => true,
+            _ => return None,
+        };
         let inclusion = if block == "-" {
             None
         } else {

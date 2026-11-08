@@ -335,6 +335,23 @@ fn a_corrupt_journal_fails_closed() {
 }
 
 #[test]
+fn a_corrupted_contradiction_flag_fails_closed() {
+    let dir = tempdir("journal-flag");
+    let path = dir.join("receipts");
+    let mut journal = ReceiptJournal::open(&path).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    drop(journal);
+    let text = std::fs::read_to_string(&path).unwrap();
+    let line = text.trim_end();
+    assert!(line.ends_with(" 0"));
+    for bad in [" 2", " x", " 01", " "] {
+        let corrupted = format!("{}{bad}\n", &line[..line.len() - 2]);
+        std::fs::write(&path, corrupted).unwrap();
+        assert!(ReceiptJournal::open(&path).is_err(), "flag {bad:?}");
+    }
+}
+
+#[test]
 fn the_observer_crate_has_no_key_or_value_dependencies() {
     let manifest = include_str!("../Cargo.toml");
     let manifest = manifest.split("[dependencies]").nth(1).unwrap();
