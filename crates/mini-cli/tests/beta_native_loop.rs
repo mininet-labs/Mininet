@@ -560,6 +560,31 @@ fn a_contributor_supplied_claim_tag_keeps_the_secret_from_the_operator_and_a_wro
     };
     let before = count();
 
+    // A claim tag with no campaign could never be redeemed: refused up front.
+    let no_campaign: Vec<String> = [
+        "--home",
+        &operator,
+        "--store",
+        &cli.store,
+        "beta",
+        "contribution",
+        "accept",
+        &project,
+        "--kind",
+        "testing",
+        "--summary",
+        "no campaign",
+        "--evidence",
+        "x",
+        "--claim-tag",
+        &tag,
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    let error = mini_cli::run(&no_campaign).unwrap_err().to_string();
+    assert!(error.contains("--claim-tag needs --campaign"), "{error}");
+
     // A wrong secret fails and persists no throwaway carriers.
     let wrong = tempdir("wrong");
     std::fs::write(&wrong, "11".repeat(32)).unwrap();

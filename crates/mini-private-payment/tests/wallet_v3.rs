@@ -199,10 +199,17 @@ fn an_audit_never_reports_a_partial_total_as_income() {
 }
 
 #[test]
-fn a_view_key_recognizes_but_cannot_spend_or_open_amounts() {
-    // T29: the view secret alone derives no spend scalar and no opening.
+fn a_view_key_reads_amounts_but_cannot_spend() {
+    // T29, stated honestly: the view secret recovers the memo key, so a
+    // published view key reveals every recognized payment's amount and opening.
+    // What it cannot do is derive the spend scalar.
     let me = StealthKeypair::generate().unwrap();
     let claim = pay(&me, 4_000, b"scope");
+    let found = scan_one_v3(&me.view_secret_bytes(), &me.spend_public_bytes(), &claim).unwrap();
+    assert_eq!(
+        found[0].note.amount_micro, 4_000,
+        "a view key does read amounts"
+    );
     let output = &claim.claim().outputs[0];
     assert!(mini_value::derive_spend_scalar_v3(
         mini_private_payment::SUITE_ID_V3,
@@ -215,4 +222,29 @@ fn a_view_key_recognizes_but_cannot_spend_or_open_amounts() {
         },
     )
     .is_none());
+}
+
+#[test]
+fn the_same_claim_fed_twice_is_counted_once() {
+    let me = StealthKeypair::generate().unwrap();
+    let claim = pay(&me, 1_500, b"dup");
+    let disclosure = mini_private_payment::verify_disclosure(&ViewKeyDisclosure::create(
+        me.spend_public_bytes().to_vec(),
+        me.view_public_bytes().to_vec(),
+        me.view_secret_bytes().to_vec(),
+        b"audit".to_vec(),
+        1,
+        &AcknowledgedIrreversibleDisclosure::new(
+            AcknowledgedIrreversibleDisclosure::REQUIRED_ACKNOWLEDGEMENT,
+        )
+        .unwrap(),
+    ))
+    .unwrap();
+    let found = scan_one_v3(&me.view_secret_bytes(), &me.spend_public_bytes(), &claim).unwrap();
+    let opening =
+        AmountDisclosureV3::create(&claim, found[0].output_index, &found[0].note, &ack()).unwrap();
+    let audited = audit_amounts_v3(&disclosure, [&claim, &claim], &[opening]);
+    assert_eq!(audited.opened_total_micro(), 1_500);
+    assert_eq!(audited.opened.len(), 1);
+    assert!(audited.is_complete());
 }

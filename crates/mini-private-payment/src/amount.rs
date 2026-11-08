@@ -13,6 +13,13 @@
 //! disbursements but not add them up cannot answer the only question anyone
 //! actually asks.
 //!
+//! **Correction:** the premise above is only true for an auditor who does *not*
+//! hold the view key. The memo carrying `(amount, blinding)` is sealed under the
+//! secret a view key recovers, so a view-key holder can already read every
+//! recognized payment's amount. This module is for proving individual payments
+//! to a party without the view key; against a view-key holder it adds nothing,
+//! and `unopened` then counts missing openings, not hidden amounts.
+//!
 //! # What an opening is
 //!
 //! An output's amount lives in `C = b·G_blind + v·H_val`. The recipient

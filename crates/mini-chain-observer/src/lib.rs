@@ -216,6 +216,28 @@ impl FinalityProfile {
     }
 }
 
+/// Why a profile was rejected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileError {
+    /// `min_sources` must be at least one: zero would let any report finalize.
+    NoQuorum,
+    /// The allow-list is smaller than the quorum, so nothing could ever finalize.
+    TooFewSources,
+}
+
+impl FinalityProfile {
+    /// Check the profile can only produce honest results.
+    pub fn validate(&self) -> Result<(), ProfileError> {
+        if self.min_sources == 0 {
+            return Err(ProfileError::NoQuorum);
+        }
+        if self.sources.len() < self.min_sources {
+            return Err(ProfileError::TooFewSources);
+        }
+        Ok(())
+    }
+}
+
 /// Why a report was not used.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refusal {
@@ -259,12 +281,15 @@ pub struct Observer {
 }
 
 impl Observer {
-    /// An observer with the given policy.
-    pub fn new(profile: FinalityProfile) -> Self {
-        Self {
+    /// An observer with the given policy. Refuses a profile that could
+    /// finalize on no evidence (zero quorum) or never (quorum above the
+    /// allow-list).
+    pub fn new(profile: FinalityProfile) -> Result<Self, ProfileError> {
+        profile.validate()?;
+        Ok(Self {
             profile,
             reports: BTreeMap::new(),
-        }
+        })
     }
 
     /// The policy in force.
@@ -497,9 +522,9 @@ impl ReceiptJournal {
         })
     }
 
-    fn render(&self) -> String {
+    fn render_of(receipts: &BTreeMap<[u8; 32], Receipt>) -> String {
         let mut out = String::new();
-        for receipt in self.receipts.values() {
+        for receipt in receipts.values() {
             let (height, block) = receipt
                 .inclusion
                 .map(|(h, b)| (h, hex(&b)))
@@ -522,10 +547,16 @@ impl ReceiptJournal {
         self.receipts.get(tx_hash)
     }
 
-    /// Record an assessment. Idempotent: repeating it changes nothing. A
-    /// finalized receipt is never silently downgraded or removed: if the new
-    /// assessment is not the same finalized inclusion, the receipt becomes
-    /// `Ambiguous` with `contradicted_after_finality` set for good.
+    /// Record an assessment. Idempotent, and durable before it is visible: the
+    /// new state is written first and only then becomes the in-memory state, so
+    /// a failed write changes nothing and a retry writes again.
+    ///
+    /// A finalized receipt is never silently downgraded or removed. Report
+    /// expiry or a temporary loss of quorum (`Unobserved`, `Observed`, or
+    /// `Included` at the same block) is **not** contradictory evidence and
+    /// leaves it alone. It becomes `Ambiguous` with `contradicted_after_finality`
+    /// set for good only on real contradiction: a different inclusion, an
+    /// explicit `Ambiguous`, or `Failed`.
     pub fn record(
         &mut self,
         chain: Chain,
@@ -535,20 +566,24 @@ impl ReceiptJournal {
         if !self.receipts.contains_key(&tx_hash) && self.receipts.len() >= MAX_JOURNAL_RECORDS {
             return Err(Refusal::JournalFull);
         }
-        let previous = self.receipts.get(&tx_hash).cloned();
-        let next = match previous {
-            Some(prev) if prev.status == Status::Finalized || prev.contradicted_after_finality => {
-                let same = assessment.status == Status::Finalized
-                    && assessment.inclusion == prev.inclusion
-                    && !prev.contradicted_after_finality;
-                if same || prev.contradicted_after_finality {
-                    prev
-                } else {
+        let next = match self.receipts.get(&tx_hash).cloned() {
+            Some(prev) if prev.contradicted_after_finality => prev,
+            Some(prev) if prev.status == Status::Finalized => {
+                let contradicted = match assessment.status {
+                    Status::Ambiguous | Status::Failed => true,
+                    Status::Finalized | Status::Included => {
+                        assessment.inclusion.is_some() && assessment.inclusion != prev.inclusion
+                    }
+                    Status::Unobserved | Status::Observed => false,
+                };
+                if contradicted {
                     Receipt {
                         status: Status::Ambiguous,
                         contradicted_after_finality: true,
                         ..prev
                     }
+                } else {
+                    prev
                 }
             }
             _ => Receipt {
@@ -559,11 +594,12 @@ impl ReceiptJournal {
                 contradicted_after_finality: false,
             },
         };
-        let changed = self.receipts.get(&tx_hash) != Some(&next);
-        self.receipts.insert(tx_hash, next);
-        if changed {
-            mini_durable::atomic_replace(&self.path, self.render().as_bytes())
+        if self.receipts.get(&tx_hash) != Some(&next) {
+            let mut staged = self.receipts.clone();
+            staged.insert(tx_hash, next);
+            mini_durable::atomic_replace(&self.path, Self::render_of(&staged).as_bytes())
                 .map_err(|_| Refusal::JournalWrite)?;
+            self.receipts = staged;
         }
         Ok(&self.receipts[&tx_hash])
     }

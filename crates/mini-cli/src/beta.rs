@@ -737,6 +737,13 @@ pub fn contribution_accept(
         })
         .transpose()?;
     reject_remaining(args, "beta contribution accept")?;
+    // A redemption signs the campaign's epoch, so a receipt with no campaign can
+    // never be redeemed. Refuse to hand out a tag that would silently be dead.
+    if supplied_claim_tag.is_some() && campaign_id.is_none() {
+        return Err(CliError::Usage(
+            "beta contribution accept: --claim-tag needs --campaign (a claim is redeemed against the campaign's epoch)".to_string(),
+        ));
+    }
 
     // A contributor can generate their own claim key (`beta claim new`) and hand
     // over only the public tag, so the accepting operator never holds the

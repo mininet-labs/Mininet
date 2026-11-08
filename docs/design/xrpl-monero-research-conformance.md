@@ -80,7 +80,7 @@ research's own recommended defaults, recorded here so they can be corrected:
 | T26 personhood Sybil | unchanged | no new code; identity roots are still not verified humans (INVARIANTS limitation) |
 | T27 long-term key migration | not done | existing `mini-pq-anchor`; not exercised here |
 | T28 supply conservation | partial | asserted over two finalized spends including the fee remainder; not over rollback/replay with issuance |
-| T29 view-key scope | done | `wallet_v3` (a view secret derives no spend scalar; a view key recognizes but does not open amounts) |
+| T29 view-key scope | done, with a correction | `wallet_v3`: a view secret derives no spend scalar, **but a view key does read amounts** (the memo is sealed under the secret it recovers). Earlier V2 text claiming amounts stay hidden was wrong and is corrected in code docs |
 | T30 network-origin correlation | not done | documented residual; not measurable in-process |
 
 ## Deviations from the research text

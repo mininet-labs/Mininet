@@ -26641,7 +26641,7 @@ pinned `bulletproofs`/`frost-ristretto255` libraries only).
 **Implementation status:** shipped as code and tests; see the conformance matrix for
 which of T01–T30 are done, partial or not done. Nothing is activated on any network.
 
-**Failure point:** unaudited (Gate #72/#93 open); the fee function is a placeholder;
+**Failure point:** a published view key reveals amounts, not just the set of incoming payments, because the memo carrying `(amount, blinding)` is sealed under the secret the view key recovers; the V2 documentation's claim that amounts stay hidden was wrong and is corrected here, so selective amount disclosure only means something for a party without the view key; unaudited (Gate #72/#93 open); the fee function is a placeholder;
 there is no claim-evidence gossip or durable retention, so a validator can only
 verify claims it already holds; the transparent path is not retired and no state
 migration exists (needs an authorised decision with state-history rules); whole-disk

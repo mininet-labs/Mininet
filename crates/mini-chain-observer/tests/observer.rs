@@ -3,8 +3,8 @@
 use std::collections::BTreeSet;
 
 use mini_chain_observer::{
-    Assessment, Chain, FinalityProfile, Observer, Receipt, ReceiptJournal, Refusal, Seen,
-    SourceReport, Status, Transfer,
+    Assessment, Chain, FinalityProfile, Observer, ProfileError, Receipt, ReceiptJournal, Refusal,
+    Seen, SourceReport, Status, Transfer,
 };
 
 const NOW: u64 = 100_000_000;
@@ -19,11 +19,11 @@ fn sources(ids: &[u8]) -> BTreeSet<[u8; 32]> {
 }
 
 fn xrpl() -> Observer {
-    Observer::new(FinalityProfile::xrpl(0, sources(&[1, 2, 3])))
+    Observer::new(FinalityProfile::xrpl(0, sources(&[1, 2, 3]))).unwrap()
 }
 
 fn monero() -> Observer {
-    Observer::new(FinalityProfile::monero(0, sources(&[1, 2, 3])))
+    Observer::new(FinalityProfile::monero(0, sources(&[1, 2, 3]))).unwrap()
 }
 
 fn transfer(chain: Chain, amount: u64) -> Transfer {
@@ -359,4 +359,71 @@ fn tempdir(tag: &str) -> std::path::PathBuf {
     ));
     std::fs::create_dir_all(&p).unwrap();
     p
+}
+
+#[test]
+fn a_profile_that_could_finalize_on_no_evidence_or_never_is_refused() {
+    let mut zero = FinalityProfile::xrpl(0, sources(&[1, 2, 3]));
+    zero.min_sources = 0;
+    assert_eq!(Observer::new(zero).unwrap_err(), ProfileError::NoQuorum);
+    let mut too_few = FinalityProfile::xrpl(0, sources(&[1]));
+    too_few.min_sources = 2;
+    assert_eq!(
+        Observer::new(too_few).unwrap_err(),
+        ProfileError::TooFewSources
+    );
+}
+
+#[test]
+fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
+    let dir = tempdir("journal-expiry");
+    let mut journal = ReceiptJournal::open(dir.join("receipts")).unwrap();
+    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
+    for status in [Status::Unobserved, Status::Observed] {
+        let quiet = Assessment {
+            status,
+            agreeing_sources: 0,
+            inclusion: None,
+        };
+        let receipt = journal.record(Chain::Xrpl, TX, &quiet).unwrap();
+        assert_eq!(receipt.status, Status::Finalized);
+        assert!(!receipt.contradicted_after_finality);
+    }
+    // Fewer sources agreeing on the SAME block is also not a contradiction.
+    let thinner = Assessment {
+        status: Status::Included,
+        agreeing_sources: 1,
+        inclusion: Some((100, [1; 32])),
+    };
+    let receipt = journal.record(Chain::Xrpl, TX, &thinner).unwrap();
+    assert_eq!(receipt.status, Status::Finalized);
+    // An explicit ambiguity or failure is real contradictory evidence.
+    let failed = Assessment {
+        status: Status::Failed,
+        agreeing_sources: 2,
+        inclusion: None,
+    };
+    let receipt = journal.record(Chain::Xrpl, TX, &failed).unwrap();
+    assert!(receipt.contradicted_after_finality);
+}
+
+#[test]
+fn a_failed_journal_write_changes_nothing_and_a_retry_writes_it() {
+    let dir = tempdir("journal-retry");
+    let parent = dir.join("missing");
+    let path = parent.join("receipts");
+    let mut journal = ReceiptJournal::open(&path).unwrap();
+    assert_eq!(
+        journal.record(Chain::Xrpl, TX, &finalized()).unwrap_err(),
+        Refusal::JournalWrite
+    );
+    assert!(
+        journal.get(&TX).is_none(),
+        "a failed write must not leave a receipt"
+    );
+    std::fs::create_dir_all(&parent).unwrap();
+    journal.record(Chain::Xrpl, TX, &finalized()).unwrap();
+    drop(journal);
+    let reopened = ReceiptJournal::open(&path).unwrap();
+    assert_eq!(reopened.get(&TX).unwrap().status, Status::Finalized);
 }

@@ -51,12 +51,14 @@
 //!   payments. It does not identify which outputs the account later spent,
 //!   because that requires the spend key. An audit of a disclosed account
 //!   sees money arriving, not money leaving — a real and asymmetric limit.
-//! - **It does not reveal amounts.** A view key recognizes an output; it
-//!   does not open the Pedersen commitment holding its value. An account
-//!   that wants its sums checkable publishes [`crate::AmountDisclosure`]s
-//!   as well — a separate, per-output, deliberately *chosen* act, which is
-//!   why [`crate::audit_amounts`] reports what was left unopened rather
-//!   than a total that would quietly mean less than it looks like.
+//! - **It does NOT hide amounts.** *Correction:* earlier text here said a view
+//!   key leaves amounts hidden because it does not open the Pedersen
+//!   commitment. That was wrong. The memo that carries the payment's
+//!   `(amount, blinding)` is sealed under the secret a view key recovers, so a
+//!   holder of a published view key can read every recognized payment's amount
+//!   and its commitment opening. Publishing a view key is a full, permanent
+//!   income disclosure including amounts. [`crate::AmountDisclosure`] is for
+//!   proving one payment to someone who does *not* hold the view key.
 //! - **It does not prove completeness.** A disclosure covers one account.
 //!   Nothing here proves that account is the only one its holder controls,
 //!   and no cryptography can prove that. "The treasury disclosed a view key"
@@ -314,12 +316,10 @@ pub fn verify_disclosure(disclosure: &ViewKeyDisclosure) -> Result<VerifiedDiscl
 ///
 /// Two limits carried over unchanged, both worth stating at the call site:
 ///
-/// - **Amounts stay hidden.** A Pedersen commitment is not opened by a view
-///   key, so an audit sees *which* payments arrived and what they were for,
-///   never how much they were worth — unless the account also publishes
-///   [`crate::AmountDisclosure`]s, which open chosen commitments. A view
-///   key alone means the set of incoming payments is checkable, not the
-///   sums.
+/// - **Amounts are NOT hidden from a view-key holder.** The memo's amount and
+///   blinding open under the same secret the view key recovers, so an audit
+///   sees how much each payment was worth, not only that it arrived. (An
+///   earlier version of this note said otherwise; that was wrong.)
 /// - **A stranger can add noise.** Anyone can pay a published address, so
 ///   [`ScanOutcome::unreadable`] may hold payments an unrelated party sent to
 ///   make the audit look untidy. They cost the sender real value and reveal

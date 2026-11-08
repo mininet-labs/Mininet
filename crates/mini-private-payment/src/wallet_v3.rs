@@ -14,10 +14,25 @@
 //!   open lands in [`ScanOutcomeV3::unreadable`] instead of failing the scan,
 //!   so a stranger cannot hide a wallet's other income by sending it one bad
 //!   payment.
-//! - A view key **recognizes** outputs; it does not **open** amounts. Opening is
-//!   a separate, recipient-controlled, acknowledged, permanent act, and an audit
-//!   never returns a bare total: [`AuditedIncomeV3::is_complete`] licenses
-//!   reading the opened sum as income, and only then.
+//! - **A view key reads amounts.** The memo carrying `(amount, blinding)` is
+//!   sealed under the secret a view key recovers, so anyone holding a published
+//!   view key can open every recognized output's amount and its commitment
+//!   opening. There is no separation between recognizing a payment and reading
+//!   it, and this module does not pretend otherwise. (The V2 documentation
+//!   claimed amounts stay hidden under a view key; that was wrong for the same
+//!   reason and is corrected with this change.) Publishing a view key is
+//!   therefore a full, permanent income disclosure including amounts.
+//! - **A scanned note is checked against its commitment.** A malicious payer can
+//!   seal a memo whose `(amount, blinding)` do not open the output's
+//!   commitment, and the claim still verifies because the memo is encrypted. A
+//!   recipient that credited the stated amount would later find the output
+//!   unspendable, so a note that does not open its commitment is `unreadable`,
+//!   never a payment.
+//! - **Amount openings** ([`AmountDisclosureV3`]) are for a recipient proving
+//!   one payment to a party who does *not* hold the view key. An audit that is
+//!   built on a view-key disclosure sees amounts regardless, so for that case
+//!   [`AuditedIncomeV3::unopened`] counts payments with no published opening,
+//!   not payments whose amount is hidden.
 
 use mini_crypto::HashAlgorithm;
 use mini_value::pedersen_commitment_v2;
@@ -66,10 +81,18 @@ pub fn scan_one_v3(
         else {
             continue;
         };
+        let note = claim.open_memo(index, &shared)?;
+        // The memo is encrypted, so verification could not check it: a payer
+        // can seal an amount and blinding that do not open the commitment.
+        let opens = pedersen_commitment_v2(note.amount_micro, &note.blinding)
+            .is_some_and(|c| c.as_slice() == output.amount_commitment.as_slice());
+        if !opens {
+            return Err(PrivatePaymentError::MalformedMemo);
+        }
         found.push(RecognizedPaymentV3 {
             claim: claim.clone(),
             output_index: index,
-            note: claim.open_memo(index, &shared)?,
+            note,
         });
     }
     Ok(found)
@@ -268,8 +291,10 @@ impl AuditedIncomeV3 {
     }
 }
 
-/// Audit income by amount over V3 claims and published openings. The
-/// disclosure's view key establishes which payments are this account's.
+/// Cross-check published openings against V3 claims. The disclosure's view key
+/// establishes which payments are this account's, and (see the module docs) also
+/// lets the auditor read their amounts; this counts payments that have no
+/// verified published opening, and never reports a partial total as income.
 pub fn audit_amounts_v3<'a>(
     disclosure: &VerifiedDisclosure,
     claims: impl IntoIterator<Item = &'a VerifiedPrivateClaimV3>,
@@ -282,8 +307,15 @@ pub fn audit_amounts_v3<'a>(
     );
     let mut audited = AuditedIncomeV3::default();
     let mut matched: Vec<[u8; 32]> = Vec::new();
+    // The same claim fed twice (for example from merged replicated feeds) must
+    // not be counted twice: one payment is one (claim_id, output_index).
+    let mut counted: std::collections::BTreeSet<([u8; 32], usize)> =
+        std::collections::BTreeSet::new();
     for payment in &recognized.payments {
         let id = *payment.claim.claim_id();
+        if !counted.insert((id, payment.output_index)) {
+            continue;
+        }
         let opened = openings
             .iter()
             .filter(|opening| {
@@ -305,7 +337,12 @@ pub fn audit_amounts_v3<'a>(
             None => audited.unopened += 1,
         }
     }
-    audited.unopened += recognized.unreadable.len();
+    let unreadable: std::collections::BTreeSet<[u8; 32]> = recognized
+        .unreadable
+        .iter()
+        .map(|claim| *claim.claim_id())
+        .collect();
+    audited.unopened += unreadable.len();
     audited.unmatched = openings
         .iter()
         .filter(|opening| !matched.contains(&opening.claim_id))
@@ -378,6 +415,46 @@ mod tests {
         )
         .unwrap();
         verify_v3(&claim, &NETWORK).unwrap()
+    }
+
+    #[test]
+    fn a_note_that_does_not_open_its_commitment_is_never_a_payment() {
+        let me = StealthKeypair::generate().unwrap();
+        let claim = pay(&me, 3_000);
+        let mut inner = claim.claim().clone();
+        let shared = recover_shared_secret_v3(
+            &NETWORK,
+            &me.view_secret_bytes(),
+            &me.spend_public_bytes(),
+            &inner.outputs[0],
+        )
+        .unwrap();
+        // A malicious payer seals a larger amount with the right context.
+        let digest = inner.memo_context_digest(0);
+        let context = crate::memo_v3::MemoContextV3 {
+            network_id: &inner.network_id,
+            memo_context_digest: &digest,
+            output_index: 0,
+            tx_public_key: &inner.outputs[0].tx_public_key,
+            one_time_address: &inner.outputs[0].one_time_address,
+            amount_commitment: &inner.outputs[0].amount_commitment,
+        };
+        let forged = PaymentNote::new(
+            PaymentPurpose::new(b"forged".to_vec()),
+            9_000_000,
+            [7u8; 32],
+        );
+        inner.outputs[0].sealed_memo =
+            crate::memo_v3::SealedMemoV3::seal(&forged, &shared, &context).unwrap();
+        let wrapped = VerifiedPrivateClaimV3::unverified_for_test(inner);
+        assert!(scan_one_v3(&me.view_secret_bytes(), &me.spend_public_bytes(), &wrapped).is_err());
+        let outcome = scan_v3(
+            &me.view_secret_bytes(),
+            &me.spend_public_bytes(),
+            [&wrapped],
+        );
+        assert!(outcome.payments.is_empty());
+        assert_eq!(outcome.unreadable.len(), 1);
     }
 
     #[test]
