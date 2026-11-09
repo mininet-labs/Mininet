@@ -91,6 +91,7 @@
 #![warn(missing_debug_implementations)]
 
 pub mod abort;
+pub mod anchor;
 pub mod domains;
 pub mod manifest;
 pub mod rotation;
