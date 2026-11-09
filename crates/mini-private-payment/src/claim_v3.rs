@@ -703,6 +703,15 @@ pub fn verify_v3(
     }
 
     for output in &claim.outputs {
+        // Exactly what the canonical shielded verifier requires, so the public
+        // verified type and consensus accept the same claims: canonical,
+        // non-identity one-time and transaction keys and output commitment.
+        if !mini_value::one_time_key_is_well_formed(&output.one_time_address)
+            || !mini_value::one_time_key_is_well_formed(&output.tx_public_key)
+            || !mini_value::one_time_key_is_well_formed(&output.amount_commitment)
+        {
+            return Err(PrivatePaymentError::MalformedOutput);
+        }
         let mut commitment = [0u8; 32];
         if output.amount_commitment.len() != 32 {
             return Err(PrivatePaymentError::BadRangeProof);

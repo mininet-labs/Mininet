@@ -134,6 +134,9 @@ pub enum Status {
     Ambiguous,
     /// Enough sources agree it failed on chain.
     Failed,
+    /// Enough fresh sources agree the transfer is not on chain at all. Never
+    /// actionable; after a finalized receipt it is a contradiction (a reorg).
+    NotFound,
 }
 
 impl Status {
@@ -145,6 +148,7 @@ impl Status {
             Status::Finalized => 3,
             Status::Ambiguous => 4,
             Status::Failed => 5,
+            Status::NotFound => 6,
         }
     }
     fn from_tag(tag: u8) -> Option<Self> {
@@ -155,6 +159,7 @@ impl Status {
             3 => Status::Finalized,
             4 => Status::Ambiguous,
             5 => Status::Failed,
+            6 => Status::NotFound,
             _ => return None,
         })
     }
@@ -267,6 +272,10 @@ pub struct Assessment {
     pub agreeing_sources: usize,
     /// The agreed inclusion, when there is one.
     pub inclusion: Option<(u64, [u8; 32])>,
+    /// The transfer facts every reporting source agreed on, when any did. A
+    /// finalized receipt persists them so a later different set is a
+    /// contradiction, not a fresh finalization.
+    pub transfer: Option<Transfer>,
 }
 
 #[derive(Debug, Clone)]
@@ -379,6 +388,7 @@ impl Observer {
             status: Status::Unobserved,
             agreeing_sources: 0,
             inclusion: None,
+            transfer: None,
         };
         let Some(by_source) = self.reports.get(tx_hash) else {
             return none;
@@ -397,6 +407,7 @@ impl Observer {
                 status: Status::Ambiguous,
                 agreeing_sources: 0,
                 inclusion: None,
+                transfer: None,
             };
         }
         // Reports that say "found" must describe the identical transfer.
@@ -410,6 +421,7 @@ impl Observer {
                 status: Status::Ambiguous,
                 agreeing_sources: 0,
                 inclusion: None,
+                transfer: None,
             };
         }
         let failed = live
@@ -426,18 +438,40 @@ impl Observer {
             {
                 let entry = inclusions.entry((height, block_hash)).or_default();
                 entry.0 += 1;
-                let deep =
-                    held.report.tip_height.saturating_sub(height) >= self.profile.confirmations;
+                // An inclusion above the source's own chain tip is impossible
+                // and never counts as deep, whatever the confirmation depth.
+                let deep = held.report.tip_height >= height
+                    && held.report.tip_height - height >= self.profile.confirmations;
                 if deep && (validated || !self.profile.require_validated) {
                     entry.1 += 1;
                 }
             }
         }
+        let not_found = live
+            .iter()
+            .filter(|h| matches!(h.report.seen, Seen::NotFound))
+            .count();
+        if not_found >= self.profile.min_sources {
+            // A fresh quorum says it is not there. If anyone still claims it is,
+            // the sources disagree; otherwise it is a clean "not on chain".
+            return Assessment {
+                status: if found.is_empty() {
+                    Status::NotFound
+                } else {
+                    Status::Ambiguous
+                },
+                agreeing_sources: not_found,
+                inclusion: None,
+                transfer: None,
+            };
+        }
+        let agreed_transfer: Option<Transfer> = fields.iter().next().map(|t| (*t).clone());
         if failed > 0 && !inclusions.is_empty() {
             return Assessment {
                 status: Status::Ambiguous,
                 agreeing_sources: 0,
                 inclusion: None,
+                transfer: None,
             };
         }
         if failed >= self.profile.min_sources {
@@ -445,6 +479,7 @@ impl Observer {
                 status: Status::Failed,
                 agreeing_sources: failed,
                 inclusion: None,
+                transfer: None,
             };
         }
         if inclusions.len() > 1 {
@@ -454,6 +489,7 @@ impl Observer {
                 status: Status::Ambiguous,
                 agreeing_sources: 0,
                 inclusion: None,
+                transfer: None,
             };
         }
         if let Some((&(height, block_hash), &(seen, deep))) = inclusions.iter().next() {
@@ -470,6 +506,7 @@ impl Observer {
                     seen
                 },
                 inclusion: Some((height, block_hash)),
+                transfer: agreed_transfer,
             };
         }
         if found.is_empty() {
@@ -479,6 +516,7 @@ impl Observer {
             status: Status::Observed,
             agreeing_sources: found.len(),
             inclusion: None,
+            transfer: agreed_transfer,
         }
     }
 }
@@ -504,6 +542,10 @@ pub struct Receipt {
     pub inclusion: Option<(u64, [u8; 32])>,
     /// Whether a finalized receipt was later contradicted. Never cleared.
     pub contradicted_after_finality: bool,
+    /// The transfer facts (asset, destination hash, amount) the receipt was
+    /// recorded for. A later assessment with different facts for a finalized
+    /// receipt is a permanent contradiction.
+    pub transfer: Option<Transfer>,
 }
 
 type ReceiptKey = (u8, u32, [u8; 32]);
@@ -606,12 +648,41 @@ impl ReceiptJournal {
             "1" => true,
             _ => return None,
         };
+        let (asset, destination, amount) = (parts.next()?, parts.next()?, parts.next()?);
         let inclusion = if block == "-" {
             None
         } else {
             Some((height, unhex32(block)?))
         };
+        let transfer = if asset == "-" {
+            if destination != "-" || amount != "-" {
+                return None;
+            }
+            None
+        } else {
+            Some(Transfer {
+                chain,
+                network,
+                tx_hash,
+                asset: unhex32(asset)?,
+                destination_hash: unhex32(destination)?,
+                amount_minor: amount.parse().ok()?,
+            })
+        };
         if parts.next().is_some() {
+            return None;
+        }
+        // The writer never emits an impossible combination, so one is
+        // corruption or tampering and must not be served as evidence.
+        let consistent = match status {
+            Status::Finalized | Status::Included => inclusion.is_some() && transfer.is_some(),
+            Status::Unobserved | Status::Observed | Status::Failed | Status::NotFound => {
+                inclusion.is_none()
+            }
+            Status::Ambiguous => true,
+        } && (!contradicted
+            || (status == Status::Ambiguous && transfer.is_some()));
+        if !consistent {
             return None;
         }
         Some(Receipt {
@@ -621,6 +692,7 @@ impl ReceiptJournal {
             status,
             inclusion,
             contradicted_after_finality: contradicted,
+            transfer,
         })
     }
 
@@ -631,15 +703,26 @@ impl ReceiptJournal {
                 .inclusion
                 .map(|(h, b)| (h, hex(&b)))
                 .unwrap_or((0, "-".to_string()));
+            let (asset, destination, amount) = match &receipt.transfer {
+                Some(t) => (
+                    hex(&t.asset),
+                    hex(&t.destination_hash),
+                    t.amount_minor.to_string(),
+                ),
+                None => ("-".to_string(), "-".to_string(), "-".to_string()),
+            };
             out.push_str(&format!(
-                "{} {} {} {} {} {} {}\n",
+                "{} {} {} {} {} {} {} {} {} {}\n",
                 receipt.chain.tag(),
                 receipt.network,
                 hex(&receipt.tx_hash),
                 receipt.status.tag(),
                 height,
                 block,
-                u8::from(receipt.contradicted_after_finality)
+                u8::from(receipt.contradicted_after_finality),
+                asset,
+                destination,
+                amount
             ));
         }
         out
@@ -687,12 +770,15 @@ impl ReceiptJournal {
             Some(prev) if prev.contradicted_after_finality => prev,
             Some(prev) if prev.status == Status::Finalized => {
                 let contradicted = match assessment.status {
-                    Status::Ambiguous | Status::Failed => true,
+                    Status::Ambiguous | Status::Failed | Status::NotFound => true,
                     Status::Finalized | Status::Included => {
                         assessment.inclusion.is_some() && assessment.inclusion != prev.inclusion
                     }
                     Status::Unobserved | Status::Observed => false,
-                };
+                } || assessment
+                    .transfer
+                    .as_ref()
+                    .is_some_and(|t| Some(t) != prev.transfer.as_ref());
                 if contradicted {
                     Receipt {
                         status: Status::Ambiguous,
@@ -710,12 +796,18 @@ impl ReceiptJournal {
                 status: assessment.status,
                 inclusion: assessment.inclusion,
                 contradicted_after_finality: false,
+                transfer: assessment.transfer.clone(),
             },
         };
         if self.receipts.get(&key) != Some(&next) {
             let mut staged = self.receipts.clone();
             staged.insert(key, next);
-            mini_durable::atomic_replace(&self.path, Self::render_of(&staged).as_bytes())
+            let rendered = Self::render_of(&staged);
+            // Never persist what load would refuse to read back.
+            if !rendered.lines().all(|line| Self::parse(line).is_some()) {
+                return Err(Refusal::JournalWrite);
+            }
+            mini_durable::atomic_replace(&self.path, rendered.as_bytes())
                 .map_err(|_| Refusal::JournalWrite)?;
             self.receipts = staged;
         }

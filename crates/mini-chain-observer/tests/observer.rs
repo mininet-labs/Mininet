@@ -274,6 +274,7 @@ fn finalized() -> Assessment {
         status: Status::Finalized,
         agreeing_sources: 2,
         inclusion: Some((100, [1; 32])),
+        transfer: Some(transfer(Chain::Xrpl, 5)),
     }
 }
 
@@ -302,6 +303,7 @@ fn a_finalized_receipt_contradicted_later_is_marked_forever_never_erased() {
         status: Status::Finalized,
         agreeing_sources: 2,
         inclusion: Some((101, [2; 32])),
+        transfer: Some(transfer(Chain::Xrpl, 5)),
     };
     let receipt = journal
         .record(Chain::Xrpl, 0, TX, &reorged)
@@ -398,11 +400,114 @@ fn a_stale_reader_sees_a_contradiction_recorded_by_another_instance() {
         status: Status::Finalized,
         agreeing_sources: 2,
         inclusion: Some((101, [2; 32])),
+        transfer: Some(transfer(Chain::Xrpl, 5)),
     };
     writer.record(Chain::Xrpl, 0, TX, &reorged).unwrap();
     let seen = reader.get(Chain::Xrpl, 0, &TX).unwrap();
     assert!(seen.contradicted_after_finality);
     assert!(!seen.status.is_final_evidence());
+}
+
+#[test]
+fn an_inclusion_above_the_reported_tip_never_finalizes_even_with_zero_confirmations() {
+    let mut profile = FinalityProfile::xrpl(0, sources(&[1, 2, 3]));
+    profile.confirmations = 0;
+    let mut o = Observer::new(profile).unwrap();
+    for source in [1, 2] {
+        // Block 500 but the source's own tip is 100: impossible.
+        o.record(
+            transfer(Chain::Xrpl, 5),
+            included(source, 100, 500, 1, true, NOW),
+            NOW,
+        )
+        .unwrap();
+    }
+    assert_ne!(o.assess(&TX, NOW).status, Status::Finalized);
+}
+
+#[test]
+fn a_fresh_not_found_quorum_after_finality_is_a_permanent_contradiction() {
+    let mut o = xrpl();
+    for source in [1, 2] {
+        o.record(
+            transfer(Chain::Xrpl, 5),
+            included(source, 110, 100, 1, true, NOW),
+            NOW,
+        )
+        .unwrap();
+    }
+    let dir = tempdir("journal-notfound");
+    let mut journal = ReceiptJournal::open(dir.join("receipts")).unwrap();
+    let first = o.assess(&TX, NOW);
+    assert_eq!(first.status, Status::Finalized);
+    journal.record(Chain::Xrpl, 0, TX, &first).unwrap();
+
+    // Later every source says "not found" (a rollback), fresh and live.
+    let later = NOW + 1_000;
+    let mut o2 = xrpl();
+    for source in [1, 2] {
+        o2.record(
+            transfer(Chain::Xrpl, 5),
+            SourceReport {
+                source: src(source),
+                transfer_hash: TX,
+                tip_height: 120,
+                seen: Seen::NotFound,
+                observed_at_ms: later,
+            },
+            later,
+        )
+        .unwrap();
+    }
+    let gone = o2.assess(&TX, later);
+    assert_eq!(gone.status, Status::NotFound);
+    let receipt = journal.record(Chain::Xrpl, 0, TX, &gone).unwrap().clone();
+    assert!(receipt.contradicted_after_finality);
+    assert!(!receipt.status.is_final_evidence());
+}
+
+#[test]
+fn a_finalized_receipt_remembers_its_transfer_facts() {
+    let dir = tempdir("journal-facts");
+    let mut journal = ReceiptJournal::open(dir.join("receipts")).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    // Same block, but the quorum now describes a different amount.
+    let changed = Assessment {
+        transfer: Some(transfer(Chain::Xrpl, 9_999)),
+        ..finalized()
+    };
+    let receipt = journal
+        .record(Chain::Xrpl, 0, TX, &changed)
+        .unwrap()
+        .clone();
+    assert!(receipt.contradicted_after_finality);
+    assert!(!receipt.status.is_final_evidence());
+}
+
+#[test]
+fn impossible_receipt_combinations_fail_closed_on_load() {
+    let dir = tempdir("journal-impossible");
+    let path = dir.join("receipts");
+    let mut journal = ReceiptJournal::open(&path).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    drop(journal);
+    let good = std::fs::read_to_string(&path).unwrap();
+    let fields: Vec<&str> = good.trim_end().split(' ').collect();
+    // Finalized with no block.
+    let mut no_block = fields.clone();
+    no_block[5] = "-";
+    // Finalized but flagged contradicted.
+    let mut flagged = fields.clone();
+    flagged[6] = "1";
+    // Finalized with no transfer facts.
+    let mut no_facts = fields.clone();
+    no_facts[7] = "-";
+    no_facts[8] = "-";
+    no_facts[9] = "-";
+    for bad in [no_block, flagged, no_facts] {
+        std::fs::write(&path, format!("{}\n", bad.join(" "))).unwrap();
+        assert!(ReceiptJournal::open(&path).is_err(), "{bad:?}");
+    }
 }
 
 #[test]
@@ -413,11 +518,11 @@ fn a_corrupted_contradiction_flag_fails_closed() {
     journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
     drop(journal);
     let text = std::fs::read_to_string(&path).unwrap();
-    let line = text.trim_end();
-    assert!(line.ends_with(" 0"));
-    for bad in [" 2", " x", " 01", " "] {
-        let corrupted = format!("{}{bad}\n", &line[..line.len() - 2]);
-        std::fs::write(&path, corrupted).unwrap();
+    let fields: Vec<&str> = text.trim_end().split(' ').collect();
+    for bad in ["2", "x", "01", ""] {
+        let mut corrupted = fields.clone();
+        corrupted[6] = bad;
+        std::fs::write(&path, format!("{}\n", corrupted.join(" "))).unwrap();
         assert!(ReceiptJournal::open(&path).is_err(), "flag {bad:?}");
     }
 }
@@ -480,6 +585,7 @@ fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
             status,
             agreeing_sources: 0,
             inclusion: None,
+            transfer: None,
         };
         let receipt = journal.record(Chain::Xrpl, 0, TX, &quiet).unwrap();
         assert_eq!(receipt.status, Status::Finalized);
@@ -490,6 +596,7 @@ fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
         status: Status::Included,
         agreeing_sources: 1,
         inclusion: Some((100, [1; 32])),
+        transfer: Some(transfer(Chain::Xrpl, 5)),
     };
     let receipt = journal.record(Chain::Xrpl, 0, TX, &thinner).unwrap();
     assert_eq!(receipt.status, Status::Finalized);
@@ -498,6 +605,7 @@ fn report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt() {
         status: Status::Failed,
         agreeing_sources: 2,
         inclusion: None,
+        transfer: None,
     };
     let receipt = journal.record(Chain::Xrpl, 0, TX, &failed).unwrap();
     assert!(receipt.contradicted_after_finality);

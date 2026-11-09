@@ -450,6 +450,27 @@ mod tests {
     }
 
     #[test]
+    fn verify_rejects_identity_or_noncanonical_output_keys_and_commitments() {
+        let me = StealthKeypair::generate().unwrap();
+        let good = pay(&me, 3_000).claim().clone();
+        for field in 0..3 {
+            let mut bad = good.clone();
+            match field {
+                0 => bad.outputs[0].tx_public_key = vec![0u8; 32],
+                1 => bad.outputs[0].one_time_address = vec![0u8; 32],
+                _ => bad.outputs[0].amount_commitment = vec![0u8; 32],
+            }
+            assert!(
+                matches!(
+                    verify_v3(&bad, &NETWORK),
+                    Err(PrivatePaymentError::MalformedOutput)
+                ),
+                "field {field}"
+            );
+        }
+    }
+
+    #[test]
     fn a_note_that_does_not_open_its_commitment_is_never_a_payment() {
         let me = StealthKeypair::generate().unwrap();
         let claim = pay(&me, 3_000);

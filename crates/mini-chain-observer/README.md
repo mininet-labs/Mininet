@@ -14,7 +14,13 @@ Callers feed it reports from independently operated sources; it weighs them.
   ledger). Disagreement on amount, destination, asset or block is `Ambiguous`.
 - Wrong network, unknown source, stale and future-dated reports are refused.
 - A durable, idempotent receipt journal records the strongest honest status; a
-  finalized receipt later contradicted is marked forever, never erased.
+  finalized receipt later contradicted is marked forever, never erased. A
+  contradiction is a different inclusion, an explicit `Ambiguous`/`Failed`, a
+  fresh quorum saying `NotFound` (a rollback), or different transfer facts
+  (asset, destination hash, amount) than the ones finalized. An inclusion above
+  a source's own chain tip never counts. The journal fails closed on corrupt,
+  duplicate, over-limit or internally inconsistent lines, and reads are always
+  fresh from disk.
 
 Not audited. A lying quorum is indistinguishable from an honest one, so source
 independence is an operator question. Monero payments are private by design:
