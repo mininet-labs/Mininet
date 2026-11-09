@@ -3490,6 +3490,7 @@ dependencies = [
  "mini-chain",
  "mini-consensus",
  "mini-crypto",
+ "mini-durable",
  "mini-execution",
  "mini-private-payment",
  "mini-value",

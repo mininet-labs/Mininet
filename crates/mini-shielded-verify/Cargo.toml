@@ -19,6 +19,8 @@ publish = false
 mini-execution = { path = "../mini-execution" }
 mini-value = { path = "../mini-value" }
 mini-private-payment = { path = "../mini-private-payment" }
+# Atomic, fsync-ordered file replacement for the optional durable evidence file.
+mini-durable = { path = "../mini-durable" }
 
 [dev-dependencies]
 # Test-only: proving this crate's bridge logic against a genuine claim

@@ -26673,3 +26673,20 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** surface `claim redeem` in the desktop panel (the wallet can create a participation grant only from a redemption ID obtained elsewhere).
 
 **Supersedes / superseded by:** refines D-0549; none.
+
+
+### D-0552 — Follow-ups to D-0550: local durable V3 claim-evidence retention, exhaustive decode mutation test, real multi-process journal test  ·  *Shipped*
+
+**Decision:** Close the follow-ups that code alone can close. `ClaimEvidencePoolV3::save`/`load` persist retained claim bytes to a file (atomic replace, `claim_id` order, the recorded `claim_id` stored beside each entry); `load` re-admits every entry through the strict `insert`, checks it against its recorded id and order, and fails closed on any truncation, padding, duplication, bit rot or foreign file. A unit test checks that every strict prefix of a V3 claim is refused and that no single-byte mutation of a canonical claim can alias the original `claim_id`. A test launches four real processes sharing one observer journal and checks no record is lost.
+
+**Reason:** D-0550 listed durable retention, fuzz targets and a multiprocess test as follow-ups; these are the parts that need no external decision or audit.
+
+**Constitutional impact:** Directive 14 (simplicity: no new construction, reuses the existing strict admission path); Directive 9. No dependency edge between value and governance/review crates (`mini-shielded-verify` gains only `mini-durable`); no Tier-F row touched.
+
+**Implementation status:** shipped with tests. Not done, and why: gossip/fetch of missing claim bytes between peers (needs a network protocol and a threat model); a real `cargo-fuzz` harness (no nightly/libFuzzer environment here, so the mutation test is deterministic, not coverage-guided); a distributed multi-host partition test; the claim-redeem button in the desktop panel (adds wire commands and secret entry in the GUI, which needs its own review); transparent-path retirement, fee-policy activation and the weak-device baseline (need an authorised decision or hardware); FROST whole-disk-restore defense (needs an external monotonic counter); bridges and external audits (separate threat model and procurement).
+
+**Failure point:** the evidence file is not encrypted or access-controlled beyond the host's file permissions, and it holds claim bytes that are public on the ledger anyway; a host that never calls `save` loses evidence on restart exactly as before; `load` trusts nothing, but a full pool still fails closed rather than evicting.
+
+**Required follow-up:** the items listed above under "Not done".
+
+**Supersedes / superseded by:** extends D-0550; none.
