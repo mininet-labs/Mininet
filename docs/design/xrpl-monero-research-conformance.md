@@ -70,7 +70,7 @@ research's own recommended defaults, recorded here so they can be corrected:
 | T16 consensus partition | partial | replica replay converges (`catch_up`); a multiprocess partition/rejoin test is not done |
 | T17 snapshot tampering | partial | restore works and fails without a verifier; tampered-state and supply-tampering rejection are covered by existing generic tests (`mini-consensus` `wrong_network_and_tampered_state_fail_closed`, `mini-execution` `supply_tampering_is_rejected`), not re-run against a V3 chain |
 | T18 power loss | partial | `t18_*` (failed application leaves state untouched); crash at every wallet/outbox write stage not done |
-| T19 FROST nonce reuse | partial | existing `DurableCustodySigner` burns reservations on reopen (`mini-custody` unit tests). A whole-disk restore **cannot** be detected by a local file; that needs a monotonic external counter, not built |
+| T19 FROST nonce reuse | partial | existing `DurableCustodySigner` burns reservations on reopen (`mini-custody` unit tests). A whole-disk restore **cannot** be detected by a local file; `mini_custody::anchor` (D-0553) detects it given a monotonic counter outside the restored storage, but no hardware/remote counter is built or audited here |
 | T20 malicious coordinator | partial | existing `session_binding.rs` covers manifest/attempt mismatch in the DKG; signing-package substitution across signers is not separately tested |
 | T21 DKG share churn | partial | existing DKG/resharing tests; not re-verified for this matrix |
 | T22 weak-device DoS | partial | harness and sandbox numbers only; no weak-device baseline chosen or measured |
