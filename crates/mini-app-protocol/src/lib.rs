@@ -407,6 +407,13 @@ impl Request {
                 validate_operation_id(operation_id)?;
                 validate_beta_grant_ids(policy_id, grant_id)?;
             }
+            Command::BetaClaimRedeem {
+                contribution_id, ..
+            } => {
+                if contribution_id.is_empty() || contribution_id.len() > MAX_OBJECT_ID_BYTES {
+                    return Err(ProtocolError::LimitExceeded("beta claim contribution id"));
+                }
+            }
             Command::BetaGrantStatus {
                 policy_id,
                 grant_id,
@@ -661,6 +668,35 @@ pub struct BetaBalancesView {
     pub snapshot_digest: [u8; 32],
 }
 
+/// A one-time claim secret (bearer material: whoever holds it can redeem the
+/// reward). Never printed by `Debug`, and overwritten when dropped.
+#[derive(Clone, PartialEq, Eq)]
+pub struct ClaimSecret([u8; 32]);
+
+impl ClaimSecret {
+    /// Wrap 32 secret bytes.
+    pub fn new(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    /// The secret bytes. Callers must not log or persist them.
+    pub fn expose(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl core::fmt::Debug for ClaimSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("ClaimSecret(..)")
+    }
+}
+
+impl Drop for ClaimSecret {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.0);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     /// Register the next opaque BETA account for this identity in `epoch`.
@@ -694,6 +730,16 @@ pub enum Command {
         operation_id: String,
         policy_id: String,
         grant_id: String,
+    },
+    /// Redeem a private participation claim: sign `(contribution, epoch,
+    /// account)` with the one-time claim key under a throwaway identity and
+    /// publish the redemption. The secret never leaves the core's memory and is
+    /// not journaled. Retrying makes another valid redemption; only one can back
+    /// a grant.
+    BetaClaimRedeem {
+        contribution_id: String,
+        claim_secret: ClaimSecret,
+        account: [u8; 32],
     },
     /// Read-only: count the distinct policy-member approvals for a grant.
     BetaGrantStatus {
@@ -913,6 +959,10 @@ pub enum Reply {
     },
     BetaGrantCreated {
         grant_id: String,
+    },
+    /// Result of [`Command::BetaClaimRedeem`].
+    BetaClaimRedeemed {
+        redemption_id: String,
     },
     /// Device storage headroom: `level` 0 = ok, 1 = low (warn), 2 = critical
     /// (large writes paused). `free_mib` is 0 when the platform cannot report.
@@ -1324,6 +1374,16 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             encoder.string(policy_id, MAX_OBJECT_ID_BYTES)?;
             encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
         }
+        Command::BetaClaimRedeem {
+            contribution_id,
+            claim_secret,
+            account,
+        } => {
+            encoder.u8(52);
+            encoder.string(contribution_id, MAX_OBJECT_ID_BYTES)?;
+            encoder.byte_string(claim_secret.expose(), 32)?;
+            encoder.byte_string(account, 32)?;
+        }
         Command::BetaGrantStatus {
             policy_id,
             grant_id,
@@ -1627,6 +1687,11 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             operation_id: decoder.string(MAX_OPERATION_ID_BYTES)?,
             policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
             grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        52 => Ok(Command::BetaClaimRedeem {
+            contribution_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+            claim_secret: ClaimSecret::new(array32(decoder.byte_string(32)?, "claim secret")?),
+            account: array32(decoder.byte_string(32)?, "beta account")?,
         }),
         44 => Ok(Command::BetaGrantStatus {
             policy_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
@@ -1934,6 +1999,10 @@ fn encode_reply(encoder: &mut Encoder, reply: &Reply) -> Result<(), ProtocolErro
             encoder.u8(46);
             encoder.string(grant_id, MAX_OBJECT_ID_BYTES)?;
         }
+        Reply::BetaClaimRedeemed { redemption_id } => {
+            encoder.u8(50);
+            encoder.string(redemption_id, MAX_OBJECT_ID_BYTES)?;
+        }
         Reply::CommunityVote {
             yes,
             no,
@@ -2093,6 +2162,9 @@ fn decode_reply(decoder: &mut Decoder<'_>) -> Result<Reply, ProtocolError> {
         }),
         46 => Ok(Reply::BetaGrantCreated {
             grant_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
+        }),
+        50 => Ok(Reply::BetaClaimRedeemed {
+            redemption_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
         }),
         49 => Ok(Reply::CommunityVote {
             yes: decoder.u32()?,
@@ -4019,5 +4091,36 @@ mod media_post_protocol_tests {
                 response
             );
         }
+    }
+
+    #[test]
+    fn claim_redeem_round_trips_validates_and_never_prints_its_secret() {
+        let command = Command::BetaClaimRedeem {
+            contribution_id: "zcontribution".to_string(),
+            claim_secret: ClaimSecret::new([0xcd; 32]),
+            account: [3; 32],
+        };
+        let request = Request::new(1, command.clone());
+        let mut bytes = Vec::new();
+        write_request(&mut bytes, &request).unwrap();
+        let decoded = read_request(&mut bytes.as_slice()).unwrap().unwrap();
+        assert_eq!(decoded, request);
+        assert!(!format!("{decoded:?}").contains("cdcd"));
+        let empty = Request::new(
+            1,
+            Command::BetaClaimRedeem {
+                contribution_id: String::new(),
+                claim_secret: ClaimSecret::new([1; 32]),
+                account: [3; 32],
+            },
+        );
+        assert!(write_request(&mut Vec::new(), &empty).is_err());
+        let reply = Reply::BetaClaimRedeemed {
+            redemption_id: "zredemption".to_string(),
+        };
+        let mut sink = Vec::new();
+        write_response(&mut sink, &Response::ok(1, reply.clone())).unwrap();
+        let back = read_response(&mut sink.as_slice()).unwrap().unwrap();
+        assert_eq!(back.body, ResponseBody::Ok(reply));
     }
 }

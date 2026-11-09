@@ -1502,3 +1502,72 @@ fn storage_status_reports_a_level_and_sweeps_stale_temporaries_in_the_profile() 
     assert!(fresh.exists() && real.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn a_claim_is_redeemed_under_a_throwaway_identity_and_a_wrong_secret_stores_nothing() {
+    use mini_beta::{
+        create_contribution_receipt, verify_claim_redemption, ClaimKey, ContributionKind,
+    };
+    let (mut core, root) = unlocked("beta-claim-redeem");
+    let campaign = own_campaign(&mut core);
+    let human = core.human.clone().expect("root exists");
+    let record_signer = signer(10);
+    let key = ClaimKey::generate().unwrap();
+    let source = ObjectBuilder::new(ObjectType::Custom("mininet.beta-wallet/test-source".into()))
+        .timestamp_ms(2)
+        .sequence(3)
+        .payload(Payload::Public(b"accepted work".to_vec()))
+        .sign(&record_signer.did(), &record_signer)
+        .unwrap();
+    core.store.insert(&source).unwrap();
+    let campaign_id = ObjectId::parse(&campaign).unwrap();
+    let receipt = create_contribution_receipt(
+        &mut core.store,
+        &record_signer.did(),
+        &record_signer,
+        source.id(),
+        Some(&campaign_id),
+        key.claim_tag().unwrap(),
+        ContributionKind::Testing,
+        "accepted",
+        &["evidence:accepted".to_string()],
+        10,
+        4,
+    )
+    .unwrap();
+    let carriers_before = count_type(&core, "mini/kel");
+
+    // A wrong secret is refused and leaves no throwaway carriers behind.
+    let wrong = ClaimKey::generate().unwrap();
+    let err = core
+        .handle(Command::BetaClaimRedeem {
+            contribution_id: receipt.id().as_str().to_string(),
+            claim_secret: mini_app_protocol::ClaimSecret::new(wrong.secret()),
+            account: [5; 32],
+        })
+        .unwrap_err();
+    assert!(matches!(err.code, ErrorCode::BadRequest), "{:?}", err.code);
+    assert_eq!(count_type(&core, "mini/kel"), carriers_before);
+
+    // The right secret redeems; the redemption verifies and is not authored by
+    // the primary identity.
+    let secret = key.secret();
+    let command = Command::BetaClaimRedeem {
+        contribution_id: receipt.id().as_str().to_string(),
+        claim_secret: mini_app_protocol::ClaimSecret::new(secret),
+        account: [5; 32],
+    };
+    let hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+    assert!(
+        !format!("{command:?}").contains(&hex),
+        "Debug must not print the secret"
+    );
+    let Reply::BetaClaimRedeemed { redemption_id } = core.handle(command).unwrap() else {
+        panic!("expected a redemption reply");
+    };
+    let redemption =
+        verify_claim_redemption(&core.store, &ObjectId::parse(&redemption_id).unwrap()).unwrap();
+    assert_eq!(redemption.account.as_bytes(), &[5; 32]);
+    assert_ne!(redemption.record_author, human);
+    fs::remove_dir_all(root).unwrap();
+}

@@ -5,7 +5,7 @@
 //! core; this panel holds no keys and signs nothing itself.
 use eframe::egui;
 use mini_app_protocol::{
-    BetaBalancesView, BetaGrantClass, MAX_BETA_CAMPAIGNS, MAX_BETA_GRANT_MEMBERS,
+    BetaBalancesView, BetaGrantClass, ClaimSecret, MAX_BETA_CAMPAIGNS, MAX_BETA_GRANT_MEMBERS,
     MAX_BETA_MEMO_BYTES, MAX_BETA_REWARD_BANDS, MAX_DID_BYTES, MAX_OBJECT_ID_BYTES,
 };
 
@@ -42,6 +42,13 @@ pub(crate) enum Request {
         operation_id: String,
         policy_id: String,
         grant_id: String,
+    },
+    /// Redeem a private participation claim. The secret is bearer material: it
+    /// is wiped from the panel as soon as the request is built and never shown.
+    ClaimRedeem {
+        contribution_id: String,
+        claim_secret: ClaimSecret,
+        account: [u8; 32],
     },
     /// Read-only approval count for one grant.
     GrantStatus { policy_id: String, grant_id: String },
@@ -104,6 +111,10 @@ pub(crate) struct Panel {
     create_amount: String,
     create_memo: String,
     create_op: Option<(Request, String)>,
+    claim_contribution: String,
+    /// Typed by the user, wiped once a request is built. Never displayed.
+    claim_secret: String,
+    claim_account: String,
     /// Explicit per-action signing confirmation; reset after every signed request.
     confirm: bool,
     balances_for: (String, String),
@@ -478,6 +489,33 @@ It has no effect until the policy threshold of members approve it. Test value on
         Ok(request)
     }
 
+    /// Build a claim redemption from the panel fields. On success the secret
+    /// field is wiped; on a validation error nothing is cleared so the user can
+    /// correct it.
+    pub(crate) fn claim_redeem_request(&mut self) -> Result<Request, String> {
+        let contribution = self.claim_contribution.trim();
+        if contribution.is_empty() || contribution.len() > MAX_OBJECT_ID_BYTES {
+            return Err("enter the accepted contribution ID".into());
+        }
+        let contribution_id = contribution.to_string();
+        let secret = parse_hex32(&self.claim_secret, "claim secret")?;
+        let account = parse_hex32(&self.claim_account, "your BETA account")?;
+        zeroize::Zeroize::zeroize(&mut self.claim_secret);
+        Ok(Request::ClaimRedeem {
+            contribution_id,
+            claim_secret: ClaimSecret::new(secret),
+            account,
+        })
+    }
+
+    pub(crate) fn on_claim_redeemed(&mut self, redemption_id: &str) {
+        zeroize::Zeroize::zeroize(&mut self.claim_secret);
+        self.status = format!(
+            "Claim redeemed under a one-time identity. Give this redemption ID to the grant \
+authorizer (it contains no secret): {redemption_id}. Test value only."
+        );
+    }
+
     pub(crate) fn grant_status_request(&self) -> Result<Request, String> {
         let (policy_id, grant_id) = self.grant_ids()?;
         Ok(Request::GrantStatus {
@@ -671,6 +709,30 @@ not a conversion.",
                     request = Some(self.grant_status_request());
                 }
             });
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new("Redeem a private claim").strong());
+            ui.label(
+                "Use the claim secret you generated (`beta claim new`) for an accepted \
+contribution. It signs your chosen BETA account into a redemption under a throwaway identity, \
+not your primary one. The secret is bearer material: anyone who has it can redeem first. It is \
+wiped from this field when you press the button and is never stored. Test value only.",
+            );
+            ui.add_enabled_ui(!busy, |ui| {
+                ui.label("Accepted contribution ID");
+                ui.text_edit_singleline(&mut self.claim_contribution);
+                ui.label("Claim secret (64 hex, hidden)");
+                ui.add(egui::TextEdit::singleline(&mut self.claim_secret).password(true));
+                ui.label("Your BETA account (64 hex)");
+                ui.text_edit_singleline(&mut self.claim_account);
+            });
+            if ui
+                .add_enabled(!busy, theme::secondary_button("Redeem claim"))
+                .clicked()
+            {
+                request = Some(self.claim_redeem_request());
+            }
         });
         ui.add_space(8.0);
         theme::card_frame().show(ui, |ui| {
@@ -1156,5 +1218,48 @@ mod tests {
         p.on_transfer(500_000, 500_000);
         assert!(p.amount.is_empty() && p.memo.is_empty());
         assert!(p.status.contains("provisional"));
+    }
+
+    #[test]
+    fn the_claim_secret_is_wiped_on_success_kept_on_error_and_never_printed() {
+        let mut p = panel();
+        p.claim_contribution = "zcontribution".into();
+        p.claim_secret = "ab".repeat(32);
+        p.claim_account = "05".repeat(32);
+
+        // A bad account leaves the secret in place so the user can fix the form.
+        p.claim_account = "nope".into();
+        assert!(p.claim_redeem_request().is_err());
+        assert_eq!(p.claim_secret, "ab".repeat(32));
+        // A bad secret is refused without building anything.
+        p.claim_account = "05".repeat(32);
+        p.claim_secret = "xyz".into();
+        assert!(p.claim_redeem_request().is_err());
+        p.claim_contribution.clear();
+        p.claim_secret = "ab".repeat(32);
+        assert!(p.claim_redeem_request().is_err(), "contribution required");
+
+        p.claim_contribution = "zcontribution".into();
+        let request = p.claim_redeem_request().unwrap();
+        assert!(
+            p.claim_secret.is_empty(),
+            "secret wiped once the request exists"
+        );
+        let Request::ClaimRedeem {
+            claim_secret,
+            account,
+            ..
+        } = &request
+        else {
+            panic!("expected a claim redemption");
+        };
+        assert_eq!(claim_secret.expose(), &[0xab; 32]);
+        assert_eq!(account, &[5u8; 32]);
+        let printed = format!("{request:?}");
+        assert!(!printed.contains("abab"), "Debug must not print the secret");
+
+        p.on_claim_redeemed("zredemption");
+        assert!(p.status.contains("zredemption"));
+        assert!(!p.status.contains("abab"));
     }
 }
