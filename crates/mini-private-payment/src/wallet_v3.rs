@@ -75,9 +75,9 @@ fn scan_claim_v3(
     view_secret: &[u8],
     spend_public: &[u8],
     claim: &VerifiedPrivateClaimV3,
-) -> (Vec<RecognizedPaymentV3>, bool) {
+) -> (Vec<RecognizedPaymentV3>, usize) {
     let mut found = Vec::new();
-    let mut anomaly = false;
+    let mut anomaly = 0usize;
     for (index, output) in claim.claim().outputs.iter().enumerate() {
         let Some(shared) =
             recover_shared_secret_v3(&claim.claim().network_id, view_secret, spend_public, output)
@@ -85,7 +85,7 @@ fn scan_claim_v3(
             continue;
         };
         let Ok(note) = claim.open_memo(index, &shared) else {
-            anomaly = true;
+            anomaly += 1;
             continue;
         };
         // The memo is encrypted, so verification could not check it: a payer
@@ -93,7 +93,7 @@ fn scan_claim_v3(
         let opens = pedersen_commitment_v2(note.amount_micro, &note.blinding)
             .is_some_and(|c| c.as_slice() == output.amount_commitment.as_slice());
         if !opens {
-            anomaly = true;
+            anomaly += 1;
             continue;
         }
         found.push(RecognizedPaymentV3 {
@@ -114,7 +114,7 @@ pub fn scan_one_v3(
     claim: &VerifiedPrivateClaimV3,
 ) -> Result<Vec<RecognizedPaymentV3>> {
     let (found, anomaly) = scan_claim_v3(view_secret, spend_public, claim);
-    if anomaly {
+    if anomaly > 0 {
         return Err(PrivatePaymentError::MalformedMemo);
     }
     Ok(found)
@@ -129,6 +129,9 @@ pub struct ScanOutcomeV3 {
     /// be read. Such a claim may also appear in `payments` for its readable
     /// outputs. The value is still there; only the stated purpose is missing.
     pub unreadable: Vec<VerifiedPrivateClaimV3>,
+    /// Per `claim_id`, how many outputs addressed to these keys could not be
+    /// read. Keyed by claim so the same claim fed twice counts once.
+    pub unreadable_outputs: std::collections::BTreeMap<[u8; 32], usize>,
 }
 
 impl ScanOutcomeV3 {
@@ -153,8 +156,11 @@ pub fn scan_v3<'a>(
     for claim in claims {
         let (payments, anomaly) = scan_claim_v3(view_secret, spend_public, claim);
         outcome.payments.extend(payments);
-        if anomaly {
+        if anomaly > 0 {
             outcome.unreadable.push(claim.clone());
+            outcome
+                .unreadable_outputs
+                .insert(*claim.claim_id(), anomaly);
         }
     }
     outcome
@@ -363,12 +369,7 @@ pub fn audit_amounts_v3<'a>(
             None => audited.unopened += 1,
         }
     }
-    let unreadable: std::collections::BTreeSet<[u8; 32]> = recognized
-        .unreadable
-        .iter()
-        .map(|claim| *claim.claim_id())
-        .collect();
-    audited.unopened += unreadable.len();
+    audited.unopened += recognized.unreadable_outputs.values().sum::<usize>();
     audited.unmatched = openings
         .iter()
         .filter(|opening| !matched.contains(&opening.claim_id))
@@ -537,6 +538,15 @@ mod tests {
         assert_eq!(outcome.payments[0].note.amount_micro, 4_000);
         assert_eq!(outcome.unreadable.len(), 1, "and the anomaly is reported");
         assert_eq!(outcome.all_claims().count(), 1);
+        assert_eq!(outcome.unreadable_outputs.values().sum::<usize>(), 1);
+
+        // Two bad outputs in one claim are two anomalies, not one.
+        let mut both = wrapped.claim().clone();
+        both.outputs[0].sealed_memo = donor.claim().outputs[0].sealed_memo.clone();
+        let both = VerifiedPrivateClaimV3::unverified_for_test(both);
+        let outcome = scan_v3(&me.view_secret_bytes(), &me.spend_public_bytes(), [&both]);
+        assert!(outcome.payments.is_empty());
+        assert_eq!(outcome.unreadable_outputs.values().sum::<usize>(), 2);
     }
 
     #[test]

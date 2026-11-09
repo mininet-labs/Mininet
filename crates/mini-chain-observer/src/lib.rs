@@ -251,6 +251,9 @@ pub enum Refusal {
     FromTheFuture,
     /// The journal is full.
     JournalFull,
+    /// Too many distinct transfers are being tracked at once; unexpired reports
+    /// are never evicted to make room, so the newcomer is refused instead.
+    TooManyTransfers,
     /// The journal could not be written durably.
     JournalWrite,
 }
@@ -322,6 +325,21 @@ impl Observer {
         }
         if now_ms.saturating_sub(report.observed_at_ms) > self.profile.max_report_age_ms {
             return Err(Refusal::Stale);
+        }
+        // Bound memory: drop expired reports (and emptied transfers), and refuse
+        // a new transfer hash only when the cap is still reached with live ones.
+        if self.reports.len() >= MAX_TRACKED_TRANSFERS {
+            let max_age = self.profile.max_report_age_ms;
+            self.reports.retain(|_, by_source| {
+                by_source
+                    .retain(|_, held| now_ms.saturating_sub(held.report.observed_at_ms) <= max_age);
+                !by_source.is_empty()
+            });
+            if self.reports.len() >= MAX_TRACKED_TRANSFERS
+                && !self.reports.contains_key(&transfer.tx_hash)
+            {
+                return Err(Refusal::TooManyTransfers);
+            }
         }
         let by_source = self.reports.entry(transfer.tx_hash).or_default();
         match by_source.get_mut(&report.source) {
@@ -467,6 +485,9 @@ impl Observer {
 
 const MAX_JOURNAL_RECORDS: usize = 65_536;
 
+/// Most distinct transfer hashes the observer holds live reports for.
+const MAX_TRACKED_TRANSFERS: usize = 65_536;
+
 /// One durable line per transfer: the strongest honest statement so far.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Receipt {
@@ -528,7 +549,16 @@ impl ReceiptJournal {
         let mut receipts = BTreeMap::new();
         match std::fs::read_to_string(path) {
             Ok(text) => {
-                for line in text.lines().take(MAX_JOURNAL_RECORDS) {
+                // This implementation never writes more than the cap, so a longer
+                // file is corrupt: fail closed rather than ignore (and later
+                // overwrite) the suffix.
+                if text.lines().count() > MAX_JOURNAL_RECORDS {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "receipt journal exceeds its record limit",
+                    ));
+                }
+                for line in text.lines() {
                     let receipt = Self::parse(line).ok_or_else(|| {
                         std::io::Error::new(
                             std::io::ErrorKind::InvalidData,

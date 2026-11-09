@@ -335,6 +335,40 @@ fn a_corrupt_journal_fails_closed() {
 }
 
 #[test]
+fn a_journal_beyond_the_record_limit_fails_closed_not_truncated() {
+    let dir = tempdir("journal-long");
+    let path = dir.join("receipts");
+    let line = format!("0 0 {} 1 100 {} 0\n", "07".repeat(32), "01".repeat(32));
+    std::fs::write(&path, line.repeat(65_537)).unwrap();
+    assert!(ReceiptJournal::open(&path).is_err());
+}
+
+#[test]
+fn the_observer_bounds_tracked_transfers_and_evicts_expired_reports() {
+    let mut o = xrpl();
+    let report = |n: u32, at: u64| {
+        let mut hash = [0u8; 32];
+        hash[..4].copy_from_slice(&n.to_be_bytes());
+        let mut t = transfer(Chain::Xrpl, 5);
+        t.tx_hash = hash;
+        let mut r = included(1, 110, 100, 1, true, at);
+        r.transfer_hash = hash;
+        (t, r)
+    };
+    for n in 0..65_536u32 {
+        let (t, r) = report(n, NOW);
+        o.record(t, r, NOW).unwrap();
+    }
+    // Live reports are never evicted to make room: the newcomer is refused.
+    let (t, r) = report(70_000, NOW);
+    assert_eq!(o.record(t, r, NOW), Err(Refusal::TooManyTransfers));
+    // Once the old reports have expired they are dropped and room appears.
+    let later = NOW + 5_000_000;
+    let (t, r) = report(70_000, later);
+    o.record(t, r, later).unwrap();
+}
+
+#[test]
 fn a_corrupted_contradiction_flag_fails_closed() {
     let dir = tempdir("journal-flag");
     let path = dir.join("receipts");
