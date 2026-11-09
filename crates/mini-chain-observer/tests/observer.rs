@@ -706,3 +706,63 @@ fn receipts_for_different_networks_never_alias() {
     assert_eq!(receipt.network, 1);
     assert!(reopened.get(Chain::Xrpl, 0, &TX).is_none());
 }
+
+/// Child half of the multiprocess test: does nothing unless launched by the
+/// parent with the journal path and a worker number in the environment.
+#[test]
+fn multiprocess_child() {
+    let (Ok(path), Ok(worker)) = (
+        std::env::var("MINI_OBSERVER_CHILD_JOURNAL"),
+        std::env::var("MINI_OBSERVER_CHILD_WORKER"),
+    ) else {
+        return;
+    };
+    let worker: u8 = worker.parse().unwrap();
+    let mut journal = ReceiptJournal::open(&path).unwrap();
+    for i in 0..40u8 {
+        let mut tx = [0u8; 32];
+        tx[0] = worker;
+        tx[1] = i;
+        let mut t = transfer(Chain::Xrpl, 5);
+        t.tx_hash = tx;
+        let assessment = Assessment {
+            transfer: Some(t),
+            ..finalized()
+        };
+        journal.record(Chain::Xrpl, 0, tx, &assessment).unwrap();
+    }
+}
+
+#[test]
+fn separate_processes_sharing_one_journal_lose_no_records() {
+    let dir = tempdir("journal-multiprocess");
+    let path = dir.join("receipts");
+    let exe = std::env::current_exe().unwrap();
+    let children: Vec<_> = (1..=4u8)
+        .map(|worker| {
+            std::process::Command::new(&exe)
+                .args(["--exact", "multiprocess_child", "--test-threads=1"])
+                .env("MINI_OBSERVER_CHILD_JOURNAL", &path)
+                .env("MINI_OBSERVER_CHILD_WORKER", worker.to_string())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .unwrap()
+        })
+        .collect();
+    for mut child in children {
+        assert!(child.wait().unwrap().success(), "a worker process failed");
+    }
+    let journal = ReceiptJournal::open(&path).unwrap();
+    for worker in 1..=4u8 {
+        for i in 0..40u8 {
+            let mut tx = [0u8; 32];
+            tx[0] = worker;
+            tx[1] = i;
+            assert!(
+                journal.get(Chain::Xrpl, 0, &tx).is_some(),
+                "worker {worker} record {i} was lost"
+            );
+        }
+    }
+}

@@ -142,7 +142,87 @@ impl ClaimEvidencePoolV3 {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// Write every retained claim to `path` (atomic replace, fsync-ordered),
+    /// in `claim_id` order so the file is deterministic. A crash leaves the old
+    /// or the new file, never a torn one.
+    pub fn save(&self, path: &std::path::Path) -> std::io::Result<()> {
+        let state = self
+            .state
+            .read()
+            .expect("claim evidence pool lock poisoned");
+        let mut out = Vec::with_capacity(8 + state.total_bytes + state.claims.len() * 4);
+        out.extend_from_slice(DURABLE_MAGIC);
+        out.extend_from_slice(&(state.claims.len() as u32).to_be_bytes());
+        for (id, bytes) in &state.claims {
+            out.extend_from_slice(id);
+            out.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+            out.extend_from_slice(bytes);
+        }
+        mini_durable::atomic_replace(path, &out)
+    }
+
+    /// Rebuild a pool from a file written by [`ClaimEvidencePoolV3::save`]. A
+    /// missing file is an empty pool. Every entry goes back through
+    /// [`ClaimEvidencePoolV3::insert`], so the file is no more trusted than
+    /// live gossip: it must decode strictly, re-encode to itself, fit the
+    /// limits, and match the `claim_id` recorded beside it, in order. A
+    /// truncated, padded, duplicated, out-of-order or otherwise corrupt file
+    /// fails closed with `InvalidData`; nothing is partially loaded.
+    pub fn load(path: &std::path::Path, limits: EvidenceLimits) -> std::io::Result<Self> {
+        let bad = |why: &'static str| std::io::Error::new(std::io::ErrorKind::InvalidData, why);
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::with_limits(limits))
+            }
+            Err(e) => return Err(e),
+        };
+        let pool = Self::with_limits(limits);
+        let mut cursor = bytes.as_slice();
+        let take = |cursor: &mut &[u8], n: usize| -> Option<Vec<u8>> {
+            if cursor.len() < n {
+                return None;
+            }
+            let (head, rest) = cursor.split_at(n);
+            *cursor = rest;
+            Some(head.to_vec())
+        };
+        if take(&mut cursor, DURABLE_MAGIC.len()).as_deref() != Some(DURABLE_MAGIC) {
+            return Err(bad("not a claim evidence file"));
+        }
+        let count_bytes = take(&mut cursor, 4).ok_or_else(|| bad("truncated"))?;
+        let count = u32::from_be_bytes(count_bytes.try_into().expect("four bytes")) as usize;
+        if count > pool.limits.max_claims {
+            return Err(bad("more claims than the limit"));
+        }
+        let mut previous: Option<[u8; 32]> = None;
+        for _ in 0..count {
+            let stored_id = take(&mut cursor, 32).ok_or_else(|| bad("truncated"))?;
+            let len_bytes = take(&mut cursor, 4).ok_or_else(|| bad("truncated"))?;
+            let len = u32::from_be_bytes(len_bytes.try_into().expect("four bytes")) as usize;
+            let claim = take(&mut cursor, len).ok_or_else(|| bad("truncated"))?;
+            let id = pool
+                .insert(claim)
+                .map_err(|_| bad("an entry was refused on reload"))?;
+            // The recorded id covers every byte of the claim, so any bit rot or
+            // edit inside an entry is caught here, not only framing damage.
+            if stored_id.as_slice() != id.as_slice() {
+                return Err(bad("an entry does not match its recorded claim id"));
+            }
+            if previous.is_some_and(|p| p >= id) {
+                return Err(bad("entries duplicated or out of order"));
+            }
+            previous = Some(id);
+        }
+        if !cursor.is_empty() {
+            return Err(bad("trailing bytes"));
+        }
+        Ok(pool)
+    }
 }
+
+const DURABLE_MAGIC: &[u8] = b"mininet/claim-evidence/v3\n";
 
 /// The V3 [`ClaimVerifier`]. The `digest` execution passes is the V3
 /// `claim_id`; the nullifier records execution groups under it must be exactly

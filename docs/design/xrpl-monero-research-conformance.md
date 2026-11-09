@@ -98,7 +98,7 @@ research's own recommended defaults, recorded here so they can be corrected:
 - **P0-2 retirement of the transparent path and any state migration.** Needs an
   authorised decision with state-history rules; the research itself says not to
   activate it without one. Nothing was switched off.
-- **Claim-evidence gossip and durable retention.** Host responsibility, as for V2.
+- **Claim-evidence gossip.** Host responsibility, as for V2. Local durable retention now exists (`ClaimEvidencePoolV3::save`/`load`, D-0552: atomic file, every entry re-admitted strictly and checked against its recorded `claim_id`, corrupt file fails closed), but there is still no network protocol to fetch missing claim bytes from peers.
 - **A calibrated fee policy.** `quote_fee_micro` is still the documented placeholder.
 - **CLSAG, Bulletproofs+, FCMP++/CARROT.** Research items P2-3: evaluate only.
 - **XRPL/Monero signers, bridges, custody.** Separate threat model and audit.

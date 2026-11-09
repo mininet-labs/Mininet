@@ -545,6 +545,59 @@ fn t10_noncanonical_and_hostile_bytes_are_rejected_before_storage() {
     assert!(pool.insert(vec![0u8; MAX_BYTES_OVER]).is_err());
 }
 
+#[test]
+fn evidence_survives_a_restart_and_a_corrupt_file_fails_closed() {
+    use mini_shielded_verify::EvidenceLimits;
+    let fixture = Fixture::new();
+    let claim = payment(
+        &fixture.outputs,
+        vec![genesis_spend(&fixture, 0)],
+        &fixture.owners[1],
+        10_000 - quote_fee_micro(&FEE_POLICY, 1, 1),
+    );
+    let pool = ClaimEvidencePoolV3::new();
+    let id = pool.insert(claim.encode()).unwrap();
+    let dir = std::env::temp_dir().join(format!("mini-evidence-v3-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("evidence");
+    // A missing file is an empty pool.
+    assert!(ClaimEvidencePoolV3::load(&path, EvidenceLimits::default())
+        .unwrap()
+        .is_empty());
+    pool.save(&path).unwrap();
+    let reloaded = ClaimEvidencePoolV3::load(&path, EvidenceLimits::default()).unwrap();
+    assert_eq!(reloaded.get(&id).unwrap(), claim.encode());
+    assert_eq!(reloaded.len(), 1);
+
+    // Corrupt, truncated, padded and wrongly-framed files all fail closed.
+    let good = std::fs::read(&path).unwrap();
+    let mut cases: Vec<Vec<u8>> = vec![Vec::new(), good[..good.len() - 1].to_vec()];
+    let mut padded = good.clone();
+    padded.push(0);
+    cases.push(padded);
+    let mut flipped = good.clone();
+    let last = flipped.len() - 1;
+    flipped[last] ^= 1;
+    cases.push(flipped);
+    let mut bad_magic = good.clone();
+    bad_magic[0] ^= 1;
+    cases.push(bad_magic);
+    for case in cases {
+        std::fs::write(&path, case).unwrap();
+        assert!(
+            ClaimEvidencePoolV3::load(&path, EvidenceLimits::default()).is_err(),
+            "corrupt evidence file must not load"
+        );
+    }
+    // A duplicated entry is not silently merged.
+    let mut doubled = good[..good.len()].to_vec();
+    doubled[26 + 3] = 2; // count = 2
+    doubled.extend_from_slice(&good[26 + 4..]); // the same entry again
+    std::fs::write(&path, doubled).unwrap();
+    assert!(ClaimEvidencePoolV3::load(&path, EvidenceLimits::default()).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 const MAX_BYTES_OVER: usize = mini_private_payment::MAX_CLAIM_V3_BYTES + 1;
 
 #[test]

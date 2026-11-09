@@ -450,6 +450,38 @@ mod tests {
     }
 
     #[test]
+    fn every_prefix_and_every_byte_mutation_decodes_safely_and_never_aliases_the_original() {
+        let me = StealthKeypair::generate().unwrap();
+        let claim = pay(&me, 3_000);
+        let original = claim.claim().clone();
+        let bytes = original.encode();
+        let original_id = original.claim_id();
+        // Every strict prefix is refused (a claim has one exact length).
+        for cut in 0..bytes.len() {
+            assert!(
+                crate::claim_v3::PrivatePaymentClaimV3::decode(&bytes[..cut]).is_err(),
+                "prefix {cut} decoded"
+            );
+        }
+        // Every single-byte change either fails to decode, or is non-canonical,
+        // or is a different claim with a different id: no mutation can alias.
+        let mut changed_canonical = 0usize;
+        for position in 0..bytes.len() {
+            let mut mutated = bytes.clone();
+            mutated[position] ^= 0x01;
+            if let Ok(decoded) = crate::claim_v3::PrivatePaymentClaimV3::decode(&mutated) {
+                if decoded.encode() == mutated {
+                    changed_canonical += 1;
+                    assert_ne!(decoded.claim_id(), original_id, "byte {position} aliased");
+                }
+            }
+        }
+        // Most flips land in proofs/signatures and still parse; that is why
+        // admission is structural and verification is separate.
+        assert!(changed_canonical > 0);
+    }
+
+    #[test]
     fn verify_rejects_identity_or_noncanonical_output_keys_and_commitments() {
         let me = StealthKeypair::generate().unwrap();
         let good = pay(&me, 3_000).claim().clone();
