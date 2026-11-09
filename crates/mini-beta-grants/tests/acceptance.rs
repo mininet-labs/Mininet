@@ -1,7 +1,8 @@
 use did_mini::Controller;
 use mini_beta::{
-    create_campaign, create_contribution_receipt, create_grant_authorization, BetaAccountId,
-    BetaEpochId, BetaError, BetaMiniPolicy, ClaimTag, ContributionKind, GrantClass,
+    build_redeemed_participation_grant, create_campaign, create_claim_redemption,
+    create_contribution_receipt, create_grant_authorization, BetaAccountId, BetaEpochId, BetaError,
+    BetaMiniPolicy, ClaimKey, ContributionKind, GrantClass,
 };
 use mini_beta_grants::{
     create_grant_approval, create_grant_policy, detect_authorizer_equivocations,
@@ -36,6 +37,10 @@ struct Fixture {
     campaign: Object,
     policy: Object,
     epoch: BetaEpochId,
+    /// Claim tag byte per contribution receipt (keys are deterministic).
+    claim_tags: Vec<(ObjectId, u8)>,
+    /// The most recent redemption `participation_grant` created.
+    last_redemption: Option<Object>,
 }
 
 impl Fixture {
@@ -89,6 +94,8 @@ impl Fixture {
             campaign,
             policy,
             epoch,
+            claim_tags: Vec::new(),
+            last_redemption: None,
         }
     }
 
@@ -111,20 +118,22 @@ impl Fixture {
     }
 
     fn contribution(&mut self, tag: u8, sequence: u64) -> Object {
-        create_contribution_receipt(
+        let object = create_contribution_receipt(
             &mut self.store,
             &self.campaign_author.did(),
             &self.campaign_author,
             self.target.id(),
             Some(self.campaign.id()),
-            ClaimTag::new([tag; 32]).unwrap(),
+            ClaimKey::from_secret(&[tag; 32]).claim_tag().unwrap(),
             ContributionKind::Testing,
             "accepted contribution",
             &["evidence:accepted".to_string()],
             400 + sequence,
             sequence,
         )
-        .unwrap()
+        .unwrap();
+        self.claim_tags.push((object.id().clone(), tag));
+        object
     }
 
     fn participation_grant(
@@ -135,21 +144,40 @@ impl Fixture {
         memo: &str,
         sequence: u64,
     ) -> Object {
-        create_grant_authorization(
+        // Always anonymous: the account comes from a redemption made with the
+        // receipt's claim key under a throwaway identity.
+        let tag = self
+            .claim_tags
+            .iter()
+            .find(|(id, _)| id == contribution_id)
+            .map(|(_, tag)| *tag)
+            .expect("receipt made by this fixture");
+        let throwaway = signer(99);
+        let redemption = create_claim_redemption(
             &mut self.store,
+            &throwaway.did(),
+            &throwaway,
+            contribution_id,
+            account,
+            &ClaimKey::from_secret(&[tag; 32]),
+            500 + sequence,
+            1_000 + sequence,
+        )
+        .unwrap();
+        let grant = build_redeemed_participation_grant(
+            &self.store,
             &self.campaign_author.did(),
             &self.campaign_author,
-            self.campaign.id(),
-            Some(contribution_id),
-            self.epoch,
-            account,
-            GrantClass::Participation,
+            redemption.id(),
             amount,
             memo,
             600 + sequence,
             sequence,
         )
-        .unwrap()
+        .unwrap();
+        self.store.insert(&grant).unwrap();
+        self.last_redemption = Some(redemption);
+        grant
     }
 
     fn approve(&mut self, member_index: usize, grant_id: &ObjectId, sequence: u64) -> Object {
@@ -643,7 +671,17 @@ fn participation_grant_rejects_a_receipt_with_missing_source() {
     let approvals = [a.id().clone(), b.id().clone(), c.id().clone()];
     assert!(validate_grant_acceptance(&f.store, f.policy.id(), grant.id(), &approvals).is_ok());
     let mut partial = Store::new(MemoryBackend::new());
-    for object in [&f.campaign, &f.policy, &receipt, &grant, &a, &b, &c] {
+    let redemption = f.last_redemption.clone().unwrap();
+    for object in [
+        &f.campaign,
+        &f.policy,
+        &receipt,
+        &redemption,
+        &grant,
+        &a,
+        &b,
+        &c,
+    ] {
         partial.insert(object).unwrap();
     }
     assert!(validate_grant_acceptance(&partial, f.policy.id(), grant.id(), &approvals).is_err());

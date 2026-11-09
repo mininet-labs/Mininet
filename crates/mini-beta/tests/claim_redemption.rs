@@ -349,3 +349,53 @@ fn a_legacy_hash_tag_receipt_cannot_be_redeemed() {
         Err(BetaError::InvalidClaimProof)
     ));
 }
+
+#[test]
+fn a_participation_grant_without_a_redemption_is_refused_everywhere() {
+    use mini_beta::{create_grant_authorization, GrantClass};
+    let mut w = world(7);
+    let key = ClaimKey::generate().unwrap();
+    let receipt = accept(&mut w, b"no-redemption", &key, 10);
+
+    // The builders refuse to make one.
+    let built = create_grant_authorization(
+        &mut w.store,
+        &w.operator.did(),
+        &w.operator,
+        &w.campaign,
+        Some(receipt.id()),
+        w.epoch,
+        account(5),
+        GrantClass::Participation,
+        100,
+        "typed account",
+        12,
+        12,
+    );
+    assert!(matches!(built, Err(BetaError::InvalidClaimProof)));
+
+    // A hand-built object with no redemption link fails to parse, so it can
+    // never reach the ledger.
+    let mut payload = vec![1u8];
+    payload.extend_from_slice(w.epoch.as_bytes());
+    payload.extend_from_slice(account(5).as_bytes());
+    for text in ["participation", "typed"] {
+        payload.extend_from_slice(&(text.len() as u32).to_be_bytes());
+        payload.extend_from_slice(text.as_bytes());
+        if text == "participation" {
+            payload.extend_from_slice(&100u64.to_be_bytes());
+        }
+    }
+    let forged = ObjectBuilder::new(ObjectType::Custom(mini_beta::BETA_GRANT_TYPE.to_string()))
+        .timestamp_ms(13)
+        .sequence(13)
+        .payload(Payload::Public(payload))
+        .link("campaign", w.campaign.clone())
+        .link("contribution", receipt.id().clone())
+        .sign(&w.operator.did(), &w.operator)
+        .unwrap();
+    w.store.insert(&forged).unwrap();
+    let mut ledger = BetaMiniLedger::new(w.epoch, BetaMiniPolicy::open_beta_default()).unwrap();
+    assert!(ledger.apply_grant(&w.store, forged.id()).is_err());
+    assert_eq!(ledger.balance(&account(5)), 0);
+}

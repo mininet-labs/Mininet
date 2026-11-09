@@ -26666,10 +26666,10 @@ retirement; fuzz targets; a multiprocess partition test.
 
 **Constitutional impact:** Directive 9, Directive 16 (P1). No dependency edge added; no Tier-F row touched; no new cryptography.
 
-**Implementation status:** shipped in `mini-cli` with updated tests (`beta_native_loop`, `beta_native_flow`, `beta_two_node_loop`). The library layer (`mini-beta`, `mini-beta-grants`, desktop wallet) still accepts a participation grant without a redemption; the restriction is at the CLI.
+**Implementation status:** shipped in `mini-cli` with updated tests (`beta_native_loop`, `beta_native_flow`, `beta_two_node_loop`). Enforced in the library too (founder go-ahead 2026-11-09): `mini-beta` refuses to build, parse or apply a participation grant without a verified redemption (and a testing grant may not cite one), `mini-beta-grants` acceptance requires the redemption to match the grant exactly, and the app service/desktop wallet take the claim redemption ID (field renamed from `contribution_id`, same wire layout) and refuse a recipient account the redemption does not name. The XRPL/Monero research document is now in `docs/research/`.
 
-**Failure point:** privacy of the reward account still holds only when the accepted source is itself anonymous (the grant links to the contribution and its source); the claim secret is bearer material; the library-level grant path is not yet restricted; a published view key reveals shielded amounts (unchanged, documented under D-0550).
+**Failure point:** privacy of the reward account still holds only when the accepted source is itself anonymous (the grant links to the contribution and its source); the claim secret is bearer material; a published view key reveals shielded amounts (unchanged, documented under D-0550).
 
-**Required follow-up:** enforce redemption-only participation grants in the library and desktop wallet; surface `claim redeem` in the desktop panel.
+**Required follow-up:** surface `claim redeem` in the desktop panel (the wallet can create a participation grant only from a redemption ID obtained elsewhere).
 
 **Supersedes / superseded by:** refines D-0549; none.

@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 94,
-    "files": 1295,
-    "headings": 4290,
-    "rust_symbols": 15682
+    "files": 1296,
+    "headings": 4350,
+    "rust_symbols": 15687
   },
   "crates": {
     "askama_derive": {
@@ -7628,7 +7628,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 136975,
+      "bytes": 136949,
       "group": "crate:mini-app-protocol",
       "headings": [],
       "keywords": [
@@ -7659,7 +7659,7 @@
       ],
       "lines": 4024,
       "path": "crates/mini-app-protocol/src/lib.rs",
-      "sha256": "763238f9c3ab17c915f2abbfad89b7cf6f8667f6363849c950f3d536e60846a6",
+      "sha256": "fc3d927415813807c0915921fdadd9ccd24ca417697412fcfc0f7a5d22a41bf7",
       "symbols": [
         {
           "kind": "const",
@@ -8723,7 +8723,7 @@
       "title": "use mini_app_protocol::{ErrorCode, ServiceError};"
     },
     {
-      "bytes": 30401,
+      "bytes": 31834,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -8752,9 +8752,9 @@
         "object",
         "ids"
       ],
-      "lines": 815,
+      "lines": 846,
       "path": "crates/mini-app-service/src/beta_wallet.rs",
-      "sha256": "436c94d963d312db79f9b0040d84bb63cf3dd58e120b09fb90131dce36939ec9",
+      "sha256": "469286cfb98cf4750ca297be448f92d687cd76fe0cd6a72929a4a96092157127",
       "symbols": [
         {
           "kind": "const",
@@ -9550,7 +9550,7 @@
       "title": "use crate::{delivery_interrupt::DeliveryInterrupt, outbox::DeliveryFailure};"
     },
     {
-      "bytes": 210346,
+      "bytes": 210342,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -9581,7 +9581,7 @@
       ],
       "lines": 5392,
       "path": "crates/mini-app-service/src/lib.rs",
-      "sha256": "02729ce82857b946968122f84841eb9e096650ba7a52d3091ebe234f0e19127d",
+      "sha256": "40d8ad508a900b4b3a6c97637d49ec011e2e66a2e166bab1b4b062e18cf61b1c",
       "symbols": [
         {
           "kind": "mod",
@@ -10918,7 +10918,7 @@
       "title": "use crate::{profile_details_values, validate_profile_details_pair, ErrorCode, ServiceError};"
     },
     {
-      "bytes": 50863,
+      "bytes": 50857,
       "group": "crate:mini-app-service",
       "headings": [],
       "keywords": [
@@ -10949,7 +10949,7 @@
       ],
       "lines": 1505,
       "path": "crates/mini-app-service/src/tests/beta_wallet_tests.rs",
-      "sha256": "fd09253d2464de32297455e1e201a5496eb6070edcf8cb55599110bd866e9499",
+      "sha256": "f7c466ef38c43c5a236305deb2df184ee64a0b7e47f575806767c3e6857a7d1d",
       "symbols": [
         {
           "kind": "const",
@@ -14864,7 +14864,7 @@
       "title": "mini-beta-grants"
     },
     {
-      "bytes": 33983,
+      "bytes": 34072,
       "group": "crate:mini-beta-grants",
       "headings": [],
       "keywords": [
@@ -14893,9 +14893,9 @@
         "signed",
         "author"
       ],
-      "lines": 939,
+      "lines": 942,
       "path": "crates/mini-beta-grants/src/lib.rs",
-      "sha256": "cd4ef3d085badfef8897af544c82d9d5492c027db0f32f711e4f188fd1ee06f9",
+      "sha256": "56a2df18d0cec96652bbd047253a3ad31f248443df1089db18f2164729f8c6f9",
       "symbols": [
         {
           "kind": "const",
@@ -15059,299 +15059,299 @@
         },
         {
           "kind": "fn",
-          "line": 532,
+          "line": 535,
           "name": "resolve_unique_campaign_policy"
         },
         {
           "kind": "fn",
-          "line": 574,
+          "line": 577,
           "name": "validate_grant_acceptance"
         },
         {
           "kind": "fn",
-          "line": 632,
+          "line": 635,
           "name": "detect_authorizer_equivocations"
         },
         {
           "kind": "struct",
-          "line": 722,
+          "line": 725,
           "name": "SharedBetaLedger"
         },
         {
           "kind": "impl",
-          "line": 726,
+          "line": 729,
           "name": "SharedBetaLedger"
         },
         {
           "kind": "fn",
-          "line": 727,
+          "line": 730,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 733,
+          "line": 736,
           "name": "epoch"
         },
         {
           "kind": "fn",
-          "line": 737,
+          "line": 740,
           "name": "total_issued"
         },
         {
           "kind": "fn",
-          "line": 741,
+          "line": 744,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 745,
+          "line": 748,
           "name": "transfer"
         },
         {
           "kind": "fn",
-          "line": 757,
+          "line": 760,
           "name": "apply_accepted_grant"
         },
         {
           "kind": "fn",
-          "line": 770,
+          "line": 773,
           "name": "rollover"
         },
         {
           "kind": "fn",
-          "line": 778,
+          "line": 781,
           "name": "validate_policy_fields"
         },
         {
           "kind": "fn",
-          "line": 815,
+          "line": 818,
           "name": "ensure_type_and_links"
         },
         {
           "kind": "fn",
-          "line": 837,
+          "line": 840,
           "name": "required_link"
         },
         {
           "kind": "fn",
-          "line": 846,
+          "line": 849,
           "name": "public_payload"
         },
         {
           "kind": "fn",
-          "line": 853,
+          "line": 856,
           "name": "put_u16"
         },
         {
           "kind": "fn",
-          "line": 857,
+          "line": 860,
           "name": "put_u64"
         },
         {
           "kind": "fn",
-          "line": 861,
+          "line": 864,
           "name": "put_str"
         },
         {
           "kind": "fn",
-          "line": 866,
+          "line": 869,
           "name": "take_u8"
         },
         {
           "kind": "fn",
-          "line": 872,
+          "line": 875,
           "name": "take_u16"
         },
         {
           "kind": "fn",
-          "line": 886,
+          "line": 889,
           "name": "take_u64"
         },
         {
           "kind": "fn",
-          "line": 900,
+          "line": 903,
           "name": "take_32"
         },
         {
           "kind": "fn",
-          "line": 912,
+          "line": 915,
           "name": "take_str"
         }
       ],
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 22814,
+      "bytes": 24112,
       "group": "crate:mini-beta-grants",
       "headings": [],
       "keywords": [
         "self",
-        "store",
-        "campaign_author",
-        "sequence",
         "object",
-        "unwrap",
+        "store",
         "signer",
-        "new",
+        "campaign_author",
+        "unwrap",
         "target",
         "controller",
+        "sequence",
+        "new",
         "did",
         "campaign",
+        "tag",
         "fixture",
+        "vec",
         "epoch",
-        "authorizers",
-        "u64",
-        "betaaccountid",
-        "memorybackend",
-        "policy",
-        "grant",
         "account",
-        "memo",
-        "acceptance",
-        "testing_grant"
+        "contribution",
+        "memorybackend",
+        "authorizers",
+        "claim_tags",
+        "u64",
+        "throwaway",
+        "acceptance"
       ],
-      "lines": 755,
+      "lines": 793,
       "path": "crates/mini-beta-grants/tests/acceptance.rs",
-      "sha256": "18c598fdf9dff857150d09fb231e66f535526ecc6f3ede8ccc88e7d8ded0ced4",
+      "sha256": "2076f53a55133706b2714f3a0501ce82149b7fd97adec2531f56ca062abc7697",
       "symbols": [
         {
           "kind": "fn",
-          "line": 13,
+          "line": 14,
           "name": "signer"
         },
         {
           "kind": "fn",
-          "line": 17,
+          "line": 18,
           "name": "target"
         },
         {
           "kind": "struct",
-          "line": 30,
+          "line": 31,
           "name": "Fixture"
         },
         {
           "kind": "impl",
-          "line": 41,
+          "line": 46,
           "name": "Fixture"
         },
         {
           "kind": "fn",
-          "line": 42,
+          "line": 47,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 102,
           "name": "testing_grant"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 120,
           "name": "contribution"
         },
         {
           "kind": "fn",
-          "line": 130,
+          "line": 139,
           "name": "participation_grant"
         },
         {
           "kind": "fn",
-          "line": 155,
+          "line": 183,
           "name": "approve"
         },
         {
           "kind": "fn",
-          "line": 171,
+          "line": 199,
           "name": "one_authorizer_cannot_mint_testing_grant"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 219,
           "name": "duplicate_approvals_from_one_did_never_increase_weight"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 241,
           "name": "distinct_members_reach_testing_threshold_and_order_does_not_matter"
         },
         {
           "kind": "fn",
-          "line": 240,
+          "line": 268,
           "name": "participation_uses_the_stronger_threshold"
         },
         {
           "kind": "fn",
-          "line": 278,
+          "line": 306,
           "name": "nonmember_cannot_create_valid_approval"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 322,
           "name": "approval_for_another_grant_cannot_be_reused"
         },
         {
           "kind": "fn",
-          "line": 314,
+          "line": 342,
           "name": "campaign_author_cannot_delegate_policy_authorship_to_arbitrary_key"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 371,
           "name": "testing_amount_is_deterministic_not_authorizer_discretion"
         },
         {
           "kind": "fn",
-          "line": 368,
+          "line": 396,
           "name": "participation_amount_must_be_an_explicit_reward_band"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 414,
           "name": "expired_or_future_approval_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 403,
+          "line": 431,
           "name": "threshold_approval_still_cannot_reward_one_contribution_twice"
         },
         {
           "kind": "fn",
-          "line": 433,
+          "line": 461,
           "name": "authorizer_equivocation_is_detected_but_not_given_hidden_blacklist_power"
         },
         {
           "kind": "fn",
-          "line": 449,
+          "line": 477,
           "name": "three_way_equivocation_evidence_does_not_depend_on_arrival_order"
         },
         {
           "kind": "fn",
-          "line": 491,
+          "line": 519,
           "name": "offline_store_converges_after_the_same_immutable_evidence_arrives"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 558,
           "name": "epoch_rollover_carries_no_beta_balance"
         },
         {
           "kind": "fn",
-          "line": 551,
+          "line": 579,
           "name": "competing_valid_campaign_policies_fail_closed_instead_of_local_tie_breaking"
         },
         {
           "kind": "fn",
-          "line": 591,
+          "line": 619,
           "name": "outsider_policy_shaped_objects_cannot_veto_the_campaign_policy"
         },
         {
           "kind": "fn",
-          "line": 630,
+          "line": 658,
           "name": "participation_grant_rejects_a_receipt_with_missing_source"
         },
         {
           "kind": "fn",
-          "line": 653,
+          "line": 691,
           "name": "a_redeemed_participation_grant_must_match_its_redemption_and_still_needs_threshold_approval"
         }
       ],
@@ -15640,7 +15640,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 61177,
+      "bytes": 61896,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -15669,9 +15669,9 @@
         "error",
         "objecterror"
       ],
-      "lines": 1767,
+      "lines": 1786,
       "path": "crates/mini-beta/src/lib.rs",
-      "sha256": "d3cba037e4c824f6389eeaa15a4e2921a567899fde948824dc637a31f7dcee79",
+      "sha256": "558fe96f4907548dae78bde796de95cf6cb56ff2e35f6f14fe6daa48714d2c23",
       "symbols": [
         {
           "kind": "mod",
@@ -16030,239 +16030,239 @@
         },
         {
           "kind": "fn",
-          "line": 893,
+          "line": 898,
           "name": "read_campaign"
         },
         {
           "kind": "fn",
-          "line": 898,
+          "line": 903,
           "name": "read_finding"
         },
         {
           "kind": "fn",
-          "line": 903,
+          "line": 908,
           "name": "read_finding_disposition"
         },
         {
           "kind": "fn",
-          "line": 911,
+          "line": 916,
           "name": "read_contribution_receipt"
         },
         {
           "kind": "fn",
-          "line": 919,
+          "line": 924,
           "name": "read_grant_authorization"
         },
         {
           "kind": "fn",
-          "line": 927,
+          "line": 932,
           "name": "parse_campaign_object"
         },
         {
           "kind": "fn",
-          "line": 961,
+          "line": 966,
           "name": "parse_finding_object"
         },
         {
           "kind": "fn",
-          "line": 1012,
+          "line": 1017,
           "name": "parse_finding_disposition_object"
         },
         {
           "kind": "fn",
-          "line": 1046,
+          "line": 1051,
           "name": "parse_contribution_object"
         },
         {
           "kind": "fn",
-          "line": 1076,
+          "line": 1081,
           "name": "parse_grant_object"
         },
         {
           "kind": "struct",
-          "line": 1125,
+          "line": 1131,
           "name": "BetaMiniPolicy"
         },
         {
           "kind": "impl",
-          "line": 1134,
+          "line": 1140,
           "name": "BetaMiniPolicy"
         },
         {
           "kind": "fn",
-          "line": 1136,
+          "line": 1142,
           "name": "open_beta_default"
         },
         {
           "kind": "fn",
-          "line": 1144,
+          "line": 1150,
           "name": "validate"
         },
         {
           "kind": "struct",
-          "line": 1166,
+          "line": 1172,
           "name": "BetaMiniLedger"
         },
         {
           "kind": "impl",
-          "line": 1175,
+          "line": 1181,
           "name": "BetaMiniLedger"
         },
         {
           "kind": "fn",
-          "line": 1177,
+          "line": 1183,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 1190,
+          "line": 1196,
           "name": "epoch"
         },
         {
           "kind": "fn",
-          "line": 1195,
+          "line": 1201,
           "name": "total_issued"
         },
         {
           "kind": "fn",
-          "line": 1200,
+          "line": 1206,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 1210,
+          "line": 1216,
           "name": "apply_grant"
         },
         {
           "kind": "fn",
-          "line": 1299,
+          "line": 1309,
           "name": "transfer"
         },
         {
           "kind": "fn",
-          "line": 1327,
+          "line": 1337,
           "name": "rollover"
         },
         {
           "kind": "fn",
-          "line": 1335,
+          "line": 1345,
           "name": "validate_text"
         },
         {
           "kind": "fn",
-          "line": 1342,
+          "line": 1352,
           "name": "validate_list"
         },
         {
           "kind": "fn",
-          "line": 1352,
+          "line": 1362,
           "name": "put_u64"
         },
         {
           "kind": "fn",
-          "line": 1356,
+          "line": 1366,
           "name": "put_str"
         },
         {
           "kind": "fn",
-          "line": 1361,
+          "line": 1371,
           "name": "put_list"
         },
         {
           "kind": "fn",
-          "line": 1368,
+          "line": 1378,
           "name": "take_u8"
         },
         {
           "kind": "fn",
-          "line": 1374,
+          "line": 1384,
           "name": "take_u64"
         },
         {
           "kind": "fn",
-          "line": 1383,
+          "line": 1393,
           "name": "take_32"
         },
         {
           "kind": "fn",
-          "line": 1390,
+          "line": 1400,
           "name": "take_str"
         },
         {
           "kind": "fn",
-          "line": 1409,
+          "line": 1419,
           "name": "take_list"
         },
         {
           "kind": "fn",
-          "line": 1433,
+          "line": 1443,
           "name": "public_payload"
         },
         {
           "kind": "fn",
-          "line": 1440,
+          "line": 1450,
           "name": "ensure_type_and_links"
         },
         {
           "kind": "fn",
-          "line": 1461,
+          "line": 1471,
           "name": "required_link"
         },
         {
           "kind": "fn",
-          "line": 1465,
+          "line": 1475,
           "name": "optional_link"
         },
         {
           "kind": "mod",
-          "line": 1475,
+          "line": 1485,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 1479,
+          "line": 1489,
           "name": "signer"
         },
         {
           "kind": "fn",
-          "line": 1483,
+          "line": 1493,
           "name": "strings"
         },
         {
           "kind": "fn",
-          "line": 1487,
+          "line": 1497,
           "name": "target"
         },
         {
           "kind": "fn",
-          "line": 1497,
+          "line": 1507,
           "name": "forge_beta_objects_round_trip_without_a_contributor_identity"
         },
         {
           "kind": "fn",
-          "line": 1607,
+          "line": 1626,
           "name": "beta_mini_is_bounded_transferable_test_value_and_resets_between_epochs"
         },
         {
           "kind": "fn",
-          "line": 1664,
+          "line": 1683,
           "name": "participation_grants_require_accepted_contribution_evidence"
         },
         {
           "kind": "fn",
-          "line": 1703,
+          "line": 1722,
           "name": "cross_epoch_grants_cannot_be_applied_after_reset"
         },
         {
           "kind": "fn",
-          "line": 1748,
+          "line": 1767,
           "name": "zero_handles_are_rejected_so_missing_values_are_not_ambiguous"
         }
       ],
       "title": "mod claim;"
     },
     {
-      "bytes": 10342,
+      "bytes": 12157,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -16291,9 +16291,9 @@
         "generate",
         "assert_eq"
       ],
-      "lines": 352,
+      "lines": 402,
       "path": "crates/mini-beta/tests/claim_redemption.rs",
-      "sha256": "c1e191524c64c456482040eb4bfa880f34504aa16cdb7e0534fc6f4bec6014ea",
+      "sha256": "89a1b723e52a79ea7b2628d4d46b18f2d9d6f0e980c842fa8e17e08f026bc626",
       "symbols": [
         {
           "kind": "fn",
@@ -16354,6 +16354,11 @@
           "kind": "fn",
           "line": 314,
           "name": "a_legacy_hash_tag_receipt_cannot_be_redeemed"
+        },
+        {
+          "kind": "fn",
+          "line": 354,
+          "name": "a_participation_grant_without_a_redemption_is_refused_everywhere"
         }
       ],
       "title": "use did_mini::Controller;"
@@ -16406,38 +16411,38 @@
       "title": "fn beta_test_currency_has_no_production_value_or_authority_dependencies() {"
     },
     {
-      "bytes": 9664,
+      "bytes": 10133,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
         "signer",
         "store",
-        "unwrap",
-        "payload",
-        "object",
         "sequence",
-        "campaign",
+        "unwrap",
+        "object",
+        "payload",
         "contribution",
-        "epoch",
         "target",
-        "new",
         "controller",
+        "account",
+        "campaign",
         "objectid",
         "memorybackend",
-        "did",
-        "ledger",
-        "account",
         "u64",
+        "new",
+        "did",
+        "epoch",
+        "tag",
         "extend_from_slice",
+        "redeemed_grant",
         "put_str",
+        "betaaccountid",
         "betaepochid",
-        "grantclass",
-        "to_string",
-        "campaign_id"
+        "to_string"
       ],
-      "lines": 317,
+      "lines": 336,
       "path": "crates/mini-beta/tests/ledger_adversarial.rs",
-      "sha256": "e9ac3e39fe64a7245d6eda628a73932811c3df204a3b7250d8265cf57abd9f65",
+      "sha256": "b219dfeac3d0e50e7a53611bbad546c6f2bf4dbdcf161be3aa758f11e64a05a3",
       "symbols": [
         {
           "kind": "fn",
@@ -16461,37 +16466,42 @@
         },
         {
           "kind": "fn",
-          "line": 75,
-          "name": "put_str"
-        },
-        {
-          "kind": "fn",
-          "line": 81,
-          "name": "raw_grant"
+          "line": 78,
+          "name": "redeemed_grant"
         },
         {
           "kind": "fn",
           "line": 114,
+          "name": "put_str"
+        },
+        {
+          "kind": "fn",
+          "line": 120,
+          "name": "raw_grant"
+        },
+        {
+          "kind": "fn",
+          "line": 153,
           "name": "one_contribution_cannot_back_two_distinct_participation_grants"
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 194,
           "name": "two_receipts_for_the_same_source_cannot_each_back_a_participation_grant"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 242,
           "name": "participation_grant_rechecks_contribution_campaign_on_apply"
         },
         {
           "kind": "fn",
-          "line": 255,
+          "line": 274,
           "name": "synced_testing_grant_cannot_bypass_campaign_cap"
         },
         {
           "kind": "fn",
-          "line": 285,
+          "line": 304,
           "name": "self_transfer_still_requires_sufficient_balance"
         }
       ],
@@ -19990,7 +20000,7 @@
       "title": "mini-chain-observer"
     },
     {
-      "bytes": 23982,
+      "bytes": 25464,
       "group": "crate:mini-chain-observer",
       "headings": [],
       "keywords": [
@@ -20019,9 +20029,9 @@
         "network",
         "asset"
       ],
-      "lines": 687,
+      "lines": 717,
       "path": "crates/mini-chain-observer/src/lib.rs",
-      "sha256": "63aceb07e3e39049ddf5ab4a84b8a82b8cfe41f9d084da720ba393ed5970bd9e",
+      "sha256": "11c73e3e4db0536496ac322b0eba96349fbe21ecefba2b3e59fab39ac10f559a",
       "symbols": [
         {
           "kind": "enum",
@@ -20125,129 +20135,134 @@
         },
         {
           "kind": "struct",
-          "line": 260,
+          "line": 263,
           "name": "Assessment"
         },
         {
           "kind": "struct",
-          "line": 270,
+          "line": 273,
           "name": "Held"
         },
         {
           "kind": "struct",
-          "line": 281,
+          "line": 284,
           "name": "Observer"
         },
         {
           "kind": "impl",
-          "line": 287,
+          "line": 290,
           "name": "Observer"
         },
         {
           "kind": "fn",
-          "line": 291,
+          "line": 294,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 300,
+          "line": 303,
           "name": "profile"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 308,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 377,
           "name": "assess"
         },
         {
           "kind": "const",
-          "line": 468,
+          "line": 486,
           "name": "MAX_JOURNAL_RECORDS"
         },
         {
+          "kind": "const",
+          "line": 489,
+          "name": "MAX_TRACKED_TRANSFERS"
+        },
+        {
           "kind": "struct",
-          "line": 472,
+          "line": 493,
           "name": "Receipt"
         },
         {
           "kind": "type",
-          "line": 488,
+          "line": 509,
           "name": "ReceiptKey"
         },
         {
           "kind": "fn",
-          "line": 490,
+          "line": 511,
           "name": "key_of"
         },
         {
           "kind": "struct",
-          "line": 499,
+          "line": 520,
           "name": "ReceiptJournal"
         },
         {
           "kind": "fn",
-          "line": 504,
+          "line": 525,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 508,
+          "line": 529,
           "name": "unhex32"
         },
         {
           "kind": "impl",
-          "line": 519,
+          "line": 540,
           "name": "ReceiptJournal"
         },
         {
           "kind": "fn",
-          "line": 521,
+          "line": 542,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 527,
+          "line": 548,
           "name": "load"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 580,
           "name": "lock_path"
         },
         {
           "kind": "fn",
-          "line": 560,
+          "line": 590,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 591,
+          "line": 621,
           "name": "render_of"
         },
         {
           "kind": "fn",
-          "line": 613,
+          "line": 643,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 628,
+          "line": 658,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 683,
+          "line": 713,
           "name": "path"
         }
       ],
       "title": "use std::collections::{BTreeMap, BTreeSet};"
     },
     {
-      "bytes": 15513,
+      "bytes": 16748,
       "group": "crate:mini-chain-observer",
       "headings": [],
       "keywords": [
@@ -20276,9 +20291,9 @@
         "a_duplicate_source_counts_once",
         "unknown_sources_and_other_networks_are_refused"
       ],
-      "lines": 530,
+      "lines": 564,
       "path": "crates/mini-chain-observer/tests/observer.rs",
-      "sha256": "6a510e7c24f3dbb6e7ed0197bb0b369144d44fb4bfd84edcd26c5a15f2e565cd",
+      "sha256": "769528a8b5e34be2e3e5511c194c2514f7099e56c4b52e9424e6ae83515c7bdf",
       "symbols": [
         {
           "kind": "const",
@@ -20393,46 +20408,56 @@
         {
           "kind": "fn",
           "line": 338,
+          "name": "a_journal_beyond_the_record_limit_fails_closed_not_truncated"
+        },
+        {
+          "kind": "fn",
+          "line": 347,
+          "name": "the_observer_bounds_tracked_transfers_and_evicts_expired_reports"
+        },
+        {
+          "kind": "fn",
+          "line": 372,
           "name": "a_corrupted_contradiction_flag_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 389,
           "name": "the_observer_crate_has_no_key_or_value_dependencies"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 409,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 424,
           "name": "a_profile_that_could_finalize_on_no_evidence_or_never_is_refused"
         },
         {
           "kind": "fn",
-          "line": 403,
+          "line": 437,
           "name": "report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt"
         },
         {
           "kind": "fn",
-          "line": 436,
+          "line": 470,
           "name": "a_failed_journal_write_changes_nothing_and_a_retry_writes_it"
         },
         {
           "kind": "fn",
-          "line": 462,
+          "line": 496,
           "name": "conflicting_same_instant_reports_from_one_source_are_ambiguous_in_either_order"
         },
         {
           "kind": "fn",
-          "line": 500,
+          "line": 534,
           "name": "two_journal_instances_on_one_path_do_not_lose_each_others_records"
         },
         {
           "kind": "fn",
-          "line": 514,
+          "line": 548,
           "name": "receipts_for_different_networks_never_alias"
         }
       ],
@@ -39507,7 +39532,7 @@
       "title": "use mini_app_protocol::{"
     },
     {
-      "bytes": 43741,
+      "bytes": 43806,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -39536,9 +39561,9 @@
         "format",
         "out"
       ],
-      "lines": 1159,
+      "lines": 1161,
       "path": "crates/mini-desktop/src/beta_wallet.rs",
-      "sha256": "be70f858ea969ac1d4a524d83cec455c1682e917374dac860098a1124272059b",
+      "sha256": "4d3fe4294e3ce2ff139abd25716091ea8c662f208631b27aded24ff027486cda",
       "symbols": [
         {
           "kind": "const",
@@ -39562,82 +39587,82 @@
         },
         {
           "kind": "mod",
-          "line": 792,
+          "line": 794,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 795,
+          "line": 797,
           "name": "panel"
         },
         {
           "kind": "fn",
-          "line": 808,
+          "line": 810,
           "name": "amounts_are_exact_decimal_micro_units_without_floats"
         },
         {
           "kind": "fn",
-          "line": 837,
+          "line": 839,
           "name": "ids_and_campaigns_are_validated_and_deduplicated"
         },
         {
           "kind": "fn",
-          "line": 861,
+          "line": 863,
           "name": "requests_are_built_only_from_valid_input"
         },
         {
           "kind": "fn",
-          "line": 892,
+          "line": 894,
           "name": "a_retried_request_reuses_its_operation_id_until_the_core_answers"
         },
         {
           "kind": "fn",
-          "line": 926,
+          "line": 928,
           "name": "changing_epoch_or_campaigns_drops_the_cached_balances_view"
         },
         {
           "kind": "fn",
-          "line": 949,
+          "line": 951,
           "name": "grant_requests_need_both_ids_and_reuse_their_operation_id_until_answered"
         },
         {
           "kind": "fn",
-          "line": 989,
+          "line": 991,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 997,
+          "line": 999,
           "name": "policy_panel"
         },
         {
           "kind": "fn",
-          "line": 1010,
+          "line": 1012,
           "name": "policy_id"
         },
         {
           "kind": "fn",
-          "line": 1018,
+          "line": 1020,
           "name": "policy_requests_validate_inputs_and_reuse_their_operation_id_until_answered"
         },
         {
           "kind": "fn",
-          "line": 1070,
+          "line": 1072,
           "name": "suggested_window_is_absolute_and_stable_across_retries"
         },
         {
           "kind": "fn",
-          "line": 1079,
+          "line": 1081,
           "name": "grant_creation_requests_validate_inputs_and_reuse_their_operation_id"
         },
         {
           "kind": "fn",
-          "line": 1131,
+          "line": 1133,
           "name": "grant_status_text_is_honest_and_flags_equivocation"
         },
         {
           "kind": "fn",
-          "line": 1142,
+          "line": 1144,
           "name": "replies_update_state_and_never_hide_conflicts"
         }
       ],
@@ -40409,7 +40434,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 457483,
+      "bytes": 457479,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -40440,7 +40465,7 @@
       ],
       "lines": 10703,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "fa13c7ab22ea749dfdc4d6f3ff5dc54e4f1b6866ee808899a206fc22718e4f45",
+      "sha256": "110c72e1171f20704a3c4f2e7477e9258fd614836505fd979e4da504efca30c0",
       "symbols": [
         {
           "kind": "mod",
@@ -73144,7 +73169,7 @@
       "title": "use mini_value::{MininetStealthAddress, StealthAddressScheme};"
     },
     {
-      "bytes": 21633,
+      "bytes": 22398,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -73173,9 +73198,9 @@
         "view_secret",
         "spend_public"
       ],
-      "lines": 565,
+      "lines": 575,
       "path": "crates/mini-private-payment/src/wallet_v3.rs",
-      "sha256": "c43a0fe97eaf1a1d573ddb800f63cd917efb65572c5d55db4158a47170f4e815",
+      "sha256": "92147065c5a0c089da0485bd2383d8b585d5675368e3ed392102ed0ead943e1b",
       "symbols": [
         {
           "kind": "struct",
@@ -73204,177 +73229,177 @@
         },
         {
           "kind": "impl",
-          "line": 134,
+          "line": 137,
           "name": "ScanOutcomeV3"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 139,
           "name": "all_claims"
         },
         {
           "kind": "fn",
-          "line": 147,
+          "line": 150,
           "name": "scan_v3"
         },
         {
           "kind": "const",
-          "line": 164,
+          "line": 170,
           "name": "AMOUNT_DISCLOSURE_V3_DOMAIN"
         },
         {
           "kind": "const",
-          "line": 167,
+          "line": 173,
           "name": "AMOUNT_DISCLOSURE_V3_VERSION"
         },
         {
           "kind": "struct",
-          "line": 172,
+          "line": 178,
           "name": "AmountDisclosureV3"
         },
         {
           "kind": "impl",
-          "line": 179,
+          "line": 185,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 186,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 189,
+          "line": 195,
           "name": "AmountDisclosureV3"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 198,
           "name": "create"
         },
         {
           "kind": "fn",
-          "line": 210,
+          "line": 216,
           "name": "claim_id"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 221,
           "name": "output_index"
         },
         {
           "kind": "fn",
-          "line": 220,
+          "line": 226,
           "name": "claimed_amount_micro"
         },
         {
           "kind": "fn",
-          "line": 225,
+          "line": 231,
           "name": "open_against"
         },
         {
           "kind": "fn",
-          "line": 243,
+          "line": 249,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 255,
+          "line": 261,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 281,
           "name": "digest"
         },
         {
           "kind": "struct",
-          "line": 282,
+          "line": 288,
           "name": "OpenedPaymentV3"
         },
         {
           "kind": "struct",
-          "line": 295,
+          "line": 301,
           "name": "AuditedIncomeV3"
         },
         {
           "kind": "impl",
-          "line": 304,
+          "line": 310,
           "name": "AuditedIncomeV3"
         },
         {
           "kind": "fn",
-          "line": 306,
+          "line": 312,
           "name": "opened_total_micro"
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 321,
           "name": "is_complete"
         },
         {
           "kind": "fn",
-          "line": 324,
+          "line": 330,
           "name": "audit_amounts_v3"
         },
         {
           "kind": "mod",
-          "line": 380,
+          "line": 381,
           "name": "tests"
         },
         {
           "kind": "const",
-          "line": 389,
+          "line": 390,
           "name": "NETWORK"
         },
         {
           "kind": "const",
-          "line": 390,
+          "line": 391,
           "name": "POLICY"
         },
         {
           "kind": "struct",
-          "line": 392,
+          "line": 393,
           "name": "Set"
         },
         {
           "kind": "impl",
-          "line": 393,
+          "line": 394,
           "name": "OutputSet"
         },
         {
           "kind": "fn",
-          "line": 394,
+          "line": 395,
           "name": "len"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 398,
           "name": "key_at"
         },
         {
           "kind": "fn",
-          "line": 400,
+          "line": 401,
           "name": "commitment_at"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 406,
           "name": "pay"
         },
         {
           "kind": "fn",
-          "line": 447,
+          "line": 448,
           "name": "a_note_that_does_not_open_its_commitment_is_never_a_payment"
         },
         {
           "kind": "fn",
-          "line": 487,
+          "line": 488,
           "name": "a_malformed_output_does_not_hide_a_readable_one_in_the_same_claim"
         },
         {
           "kind": "fn",
-          "line": 543,
+          "line": 553,
           "name": "one_unreadable_payment_cannot_blind_a_wallet_to_its_other_income"
         }
       ],
@@ -115881,7 +115906,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 31889,
+      "bytes": 31906,
       "group": "docs",
       "headings": [
         {
@@ -116038,7 +116063,7 @@
       ],
       "lines": 336,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "5c472e2be05dfa4aea05d76c3e1af1a67f4f4dc55bf7a691647dfa8fd9dc535a",
+      "sha256": "0aedcfc9fce4648d59c5bff8c3130056cb3800d8c697aba8770b3820e9446ee8",
       "symbols": [],
       "title": "Open Beta status"
     },
@@ -116370,7 +116395,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1615238,
+      "bytes": 1615562,
       "group": "docs",
       "headings": [
         {
@@ -116802,7 +116827,7 @@
       ],
       "lines": 26676,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "638778d072684190155122b9c0059124aa4f1ff7a6e4c419f1c32f0ed34e6ec8",
+      "sha256": "7af0be139c90e140c959b49c804ec992d7071c0be4c6e1da61f2ead5f8c30578",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -139267,6 +139292,343 @@
       "sha256": "f67638e39b7e6109624ddd4ae301e9b5167a580109de091dad7883a7a865235a",
       "symbols": [],
       "title": "MiniNet \u2014 Privacy, Distribution, Suppression Resistance, and Human Evidence"
+    },
+    {
+      "bytes": 84056,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "MININET: Cryptography Reuse and Interoperability Research"
+        },
+        {
+          "level": 2,
+          "line": 3,
+          "text": "What to learn from XRP Ledger and Monero, what to implement, and what not to copy"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "Executive decision"
+        },
+        {
+          "level": 3,
+          "line": 25,
+          "text": "Decision scorecard"
+        },
+        {
+          "level": 2,
+          "line": 42,
+          "text": "1. Research method, evidence, and authority boundary"
+        },
+        {
+          "level": 3,
+          "line": 56,
+          "text": "The safe boundary for reverse engineering"
+        },
+        {
+          "level": 2,
+          "line": 69,
+          "text": "2. XRP Ledger: exactly which ideas transfer"
+        },
+        {
+          "level": 3,
+          "line": 73,
+          "text": "2.1 Transaction authorization and key isolation"
+        },
+        {
+          "level": 3,
+          "line": 79,
+          "text": "2.2 Tickets and stale-state prevention"
+        },
+        {
+          "level": 3,
+          "line": 83,
+          "text": "2.3 Confidential MPTs (XLS-0096, updated 22 Oct 2026)"
+        },
+        {
+          "level": 3,
+          "line": 89,
+          "text": "2.4 Escrow, bridges and witnesses"
+        },
+        {
+          "level": 3,
+          "line": 93,
+          "text": "2.5 XRP-specific recommendations"
+        },
+        {
+          "level": 2,
+          "line": 103,
+          "text": "3. Monero: exactly which ideas transfer"
+        },
+        {
+          "level": 3,
+          "line": 107,
+          "text": "3.1 Recipient privacy: one-time addresses and view/spend separation"
+        },
+        {
+          "level": 3,
+          "line": 113,
+          "text": "3.2 Hidden amounts and conservation"
+        },
+        {
+          "level": 3,
+          "line": 117,
+          "text": "3.3 Ring signatures and honest anonymity statements"
+        },
+        {
+          "level": 3,
+          "line": 123,
+          "text": "3.4 Bulletproofs versus Bulletproofs+"
+        },
+        {
+          "level": 3,
+          "line": 129,
+          "text": "3.5 Privacy beyond mathematics"
+        },
+        {
+          "level": 2,
+          "line": 134,
+          "text": "4. Current Mininet implementation: evidence inventory and failure surfaces"
+        },
+        {
+          "level": 3,
+          "line": 161,
+          "text": "Gap severity"
+        },
+        {
+          "level": 2,
+          "line": 168,
+          "text": "5. Cryptographic walkthroughs: why the pieces work together"
+        },
+        {
+          "level": 3,
+          "line": 172,
+          "text": "5.1 Pedersen hidden-value conservation"
+        },
+        {
+          "level": 3,
+          "line": 188,
+          "text": "5.2 Anonymous ownership and spent-once key images"
+        },
+        {
+          "level": 3,
+          "line": 194,
+          "text": "5.3 View-key recognition"
+        },
+        {
+          "level": 3,
+          "line": 198,
+          "text": "5.4 XRP Ledger's EC-ElGamal confidentiality is a different model"
+        },
+        {
+          "level": 3,
+          "line": 202,
+          "text": "5.5 FROST quorum is not a new signing scheme"
+        },
+        {
+          "level": 3,
+          "line": 206,
+          "text": "5.6 Simple threat example: why V3's `claim_id` differs from `signing_digest`"
+        },
+        {
+          "level": 2,
+          "line": 212,
+          "text": "6. Proposed implementation architecture"
+        },
+        {
+          "level": 3,
+          "line": 244,
+          "text": "6.1 Proposed V3 acceptance pipeline: explicit ordering"
+        },
+        {
+          "level": 3,
+          "line": 254,
+          "text": "6.2 Consensus compatibility and migration"
+        },
+        {
+          "level": 3,
+          "line": 260,
+          "text": "6.3 Prevent unbounded data and work amplification"
+        },
+        {
+          "level": 2,
+          "line": 265,
+          "text": "7. Rust code examples and cryptographic integration patterns"
+        },
+        {
+          "level": 3,
+          "line": 269,
+          "text": "Example A - use the existing, library-backed 64-bit Bulletproof"
+        },
+        {
+          "level": 3,
+          "line": 299,
+          "text": "Example B - exact V3 claim identity versus cryptographic validity"
+        },
+        {
+          "level": 3,
+          "line": 325,
+          "text": "Example C - a typed approval envelope, modeled on XRPL authorization discipline"
+        },
+        {
+          "level": 3,
+          "line": 368,
+          "text": "Example D - V3 consensus bridge that is deliberately pseudocode"
+        },
+        {
+          "level": 3,
+          "line": 407,
+          "text": "Example E - FROST: use maintained rounds plus durable nonce reservations"
+        },
+        {
+          "level": 3,
+          "line": 435,
+          "text": "Example F - misuse-resistant test checklist as code"
+        },
+        {
+          "level": 2,
+          "line": 475,
+          "text": "8. Detailed implementation backlog, ownership and acceptance gates"
+        },
+        {
+          "level": 3,
+          "line": 479,
+          "text": "P0-1 - Canonical V3 verifier and atomic execution (highest priority)"
+        },
+        {
+          "level": 3,
+          "line": 487,
+          "text": "P0-2 - Governed V2/V3 cutover and transparent-path retirement"
+        },
+        {
+          "level": 3,
+          "line": 495,
+          "text": "P0-3 - FROST custody hardening and legacy signing quarantine"
+        },
+        {
+          "level": 3,
+          "line": 503,
+          "text": "P0-4 - External review and reproducible crypto evidence packet"
+        },
+        {
+          "level": 3,
+          "line": 511,
+          "text": "P1-1 - Wallet scanner and privacy/fingerprint benchmark"
+        },
+        {
+          "level": 3,
+          "line": 519,
+          "text": "P1-2 - Private, voluntary disclosure and auditability"
+        },
+        {
+          "level": 3,
+          "line": 527,
+          "text": "P1-3 - Personhood credential construction research (no uniqueness claim)"
+        },
+        {
+          "level": 3,
+          "line": 535,
+          "text": "P2-1 - Observe XRP and XMR at a replaceable edge"
+        },
+        {
+          "level": 3,
+          "line": 543,
+          "text": "P2-2 - Optional externally reviewed asset bridge (separate project gate)"
+        },
+        {
+          "level": 3,
+          "line": 550,
+          "text": "P2-3 - Long-horizon crypto agility and research watch"
+        },
+        {
+          "level": 2,
+          "line": 558,
+          "text": "9. Adversarial test and audit matrix"
+        },
+        {
+          "level": 2,
+          "line": 599,
+          "text": "10. Risk register and recommended mitigations"
+        },
+        {
+          "level": 2,
+          "line": 618,
+          "text": "11. Suggested execution sequence and decision gates"
+        },
+        {
+          "level": 3,
+          "line": 632,
+          "text": "Proposal approval questions"
+        },
+        {
+          "level": 2,
+          "line": 645,
+          "text": "12. Suggested ready-to-file engineering RFCs"
+        },
+        {
+          "level": 2,
+          "line": 659,
+          "text": "13. Final decision framework"
+        },
+        {
+          "level": 2,
+          "line": 671,
+          "text": "14. Primary sources and verification links"
+        },
+        {
+          "level": 3,
+          "line": 675,
+          "text": "Mininet: source, code and hard gates"
+        },
+        {
+          "level": 3,
+          "line": 688,
+          "text": "XRP Ledger: cryptography, state and bridges"
+        },
+        {
+          "level": 3,
+          "line": 697,
+          "text": "Monero and cryptographic standards"
+        },
+        {
+          "level": 3,
+          "line": 707,
+          "text": "Glossary"
+        }
+      ],
+      "keywords": [
+        "decision",
+        "privacy",
+        "cryptographic",
+        "frost",
+        "example",
+        "research",
+        "what",
+        "xrp",
+        "monero",
+        "consensus",
+        "wallet",
+        "ledger",
+        "migration",
+        "xrpl",
+        "canonical",
+        "review",
+        "state",
+        "path",
+        "cryptography",
+        "transaction",
+        "authorization",
+        "signing",
+        "custody",
+        "audit"
+      ],
+      "lines": 711,
+      "path": "docs/research/MININET_XRPL_MONERO_CRYPTOGRAPHY_RESEARCH_2026-11-08.md",
+      "sha256": "02fffc0efa6f21de6c0e5a1648a873708dd3a77ae2227e424c76386b7f473caa",
+      "symbols": [],
+      "title": "MININET: Cryptography Reuse and Interoperability Research"
     },
     {
       "bytes": 52721,

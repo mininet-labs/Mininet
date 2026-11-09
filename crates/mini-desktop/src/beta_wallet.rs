@@ -65,7 +65,7 @@ pub(crate) enum Request {
         epoch: [u8; 32],
         account: [u8; 32],
         class: BetaGrantClass,
-        contribution_id: Option<String>,
+        redemption_id: Option<String>,
         amount: u64,
         memo: String,
     },
@@ -375,9 +375,9 @@ impl Panel {
             return Err("enter the campaign ID".into());
         }
         let contribution = self.create_contribution.trim();
-        let (class, contribution_id) = if self.create_participation {
+        let (class, redemption_id) = if self.create_participation {
             if contribution.is_empty() || contribution.len() > MAX_OBJECT_ID_BYTES {
-                return Err("a participation grant needs a contribution ID".into());
+                return Err("a participation grant needs the claim redemption ID".into());
             }
             (
                 BetaGrantClass::Participation,
@@ -385,7 +385,7 @@ impl Panel {
             )
         } else {
             if !contribution.is_empty() {
-                return Err("a testing grant takes no contribution ID".into());
+                return Err("a testing grant takes no redemption ID".into());
             }
             (BetaGrantClass::Testing, None)
         };
@@ -399,7 +399,7 @@ impl Panel {
             epoch: parse_hex32(&self.epoch, "epoch")?,
             account: parse_hex32(&self.create_account, "recipient account")?,
             class,
-            contribution_id,
+            redemption_id,
             amount: parse_amount_micro(&self.create_amount)?,
             memo: memo.to_string(),
         };
@@ -741,7 +741,9 @@ grant is test value only and has no effect until the policy threshold of members
                     &mut self.create_participation,
                     "Participation grant (otherwise a testing grant)",
                 );
-                ui.label("Contribution ID (participation grants only)");
+                ui.label(
+                    "Claim redemption ID (participation grants only; sets the recipient account)",
+                );
                 ui.text_edit_singleline(&mut self.create_contribution);
                 ui.label("Amount (BETA, up to 6 decimals)");
                 ui.text_edit_singleline(&mut self.create_amount);
@@ -1089,12 +1091,12 @@ mod tests {
         match p.grant_create_request().unwrap() {
             Request::GrantCreate {
                 class,
-                contribution_id,
+                redemption_id,
                 amount,
                 ..
             } => {
                 assert_eq!(class, BetaGrantClass::Testing);
-                assert_eq!(contribution_id, None);
+                assert_eq!(redemption_id, None);
                 assert_eq!(amount, 100);
             }
             other => panic!("unexpected {other:?}"),
