@@ -565,10 +565,16 @@ impl ReceiptJournal {
                             "corrupt receipt journal",
                         )
                     })?;
-                    receipts.insert(
-                        key_of(receipt.chain, receipt.network, receipt.tx_hash),
-                        receipt,
-                    );
+                    // The writer never emits two lines for one key; a duplicate
+                    // is corruption and must not silently replace (and so
+                    // weaken) an earlier receipt.
+                    let key = key_of(receipt.chain, receipt.network, receipt.tx_hash);
+                    if receipts.insert(key, receipt).is_some() {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "duplicate receipt in journal",
+                        ));
+                    }
                 }
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -640,8 +646,15 @@ impl ReceiptJournal {
     }
 
     /// The receipt for a transfer on one chain and network, if any.
-    pub fn get(&self, chain: Chain, network: u32, tx_hash: &[u8; 32]) -> Option<&Receipt> {
-        self.receipts.get(&key_of(chain, network, *tx_hash))
+    ///
+    /// Reads the durable journal afresh, so a contradiction recorded by another
+    /// instance or process is never masked by a stale cached `Finalized`. An
+    /// unreadable or corrupt journal yields `None`, which is never final
+    /// evidence.
+    pub fn get(&self, chain: Chain, network: u32, tx_hash: &[u8; 32]) -> Option<Receipt> {
+        Self::load(&self.path)
+            .ok()?
+            .remove(&key_of(chain, network, *tx_hash))
     }
 
     /// Record an assessment. Idempotent, and durable before it is visible: the

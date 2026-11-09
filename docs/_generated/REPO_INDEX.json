@@ -3,7 +3,7 @@
     "crates": 94,
     "files": 1296,
     "headings": 4350,
-    "rust_symbols": 15687
+    "rust_symbols": 15693
   },
   "crates": {
     "askama_derive": {
@@ -15508,7 +15508,7 @@
       "title": "mini-beta"
     },
     {
-      "bytes": 10831,
+      "bytes": 11368,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -15516,30 +15516,30 @@
         "claim",
         "account",
         "self",
-        "claimkey",
         "secret",
-        "contribution",
-        "message",
+        "claimkey",
         "fmt",
-        "epoch",
-        "redemption",
+        "contribution",
         "claimtag",
+        "epoch",
+        "message",
+        "tag",
         "contributor",
+        "redemption",
         "beta",
-        "objectid",
+        "betaerror",
+        "result",
         "core",
+        "public",
+        "ed25519",
         "signature",
-        "did",
         "object",
         "destination",
-        "signingkey",
-        "betaaccountid",
-        "result",
-        "contribution_id"
+        "signingkey"
       ],
-      "lines": 303,
+      "lines": 315,
       "path": "crates/mini-beta/src/claim.rs",
-      "sha256": "6eb7596bd108e75e6efa252c4d1bb784f7b87a57b75f38275185825caa5196e0",
+      "sha256": "2f9ca5612f3bc8a2c6ba34b94d3e23441a3102622bf8aed2f7137b1c952c4ca8",
       "symbols": [
         {
           "kind": "const",
@@ -15597,50 +15597,55 @@
           "name": "claim_tag"
         },
         {
-          "kind": "struct",
+          "kind": "fn",
           "line": 87,
+          "name": "validate_claim_tag"
+        },
+        {
+          "kind": "struct",
+          "line": 98,
           "name": "ClaimRedemption"
         },
         {
           "kind": "fn",
-          "line": 107,
+          "line": 118,
           "name": "redemption_message"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 136,
           "name": "build_claim_redemption"
         },
         {
           "kind": "fn",
-          "line": 168,
+          "line": 179,
           "name": "create_claim_redemption"
         },
         {
           "kind": "fn",
-          "line": 194,
+          "line": 205,
           "name": "parse_claim_redemption_object"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 238,
           "name": "read_claim_redemption"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 248,
           "name": "verify_claim_redemption"
         },
         {
           "kind": "fn",
-          "line": 274,
+          "line": 286,
           "name": "build_redeemed_participation_grant"
         }
       ],
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 61896,
+      "bytes": 61916,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -15671,7 +15676,7 @@
       ],
       "lines": 1786,
       "path": "crates/mini-beta/src/lib.rs",
-      "sha256": "558fe96f4907548dae78bde796de95cf6cb56ff2e35f6f14fe6daa48714d2c23",
+      "sha256": "b03642604ea16021ca568c806fb733381c41bb7e66ef4d86f425623f6d03ecdc",
       "symbols": [
         {
           "kind": "mod",
@@ -16262,7 +16267,7 @@
       "title": "mod claim;"
     },
     {
-      "bytes": 12157,
+      "bytes": 14046,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -16291,9 +16296,9 @@
         "generate",
         "assert_eq"
       ],
-      "lines": 402,
+      "lines": 456,
       "path": "crates/mini-beta/tests/claim_redemption.rs",
-      "sha256": "89a1b723e52a79ea7b2628d4d46b18f2d9d6f0e980c842fa8e17e08f026bc626",
+      "sha256": "7679451726b5a7de41f0440067cd15a72fffb811cd1fc65a0f01ce741f8c9f14",
       "symbols": [
         {
           "kind": "fn",
@@ -16359,6 +16364,11 @@
           "kind": "fn",
           "line": 354,
           "name": "a_participation_grant_without_a_redemption_is_refused_everywhere"
+        },
+        {
+          "kind": "fn",
+          "line": 404,
+          "name": "a_small_order_claim_key_is_refused_and_cannot_be_redeemed_without_a_secret"
         }
       ],
       "title": "use did_mini::Controller;"
@@ -20000,7 +20010,7 @@
       "title": "mini-chain-observer"
     },
     {
-      "bytes": 25464,
+      "bytes": 26178,
       "group": "crate:mini-chain-observer",
       "headings": [],
       "keywords": [
@@ -20029,9 +20039,9 @@
         "network",
         "asset"
       ],
-      "lines": 717,
+      "lines": 730,
       "path": "crates/mini-chain-observer/src/lib.rs",
-      "sha256": "11c73e3e4db0536496ac322b0eba96349fbe21ecefba2b3e59fab39ac10f559a",
+      "sha256": "38815643eb4e78fd6f2ba87e05232b80b095d25c4e869b40f38d1c42948d2428",
       "symbols": [
         {
           "kind": "enum",
@@ -20230,39 +20240,39 @@
         },
         {
           "kind": "fn",
-          "line": 580,
+          "line": 586,
           "name": "lock_path"
         },
         {
           "kind": "fn",
-          "line": 590,
+          "line": 596,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 621,
+          "line": 627,
           "name": "render_of"
         },
         {
           "kind": "fn",
-          "line": 643,
+          "line": 654,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 658,
+          "line": 671,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 713,
+          "line": 726,
           "name": "path"
         }
       ],
       "title": "use std::collections::{BTreeMap, BTreeSet};"
     },
     {
-      "bytes": 16748,
+      "bytes": 18144,
       "group": "crate:mini-chain-observer",
       "headings": [],
       "keywords": [
@@ -20291,9 +20301,9 @@
         "a_duplicate_source_counts_once",
         "unknown_sources_and_other_networks_are_refused"
       ],
-      "lines": 564,
+      "lines": 601,
       "path": "crates/mini-chain-observer/tests/observer.rs",
-      "sha256": "769528a8b5e34be2e3e5511c194c2514f7099e56c4b52e9424e6ae83515c7bdf",
+      "sha256": "27d526f7acbf8707e1d7946f5e541450563a8b39e9751c72b148b55d4dfcd02b",
       "symbols": [
         {
           "kind": "const",
@@ -20418,46 +20428,56 @@
         {
           "kind": "fn",
           "line": 372,
-          "name": "a_corrupted_contradiction_flag_fails_closed"
+          "name": "duplicate_receipt_lines_fail_closed_instead_of_overwriting"
         },
         {
           "kind": "fn",
-          "line": 389,
-          "name": "the_observer_crate_has_no_key_or_value_dependencies"
+          "line": 386,
+          "name": "a_stale_reader_sees_a_contradiction_recorded_by_another_instance"
         },
         {
           "kind": "fn",
           "line": 409,
+          "name": "a_corrupted_contradiction_flag_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 426,
+          "name": "the_observer_crate_has_no_key_or_value_dependencies"
+        },
+        {
+          "kind": "fn",
+          "line": 446,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 424,
+          "line": 461,
           "name": "a_profile_that_could_finalize_on_no_evidence_or_never_is_refused"
         },
         {
           "kind": "fn",
-          "line": 437,
+          "line": 474,
           "name": "report_expiry_or_lost_quorum_does_not_contradict_a_finalized_receipt"
         },
         {
           "kind": "fn",
-          "line": 470,
+          "line": 507,
           "name": "a_failed_journal_write_changes_nothing_and_a_retry_writes_it"
         },
         {
           "kind": "fn",
-          "line": 496,
+          "line": 533,
           "name": "conflicting_same_instant_reports_from_one_source_are_ambiguous_in_either_order"
         },
         {
           "kind": "fn",
-          "line": 534,
+          "line": 571,
           "name": "two_journal_instances_on_one_path_do_not_lose_each_others_records"
         },
         {
           "kind": "fn",
-          "line": 548,
+          "line": 585,
           "name": "receipts_for_different_networks_never_alias"
         }
       ],
@@ -21766,7 +21786,7 @@
       "title": "use crate::error::{CliError, Result};"
     },
     {
-      "bytes": 47918,
+      "bytes": 47840,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -21795,9 +21815,9 @@
         "some",
         "else"
       ],
-      "lines": 1291,
+      "lines": 1288,
       "path": "crates/mini-cli/src/beta.rs",
-      "sha256": "0177a18a1756b22a59a5295482db656a0019d9a4d1f150277d1f43b7c8bb0de7",
+      "sha256": "8c5bc28d76cadf450648e7fdcf5a1195e3854a4102446e60747728ec53df93f1",
       "symbols": [
         {
           "kind": "fn",
@@ -21896,77 +21916,77 @@
         },
         {
           "kind": "fn",
-          "line": 776,
+          "line": 773,
           "name": "contribution_show"
         },
         {
           "kind": "fn",
-          "line": 819,
+          "line": 816,
           "name": "claim_new"
         },
         {
           "kind": "fn",
-          "line": 835,
+          "line": 832,
           "name": "claim_redeem"
         },
         {
           "kind": "const",
-          "line": 840,
+          "line": 837,
           "name": "CTX"
         },
         {
           "kind": "fn",
-          "line": 895,
+          "line": 892,
           "name": "disposition_trust"
         },
         {
           "kind": "fn",
-          "line": 912,
+          "line": 909,
           "name": "authorized_disposition"
         },
         {
           "kind": "fn",
-          "line": 924,
+          "line": 921,
           "name": "authorized_record"
         },
         {
           "kind": "fn",
-          "line": 948,
+          "line": 945,
           "name": "disposition_show"
         },
         {
           "kind": "fn",
-          "line": 1000,
+          "line": 997,
           "name": "with_trust"
         },
         {
           "kind": "fn",
-          "line": 1014,
+          "line": 1011,
           "name": "trust_note"
         },
         {
           "kind": "fn",
-          "line": 1025,
+          "line": 1022,
           "name": "campaign_json"
         },
         {
           "kind": "fn",
-          "line": 1054,
+          "line": 1051,
           "name": "finding_json"
         },
         {
           "kind": "fn",
-          "line": 1097,
+          "line": 1094,
           "name": "contribution_json"
         },
         {
           "kind": "fn",
-          "line": 1125,
+          "line": 1122,
           "name": "disposition_list"
         },
         {
           "kind": "fn",
-          "line": 1215,
+          "line": 1212,
           "name": "contribution_list"
         }
       ],
@@ -36635,7 +36655,7 @@
       "title": "use hkdf::Hkdf;"
     },
     {
-      "bytes": 26586,
+      "bytes": 28088,
       "group": "crate:mini-crypto",
       "headings": [],
       "keywords": [
@@ -36664,9 +36684,9 @@
         "mldsa65",
         "ml-dsa-65"
       ],
-      "lines": 657,
+      "lines": 691,
       "path": "crates/mini-crypto/src/keys.rs",
-      "sha256": "8b32cadaa2318c7fee93091691f827f7a5d7a47174a72a073f3f9dc2458533af",
+      "sha256": "88db31de5de88a4c6cc540b2be668054e7ff21487732a73669c8f9a5b61a657c",
       "symbols": [
         {
           "kind": "enum",
@@ -36770,127 +36790,137 @@
         },
         {
           "kind": "fn",
-          "line": 311,
+          "line": 313,
+          "name": "is_weak"
+        },
+        {
+          "kind": "fn",
+          "line": 323,
+          "name": "verify_strict"
+        },
+        {
+          "kind": "fn",
+          "line": 345,
           "name": "verify"
         },
         {
           "kind": "impl",
-          "line": 346,
+          "line": 380,
           "name": "Signature"
         },
         {
           "kind": "fn",
-          "line": 348,
+          "line": 382,
           "name": "suite"
         },
         {
           "kind": "fn",
-          "line": 353,
+          "line": 387,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 362,
+          "line": 396,
           "name": "from_suite_bytes"
         },
         {
           "kind": "mod",
-          "line": 378,
+          "line": 412,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 382,
+          "line": 416,
           "name": "an_ed25519_signature_round_trips_through_sign_and_verify"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 424,
           "name": "an_ed25519_signature_over_a_different_message_fails"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 435,
           "name": "ml_dsa_65_tag_and_lengths_match_fips204"
         },
         {
           "kind": "fn",
-          "line": 426,
+          "line": 460,
           "name": "a_real_ml_dsa_65_signature_verifies_through_the_mini_crypto_wrapper"
         },
         {
           "kind": "fn",
-          "line": 444,
+          "line": 478,
           "name": "a_tampered_ml_dsa_65_signature_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 468,
+          "line": 502,
           "name": "an_ml_dsa_65_signature_verified_under_the_wrong_public_key_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 489,
+          "line": 523,
           "name": "a_wrong_length_ml_dsa_65_public_key_is_rejected_before_any_verification"
         },
         {
           "kind": "fn",
-          "line": 501,
+          "line": 535,
           "name": "an_all_zero_ml_dsa_65_key_parses_but_never_verifies_a_real_signature"
         },
         {
           "kind": "fn",
-          "line": 531,
+          "line": 565,
           "name": "a_wrong_length_ml_dsa_65_signature_is_rejected_before_any_verification"
         },
         {
           "kind": "fn",
-          "line": 543,
+          "line": 577,
           "name": "an_ed25519_key_cannot_be_parsed_as_ml_dsa_65_bytes"
         },
         {
           "kind": "fn",
-          "line": 556,
+          "line": 590,
           "name": "a_signature_suite_mismatch_between_key_and_signature_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 581,
+          "line": 615,
           "name": "a_generated_ml_dsa_65_key_signs_and_verifies_end_to_end_through_mini_crypto"
         },
         {
           "kind": "fn",
-          "line": 595,
+          "line": 629,
           "name": "a_generated_ml_dsa_65_signature_over_a_different_message_fails"
         },
         {
           "kind": "fn",
-          "line": 606,
+          "line": 640,
           "name": "a_generated_ml_dsa_65_signature_verified_under_a_different_generated_key_fails"
         },
         {
           "kind": "fn",
-          "line": 618,
+          "line": 652,
           "name": "two_generated_ml_dsa_65_keys_are_distinct"
         },
         {
           "kind": "fn",
-          "line": 627,
+          "line": 661,
           "name": "sign_ml_dsa_65_on_an_ed25519_key_is_a_suite_mismatch_not_a_panic"
         },
         {
           "kind": "fn",
-          "line": 637,
+          "line": 671,
           "name": "sign_on_an_ml_dsa_65_key_panics_with_a_clear_message"
         },
         {
           "kind": "fn",
-          "line": 644,
+          "line": 678,
           "name": "to_seed_bytes_on_an_ml_dsa_65_key_panics_with_a_clear_message"
         },
         {
           "kind": "fn",
-          "line": 650,
+          "line": 684,
           "name": "a_generated_ml_dsa_65_signing_key_debug_output_redacts_secret_material"
         }
       ],
@@ -73169,7 +73199,7 @@
       "title": "use mini_value::{MininetStealthAddress, StealthAddressScheme};"
     },
     {
-      "bytes": 22398,
+      "bytes": 22684,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -73198,9 +73228,9 @@
         "view_secret",
         "spend_public"
       ],
-      "lines": 575,
+      "lines": 580,
       "path": "crates/mini-private-payment/src/wallet_v3.rs",
-      "sha256": "92147065c5a0c089da0485bd2383d8b585d5675368e3ed392102ed0ead943e1b",
+      "sha256": "31ea60a08ea63a05f1aff1caa67dfd5e44a9bc220547000104af20d25d3e6eef",
       "symbols": [
         {
           "kind": "struct",
@@ -73344,62 +73374,62 @@
         },
         {
           "kind": "mod",
-          "line": 381,
+          "line": 386,
           "name": "tests"
         },
         {
           "kind": "const",
-          "line": 390,
+          "line": 395,
           "name": "NETWORK"
         },
         {
           "kind": "const",
-          "line": 391,
+          "line": 396,
           "name": "POLICY"
         },
         {
           "kind": "struct",
-          "line": 393,
+          "line": 398,
           "name": "Set"
         },
         {
           "kind": "impl",
-          "line": 394,
+          "line": 399,
           "name": "OutputSet"
         },
         {
           "kind": "fn",
-          "line": 395,
+          "line": 400,
           "name": "len"
         },
         {
           "kind": "fn",
-          "line": 398,
+          "line": 403,
           "name": "key_at"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 406,
           "name": "commitment_at"
         },
         {
           "kind": "fn",
-          "line": 406,
+          "line": 411,
           "name": "pay"
         },
         {
           "kind": "fn",
-          "line": 448,
+          "line": 453,
           "name": "a_note_that_does_not_open_its_commitment_is_never_a_payment"
         },
         {
           "kind": "fn",
-          "line": 488,
+          "line": 493,
           "name": "a_malformed_output_does_not_hide_a_readable_one_in_the_same_claim"
         },
         {
           "kind": "fn",
-          "line": 553,
+          "line": 558,
           "name": "one_unreadable_payment_cannot_blind_a_wallet_to_its_other_income"
         }
       ],
@@ -74671,7 +74701,7 @@
       "title": "use mini_crypto::HashAlgorithm;"
     },
     {
-      "bytes": 9269,
+      "bytes": 9589,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -74700,9 +74730,9 @@
         "acknowledgedamountdisclosure",
         "inmemoryoutputset"
       ],
-      "lines": 251,
+      "lines": 262,
       "path": "crates/mini-private-payment/tests/wallet_v3.rs",
-      "sha256": "f5a22db7b7bd57d19a20aee54f72617bd2464274c9eebc3b9b2713466a3a08de",
+      "sha256": "10afade0525f26b5928c93cade74a6a727dd88e74344900995a62d1807613cf4",
       "symbols": [
         {
           "kind": "const",
@@ -74776,12 +74806,12 @@
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 208,
           "name": "a_view_key_reads_amounts_but_cannot_spend"
         },
         {
           "kind": "fn",
-          "line": 228,
+          "line": 234,
           "name": "the_same_claim_fed_twice_is_counted_once"
         }
       ],

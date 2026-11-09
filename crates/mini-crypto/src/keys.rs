@@ -306,6 +306,40 @@ impl VerifyingKey {
         }
     }
 
+    /// Whether this is a weak (small-order) public key. Such a key admits
+    /// signatures that verify for every message under non-strict verification,
+    /// so it must never stand in for "whoever holds the secret". Only Ed25519
+    /// has the notion; other suites report `false`.
+    pub fn is_weak(&self) -> bool {
+        match &self.inner {
+            KeyMaterial::Ed25519(inner) => inner.is_weak(),
+            KeyMaterial::MlDsa65(_) => false,
+        }
+    }
+
+    /// Like [`VerifyingKey::verify`], but for Ed25519 uses strict verification:
+    /// small-order public keys and small-order or non-canonical `R` are
+    /// rejected. Use it where a signature is a bearer proof of key possession.
+    pub fn verify_strict(&self, message: &[u8], signature: &Signature) -> Result<()> {
+        match &self.inner {
+            KeyMaterial::Ed25519(inner) => {
+                if signature.suite != self.suite {
+                    return Err(CryptoError::BadSignature);
+                }
+                let sig_bytes: [u8; 64] = signature
+                    .bytes
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| CryptoError::BadSignature)?;
+                let sig = DalekSignature::from_bytes(&sig_bytes);
+                inner
+                    .verify_strict(message, &sig)
+                    .map_err(|_| CryptoError::BadSignature)
+            }
+            KeyMaterial::MlDsa65(_) => self.verify(message, signature),
+        }
+    }
+
     /// Verify `signature` over `message`. Returns `Err(BadSignature)` on failure,
     /// including a suite mismatch.
     pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<()> {

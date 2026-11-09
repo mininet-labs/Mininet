@@ -730,12 +730,9 @@ pub fn contribution_accept(
     let claim_tag = {
         let value = required_flag(&mut args, "--claim-tag", "beta contribution accept")?;
         let tag = ClaimTag::new(parse_hex32(&value, "--claim-tag")?).map_err(beta_err)?;
-        // Must be a real Ed25519 public key or the claim can never be redeemed.
-        mini_crypto::VerifyingKey::from_suite_bytes(
-            mini_crypto::SignatureSuite::Ed25519,
-            tag.as_bytes(),
-        )
-        .map_err(|_| {
+        // Must be a real, non-weak Ed25519 public key or the claim can never be
+        // safely redeemed.
+        mini_beta::validate_claim_tag(&tag).map_err(|_| {
             CliError::Usage(
                 "beta contribution accept: --claim-tag is not a valid claim public key".into(),
             )

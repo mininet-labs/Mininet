@@ -180,12 +180,13 @@ fn an_audit_never_reports_a_partial_total_as_income() {
         let found = scan_one_v3(&me.view_secret_bytes(), &me.spend_public_bytes(), claim).unwrap();
         AmountDisclosureV3::create(claim, found[0].output_index, &found[0].note, &ack()).unwrap()
     };
-    let only_first = audit_amounts_v3(&disclosure, [&first, &second], &[open(&first)]);
+    let only_first = audit_amounts_v3(&NETWORK, &disclosure, [&first, &second], &[open(&first)]);
     assert_eq!(only_first.opened_total_micro(), 1_000);
     assert_eq!(only_first.unopened, 1);
     assert!(!only_first.is_complete());
 
     let both = audit_amounts_v3(
+        &NETWORK,
         &disclosure,
         [&first, &second],
         &[open(&first), open(&second)],
@@ -194,7 +195,12 @@ fn an_audit_never_reports_a_partial_total_as_income() {
     assert!(both.is_complete());
 
     // An opening for a claim outside the audited set is counted as unmatched.
-    let stray = audit_amounts_v3(&disclosure, [&first], &[open(&first), open(&second)]);
+    let stray = audit_amounts_v3(
+        &NETWORK,
+        &disclosure,
+        [&first],
+        &[open(&first), open(&second)],
+    );
     assert_eq!(stray.unmatched, 1);
 }
 
@@ -243,8 +249,13 @@ fn the_same_claim_fed_twice_is_counted_once() {
     let found = scan_one_v3(&me.view_secret_bytes(), &me.spend_public_bytes(), &claim).unwrap();
     let opening =
         AmountDisclosureV3::create(&claim, found[0].output_index, &found[0].note, &ack()).unwrap();
-    let audited = audit_amounts_v3(&disclosure, [&claim, &claim], &[opening]);
+    let audited = audit_amounts_v3(&NETWORK, &disclosure, [&claim, &claim], &[opening]);
     assert_eq!(audited.opened_total_micro(), 1_500);
     assert_eq!(audited.opened.len(), 1);
     assert!(audited.is_complete());
+
+    // Claims from another network are never aggregated into this network's income.
+    let other = audit_amounts_v3(&[0x77; 32], &disclosure, [&claim], &[]);
+    assert!(other.opened.is_empty());
+    assert_eq!(other.unopened, 0);
 }

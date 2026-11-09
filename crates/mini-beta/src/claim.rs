@@ -82,6 +82,17 @@ impl ClaimKey {
     }
 }
 
+/// Check that `tag` is a usable claim public key: a valid Ed25519 point that is
+/// not small-order (a weak key would let anyone redeem without a secret).
+pub fn validate_claim_tag(tag: &ClaimTag) -> Result<()> {
+    let key = VerifyingKey::from_suite_bytes(SignatureSuite::Ed25519, tag.as_bytes())
+        .map_err(|_| BetaError::InvalidClaimProof)?;
+    if key.is_weak() {
+        return Err(BetaError::InvalidClaimProof);
+    }
+    Ok(())
+}
+
 /// A parsed, not yet verified, claim redemption.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimRedemption {
@@ -254,8 +265,9 @@ pub fn verify_claim_redemption<B: Backend>(
     let signature =
         mini_crypto::Signature::from_suite_bytes(SignatureSuite::Ed25519, &redemption.signature)
             .map_err(|_| BetaError::InvalidClaimProof)?;
+    // Strict: a small-order claim key must not let anyone redeem without a secret.
     verifying
-        .verify(
+        .verify_strict(
             &redemption_message(
                 &redemption.contribution_id,
                 redemption.epoch,

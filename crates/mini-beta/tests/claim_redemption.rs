@@ -399,3 +399,57 @@ fn a_participation_grant_without_a_redemption_is_refused_everywhere() {
     assert!(ledger.apply_grant(&w.store, forged.id()).is_err());
     assert_eq!(ledger.balance(&account(5)), 0);
 }
+
+#[test]
+fn a_small_order_claim_key_is_refused_and_cannot_be_redeemed_without_a_secret() {
+    use mini_beta::{validate_claim_tag, ClaimTag};
+    // The compressed Ed25519 identity point (y = 1) is a small-order key.
+    let mut identity = [0u8; 32];
+    identity[0] = 1;
+    let weak = ClaimTag::new(identity).unwrap();
+    assert!(matches!(
+        validate_claim_tag(&weak),
+        Err(BetaError::InvalidClaimProof)
+    ));
+
+    // Even if an operator recorded such a tag, an identity-R, zero-s signature
+    // (valid under non-strict verification for any message) does not redeem.
+    let mut w = world(7);
+    let src = ObjectBuilder::new(ObjectType::Custom("mini/claim-test-source".to_string()))
+        .payload(Payload::Public(b"weak".to_vec()))
+        .sign(&w.operator.did(), &w.operator)
+        .unwrap();
+    w.store.insert(&src).unwrap();
+    let receipt = create_contribution_receipt(
+        &mut w.store,
+        &w.operator.did(),
+        &w.operator,
+        src.id(),
+        Some(&w.campaign),
+        weak,
+        ContributionKind::Testing,
+        "weak tag",
+        &["evidence:accepted".to_string()],
+        30,
+        30,
+    )
+    .unwrap();
+    let mut payload = vec![1u8];
+    payload.extend_from_slice(w.epoch.as_bytes());
+    payload.extend_from_slice(account(5).as_bytes());
+    let mut sig = [0u8; 64];
+    sig[0] = 1; // R = identity, s = 0
+    payload.extend_from_slice(&sig);
+    let forged = ObjectBuilder::new(ObjectType::Custom(BETA_CLAIM_REDEMPTION_TYPE.to_string()))
+        .timestamp_ms(31)
+        .sequence(31)
+        .payload(Payload::Public(payload))
+        .link("contribution", receipt.id().clone())
+        .sign(&signer(9).did(), &signer(9))
+        .unwrap();
+    w.store.insert(&forged).unwrap();
+    assert!(matches!(
+        verify_claim_redemption(&w.store, forged.id()),
+        Err(BetaError::InvalidClaimProof)
+    ));
+}

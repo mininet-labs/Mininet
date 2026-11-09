@@ -323,19 +323,24 @@ impl AuditedIncomeV3 {
     }
 }
 
-/// Cross-check published openings against V3 claims. The disclosure's view key
+/// Cross-check published openings against V3 claims of one network. The disclosure's view key
 /// establishes which payments are this account's, and (see the module docs) also
 /// lets the auditor read their amounts; this counts payments that have no
 /// verified published opening, and never reports a partial total as income.
 pub fn audit_amounts_v3<'a>(
+    network_id: &[u8; 32],
     disclosure: &VerifiedDisclosure,
     claims: impl IntoIterator<Item = &'a VerifiedPrivateClaimV3>,
     openings: &[AmountDisclosureV3],
 ) -> AuditedIncomeV3 {
+    // Neither the disclosure nor the result names a network, so the caller
+    // must: claims from any other network are ignored, never aggregated.
     let recognized = scan_v3(
         disclosure.disclosure().view_secret(),
         disclosure.disclosure().spend_public(),
-        claims,
+        claims
+            .into_iter()
+            .filter(|claim| claim.claim().network_id == *network_id),
     );
     let mut audited = AuditedIncomeV3::default();
     let mut matched: Vec<[u8; 32]> = Vec::new();

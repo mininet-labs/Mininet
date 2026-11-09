@@ -286,7 +286,7 @@ fn the_journal_is_idempotent_durable_and_survives_restart() {
     journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
     drop(journal);
     let reopened = ReceiptJournal::open(&path).unwrap();
-    let receipt: &Receipt = reopened.get(Chain::Xrpl, 0, &TX).unwrap();
+    let receipt: Receipt = reopened.get(Chain::Xrpl, 0, &TX).unwrap();
     assert_eq!(receipt.status, Status::Finalized);
     assert_eq!(receipt.inclusion, Some((100, [1; 32])));
     assert!(!receipt.contradicted_after_finality);
@@ -366,6 +366,43 @@ fn the_observer_bounds_tracked_transfers_and_evicts_expired_reports() {
     let later = NOW + 5_000_000;
     let (t, r) = report(70_000, later);
     o.record(t, r, later).unwrap();
+}
+
+#[test]
+fn duplicate_receipt_lines_fail_closed_instead_of_overwriting() {
+    let dir = tempdir("journal-dup");
+    let path = dir.join("receipts");
+    let mut journal = ReceiptJournal::open(&path).unwrap();
+    journal.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    drop(journal);
+    let text = std::fs::read_to_string(&path).unwrap();
+    // A second, different-looking line for the same key must not win.
+    let dup = text.trim_end().replacen(" 1 ", " 3 ", 1);
+    std::fs::write(&path, format!("{text}{dup}\n")).unwrap();
+    assert!(ReceiptJournal::open(&path).is_err());
+}
+
+#[test]
+fn a_stale_reader_sees_a_contradiction_recorded_by_another_instance() {
+    let dir = tempdir("journal-stale");
+    let path = dir.join("receipts");
+    let mut writer = ReceiptJournal::open(&path).unwrap();
+    writer.record(Chain::Xrpl, 0, TX, &finalized()).unwrap();
+    let reader = ReceiptJournal::open(&path).unwrap();
+    assert!(reader
+        .get(Chain::Xrpl, 0, &TX)
+        .unwrap()
+        .status
+        .is_final_evidence());
+    let reorged = Assessment {
+        status: Status::Finalized,
+        agreeing_sources: 2,
+        inclusion: Some((101, [2; 32])),
+    };
+    writer.record(Chain::Xrpl, 0, TX, &reorged).unwrap();
+    let seen = reader.get(Chain::Xrpl, 0, &TX).unwrap();
+    assert!(seen.contradicted_after_finality);
+    assert!(!seen.status.is_final_evidence());
 }
 
 #[test]

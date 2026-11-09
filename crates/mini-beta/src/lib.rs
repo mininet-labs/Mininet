@@ -19,8 +19,8 @@
 mod claim;
 pub use claim::{
     build_claim_redemption, build_redeemed_participation_grant, create_claim_redemption,
-    parse_claim_redemption_object, read_claim_redemption, verify_claim_redemption, ClaimKey,
-    ClaimRedemption, BETA_CLAIM_REDEMPTION_TYPE,
+    parse_claim_redemption_object, read_claim_redemption, validate_claim_tag,
+    verify_claim_redemption, ClaimKey, ClaimRedemption, BETA_CLAIM_REDEMPTION_TYPE,
 };
 
 use std::collections::{HashMap, HashSet};
