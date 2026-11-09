@@ -669,7 +669,10 @@ pub struct BetaBalancesView {
 }
 
 /// A one-time claim secret (bearer material: whoever holds it can redeem the
-/// reward). Never printed by `Debug`, and overwritten when dropped.
+/// reward). Never printed by `Debug`, and overwritten when dropped. Frames that
+/// carry it are wiped too. This is best effort, not a guarantee: copies made by
+/// moves, by the signing library, or by the OS (swap, core dumps) are outside
+/// this crate's control.
 #[derive(Clone, PartialEq, Eq)]
 pub struct ClaimSecret([u8; 32]);
 
@@ -1690,7 +1693,20 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
         }),
         52 => Ok(Command::BetaClaimRedeem {
             contribution_id: decoder.string(MAX_OBJECT_ID_BYTES)?,
-            claim_secret: ClaimSecret::new(array32(decoder.byte_string(32)?, "claim secret")?),
+            claim_secret: {
+                // Read the secret straight from the (zeroizing) frame, with no
+                // intermediate heap copy.
+                if decoder.u32()? != 32 {
+                    return Err(ProtocolError::Decode(
+                        "claim secret must be 32 bytes".into(),
+                    ));
+                }
+                let mut raw = [0u8; 32];
+                raw.copy_from_slice(decoder.take(32)?);
+                let secret = ClaimSecret::new(raw);
+                zeroize::Zeroize::zeroize(&mut raw);
+                secret
+            },
             account: array32(decoder.byte_string(32)?, "beta account")?,
         }),
         44 => Ok(Command::BetaGrantStatus {
@@ -2550,7 +2566,9 @@ fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<(), ProtocolE
         .map_err(|error| ProtocolError::Io(error.to_string()))
 }
 
-fn read_frame<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>, ProtocolError> {
+fn read_frame<R: Read>(
+    reader: &mut R,
+) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, ProtocolError> {
     let mut length = [0u8; 4];
     match reader.read(&mut length[..1]) {
         Ok(0) => return Ok(None),
@@ -2565,25 +2583,37 @@ fn read_frame<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>, ProtocolError>
     if length > MAX_FRAME_BYTES {
         return Err(ProtocolError::FrameTooLarge(length));
     }
-    let mut payload = vec![0u8; length];
+    let mut payload = zeroize::Zeroizing::new(vec![0u8; length]);
     reader
         .read_exact(&mut payload)
         .map_err(|error| ProtocolError::Io(error.to_string()))?;
     Ok(Some(payload))
 }
 
-#[derive(Debug, Default)]
+/// Frame under construction. Its buffer is wiped when dropped and handed out as
+/// `Zeroizing`, because a frame may carry the claim secret. The initial capacity
+/// covers a claim-redeem frame so that command does not reallocate (a grown
+/// `Vec` would leave an un-wiped old copy behind).
+#[derive(Debug)]
 struct Encoder {
     bytes: Vec<u8>,
 }
 
+impl Drop for Encoder {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.bytes);
+    }
+}
+
 impl Encoder {
     fn new() -> Self {
-        Self::default()
+        Self {
+            bytes: Vec::with_capacity(512),
+        }
     }
 
-    fn finish(self) -> Vec<u8> {
-        self.bytes
+    fn finish(mut self) -> zeroize::Zeroizing<Vec<u8>> {
+        zeroize::Zeroizing::new(std::mem::take(&mut self.bytes))
     }
 
     fn u8(&mut self, value: u8) {

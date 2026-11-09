@@ -637,10 +637,20 @@ fn fetching_missing_claims_stores_only_what_was_asked_for() {
     assert!(mine.get(&id_b).is_none(), "unsolicited bytes never stored");
     assert!(report.still_missing.is_empty());
 
+    // A claim we already hold is not "missing" even if the peer omits it.
+    let held = ingest(&mine, &ask_a, &serve(&ClaimEvidencePoolV3::new(), &ask_a));
+    assert!(held.still_missing.is_empty());
+    assert_eq!(held.stored, vec![id_a]);
+
     // Withholding is reported, not mistaken for absence.
     let empty_peer = ClaimEvidencePoolV3::new();
     let ask_both = ClaimRequest::new([id_a, id_b]).unwrap();
-    let report = ingest(&mine, &ask_both, &serve(&empty_peer, &ask_both));
+    let fresh_for_withholding = ClaimEvidencePoolV3::new();
+    let report = ingest(
+        &fresh_for_withholding,
+        &ask_both,
+        &serve(&empty_peer, &ask_both),
+    );
     let mut both_sorted = vec![id_a, id_b];
     both_sorted.sort();
     assert_eq!(report.still_missing, both_sorted);

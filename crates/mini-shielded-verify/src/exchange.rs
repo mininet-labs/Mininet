@@ -219,7 +219,12 @@ pub fn ingest(
 ) -> IngestReport {
     let wanted: BTreeSet<[u8; 32]> = request.ids().iter().copied().collect();
     let mut report = IngestReport::default();
-    let mut delivered: BTreeSet<[u8; 32]> = BTreeSet::new();
+    // Requested claims the pool already holds need no fetching.
+    let mut delivered: BTreeSet<[u8; 32]> = wanted
+        .iter()
+        .copied()
+        .filter(|id| pool.get(id).is_some())
+        .collect();
     for bytes in response.claims() {
         // Identify the claim without storing it: only solicited ids may enter.
         let Some(id) = ClaimEvidencePoolV3::claim_id_of(bytes) else {
