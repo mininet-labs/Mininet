@@ -26690,3 +26690,21 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** the items listed above under "Not done".
 
 **Supersedes / superseded by:** extends D-0550; none.
+
+
+### D-0553 — Follow-ups to D-0552: anchored FROST signer, claim-fetch message layer, fuzz targets, desktop claim redemption, and the three decisions left open  ·  *Shipped (code); decisions Proposed*
+
+**Decision:** Close what code can close, and set out (not decide) what it cannot.
+(1) `mini_custody::anchor`: `MonotonicCounter` plus `AnchoredSigner`, which does a compare-and-set on an external counter before every FROST `commit` and `sign` and refuses a restored or forked signer (T19). (2) `mini_shielded_verify::exchange`: bounded request/response messages, a server and an ingest step for fetching missing V3 claim bytes; only solicited ids are stored. (3) `fuzz/`: cargo-fuzz targets for the claim, fetch, evidence-file and journal decoders. (4) Desktop claim redemption: `Command::BetaClaimRedeem`, a service handler that signs under a throwaway identity, and a panel section; the secret is a redacted, wiped `ClaimSecret`. (5) `docs/design/v3-activation-decisions.md` sets out transparent-path retirement, fee-policy activation and the weak-device baseline as proposals.
+
+**Reason:** D-0552 listed these as the remaining follow-ups; the founder asked for them in the next PR.
+
+**Constitutional impact:** Directive 9, Directive 14, Directive 16 (P1). No value/governance dependency edge; no Tier-F row touched; no new cryptographic construction (compare-and-set on a counter, existing signatures and hashes). The three decisions are **not** made here.
+
+**Implementation status:** shipped with tests. The anchor's counters (`MemoryCounter`, `FileCounter`) are only as external as their medium; a real deployment must back `MonotonicCounter` with an HSM/TPM counter or a remote service the other signers trust, which is not built or audited. The fetch layer has no transport, peer selection, per-peer rate limit or peer authentication. The fuzz targets compile and were smoke-run on stable without coverage instrumentation; a coverage-guided campaign needs nightly and has not run. Desktop redemption is not journaled, so a retry makes another valid redemption (a grant can cite only one) and it has had no GUI test beyond the panel's unit tests.
+
+**Failure point:** the anchor accepts a one-operation crash window by design; a counter on restored storage protects nothing; unaudited (Gate #72/#93 open). Real-value release remains NO-GO.
+
+**Required follow-up:** the three decisions in the design note; a hardware-backed counter; a transport for the fetch messages; a real fuzz campaign; bridges and the external audits.
+
+**Supersedes / superseded by:** extends D-0552; none.

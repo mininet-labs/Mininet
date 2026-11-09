@@ -169,6 +169,7 @@ enum CoreAction {
     BetaGrantStatus,
     BetaGrantPolicyCreate,
     BetaGrantCreate,
+    BetaClaimRedeem,
 }
 
 impl std::fmt::Debug for CoreAction {
@@ -198,6 +199,7 @@ impl std::fmt::Debug for CoreAction {
             Self::BetaGrantStatus => "BetaGrantStatus",
             Self::BetaGrantPolicyCreate => "BetaGrantPolicyCreate",
             Self::BetaGrantCreate => "BetaGrantCreate",
+            Self::BetaClaimRedeem => "BetaClaimRedeem",
         })
     }
 }
@@ -2739,6 +2741,10 @@ impl MininetApp {
                 self.reload_workspace();
                 self.notice = "BETA grant policy signed through the application core.".into();
             }
+            (CoreAction::BetaClaimRedeem, Ok(AppReply::BetaClaimRedeemed { redemption_id })) => {
+                self.beta_wallet.on_claim_redeemed(&redemption_id);
+                self.notice = "Claim redeemed under a one-time identity.".into();
+            }
             (CoreAction::BetaGrantCreate, Ok(AppReply::BetaGrantCreated { grant_id })) => {
                 self.beta_wallet.on_grant_created(&grant_id);
                 self.reload_workspace();
@@ -3828,6 +3834,18 @@ No tracking. No forced updates.",
                     redemption_id,
                     amount,
                     memo,
+                },
+            ),
+            beta_wallet::Request::ClaimRedeem {
+                contribution_id,
+                claim_secret,
+                account,
+            } => (
+                CoreAction::BetaClaimRedeem,
+                AppCommand::BetaClaimRedeem {
+                    contribution_id,
+                    claim_secret,
+                    account,
                 },
             ),
             beta_wallet::Request::GrantStatus {
