@@ -522,13 +522,13 @@ impl<V: IdentityVault> Core<V> {
         epoch: [u8; 32],
         account: [u8; 32],
         class: BetaGrantClass,
-        contribution_id: Option<&str>,
+        redemption_id: Option<&str>,
         amount: u64,
         memo: &str,
     ) -> Result<Reply, ServiceError> {
         validate_operation(operation_id)?;
         let campaign = object_id(campaign_id)?;
-        let contribution = contribution_id.map(object_id).transpose()?;
+        let redemption = redemption_id.map(object_id).transpose()?;
         let epoch = epoch_id(epoch)?;
         let account = account_id(account)?;
         if amount == 0 {
@@ -545,7 +545,7 @@ impl<V: IdentityVault> Core<V> {
                 epoch.as_bytes(),
                 account.as_bytes(),
                 class.as_str().as_bytes(),
-                contribution
+                redemption
                     .as_ref()
                     .map_or(&b""[..], |c| c.as_str().as_bytes()),
                 &amount.to_be_bytes(),
@@ -566,21 +566,52 @@ impl<V: IdentityVault> Core<V> {
         }
         let sequence = self.reserve_sequence()?;
         let (human, device) = self.signing_identity()?;
-        let object = build_grant_authorization(
-            &self.store,
-            human,
-            device,
-            &campaign,
-            contribution.as_ref(),
-            epoch,
-            account,
-            class,
-            amount,
-            memo,
-            now_ms(),
-            sequence,
-        )
-        .map_err(beta_lib_error)?;
+        let object = match (class, redemption.as_ref()) {
+            // Always anonymous: a participation grant takes its account from the
+            // verified claim redemption, which must name the recipient given.
+            (GrantClass::Participation, Some(redemption_id)) => {
+                let object = mini_beta::build_redeemed_participation_grant(
+                    &self.store,
+                    human,
+                    device,
+                    redemption_id,
+                    amount,
+                    memo,
+                    now_ms(),
+                    sequence,
+                )
+                .map_err(beta_lib_error)?;
+                let grant = mini_beta::parse_grant_object(&object).map_err(beta_lib_error)?;
+                if grant.account != account || grant.campaign_id != campaign || grant.epoch != epoch
+                {
+                    return Err(bad(
+                        "the claim redemption names a different account, campaign or epoch",
+                    ));
+                }
+                object
+            }
+            (GrantClass::Participation, None) => {
+                return Err(bad("a participation grant needs the claim redemption ID"));
+            }
+            (GrantClass::Testing, Some(_)) => {
+                return Err(bad("a testing grant takes no redemption ID"));
+            }
+            (GrantClass::Testing, None) => build_grant_authorization(
+                &self.store,
+                human,
+                device,
+                &campaign,
+                None,
+                epoch,
+                account,
+                class,
+                amount,
+                memo,
+                now_ms(),
+                sequence,
+            )
+            .map_err(beta_lib_error)?,
+        };
         self.beta_journal_and_commit(
             operation_id,
             Record {

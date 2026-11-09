@@ -1,7 +1,8 @@
 use did_mini::Controller;
 use mini_beta::{
-    create_campaign, create_contribution_receipt, create_grant_authorization, BetaAccountId,
-    BetaEpochId, BetaError, BetaMiniPolicy, ClaimTag, ContributionKind, GrantClass,
+    build_redeemed_participation_grant, create_campaign, create_claim_redemption,
+    create_contribution_receipt, create_grant_authorization, BetaAccountId, BetaEpochId, BetaError,
+    BetaMiniPolicy, ClaimKey, ContributionKind, GrantClass,
 };
 use mini_beta_grants::{
     create_grant_approval, create_grant_policy, detect_authorizer_equivocations,
@@ -36,6 +37,10 @@ struct Fixture {
     campaign: Object,
     policy: Object,
     epoch: BetaEpochId,
+    /// Claim tag byte per contribution receipt (keys are deterministic).
+    claim_tags: Vec<(ObjectId, u8)>,
+    /// The most recent redemption `participation_grant` created.
+    last_redemption: Option<Object>,
 }
 
 impl Fixture {
@@ -89,6 +94,8 @@ impl Fixture {
             campaign,
             policy,
             epoch,
+            claim_tags: Vec::new(),
+            last_redemption: None,
         }
     }
 
@@ -111,20 +118,22 @@ impl Fixture {
     }
 
     fn contribution(&mut self, tag: u8, sequence: u64) -> Object {
-        create_contribution_receipt(
+        let object = create_contribution_receipt(
             &mut self.store,
             &self.campaign_author.did(),
             &self.campaign_author,
             self.target.id(),
             Some(self.campaign.id()),
-            ClaimTag::new([tag; 32]).unwrap(),
+            ClaimKey::from_secret(&[tag; 32]).claim_tag().unwrap(),
             ContributionKind::Testing,
             "accepted contribution",
             &["evidence:accepted".to_string()],
             400 + sequence,
             sequence,
         )
-        .unwrap()
+        .unwrap();
+        self.claim_tags.push((object.id().clone(), tag));
+        object
     }
 
     fn participation_grant(
@@ -135,21 +144,40 @@ impl Fixture {
         memo: &str,
         sequence: u64,
     ) -> Object {
-        create_grant_authorization(
+        // Always anonymous: the account comes from a redemption made with the
+        // receipt's claim key under a throwaway identity.
+        let tag = self
+            .claim_tags
+            .iter()
+            .find(|(id, _)| id == contribution_id)
+            .map(|(_, tag)| *tag)
+            .expect("receipt made by this fixture");
+        let throwaway = signer(99);
+        let redemption = create_claim_redemption(
             &mut self.store,
+            &throwaway.did(),
+            &throwaway,
+            contribution_id,
+            account,
+            &ClaimKey::from_secret(&[tag; 32]),
+            500 + sequence,
+            1_000 + sequence,
+        )
+        .unwrap();
+        let grant = build_redeemed_participation_grant(
+            &self.store,
             &self.campaign_author.did(),
             &self.campaign_author,
-            self.campaign.id(),
-            Some(contribution_id),
-            self.epoch,
-            account,
-            GrantClass::Participation,
+            redemption.id(),
             amount,
             memo,
             600 + sequence,
             sequence,
         )
-        .unwrap()
+        .unwrap();
+        self.store.insert(&grant).unwrap();
+        self.last_redemption = Some(redemption);
+        grant
     }
 
     fn approve(&mut self, member_index: usize, grant_id: &ObjectId, sequence: u64) -> Object {
@@ -643,8 +671,122 @@ fn participation_grant_rejects_a_receipt_with_missing_source() {
     let approvals = [a.id().clone(), b.id().clone(), c.id().clone()];
     assert!(validate_grant_acceptance(&f.store, f.policy.id(), grant.id(), &approvals).is_ok());
     let mut partial = Store::new(MemoryBackend::new());
-    for object in [&f.campaign, &f.policy, &receipt, &grant, &a, &b, &c] {
+    let redemption = f.last_redemption.clone().unwrap();
+    for object in [
+        &f.campaign,
+        &f.policy,
+        &receipt,
+        &redemption,
+        &grant,
+        &a,
+        &b,
+        &c,
+    ] {
         partial.insert(object).unwrap();
     }
     assert!(validate_grant_acceptance(&partial, f.policy.id(), grant.id(), &approvals).is_err());
+}
+
+#[test]
+fn a_redeemed_participation_grant_must_match_its_redemption_and_still_needs_threshold_approval() {
+    use mini_beta::{
+        build_redeemed_participation_grant, create_claim_redemption, create_contribution_receipt,
+        ClaimKey,
+    };
+    let mut f = Fixture::new();
+    let key = ClaimKey::generate().unwrap();
+    let contribution = create_contribution_receipt(
+        &mut f.store,
+        &f.campaign_author.did(),
+        &f.campaign_author,
+        f.target.id(),
+        Some(f.campaign.id()),
+        key.claim_tag().unwrap(),
+        ContributionKind::Testing,
+        "accepted contribution with a private claim key",
+        &["evidence:accepted".to_string()],
+        450,
+        45,
+    )
+    .unwrap();
+    let throwaway = signer(77);
+    let redemption = create_claim_redemption(
+        &mut f.store,
+        &throwaway.did(),
+        &throwaway,
+        contribution.id(),
+        BetaAccountId::new([9; 32]).unwrap(),
+        &key,
+        460,
+        1,
+    )
+    .unwrap();
+    let grant = build_redeemed_participation_grant(
+        &f.store,
+        &f.campaign_author.did(),
+        &f.campaign_author,
+        redemption.id(),
+        25,
+        "redeemed",
+        650,
+        46,
+    )
+    .unwrap();
+    f.store.insert(&grant).unwrap();
+
+    // Without approvals the grant is not accepted; with three it is.
+    assert!(validate_grant_acceptance(&f.store, f.policy.id(), grant.id(), &[]).is_err());
+    let a = f.approve(0, grant.id(), 47);
+    let b = f.approve(1, grant.id(), 48);
+    let extra = f.approve(2, grant.id(), 52);
+    // The fixture's participation threshold is three.
+    validate_grant_acceptance(
+        &f.store,
+        f.policy.id(),
+        grant.id(),
+        &[a.id().clone(), b.id().clone(), extra.id().clone()],
+    )
+    .unwrap();
+
+    // A hand-built grant that cites the redemption but pays another account
+    // violates the rule, whatever the approvals say.
+    let mut payload = vec![1u8];
+    payload.extend_from_slice(f.epoch.as_bytes());
+    payload.extend_from_slice(&[8u8; 32]);
+    for (text, amount) in [("participation", Some(25u64)), ("redirected", None)] {
+        payload.extend_from_slice(&(text.len() as u32).to_be_bytes());
+        payload.extend_from_slice(text.as_bytes());
+        if let Some(amount) = amount {
+            payload.extend_from_slice(&amount.to_be_bytes());
+        }
+    }
+    let redirected = ObjectBuilder::new(ObjectType::Custom(mini_beta::BETA_GRANT_TYPE.to_string()))
+        .timestamp_ms(651)
+        .sequence(49)
+        .payload(Payload::Public(payload))
+        .link("campaign", f.campaign.id().clone())
+        .link("contribution", contribution.id().clone())
+        .link("redemption", redemption.id().clone())
+        .sign(&f.campaign_author.did(), &f.campaign_author)
+        .unwrap();
+    f.store.insert(&redirected).unwrap();
+    // Authorizers cannot even approve it: approval creation re-checks the rule.
+    let member = &f.authorizers[0];
+    let approval = create_grant_approval(
+        &mut f.store,
+        &member.did(),
+        member,
+        f.policy.id(),
+        redirected.id(),
+        1_050,
+        50,
+    );
+    assert!(matches!(
+        approval,
+        Err(GrantAcceptanceError::GrantRuleViolation)
+    ));
+    assert!(matches!(
+        validate_grant_acceptance(&f.store, f.policy.id(), redirected.id(), &[]),
+        Err(GrantAcceptanceError::GrantRuleViolation)
+    ));
 }

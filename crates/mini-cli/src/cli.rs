@@ -243,6 +243,10 @@ fn dispatch_beta(
             beta::contribution_show(home, store_path, args),
         ),
         ("claim", "new") => ("beta.claim-new", beta::claim_new(home, store_path, args)),
+        ("claim", "redeem") => (
+            "beta.claim-redeem",
+            beta::claim_redeem(home, store_path, args),
+        ),
         ("account" | "wallet" | "transfer", _) => {
             beta_wallet::dispatch(home, store_path, &noun, &sub, args)
         }

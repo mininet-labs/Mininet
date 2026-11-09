@@ -200,6 +200,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-chain-observer",
+        Coverage::Gap {
+            reason: "read-only XRPL/Monero observation (research PR #429); covered by its own quorum, ambiguity and journal tests, not by the selftest",
+        },
+    ),
+    (
         "mini-bootstrap",
         Coverage::Gap {
             reason: "genesis capsules are a first-run network-formation step; a client that already has an identity has nothing meaningful to bootstrap from",

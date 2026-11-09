@@ -293,6 +293,10 @@ fn the_beta_loop_converges_across_two_independent_stores_over_real_sync() {
         "--non-goal",
         "no behaviour change",
     ]);
+    // The tester's one-time claim key; the operator only receives the public tag.
+    let made = tester.json(&["beta", "claim", "new"]);
+    let claim_tag = field(&made, "claim_commitment");
+    let claim_secret = field(&made, "claim_secret");
     let contribution = field(
         &operator.json(&[
             "beta",
@@ -307,6 +311,8 @@ fn the_beta_loop_converges_across_two_independent_stores_over_real_sync() {
             "Found and reported a real defect",
             "--evidence",
             "finding",
+            "--claim-tag",
+            &claim_tag,
         ]),
         "contribution_id",
     );
@@ -340,6 +346,26 @@ fn the_beta_loop_converges_across_two_independent_stores_over_real_sync() {
         ]),
         "policy_id",
     );
+    // The tester redeems the private claim to its account under a throwaway
+    // identity; the operator's grant takes the account from the redemption.
+    sync(&tester, &operator);
+    let secret_file = tempdir("claim-secret");
+    std::fs::write(&secret_file, &claim_secret).unwrap();
+    let redemption = field(
+        &tester.json(&[
+            "beta",
+            "claim",
+            "redeem",
+            "--contribution",
+            &contribution,
+            "--secret-file",
+            &secret_file,
+            "--account",
+            &account,
+        ]),
+        "redemption_id",
+    );
+    sync(&operator, &tester);
     let grant = field(
         &operator.json(&[
             "beta",
@@ -348,12 +374,10 @@ fn the_beta_loop_converges_across_two_independent_stores_over_real_sync() {
             &campaign,
             "--epoch",
             EPOCH,
-            "--account",
-            &account,
+            "--redemption",
+            &redemption,
             "--class",
             "participation",
-            "--contribution",
-            &contribution,
             "--amount",
             "100",
             "--memo",

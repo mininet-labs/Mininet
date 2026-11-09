@@ -72,6 +72,8 @@ pub enum PrivatePaymentError {
     MemoNotForYou,
     /// The memo opened but its contents were not a well-formed purpose.
     MalformedMemo,
+    /// An output key or commitment is not a canonical, non-identity point.
+    MalformedOutput,
     /// A memo's plaintext exceeded [`crate::MAX_MEMO_BYTES`].
     MemoTooLarge { got: usize, max: usize },
     /// This key image was already spent. M1 in action: the second claim is
@@ -174,6 +176,12 @@ impl core::fmt::Display for PrivatePaymentError {
             }
             PrivatePaymentError::MemoNotForYou => write!(f, "memo is not addressed to this viewer"),
             PrivatePaymentError::MalformedMemo => write!(f, "memo plaintext is malformed"),
+            PrivatePaymentError::MalformedOutput => {
+                write!(
+                    f,
+                    "an output key or commitment is not a canonical non-identity point"
+                )
+            }
             PrivatePaymentError::MemoTooLarge { got, max } => {
                 write!(f, "memo is {got} bytes, maximum {max}")
             }

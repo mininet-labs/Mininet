@@ -16,6 +16,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod claim;
+pub use claim::{
+    build_claim_redemption, build_redeemed_participation_grant, create_claim_redemption,
+    parse_claim_redemption_object, read_claim_redemption, validate_claim_tag,
+    verify_claim_redemption, ClaimKey, ClaimRedemption, BETA_CLAIM_REDEMPTION_TYPE,
+};
+
 use std::collections::{HashMap, HashSet};
 
 use did_mini::{Controller, Did};
@@ -67,6 +74,9 @@ pub enum BetaError {
     GrantLimitExceeded,
     /// A transfer attempted to spend more Beta MINI than the account holds.
     InsufficientBalance,
+    /// A claim redemption's proof of key possession did not verify, or it does
+    /// not match the grant that cites it.
+    InvalidClaimProof,
     /// Store failure.
     Store(StoreError),
     /// Object construction failure.
@@ -82,6 +92,7 @@ impl core::fmt::Display for BetaError {
             Self::DuplicateGrant => write!(f, "beta grant or contribution already applied"),
             Self::GrantLimitExceeded => write!(f, "beta grant or epoch limit exceeded"),
             Self::InsufficientBalance => write!(f, "insufficient Beta MINI balance"),
+            Self::InvalidClaimProof => write!(f, "invalid or mismatched claim redemption proof"),
             Self::Store(e) => write!(f, "store: {e}"),
             Self::Object(e) => write!(f, "object: {e}"),
         }
@@ -529,6 +540,10 @@ pub struct BetaGrantAuthorization {
     pub campaign_id: ObjectId,
     /// Participation grants must link their accepted contribution receipt.
     pub contribution_id: Option<ObjectId>,
+    /// Optional claim redemption proving the account was chosen by the holder
+    /// of the contribution's one-time claim key. When present the ledger
+    /// re-verifies it on apply.
+    pub redemption_id: Option<ObjectId>,
     /// Resettable beta epoch.
     pub epoch: BetaEpochId,
     /// Opaque beta account destination.
@@ -795,6 +810,39 @@ pub fn build_grant_authorization<B: Backend>(
     timestamp_ms: u64,
     sequence: u64,
 ) -> Result<Object> {
+    build_grant_inner(
+        store,
+        record_human,
+        record_device,
+        campaign_id,
+        contribution_id,
+        None,
+        epoch,
+        account,
+        class,
+        amount,
+        memo,
+        timestamp_ms,
+        sequence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_grant_inner<B: Backend>(
+    store: &Store<B>,
+    record_human: &Did,
+    record_device: &Controller,
+    campaign_id: &ObjectId,
+    contribution_id: Option<&ObjectId>,
+    redemption_id: Option<&ObjectId>,
+    epoch: BetaEpochId,
+    account: BetaAccountId,
+    class: GrantClass,
+    amount: u64,
+    memo: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     let campaign_obj = store.get(campaign_id)?;
     let campaign = parse_campaign_object(&campaign_obj)?;
     if epoch != campaign.epoch || amount == 0 {
@@ -818,6 +866,11 @@ pub fn build_grant_authorization<B: Backend>(
             return Err(BetaError::InvalidObject);
         }
     }
+    // Always anonymous: a participation grant's account comes from a verified
+    // claim redemption, never from a builder-chosen account.
+    if class == GrantClass::Participation && redemption_id.is_none() {
+        return Err(BetaError::InvalidClaimProof);
+    }
     validate_text(memo, MAX_SHORT_TEXT_BYTES, true)?;
 
     let mut payload = vec![PAYLOAD_VERSION];
@@ -834,6 +887,9 @@ pub fn build_grant_authorization<B: Backend>(
         .link("campaign", campaign_id.clone());
     if let Some(contribution_id) = contribution_id {
         builder = builder.link("contribution", contribution_id.clone());
+    }
+    if let Some(redemption_id) = redemption_id {
+        builder = builder.link("redemption", redemption_id.clone());
     }
     Ok(builder.sign(record_human, record_device)?)
 }
@@ -1023,7 +1079,11 @@ pub fn parse_contribution_object(object: &Object) -> Result<ContributionReceipt>
 
 /// Strict parser for Beta MINI grant authorization evidence.
 pub fn parse_grant_object(object: &Object) -> Result<BetaGrantAuthorization> {
-    ensure_type_and_links(object, BETA_GRANT_TYPE, &["campaign", "contribution"])?;
+    ensure_type_and_links(
+        object,
+        BETA_GRANT_TYPE,
+        &["campaign", "contribution", "redemption"],
+    )?;
     let bytes = public_payload(object)?;
     let mut off = 0usize;
     if take_u8(bytes, &mut off)? != PAYLOAD_VERSION {
@@ -1036,6 +1096,7 @@ pub fn parse_grant_object(object: &Object) -> Result<BetaGrantAuthorization> {
     let amount = take_u64(bytes, &mut off)?;
     let memo = take_str(bytes, &mut off, MAX_SHORT_TEXT_BYTES, true)?;
     let contribution_id = optional_link(object, "contribution")?;
+    let redemption_id = optional_link(object, "redemption")?;
     if off != bytes.len() || amount == 0 {
         return Err(BetaError::InvalidObject);
     }
@@ -1045,11 +1106,16 @@ pub fn parse_grant_object(object: &Object) -> Result<BetaGrantAuthorization> {
             return Err(BetaError::InvalidObject)
         }
     }
+    if redemption_id.is_some() != (class == GrantClass::Participation) {
+        // Participation requires a redemption; testing forbids one.
+        return Err(BetaError::InvalidObject);
+    }
     Ok(BetaGrantAuthorization {
         id: object.id().clone(),
         record_author: object.author_human.clone(),
         campaign_id: required_link(object, "campaign")?,
         contribution_id,
+        redemption_id,
         epoch,
         account,
         class,
@@ -1183,6 +1249,21 @@ impl BetaMiniLedger {
                 let contribution = parse_contribution_object(&store.get(contribution_id)?)?;
                 if contribution.campaign_id.as_ref() != Some(&grant.campaign_id) {
                     return Err(BetaError::InvalidObject);
+                }
+                {
+                    // The account was chosen by whoever holds the contribution's
+                    // one-time claim key; re-verify, never trust the builder.
+                    let redemption_id = grant
+                        .redemption_id
+                        .as_ref()
+                        .ok_or(BetaError::InvalidClaimProof)?;
+                    let redemption = verify_claim_redemption(store, redemption_id)?;
+                    if redemption.contribution_id != *contribution_id
+                        || redemption.account != grant.account
+                        || redemption.epoch != grant.epoch
+                    {
+                        return Err(BetaError::InvalidClaimProof);
+                    }
                 }
                 // Keyed on the underlying accepted work (`source_id`), not the
                 // receipt object's own id. `create_contribution_receipt` does
@@ -1478,13 +1559,14 @@ mod tests {
             3,
         )
         .unwrap();
+        let claim_key = ClaimKey::generate().unwrap();
         let contribution = create_contribution_receipt(
             &mut store,
             &record_signer.did(),
             &record_signer,
             disposition.id(),
             Some(campaign.id()),
-            ClaimTag::new([9; 32]).unwrap(),
+            claim_key.claim_tag().unwrap(),
             ContributionKind::Testing,
             "found and verified the reconnect failure",
             &strings(&["finding", "fixed-state", "retest"]),
@@ -1492,21 +1574,29 @@ mod tests {
             4,
         )
         .unwrap();
-        let grant = create_grant_authorization(
+        let redemption = create_claim_redemption(
             &mut store,
             &record_signer.did(),
             &record_signer,
-            campaign.id(),
-            Some(contribution.id()),
-            epoch,
+            contribution.id(),
             BetaAccountId::new([10; 32]).unwrap(),
-            GrantClass::Participation,
+            &claim_key,
+            450,
+            45,
+        )
+        .unwrap();
+        let grant = build_redeemed_participation_grant(
+            &store,
+            &record_signer.did(),
+            &record_signer,
+            redemption.id(),
             1_000 * MICRO_BETA_MINI_PER_BETA_MINI,
             "accepted reconnect testing contribution",
             500,
             5,
         )
         .unwrap();
+        store.insert(&grant).unwrap();
 
         let parsed_campaign = read_campaign(&store, campaign.id()).unwrap();
         let parsed_finding = read_finding(&store, finding.id()).unwrap();
@@ -1522,7 +1612,7 @@ mod tests {
         assert_eq!(parsed_disposition.state, FindingState::Fixed);
         assert_eq!(
             parsed_contribution.claim_tag,
-            ClaimTag::new([9; 32]).unwrap()
+            claim_key.claim_tag().unwrap()
         );
         assert_eq!(parsed_grant.class, GrantClass::Participation);
         assert_eq!(

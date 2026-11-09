@@ -425,13 +425,13 @@ impl Request {
             Command::BetaGrantCreate {
                 operation_id,
                 campaign_id,
-                contribution_id,
+                redemption_id,
                 amount,
                 memo,
                 ..
             } => {
                 validate_operation_id(operation_id)?;
-                validate_beta_grant(campaign_id, contribution_id.as_deref(), *amount, memo)?;
+                validate_beta_grant(campaign_id, redemption_id.as_deref(), *amount, memo)?;
             }
             Command::SetLike {
                 operation_id,
@@ -617,15 +617,15 @@ fn validate_beta_grant_policy(
 
 fn validate_beta_grant(
     campaign_id: &str,
-    contribution_id: Option<&str>,
+    redemption_id: Option<&str>,
     amount: u64,
     memo: &str,
 ) -> Result<(), ProtocolError> {
     if campaign_id.is_empty() || campaign_id.len() > MAX_OBJECT_ID_BYTES {
         return Err(ProtocolError::LimitExceeded("beta grant campaign id"));
     }
-    if contribution_id.is_some_and(|id| id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES) {
-        return Err(ProtocolError::LimitExceeded("beta grant contribution id"));
+    if redemption_id.is_some_and(|id| id.is_empty() || id.len() > MAX_OBJECT_ID_BYTES) {
+        return Err(ProtocolError::LimitExceeded("beta grant redemption id"));
     }
     if amount == 0 {
         return Err(ProtocolError::LimitExceeded("beta grant amount"));
@@ -740,7 +740,7 @@ pub enum Command {
         epoch: [u8; 32],
         account: [u8; 32],
         class: BetaGrantClass,
-        contribution_id: Option<String>,
+        redemption_id: Option<String>,
         amount: u64,
         memo: String,
     },
@@ -1367,11 +1367,11 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
             epoch,
             account,
             class,
-            contribution_id,
+            redemption_id,
             amount,
             memo,
         } => {
-            validate_beta_grant(campaign_id, contribution_id.as_deref(), *amount, memo)?;
+            validate_beta_grant(campaign_id, redemption_id.as_deref(), *amount, memo)?;
             encoder.u8(46);
             encoder.string(operation_id, MAX_OPERATION_ID_BYTES)?;
             encoder.string(campaign_id, MAX_OBJECT_ID_BYTES)?;
@@ -1381,7 +1381,7 @@ fn encode_command(encoder: &mut Encoder, command: &Command) -> Result<(), Protoc
                 BetaGrantClass::Testing => 1,
                 BetaGrantClass::Participation => 2,
             });
-            encoder.option_string(contribution_id.as_deref(), MAX_OBJECT_ID_BYTES)?;
+            encoder.option_string(redemption_id.as_deref(), MAX_OBJECT_ID_BYTES)?;
             encoder.u64(*amount);
             encoder.string(memo, MAX_BETA_MEMO_BYTES)?;
         }
@@ -1674,7 +1674,7 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
                 2 => BetaGrantClass::Participation,
                 _ => return Err(ProtocolError::Decode("invalid beta grant class".into())),
             },
-            contribution_id: decoder.option_string(MAX_OBJECT_ID_BYTES)?,
+            redemption_id: decoder.option_string(MAX_OBJECT_ID_BYTES)?,
             amount: decoder.u64()?,
             memo: decoder.string(MAX_BETA_MEMO_BYTES)?,
         }),
@@ -2941,7 +2941,7 @@ mod tests {
                     epoch: [7; 32],
                     account: [3; 32],
                     class: BetaGrantClass::Testing,
-                    contribution_id: contribution.map(str::to_string),
+                    redemption_id: contribution.map(str::to_string),
                     amount,
                     memo: memo.to_string(),
                 },
@@ -3030,7 +3030,7 @@ mod tests {
                 epoch: [7; 32],
                 account: [3; 32],
                 class: BetaGrantClass::Participation,
-                contribution_id: Some("zcontribution".to_string()),
+                redemption_id: Some("zcontribution".to_string()),
                 amount: 500,
                 memo: "thanks".to_string(),
             },
@@ -3040,7 +3040,7 @@ mod tests {
                 epoch: [7; 32],
                 account: [3; 32],
                 class: BetaGrantClass::Testing,
-                contribution_id: None,
+                redemption_id: None,
                 amount: 5,
                 memo: "test".to_string(),
             },

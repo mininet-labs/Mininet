@@ -16,6 +16,20 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## V3 validator path and read-only chain observer (D-0550)
+
+**Shipped as code, not activated, unaudited:** `mini-shielded-verify` now has a V3
+evidence pool and `ClaimVerifier` behind the existing canonical execution boundary,
+proven through real quorum certificates, replay and snapshot restore
+(`tests/canonical_chain_v3.rs`); V3 wallet scanning and amount disclosure in
+`mini-private-payment`; a FROST legacy-quarantine guard; and `mini-chain-observer`
+(read-only XRPL/Monero observation, no keys, no minting). **Not built:** claim-
+evidence gossip/retention, a calibrated fee policy, the transparent-path retirement
+and any state migration, fuzz targets, weak-device measurements, bridges. Real-value
+release stays NO-GO. Map of what is tested and what is not:
+[conformance](design/xrpl-monero-research-conformance.md); external-review hand-off:
+[evidence packet](gates/v3-composition-evidence-packet.md).
+
 ## Proposed offline credit and account primitives (D-0529)
 
 **Prototype, not activated:** reusable signed credit allowances, sender-side

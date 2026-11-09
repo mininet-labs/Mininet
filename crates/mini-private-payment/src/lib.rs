@@ -199,6 +199,7 @@ mod memo_v3;
 mod nullifier;
 mod reconcile;
 mod scan;
+mod wallet_v3;
 
 pub use account::{
     account_snapshot, AccountCredit, AccountError, AccountLedgerView, AccountSnapshot,
@@ -243,3 +244,8 @@ pub use reconcile::{
     reconcile, ChainBackedPrivateLedger, InMemoryPrivateLedger, PrivateLedgerView,
 };
 pub use scan::{recognizes, scan, scan_one, RecognizedPayment, ScanOutcome};
+pub use wallet_v3::{
+    audit_amounts_v3, recognizes_v3, scan_one_v3, scan_v3, AmountDisclosureV3, AuditedIncomeV3,
+    OpenedPaymentV3, RecognizedPaymentV3, ScanOutcomeV3, AMOUNT_DISCLOSURE_V3_DOMAIN,
+    AMOUNT_DISCLOSURE_V3_VERSION,
+};

@@ -1,8 +1,8 @@
 use did_mini::Controller;
 use mini_beta::{
-    create_campaign, create_contribution_receipt, create_grant_authorization, BetaAccountId,
-    BetaEpochId, BetaError, BetaMiniLedger, BetaMiniPolicy, ClaimTag, ContributionKind, GrantClass,
-    BETA_GRANT_TYPE,
+    build_redeemed_participation_grant, create_campaign, create_claim_redemption,
+    create_contribution_receipt, create_grant_authorization, BetaAccountId, BetaEpochId, BetaError,
+    BetaMiniLedger, BetaMiniPolicy, ClaimKey, ContributionKind, GrantClass, BETA_GRANT_TYPE,
 };
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
 use mini_store::{MemoryBackend, Store};
@@ -62,7 +62,7 @@ fn contribution(
         signer,
         source,
         Some(campaign_id),
-        ClaimTag::new([tag; 32]).unwrap(),
+        ClaimKey::from_secret(&[tag; 32]).claim_tag().unwrap(),
         ContributionKind::Testing,
         "accepted adversarial contribution",
         &["evidence:accepted".to_string()],
@@ -70,6 +70,45 @@ fn contribution(
         sequence,
     )
     .unwrap()
+}
+
+/// A participation grant whose account comes from a verified claim redemption
+/// made with the receipt's claim key (deterministic per `tag` in these tests).
+#[allow(clippy::too_many_arguments)]
+fn redeemed_grant(
+    store: &mut Store<MemoryBackend>,
+    signer: &Controller,
+    receipt: &Object,
+    tag: u8,
+    account: BetaAccountId,
+    amount: u64,
+    memo: &str,
+    sequence: u64,
+) -> Object {
+    let redemption = create_claim_redemption(
+        store,
+        &signer.did(),
+        signer,
+        receipt.id(),
+        account,
+        &ClaimKey::from_secret(&[tag; 32]),
+        sequence,
+        sequence,
+    )
+    .unwrap();
+    let grant = build_redeemed_participation_grant(
+        store,
+        &signer.did(),
+        signer,
+        redemption.id(),
+        amount,
+        memo,
+        sequence,
+        sequence,
+    )
+    .unwrap();
+    store.insert(&grant).unwrap();
+    grant
 }
 
 fn put_str(out: &mut Vec<u8>, value: &str) {
@@ -120,36 +159,26 @@ fn one_contribution_cannot_back_two_distinct_participation_grants() {
     let contribution = contribution(&mut store, &signer, &target, campaign.id(), 2, 2);
     let account = BetaAccountId::new([3; 32]).unwrap();
 
-    let first = create_grant_authorization(
+    let first = redeemed_grant(
         &mut store,
-        &signer.did(),
         &signer,
-        campaign.id(),
-        Some(contribution.id()),
-        epoch,
+        &contribution,
+        2,
         account,
-        GrantClass::Participation,
         10,
         "first",
         3,
-        3,
-    )
-    .unwrap();
-    let second = create_grant_authorization(
+    );
+    let second = redeemed_grant(
         &mut store,
-        &signer.did(),
         &signer,
-        campaign.id(),
-        Some(contribution.id()),
-        epoch,
+        &contribution,
+        2,
         account,
-        GrantClass::Participation,
         10,
         "second distinct authorization",
         4,
-        4,
-    )
-    .unwrap();
+    );
     assert_ne!(first.id(), second.id());
 
     let mut ledger = BetaMiniLedger::new(epoch, BetaMiniPolicy::open_beta_default()).unwrap();
@@ -179,36 +208,26 @@ fn two_receipts_for_the_same_source_cannot_each_back_a_participation_grant() {
     assert_ne!(receipt_a.id(), receipt_b.id());
     let account = BetaAccountId::new([12; 32]).unwrap();
 
-    let first = create_grant_authorization(
+    let first = redeemed_grant(
         &mut store,
-        &signer.did(),
         &signer,
-        campaign.id(),
-        Some(receipt_a.id()),
-        epoch,
+        &receipt_a,
+        21,
         account,
-        GrantClass::Participation,
         10,
         "first receipt",
         4,
-        4,
-    )
-    .unwrap();
-    let second = create_grant_authorization(
+    );
+    let second = redeemed_grant(
         &mut store,
-        &signer.did(),
         &signer,
-        campaign.id(),
-        Some(receipt_b.id()),
-        epoch,
+        &receipt_b,
+        22,
         account,
-        GrantClass::Participation,
         10,
         "second receipt, same underlying work",
         5,
-        5,
-    )
-    .unwrap();
+    );
 
     let mut ledger = BetaMiniLedger::new(epoch, BetaMiniPolicy::open_beta_default()).unwrap();
     ledger.apply_grant(&store, first.id()).unwrap();

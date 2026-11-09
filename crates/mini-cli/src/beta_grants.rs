@@ -9,7 +9,10 @@
 use std::path::Path;
 
 use did_mini::Did;
-use mini_beta::{create_grant_authorization, BetaAccountId, BetaEpochId, GrantClass};
+use mini_beta::{
+    build_redeemed_participation_grant, create_grant_authorization, BetaAccountId, BetaEpochId,
+    GrantClass,
+};
 use mini_beta_grants::{
     create_grant_approval, create_grant_policy, detect_authorizer_equivocations,
     validate_grant_acceptance, GrantAcceptanceError,
@@ -176,11 +179,25 @@ fn grant_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result
         "--epoch",
     )?)
     .map_err(beta_err)?;
-    let account = BetaAccountId::new(parse_hex32(
-        &required_flag(&mut args, "--account", CTX)?,
-        "--account",
-    )?)
-    .map_err(beta_err)?;
+    let redemption = extract_flag(&mut args, "--redemption")
+        .map(|v| parse_id(&v))
+        .transpose()?;
+    let account = match extract_flag(&mut args, "--account") {
+        Some(value) if redemption.is_none() => {
+            Some(BetaAccountId::new(parse_hex32(&value, "--account")?).map_err(beta_err)?)
+        }
+        Some(_) => {
+            return Err(CliError::Usage(format!(
+                "{CTX}: --account is taken from the redemption; do not pass both"
+            )))
+        }
+        None if redemption.is_some() => None,
+        None => {
+            return Err(CliError::Usage(format!(
+                "{CTX}: missing --account (or --redemption for a participation grant)"
+            )))
+        }
+    };
     let class = match required_flag(&mut args, "--class", CTX)?.as_str() {
         "testing" => GrantClass::Testing,
         "participation" => GrantClass::Participation,
@@ -201,21 +218,58 @@ fn grant_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result
 
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
-    let object = create_grant_authorization(
-        &mut store,
-        &identity.human_did(),
-        &identity.device,
-        &campaign_id,
-        contribution.as_ref(),
-        epoch,
-        account,
-        class,
-        amount,
-        &memo,
-        timestamp,
-        sequence::next(home, store_path)?,
-    )
-    .map_err(beta_err)?;
+    // Always anonymous: a participation grant takes its account from a verified
+    // claim redemption, never from an operator-typed account that could be
+    // joined to an identified contribution.
+    if class == GrantClass::Participation && redemption.is_none() {
+        return Err(CliError::Usage(format!(
+            "{CTX}: a participation grant requires --redemption (the account comes from the contributor's claim redemption)"
+        )));
+    }
+    let object = if let Some(redemption_id) = redemption.as_ref() {
+        if class != GrantClass::Participation || contribution.is_some() {
+            return Err(CliError::Usage(format!(
+                "{CTX}: --redemption is for a participation grant and supplies the contribution itself"
+            )));
+        }
+        let object = build_redeemed_participation_grant(
+            &store,
+            &identity.human_did(),
+            &identity.device,
+            redemption_id,
+            amount,
+            &memo,
+            timestamp,
+            sequence::next(home, store_path)?,
+        )
+        .map_err(beta_err)?;
+        let verified = mini_beta::parse_grant_object(&object).map_err(beta_err)?;
+        if verified.campaign_id != campaign_id || verified.epoch != epoch {
+            return Err(CliError::Usage(format!(
+                "{CTX}: the redemption belongs to a different campaign or epoch"
+            )));
+        }
+        store
+            .insert(&object)
+            .map_err(|e| CliError::Store(e.to_string()))?;
+        object
+    } else {
+        create_grant_authorization(
+            &mut store,
+            &identity.human_did(),
+            &identity.device,
+            &campaign_id,
+            contribution.as_ref(),
+            epoch,
+            account.ok_or_else(|| CliError::Usage(format!("{CTX}: missing --account")))?,
+            class,
+            amount,
+            &memo,
+            timestamp,
+            sequence::next(home, store_path)?,
+        )
+        .map_err(beta_err)?
+    };
     Ok(CommandResult::new(format!(
         "grant authorization created: {}\n  {} grant of {} micro-BETA-MINI (test value only); no issuance effect until the policy threshold is met",
         object.id().as_str(),

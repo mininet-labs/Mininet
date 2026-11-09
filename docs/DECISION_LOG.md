@@ -26548,3 +26548,128 @@ claim from an untrusted signer; rate-limit such claims per task if flooding is
 observed.
 
 **Supersedes / superseded by:** none.
+
+### D-0549 — Participation claims are redeemed with a one-time claim key, so a reward destination is private and cannot be redirected  ·  *Shipped*
+
+**Decision:** an accepted contribution receipt's `ClaimTag` is now the public
+half of a one-time Ed25519 claim key (`mini_beta::ClaimKey`) that the
+contributor generated for exactly that contribution. The contributor redeems
+the claim by publishing a `mininet.beta/claim-redemption/v1` object holding a
+signature, made with the claim key, over `(contribution id, epoch, account)`.
+The redemption is authored by any fresh throwaway identity, so no GitHub handle,
+DID or persistent pseudonym is bound to the destination account. A participation
+grant may cite a redemption (`build_redeemed_participation_grant`); the account,
+contribution, campaign and epoch then come from the verified redemption, and
+both `BetaMiniLedger::apply_grant` and the grant-acceptance policy check
+(`validate_grant_against_policy`, used by the durable execution path)
+re-verify the proof and reject any mismatch (`BetaError::InvalidClaimProof`,
+`GrantRuleViolation`). `mini beta claim new|redeem` and `mini beta grant create
+--redemption` expose it; the contributor generates the key with `claim new` and
+hands the operator only the public tag (`contribution accept --claim-tag`), the
+bearer secret is read from a file or stdin (`--secret-file`), never argv, and a
+redemption is fully checked before any throwaway identity is stored. `mini-beta` gains one dependency, `mini-crypto`
+(reviewed primitives only); its dependency-wall test allowlist is extended by
+exactly that crate.
+
+**Reason:** the previous commitment was a hash of a secret, which could only be
+used by revealing the secret, and a revealed secret can be copied by any
+observer who then redeems to their own account first. A signature binds the
+destination, so an observer cannot redirect it. Separate contributions use
+separate keys, so they are not linked. This is #337's "private fresh claim
+path" and Directive 9 (the safest information is information the network never
+learns).
+
+**Constitutional impact:** Directive 9, Directive 16, Directive 18. No new
+cryptographic construction: Ed25519 from `mini-crypto` only (no inventing
+cryptography). No value, governance, settlement or personhood dependency
+added; Beta MINI amounts still confer no authority and no conversion promise.
+No Tier-F row touched.
+
+**Implementation status:** shipped in `mini-beta` (`claim.rs`), `mini-beta-grants`
+(policy check) and `mini-cli`; 7 adversarial tests in `claim_redemption.rs`
+(holder redeems once; non-holder cannot; a copied redemption cannot be
+redirected; a redemption for another contribution is rejected; no cross-epoch
+use; legacy random-tag receipts cannot be redeemed), 1 acceptance test with
+threshold approvals, and the CLI beta loop now runs through redeem.
+
+**Failure point:** the privacy is scoped to the destination account and holds only when the accepted source is itself anonymous. The grant and the redemption both link to the contribution, which links to its source; if that source names an identity (a signed commit or review, a GitHub handle) anyone can join that identity to the account. Removing the join needs an unlinkable proof, which is not built and would need reviewed cryptography. Without `--claim-tag`, `contribution accept` generates the key itself, so the operator knows the secret (the output says so). The claim secret is bearer material. Whoever holds it can
+redeem to their own account, and a lost secret cannot be recovered; nothing here
+defends a leaked secret. The grant authorizers' own signing identities remain
+public by design (grant policy members are public DIDs). Redemption is
+optional: a participation grant that names an account directly still works (the
+older path, and the desktop wallet's), so privacy depends on the authorizer
+using the redeemed path. Receipts created before this change carry random tags
+and cannot be redeemed. The desktop panel does not yet expose redeem.
+
+**Required follow-up:** expose redeem in the desktop BETA wallet; consider
+requiring a redemption for every participation grant once all producers use it.
+
+**Supersedes / superseded by:** none.
+
+### D-0550 — The XRPL/Monero cryptography research is implemented as engineering direction: one canonical V3 validator path, a read-only chain observer, and honest gaps  ·  *Shipped*
+
+**Decision:** founder chat direction (2026-11-08) to treat the research in PR #429
+as an executive decision and implement its coding. This is task authorization and
+engineering direction, not protocol authority and not a governance act. Implemented:
+(1) `mini-shielded-verify` gains `ClaimEvidencePoolV3` and `ShieldedClaimVerifierV3`,
+the V3 behind `mini-execution`'s existing `ClaimVerifier` boundary: evidence keyed
+by `claim_id` (a hash of every byte, so evidence cannot be replaced), canonical
+re-encoding required at admission, V3 range/MLSAG/balance verification, the fee
+taken from the deterministic quote, and genesis allocations accepted only on the
+V3 commitment basis; (2) V3 wallet scanning and amount disclosure in
+`mini-private-payment` (`scan_v3`, `AmountDisclosureV3`, `audit_amounts_v3`);
+(3) a guard test that no manifest outside `mini-treasury` enables a legacy
+hand-rolled FROST feature; (4) `mini-chain-observer`, a read-only XRPL/Monero
+observer; (5) an evidence packet for external review and a T01–T30 conformance
+matrix (`docs/design/xrpl-monero-research-conformance.md`). The research's six
+approval questions are answered there as the research's own recommended defaults,
+for correction.
+
+**Reason:** the research found the V3 primitives existed but no validator verified
+V3 claims; the highest-value, lowest-risk slice was the verifier behind the
+existing canonical boundary, proven through real quorum certificates, replay and
+snapshot restore, rather than a new payment engine. Directive 9 and the voice/value
+wall are preserved: the new verifier lives in the existing adapter crate, so
+`mini-execution`, `mini-consensus` and `mini-chain` still link no value crate.
+
+**Constitutional impact:** Directive 9, Directive 16 (P1), Directive 18, M1, M2, M3.
+No dependency edge between value and governance/review crates was added; the
+observer has no key or value dependency (enforced by a test); no Tier-F row is
+touched; no new cryptographic construction (existing reviewed primitives and the
+pinned `bulletproofs`/`frost-ristretto255` libraries only).
+
+**Implementation status:** shipped as code and tests; see the conformance matrix for
+which of T01–T30 are done, partial or not done. Nothing is activated on any network.
+
+**Failure point:** a published view key reveals amounts, not just the set of incoming payments, because the memo carrying `(amount, blinding)` is sealed under the secret the view key recovers; the V2 documentation's claim that amounts stay hidden was wrong and is corrected here, so selective amount disclosure only means something for a party without the view key; unaudited (Gate #72/#93 open); the fee function is a placeholder;
+there is no claim-evidence gossip or durable retention, so a validator can only
+verify claims it already holds; the transparent path is not retired and no state
+migration exists (needs an authorised decision with state-history rules); whole-disk
+restore of a FROST signer is not detectable locally; cost numbers are from a
+development sandbox, not a weak phone; observers cannot tell a lying quorum from an
+honest one, and Monero payments need a view-key or transaction-proof model that is
+out of scope. Real-value release remains NO-GO.
+
+**Required follow-up:** procure the external reviews; choose the acceptance-baseline
+device and run `budget_v3`; decide fee-policy activation and who controls it; design
+claim-evidence availability; decide and execute (or not) the transparent-path
+retirement; fuzz targets; a multiprocess partition test.
+
+**Supersedes / superseded by:** none.
+
+
+### D-0551 — Private participation claims are the only path: the operator cannot mint a claim key or type a participation account  ·  *Shipped*
+
+**Decision:** Founder direction (2026-11-09): rewards are always anonymous. `mini beta contribution accept` now requires `--campaign` and a contributor-generated `--claim-tag` (from `beta claim new`); the operator-generated claim key and the uncampaigned receipt are removed. `mini beta grant create --class participation` requires `--redemption`; an operator-typed `--account` is refused for participation grants (testing grants are unchanged).
+
+**Reason:** Directive 9 and the anonymous-reward goal: an operator that generated the claim secret could redeem the reward itself, and a typed account could be joined to an identified contribution.
+
+**Constitutional impact:** Directive 9, Directive 16 (P1). No dependency edge added; no Tier-F row touched; no new cryptography.
+
+**Implementation status:** shipped in `mini-cli` with updated tests (`beta_native_loop`, `beta_native_flow`, `beta_two_node_loop`). Enforced in the library too (founder go-ahead 2026-11-09): `mini-beta` refuses to build, parse or apply a participation grant without a verified redemption (and a testing grant may not cite one), `mini-beta-grants` acceptance requires the redemption to match the grant exactly, and the app service/desktop wallet take the claim redemption ID (field renamed from `contribution_id`, same wire layout) and refuse a recipient account the redemption does not name. The XRPL/Monero research document is now in `docs/research/`.
+
+**Failure point:** privacy of the reward account still holds only when the accepted source is itself anonymous (the grant links to the contribution and its source); the claim secret is bearer material; a published view key reveals shielded amounts (unchanged, documented under D-0550).
+
+**Required follow-up:** surface `claim redeem` in the desktop panel (the wallet can create a participation grant only from a redemption ID obtained elsewhere).
+
+**Supersedes / superseded by:** refines D-0549; none.

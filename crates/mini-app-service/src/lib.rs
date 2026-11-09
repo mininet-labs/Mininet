@@ -295,7 +295,7 @@ impl<V: IdentityVault> Core<V> {
                 epoch,
                 account,
                 class,
-                contribution_id,
+                redemption_id,
                 amount,
                 memo,
             } => self.beta_grant_create(
@@ -304,7 +304,7 @@ impl<V: IdentityVault> Core<V> {
                 epoch,
                 account,
                 class,
-                contribution_id.as_deref(),
+                redemption_id.as_deref(),
                 amount,
                 &memo,
             ),

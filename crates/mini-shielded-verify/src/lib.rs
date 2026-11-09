@@ -48,6 +48,9 @@ use mini_execution::{
 };
 use mini_private_payment::PrivatePaymentClaim;
 
+mod v3;
+pub use v3::{ClaimEvidencePoolV3, ShieldedClaimVerifierV3};
+
 /// A claim's wire bytes failed structural decoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MalformedClaim;

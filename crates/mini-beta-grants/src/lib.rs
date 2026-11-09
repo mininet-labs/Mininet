@@ -509,6 +509,21 @@ pub fn validate_grant_against_policy<B: Backend>(
             if contribution.campaign_id.as_ref() != Some(&policy.campaign_id) {
                 return Err(GrantAcceptanceError::GrantRuleViolation);
             }
+            // Always anonymous: a participation grant must cite a claim
+            // redemption and match it exactly; the destination account is
+            // whatever the claim-key holder signed.
+            let redemption_id = grant
+                .redemption_id
+                .as_ref()
+                .ok_or(GrantAcceptanceError::GrantRuleViolation)?;
+            let redemption = mini_beta::verify_claim_redemption(store, redemption_id)
+                .map_err(|_| GrantAcceptanceError::GrantRuleViolation)?;
+            if redemption.contribution_id != *contribution_id
+                || redemption.account != grant.account
+                || redemption.epoch != grant.epoch
+            {
+                return Err(GrantAcceptanceError::GrantRuleViolation);
+            }
         }
     }
     Ok(grant)
