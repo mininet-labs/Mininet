@@ -116482,7 +116482,7 @@
       "title": "Mininet Open Beta \u2014 start here"
     },
     {
-      "bytes": 31906,
+      "bytes": 32030,
       "group": "docs",
       "headings": [
         {
@@ -116639,7 +116639,7 @@
       ],
       "lines": 336,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "0aedcfc9fce4648d59c5bff8c3130056cb3800d8c697aba8770b3820e9446ee8",
+      "sha256": "363b644e9c1998c5a1dfe0e1a090af1cf53fb9913dc7cc7699656c13c358df5e",
       "symbols": [],
       "title": "Open Beta status"
     },
