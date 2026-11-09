@@ -218,6 +218,14 @@ fn grant_create(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result
 
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
+    // Always anonymous: a participation grant takes its account from a verified
+    // claim redemption, never from an operator-typed account that could be
+    // joined to an identified contribution.
+    if class == GrantClass::Participation && redemption.is_none() {
+        return Err(CliError::Usage(format!(
+            "{CTX}: a participation grant requires --redemption (the account comes from the contributor's claim redemption)"
+        )));
+    }
     let object = if let Some(redemption_id) = redemption.as_ref() {
         if class != GrantClass::Participation || contribution.is_some() {
             return Err(CliError::Usage(format!(

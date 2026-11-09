@@ -710,9 +710,16 @@ pub fn contribution_accept(
     mut args: Vec<String>,
 ) -> Result<CommandResult> {
     let source_id = parse_id(&next(&mut args, "beta contribution accept")?)?;
-    let campaign_id = extract_flag(&mut args, "--campaign")
-        .map(|value| parse_id(&value))
-        .transpose()?;
+    // Always anonymous: the contributor generates the claim key (`beta claim
+    // new`) and hands over only the public tag, and the claim is bound to a
+    // campaign (its epoch is what a redemption signs). The accepting operator
+    // never generates or sees a claim secret, so it can neither redeem the
+    // reward itself nor link the reward account to the contributor.
+    let campaign_id = parse_id(&required_flag(
+        &mut args,
+        "--campaign",
+        "beta contribution accept",
+    )?)?;
     let kind = parse_contribution_kind(&required_flag(
         &mut args,
         "--kind",
@@ -720,42 +727,23 @@ pub fn contribution_accept(
     )?)?;
     let summary = required_flag(&mut args, "--summary", "beta contribution accept")?;
     let evidence = required_items(&mut args, "--evidence", "beta contribution accept")?;
-    let supplied_claim_tag = extract_flag(&mut args, "--claim-tag")
-        .map(|value| -> Result<ClaimTag> {
-            let tag = ClaimTag::new(parse_hex32(&value, "--claim-tag")?).map_err(beta_err)?;
-            // Must be a real Ed25519 public key or the claim can never be redeemed.
-            mini_crypto::VerifyingKey::from_suite_bytes(
-                mini_crypto::SignatureSuite::Ed25519,
-                tag.as_bytes(),
+    let claim_tag = {
+        let value = required_flag(&mut args, "--claim-tag", "beta contribution accept")?;
+        let tag = ClaimTag::new(parse_hex32(&value, "--claim-tag")?).map_err(beta_err)?;
+        // Must be a real Ed25519 public key or the claim can never be redeemed.
+        mini_crypto::VerifyingKey::from_suite_bytes(
+            mini_crypto::SignatureSuite::Ed25519,
+            tag.as_bytes(),
+        )
+        .map_err(|_| {
+            CliError::Usage(
+                "beta contribution accept: --claim-tag is not a valid claim public key".into(),
             )
-            .map_err(|_| {
-                CliError::Usage(
-                    "beta contribution accept: --claim-tag is not a valid claim public key".into(),
-                )
-            })?;
-            Ok(tag)
-        })
-        .transpose()?;
-    reject_remaining(args, "beta contribution accept")?;
-    // A redemption signs the campaign's epoch, so a receipt with no campaign can
-    // never be redeemed. Refuse to hand out a tag that would silently be dead.
-    if supplied_claim_tag.is_some() && campaign_id.is_none() {
-        return Err(CliError::Usage(
-            "beta contribution accept: --claim-tag needs --campaign (a claim is redeemed against the campaign's epoch)".to_string(),
-        ));
-    }
-
-    // A contributor can generate their own claim key (`beta claim new`) and hand
-    // over only the public tag, so the accepting operator never holds the
-    // secret. Without `--claim-tag` this process generates the key, which means
-    // the operator knows the secret and could redeem it: say so in the output.
-    let (claim_secret, claim_tag) = match supplied_claim_tag {
-        Some(tag) => (None, tag),
-        None => {
-            let (secret, tag) = fresh_claim_secret()?;
-            (Some(secret), tag)
-        }
+        })?;
+        tag
     };
+    reject_remaining(args, "beta contribution accept")?;
+
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     let object = create_contribution_receipt(
@@ -763,7 +751,7 @@ pub fn contribution_accept(
         &identity.human_did(),
         &identity.device,
         &source_id,
-        campaign_id.as_ref(),
+        Some(&campaign_id),
         claim_tag,
         kind,
         &summary,
@@ -773,36 +761,16 @@ pub fn contribution_accept(
     )
     .map_err(beta_err)?;
 
-    let mut result = match claim_secret {
-        Some(secret) => CommandResult::new(format!(
-            "accepted contribution recorded: {}\nPRIVATE claim secret: {}\npublic claim commitment: {}\n{}This process generated the claim key, so the accepting operator knows the secret and could redeem it. For a claim only the contributor can redeem, have them run `beta claim new` and pass the public tag with --claim-tag (with --campaign). Do not post the claim secret in GitHub, logs, or public evidence.",
-            object.id().as_str(),
-            hex(&secret),
-            hex(claim_tag.as_bytes()),
-            if campaign_id.is_some() {
-                ""
-            } else {
-                "NOT REDEEMABLE: this receipt has no --campaign, and a redemption signs the campaign's epoch, so the private claim path cannot be used for it.\n"
-            }
-        ))
-        .field("claim_secret", JsonValue::str(hex(&secret)))
-        .field("operator_generated_claim_key", JsonValue::Bool(true))
-        .field("redeemable", JsonValue::Bool(campaign_id.is_some()))
-        .field("sensitive_output", JsonValue::Bool(true)),
-        None => CommandResult::new(format!(
-            "accepted contribution recorded: {}\npublic claim commitment: {}\nThe claim key was supplied by the contributor; this process never saw its secret.",
-            object.id().as_str(),
-            hex(claim_tag.as_bytes())
-        ))
-        .field("operator_generated_claim_key", JsonValue::Bool(false)),
-    };
-    result = result
-        .field("contribution_id", JsonValue::str(object.id().as_str()))
-        .field(
-            "claim_commitment",
-            JsonValue::str(hex(claim_tag.as_bytes())),
-        );
-    Ok(result)
+    Ok(CommandResult::new(format!(
+        "accepted contribution recorded: {}\npublic claim commitment: {}\nThe claim key was generated by the contributor (`beta claim new`); this process never saw its secret and cannot redeem the reward.",
+        object.id().as_str(),
+        hex(claim_tag.as_bytes())
+    ))
+    .field("contribution_id", JsonValue::str(object.id().as_str()))
+    .field(
+        "claim_commitment",
+        JsonValue::str(hex(claim_tag.as_bytes())),
+    ))
 }
 
 pub fn contribution_show(

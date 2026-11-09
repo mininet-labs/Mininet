@@ -331,7 +331,11 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
     );
     assert!(human.contains(&claim), "{human}");
 
-    // The operator records the accepted contribution (fresh claim handle).
+    // The tester makes a one-time claim key; only its public tag reaches the
+    // operator, who records the accepted contribution.
+    let made = cli.run(&tester, true, &["beta", "claim", "new"]);
+    let claim_secret = field(&made, "claim_secret");
+    let claim_tag = field(&made, "claim_commitment");
     let accepted = cli.run(
         &operator,
         true,
@@ -348,10 +352,12 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
             "Found and reported a real defect",
             "--evidence",
             "finding",
+            "--claim-tag",
+            &claim_tag,
         ],
     );
     let contribution = field(&accepted, "contribution_id");
-    assert!(accepted.contains("\"sensitive_output\":true"));
+    assert!(!accepted.contains("claim_secret"));
 
     // The tester holds a fresh BETA account; a 2-of-3 policy grants the reward.
     let account = field(
@@ -394,7 +400,6 @@ fn a_finding_becomes_work_a_contribution_and_a_beta_balance_without_github() {
     );
     // The tester redeems the private claim to that account under a throwaway
     // identity; the operator's grant takes the account from the redemption.
-    let claim_secret = field(&accepted, "claim_secret");
     let secret_file = tempdir("secret");
     std::fs::write(&secret_file, &claim_secret).unwrap();
     let secret_file = secret_file.to_str().unwrap().to_string();
@@ -536,7 +541,6 @@ fn a_contributor_supplied_claim_tag_keeps_the_secret_from_the_operator_and_a_wro
             &tag,
         ],
     );
-    assert!(accepted.contains("\"operator_generated_claim_key\":false"));
     assert!(
         !accepted.contains("claim_secret"),
         "operator must not see a secret"
@@ -583,7 +587,7 @@ fn a_contributor_supplied_claim_tag_keeps_the_secret_from_the_operator_and_a_wro
     .map(|s| s.to_string())
     .collect();
     let error = mini_cli::run(&no_campaign).unwrap_err().to_string();
-    assert!(error.contains("--claim-tag needs --campaign"), "{error}");
+    assert!(error.contains("--campaign required"), "{error}");
 
     // A wrong secret fails and persists no throwaway carriers.
     let wrong = tempdir("wrong");

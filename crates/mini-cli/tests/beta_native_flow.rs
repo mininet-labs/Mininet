@@ -8,8 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use mini_beta::{
-    create_campaign, read_contribution_receipt, read_finding, BetaEpochId, BETA_CONTRIBUTION_TYPE,
-    BETA_FINDING_TYPE,
+    create_campaign, read_finding, BetaEpochId, BETA_CONTRIBUTION_TYPE, BETA_FINDING_TYPE,
 };
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 
@@ -51,18 +50,6 @@ fn free_loopback_addr() -> String {
     let addr = listener.local_addr().unwrap();
     drop(listener);
     addr.to_string()
-}
-
-fn hex_decode(value: &str) -> Vec<u8> {
-    assert_eq!(value.len() % 2, 0);
-    value
-        .as_bytes()
-        .chunks_exact(2)
-        .map(|pair| {
-            let text = std::str::from_utf8(pair).unwrap();
-            u8::from_str_radix(text, 16).unwrap()
-        })
-        .collect()
 }
 
 #[test]
@@ -283,59 +270,44 @@ fn accepted_contribution_stores_only_claim_commitment_not_private_preimage() {
     store.insert(&source).unwrap();
     drop(store);
 
-    let out = run(&[
-        "--home",
-        home.to_str().unwrap(),
-        "--store",
-        store_path.to_str().unwrap(),
-        "beta",
-        "contribution",
-        "accept",
-        source.id().as_str(),
-        "--kind",
-        "testing",
-        "--summary",
-        "accepted native beta evidence",
-        "--evidence",
-        "digest:fixture",
-    ]);
-    let secret_hex = out
-        .lines()
-        .find_map(|line| line.strip_prefix("PRIVATE claim secret: "))
-        .expect("private claim secret output");
-    let commitment_hex = out
-        .lines()
-        .find_map(|line| line.strip_prefix("public claim commitment: "))
-        .expect("claim commitment output");
-    assert_ne!(secret_hex, commitment_hex);
-    assert!(
-        out.contains("NOT REDEEMABLE"),
-        "a receipt with no campaign must say it cannot be redeemed: {out}"
-    );
+    // Always anonymous: the operator cannot mint a claim key. Acceptance needs a
+    // campaign and a contributor-supplied public claim tag; without them nothing
+    // is stored.
+    let base = |extra: &[&str]| -> Vec<String> {
+        let mut v: Vec<String> = [
+            "--home",
+            home.to_str().unwrap(),
+            "--store",
+            store_path.to_str().unwrap(),
+            "beta",
+            "contribution",
+            "accept",
+            source.id().as_str(),
+            "--kind",
+            "testing",
+            "--summary",
+            "accepted native beta evidence",
+            "--evidence",
+            "digest:fixture",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        v.extend(extra.iter().map(|s| s.to_string()));
+        v
+    };
+    let error = mini_cli::run(&base(&[])).unwrap_err().to_string();
+    assert!(error.contains("--campaign required"), "{error}");
+    let error = mini_cli::run(&base(&["--campaign", source.id().as_str()]))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("--claim-tag required"), "{error}");
 
     let store = mini_cli::store::open_store(&store_path).unwrap();
     let ids = store
         .by_type(&ObjectType::Custom(BETA_CONTRIBUTION_TYPE.to_string()))
         .unwrap();
-    assert_eq!(ids.len(), 1);
-    let receipt = read_contribution_receipt(&store, &ids[0]).unwrap();
-    assert_eq!(
-        commitment_hex,
-        receipt
-            .claim_tag
-            .as_bytes()
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>()
-    );
-    let stored = store.get(&ids[0]).unwrap().to_bytes();
-    let secret = hex_decode(secret_hex);
-    assert!(
-        !stored
-            .windows(secret.len())
-            .any(|window| window == secret.as_slice()),
-        "private claim preimage must never be stored in the public contribution object"
-    );
+    assert!(ids.is_empty(), "a refused acceptance must store nothing");
 }
 
 #[test]

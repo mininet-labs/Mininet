@@ -26656,3 +26656,20 @@ claim-evidence availability; decide and execute (or not) the transparent-path
 retirement; fuzz targets; a multiprocess partition test.
 
 **Supersedes / superseded by:** none.
+
+
+### D-0551 — Private participation claims are the only path: the operator cannot mint a claim key or type a participation account  ·  *Shipped*
+
+**Decision:** Founder direction (2026-11-09): rewards are always anonymous. `mini beta contribution accept` now requires `--campaign` and a contributor-generated `--claim-tag` (from `beta claim new`); the operator-generated claim key and the uncampaigned receipt are removed. `mini beta grant create --class participation` requires `--redemption`; an operator-typed `--account` is refused for participation grants (testing grants are unchanged).
+
+**Reason:** Directive 9 and the anonymous-reward goal: an operator that generated the claim secret could redeem the reward itself, and a typed account could be joined to an identified contribution.
+
+**Constitutional impact:** Directive 9, Directive 16 (P1). No dependency edge added; no Tier-F row touched; no new cryptography.
+
+**Implementation status:** shipped in `mini-cli` with updated tests (`beta_native_loop`, `beta_native_flow`, `beta_two_node_loop`). The library layer (`mini-beta`, `mini-beta-grants`, desktop wallet) still accepts a participation grant without a redemption; the restriction is at the CLI.
+
+**Failure point:** privacy of the reward account still holds only when the accepted source is itself anonymous (the grant links to the contribution and its source); the claim secret is bearer material; the library-level grant path is not yet restricted; a published view key reveals shielded amounts (unchanged, documented under D-0550).
+
+**Required follow-up:** enforce redemption-only participation grants in the library and desktop wallet; surface `claim redeem` in the desktop panel.
+
+**Supersedes / superseded by:** refines D-0549; none.

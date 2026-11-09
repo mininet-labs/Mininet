@@ -124,8 +124,8 @@ This is intentionally separate from production/public Forge identity policy. Whe
 `mini beta contribution accept` records an accepted `mininet.beta/contribution/v1` receipt using the operational record signer. The contributor is represented by:
 
 - exact source object id;
-- optional campaign id;
-- fresh random `ClaimTag`;
+- the campaign id (required);
+- a contributor-generated `ClaimTag` (required, `--claim-tag`; the operator never generates or sees a claim secret);
 - contribution kind;
 - summary; and
 - reproducible evidence references.
