@@ -1,0 +1,42 @@
+[package]
+name = "mininet-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Coverage-guided cargo-fuzz targets for the byte-facing decoders (research PR #429, D-0553). Not part of the main workspace: needs a nightly toolchain and cargo-fuzz."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+mini-private-payment = { path = "../crates/mini-private-payment" }
+mini-shielded-verify = { path = "../crates/mini-shielded-verify" }
+mini-chain-observer = { path = "../crates/mini-chain-observer" }
+
+# Keep this crate out of the main workspace: it is built only by `cargo fuzz`.
+[workspace]
+
+[[bin]]
+name = "v3_claim_decode"
+path = "fuzz_targets/v3_claim_decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "claim_fetch_messages"
+path = "fuzz_targets/claim_fetch_messages.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "evidence_file_load"
+path = "fuzz_targets/evidence_file_load.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "observer_journal_open"
+path = "fuzz_targets/observer_journal_open.rs"
+test = false
+doc = false
