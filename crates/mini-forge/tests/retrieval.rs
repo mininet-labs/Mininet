@@ -22,6 +22,7 @@ fn human(seed: u8) -> (Controller, Controller) {
     (root, device)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn publish(
     store: &mut Store<MemoryBackend>,
     author: &Did,
