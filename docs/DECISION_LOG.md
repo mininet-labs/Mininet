@@ -26754,7 +26754,7 @@ retirement; fuzz targets; a multiprocess partition test.
 
 **Implementation status:** shipped with tests. The tampered/unsolicited cases are tested at the shared verify-before-insert step both retrieval and full sync use, not as a separate CLI scenario; a CLI-level negative test (a release whose chunk is withheld) is not written; the incomplete-transfer case is covered at the `mini-sync` protocol level with a hand-driven hostile server.
 
-**Failure point:** unaudited; no peer discovery, daemon or payment (non-goals of #268); a malicious server can still refuse to serve, which is availability, not integrity.
+**Failure point:** unaudited; the selector is structural, not authoritative: every edge is typed (relation name plus the object type that relation means; single-valued relations that repeat are not followed; reverse candidates must be the specific type for the specific relation; project/PR/chain objects must belong to the release's own project), but a crafted object that passes those checks can still be offered and is then rejected by the receiver's governed verification; no peer discovery, daemon or payment (non-goals of #268); a malicious server can still refuse to serve, which is availability, not integrity.
 
 **Required follow-up:** a CLI-level negative retrieval scenario; the external audit.
 

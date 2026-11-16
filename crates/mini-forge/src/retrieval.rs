@@ -17,7 +17,8 @@ use mini_objects::{ObjectId, ObjectType};
 use mini_store::{Backend, Store};
 
 use crate::{
-    ForgeError, Result, APPROVE_TYPE, ATTEST_TYPE, CHAIN_TYPE, PROJECT_TYPE, PR_TYPE, TREE_TYPE,
+    ForgeError, Result, APPROVE_TYPE, ATTEST_TYPE, CHAIN_TYPE, EXECUTABLE_FILE_TYPE, FILE_TYPE,
+    PROJECT_TYPE, PR_TYPE, TREE_TYPE,
 };
 
 /// Maximum number of objects in one release retrieval closure.
@@ -28,17 +29,169 @@ use crate::{
 /// ordinary `mini sync` or a later paginated retrieval lane.
 pub const MAX_RELEASE_RETRIEVAL_OBJECTS: usize = 4096;
 
+/// Kind of a typed edge target, matched against the stored object's type.
+#[derive(Clone, Copy)]
+enum Kind {
+    Release,
+    Commit,
+    Manifest,
+    Named(&'static str),
+}
+
+impl Kind {
+    fn matches(self, ty: &ObjectType) -> bool {
+        match self {
+            Kind::Release => *ty == ObjectType::RELEASE,
+            Kind::Commit => *ty == ObjectType::COMMIT,
+            Kind::Manifest => *ty == ObjectType::MEDIA_MANIFEST,
+            Kind::Named(n) => matches!(ty, ObjectType::Custom(name) if name == n),
+        }
+    }
+}
+
+/// One typed forward edge: relation name, the object types the target may be,
+/// and whether the relation may repeat. A single-valued relation that appears
+/// more than once is malformed and is not followed at all.
+struct Forward {
+    rel: &'static str,
+    kinds: &'static [Kind],
+    multi: bool,
+}
+
+const PROJECT: Kind = Kind::Named(PROJECT_TYPE);
+const PR: Kind = Kind::Named(PR_TYPE);
+const CHAIN: Kind = Kind::Named(CHAIN_TYPE);
+const TREE: Kind = Kind::Named(TREE_TYPE);
+
+fn owner_is(ty: &ObjectType, kind: Kind) -> bool {
+    kind.matches(ty)
+}
+
+const fn one(rel: &'static str, kinds: &'static [Kind]) -> Forward {
+    Forward {
+        rel,
+        kinds,
+        multi: false,
+    }
+}
+const fn many(rel: &'static str, kinds: &'static [Kind]) -> Forward {
+    Forward {
+        rel,
+        kinds,
+        multi: true,
+    }
+}
+
+const RELEASE_EDGES: &[Forward] = &[
+    one("project", &[PROJECT]),
+    one("commit", &[Kind::Commit]),
+    one("artifact", &[Kind::Manifest]),
+];
+const COMMIT_EDGES: &[Forward] = &[one("tree", &[TREE]), many("parent", &[Kind::Commit])];
+const MANIFEST_EDGES: &[Forward] = &[
+    many("chunk", &[Kind::Named("mini/chunk")]),
+    many(
+        "part",
+        &[Kind::Named("mini/superblock"), Kind::Named("mini/chunk")],
+    ),
+];
+const TREE_EDGES: &[Forward] = &[many(
+    "entry",
+    &[
+        TREE,
+        Kind::Named(FILE_TYPE),
+        Kind::Named(EXECUTABLE_FILE_TYPE),
+    ],
+)];
+const PR_EDGES: &[Forward] = &[
+    one("project", &[PROJECT]),
+    one("head", &[Kind::Commit]),
+    one("base", &[Kind::Commit]),
+];
+const CHAIN_EDGES: &[Forward] = &[
+    one("project", &[PROJECT]),
+    one("prev", &[CHAIN, PROJECT]),
+    one("pr", &[PR]),
+];
+const APPROVE_EDGES: &[Forward] = &[one("pr", &[PR])];
+const ATTEST_EDGES: &[Forward] = &[one("release", &[Kind::Release])];
+
+/// Forward edges the governed-release verifier reads for this object type.
+fn forward_edges(ty: &ObjectType) -> &'static [Forward] {
+    if owner_is(ty, Kind::Release) {
+        RELEASE_EDGES
+    } else if owner_is(ty, Kind::Commit) {
+        COMMIT_EDGES
+    } else if owner_is(ty, Kind::Manifest) {
+        MANIFEST_EDGES
+    } else if owner_is(ty, TREE) {
+        TREE_EDGES
+    } else if owner_is(ty, PR) {
+        PR_EDGES
+    } else if owner_is(ty, CHAIN) {
+        CHAIN_EDGES
+    } else if owner_is(ty, Kind::Named(APPROVE_TYPE)) {
+        APPROVE_EDGES
+    } else if owner_is(ty, Kind::Named(ATTEST_TYPE)) {
+        ATTEST_EDGES
+    } else {
+        &[]
+    }
+}
+
+/// One typed reverse edge: an object of `owner` kind may be reached from
+/// objects of `candidate` kind that link to it under `rel`.
+struct Reverse {
+    owner: Kind,
+    candidate: Kind,
+    rel: &'static str,
+}
+
+const REVERSE_EDGES: &[Reverse] = &[
+    Reverse {
+        owner: Kind::Release,
+        candidate: Kind::Named(ATTEST_TYPE),
+        rel: "release",
+    },
+    Reverse {
+        owner: PROJECT,
+        candidate: CHAIN,
+        rel: "prev",
+    },
+    Reverse {
+        owner: CHAIN,
+        candidate: CHAIN,
+        rel: "prev",
+    },
+    Reverse {
+        owner: PR,
+        candidate: Kind::Named(APPROVE_TYPE),
+        rel: "pr",
+    },
+    Reverse {
+        owner: PR,
+        candidate: CHAIN,
+        rel: "pr",
+    },
+];
+
 /// Select the bounded object closure needed to verify `release_id` on another
 /// peer.
 ///
-/// Forward links are followed for every object. The reverse link index is
-/// followed only for relations that the governed-release verifier reads:
-/// attestations (`release`), governance successors (`prev`), and review
-/// evidence (`pr`). The returned ids are sorted for deterministic framing.
+/// Every edge is typed: a forward link is followed only under a relation the
+/// governed-release verifier reads *and* only when its target is an object of
+/// the type that relation means; a reverse (indexed) candidate is admitted
+/// only as the specific candidate type for the specific relation that reached
+/// it. Single-valued relations that repeat are malformed and not followed.
+/// Governance objects (project, PR, chain entry) must belong to the release's
+/// own project. The returned ids are sorted for deterministic framing.
 ///
 /// This function does not decide whether a release is valid and does not
 /// grant any authority. It only answers which already-stored objects a serving
-/// peer may offer for the exact requested release.
+/// peer may offer for the exact requested release. A crafted object that
+/// passes these structural checks (right type, right relation, right project)
+/// can still be offered; it is then rejected by the receiver's governed
+/// verification. That bounded disclosure is the residual.
 pub fn release_retrieval_ids<B: Backend>(
     store: &Store<B>,
     release_id: &ObjectId,
@@ -47,6 +200,7 @@ pub fn release_retrieval_ids<B: Backend>(
     if release.object_type != ObjectType::RELEASE {
         return Err(ForgeError::BadObject);
     }
+    let project_id = single_link(&release, "project").ok_or(ForgeError::BadObject)?;
 
     let mut selected = Vec::new();
     let mut pending = VecDeque::from([release_id.clone()]);
@@ -62,45 +216,42 @@ pub fn release_retrieval_ids<B: Backend>(
         let object = store.get(&id)?;
         selected.push(id.clone());
 
-        // The content-addressed object graph carries repository and artifact
-        // closure in its ordinary typed links. No release-specific wire
-        // format is needed to walk these edges.
-        // Only the forward relations the governed-release verifier reads for
-        // this object type are followed. A link under any other relation (for
-        // example a `release` object that also points at some unrelated
-        // object) is not a reason to disclose its target or that target's own
-        // graph.
-        let forward = forward_relations(&object.object_type);
-        for link in &object.links {
-            if forward.contains(&link.rel.as_str()) {
-                enqueue(&mut pending, &selected, link.target.clone());
+        for edge in forward_edges(&object.object_type) {
+            let targets: Vec<&ObjectId> = object
+                .links
+                .iter()
+                .filter(|link| link.rel == edge.rel)
+                .map(|link| &link.target)
+                .collect();
+            if targets.len() > 1 && !edge.multi {
+                continue;
+            }
+            for target in targets {
+                let target_object = store.get(target)?;
+                if edge
+                    .kinds
+                    .iter()
+                    .any(|k| k.matches(&target_object.object_type))
+                    && in_project(&target_object, target, &project_id)
+                {
+                    enqueue(&mut pending, &selected, target.clone());
+                }
             }
         }
 
-        // Governance and attestations are indexed by reverse links because
-        // their objects point *at* the release/chain/PR. Only the relation
-        // names consumed by release verification are admitted here; unrelated
-        // social or discussion objects cannot expand this retrieval merely by
-        // mentioning a target id under another relation.
-        let reverse_relations = reverse_relations(&object.object_type);
-        if !reverse_relations.is_empty() {
+        for edge in REVERSE_EDGES
+            .iter()
+            .filter(|e| e.owner.matches(&object.object_type))
+        {
             for candidate_id in store.linking_to(&id)? {
                 let candidate = store.get(&candidate_id)?;
-                // The relation name alone is not enough: the verifier also
-                // requires the candidate to be the kind of object that relation
-                // means (an attestation for `release`, a chain entry for `prev`,
-                // an approval or merge entry for `pr`). An unrelated object that
-                // merely uses the same relation name is not admitted.
-                if !reverse_candidate_admitted(&object.object_type, &candidate.object_type) {
+                if !edge.candidate.matches(&candidate.object_type)
+                    || single_link(&candidate, edge.rel).as_ref() != Some(&id)
+                    || !in_project(&candidate, &candidate_id, &project_id)
+                {
                     continue;
                 }
-                if candidate
-                    .links
-                    .iter()
-                    .any(|link| link.target == id && reverse_relations.contains(&link.rel.as_str()))
-                {
-                    enqueue(&mut pending, &selected, candidate_id);
-                }
+                enqueue(&mut pending, &selected, candidate_id);
             }
         }
     }
@@ -109,60 +260,34 @@ pub fn release_retrieval_ids<B: Backend>(
     Ok(selected)
 }
 
+/// The single target of `rel`, or `None` when absent or repeated.
+fn single_link(object: &mini_objects::Object, rel: &str) -> Option<ObjectId> {
+    let mut it = object.links.iter().filter(|l| l.rel == rel);
+    let first = it.next()?;
+    if it.next().is_some() {
+        return None;
+    }
+    Some(first.target.clone())
+}
+
+/// Governance objects must belong to the release's own project. Other kinds
+/// carry no project link and are bounded by their typed edge instead.
+fn in_project(object: &mini_objects::Object, id: &ObjectId, project: &ObjectId) -> bool {
+    let ty = &object.object_type;
+    if PROJECT.matches(ty) {
+        return id == project;
+    }
+    if PR.matches(ty) || CHAIN.matches(ty) {
+        return single_link(object, "project").as_ref() == Some(project);
+    }
+    true
+}
+
 fn enqueue(pending: &mut VecDeque<ObjectId>, selected: &[ObjectId], id: ObjectId) {
     if !selected.iter().any(|existing| existing == &id)
         && !pending.iter().any(|existing| existing == &id)
     {
         pending.push_back(id);
-    }
-}
-
-/// Forward relations followed from an object of this type. Mirrors what the
-/// builders in `mini-forge` and `mini-media` create and what verification reads.
-fn forward_relations(object_type: &ObjectType) -> &'static [&'static str] {
-    if *object_type == ObjectType::RELEASE {
-        return &["project", "commit", "artifact"];
-    }
-    if *object_type == ObjectType::COMMIT {
-        return &["tree", "parent"];
-    }
-    if *object_type == ObjectType::MEDIA_MANIFEST {
-        return &["chunk", "part"];
-    }
-    match object_type {
-        ObjectType::Custom(name) if name == TREE_TYPE => &["entry"],
-        ObjectType::Custom(name) if name == PR_TYPE => &["project", "head", "base"],
-        ObjectType::Custom(name) if name == CHAIN_TYPE => &["project", "prev", "pr"],
-        ObjectType::Custom(name) if name == APPROVE_TYPE => &["pr"],
-        ObjectType::Custom(name) if name == ATTEST_TYPE => &["release"],
-        _ => &[],
-    }
-}
-
-/// Whether a reverse-linking candidate is the right kind of object for the
-/// relation that reached it from `owner`.
-fn reverse_candidate_admitted(owner: &ObjectType, candidate: &ObjectType) -> bool {
-    let is = |name: &str| matches!(candidate, ObjectType::Custom(n) if n == name);
-    if *owner == ObjectType::RELEASE {
-        return is(ATTEST_TYPE);
-    }
-    match owner {
-        ObjectType::Custom(name) if name == PROJECT_TYPE => is(CHAIN_TYPE),
-        ObjectType::Custom(name) if name == CHAIN_TYPE => is(CHAIN_TYPE) || is(APPROVE_TYPE),
-        ObjectType::Custom(name) if name == PR_TYPE => is(APPROVE_TYPE) || is(CHAIN_TYPE),
-        _ => false,
-    }
-}
-
-fn reverse_relations(object_type: &ObjectType) -> &'static [&'static str] {
-    if *object_type == ObjectType::RELEASE {
-        return &["release"];
-    }
-    match object_type {
-        ObjectType::Custom(name) if name == PROJECT_TYPE => &["prev"],
-        ObjectType::Custom(name) if name == CHAIN_TYPE => &["prev", "pr"],
-        ObjectType::Custom(name) if name == PR_TYPE => &["pr"],
-        _ => &[],
     }
 }
 
@@ -228,7 +353,7 @@ mod tests {
         );
         store.insert(&commit).unwrap();
         let chunk = object(
-            ObjectType::Custom("mini/media-chunk".to_string()),
+            ObjectType::Custom("mini/chunk".to_string()),
             &human.did(),
             &device,
             &[],
@@ -248,7 +373,7 @@ mod tests {
             &[
                 ("project", project.id()),
                 ("head", commit.id()),
-                ("base", project.id()),
+                ("base", commit.id()),
             ],
         );
         store.insert(&pr).unwrap();
@@ -366,5 +491,109 @@ mod tests {
         store.insert(&release).unwrap();
         let ids = release_retrieval_ids(&store, release.id()).unwrap();
         assert!(!ids.contains(unrelated.id()));
+    }
+
+    #[test]
+    fn forward_targets_must_be_the_type_the_relation_means() {
+        let (human, device) = identity(11);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let post = object(ObjectType::POST, &human.did(), &device, &[]);
+        store.insert(&post).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("artifact", post.id())],
+        );
+        store.insert(&release).unwrap();
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(!ids.contains(post.id()), "wrong-type artifact disclosed");
+        assert!(ids.contains(project.id()));
+    }
+
+    #[test]
+    fn reverse_candidates_are_admitted_by_type_and_relation_together() {
+        let (human, device) = identity(13);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let other_project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("note", project.id())],
+        );
+        store.insert(&other_project).unwrap();
+        let pr = object(
+            ObjectType::Custom(PR_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&pr).unwrap();
+        let chain = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("prev", project.id()),
+                ("pr", pr.id()),
+            ],
+        );
+        store.insert(&chain).unwrap();
+        // Unrelated PR in a different project.
+        let foreign_pr = object(
+            ObjectType::Custom(PR_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", other_project.id())],
+        );
+        store.insert(&foreign_pr).unwrap();
+        // Approval reaching the chain via `prev` while pointing `pr` elsewhere.
+        let crafted = object(
+            ObjectType::Custom(APPROVE_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("prev", chain.id()), ("pr", foreign_pr.id())],
+        );
+        store.insert(&crafted).unwrap();
+        // Approval repeating the single-valued `pr` relation.
+        let doubled = object(
+            ObjectType::Custom(APPROVE_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("pr", pr.id()), ("pr", foreign_pr.id())],
+        );
+        store.insert(&doubled).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&release).unwrap();
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        for excluded in [
+            crafted.id(),
+            doubled.id(),
+            foreign_pr.id(),
+            other_project.id(),
+        ] {
+            assert!(!ids.contains(excluded), "{} admitted", excluded.as_str());
+        }
+        assert!(ids.contains(chain.id()) && ids.contains(pr.id()));
     }
 }
