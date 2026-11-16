@@ -641,6 +641,28 @@ pub fn request_retrieval<B: Backend>(
     cache: &mut KelCache,
     seeds: &[ObjectId],
 ) -> Result<RetrievalReport> {
+    request_retrieval_checked(bearer, chan, store, cache, seeds, None)
+}
+
+/// Closure check applied by [`request_retrieval_checked`] to the objects a
+/// responder actually sent: it returns the ids those objects justify as the
+/// requested closure (for a release, the same selector the server runs).
+pub type ClosureCheck<'a> = &'a dyn Fn(&[Object]) -> Result<Vec<ObjectId>>;
+
+/// Like [`request_retrieval`], but the responder's advertised id list is not
+/// trusted as the allow-list: when `check` is given, the closure it derives
+/// from the received objects must equal the advertised list exactly, or the
+/// transfer fails with [`SyncError::RetrievalIncomplete`] before anything is
+/// stored. Without `check` the responder's list is the allow-list (the
+/// original behavior).
+pub fn request_retrieval_checked<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &mut Store<B>,
+    cache: &mut KelCache,
+    seeds: &[ObjectId],
+    check: Option<ClosureCheck<'_>>,
+) -> Result<RetrievalReport> {
     if seeds.is_empty() || seeds.len() > MAX_RETRIEVAL_OBJECTS {
         return Err(SyncError::LimitExceeded);
     }
@@ -701,6 +723,24 @@ pub fn request_retrieval<B: Backend>(
         .collect();
     if selected.iter().any(|id| !arrived.contains(id)) {
         return Err(SyncError::RetrievalIncomplete);
+    }
+
+    if let Some(check) = check {
+        // Only objects the responder advertised take part; anything else is
+        // dropped by ingest anyway.
+        let decoded: Vec<Object> = received_bytes
+            .iter()
+            .filter_map(|bytes| Object::from_bytes(bytes).ok())
+            .filter(|object| selected.iter().any(|id| id == object.id().as_str()))
+            .collect();
+        let derived: std::collections::BTreeSet<String> = check(&decoded)?
+            .iter()
+            .map(|id| id.as_str().to_string())
+            .collect();
+        let advertised: std::collections::BTreeSet<String> = selected.iter().cloned().collect();
+        if derived != advertised {
+            return Err(SyncError::RetrievalIncomplete);
+        }
     }
 
     let ingest = ingest_objects(store, cache, received_bytes, &selected)?;
@@ -1211,6 +1251,53 @@ mod retrieval_ingest_tests {
             receive_retrieval_request(&mut server, &mut server_channel),
             Err(SyncError::Protocol)
         ));
+    }
+
+    #[test]
+    fn a_checked_retrieval_refuses_a_responder_closure_with_unrelated_ids_and_stores_nothing() {
+        let (root, device) = author(70);
+        let wanted = post(&root, &device, b"wanted", 1);
+        let extra = post(&root, &device, b"unrelated but trusted author", 2);
+        let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+        let (wanted_id, extra_id) = (
+            wanted.id().as_str().to_string(),
+            extra.id().as_str().to_string(),
+        );
+        let (wanted_bytes, extra_bytes) = (wanted.to_bytes(), extra.to_bytes());
+        let server_thread = std::thread::spawn(move || {
+            // Hostile server: advertise the seed plus an unrelated object.
+            let _ = recv(&mut server, &mut server_channel).unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Ids(vec![wanted_id, extra_id]),
+            )
+            .unwrap();
+            let _ = recv(&mut server, &mut server_channel).unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Objects(vec![wanted_bytes, extra_bytes]),
+            )
+            .unwrap();
+            send(&mut server, &mut server_channel, &Msg::Objects(Vec::new())).unwrap();
+        });
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        // The closure derived from what was received is just the seed.
+        let seed = wanted.id().clone();
+        let check = move |_: &[Object]| Ok(vec![seed.clone()]);
+        let result = request_retrieval_checked(
+            &mut client,
+            &mut client_channel,
+            &mut store,
+            &mut cache,
+            std::slice::from_ref(wanted.id()),
+            Some(&check),
+        );
+        server_thread.join().unwrap();
+        assert!(matches!(result, Err(SyncError::RetrievalIncomplete)));
+        assert!(store.get(wanted.id()).is_err() && store.get(extra.id()).is_err());
     }
 
     #[test]

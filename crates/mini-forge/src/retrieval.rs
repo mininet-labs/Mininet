@@ -29,6 +29,21 @@ use crate::{
 /// ordinary `mini sync` or a later paginated retrieval lane.
 pub const MAX_RELEASE_RETRIEVAL_OBJECTS: usize = 4096;
 
+/// Compute the release closure from objects a peer actually sent, using the
+/// same selector as the serving side. The receiver uses this to refuse a
+/// responder-advertised closure that contains anything the release does not
+/// reach. Fails closed if any referenced object is absent.
+pub fn release_closure_from_objects(
+    objects: &[mini_objects::Object],
+    release_id: &ObjectId,
+) -> Result<Vec<ObjectId>> {
+    let mut store = Store::new(mini_store::MemoryBackend::new());
+    for object in objects {
+        store.insert(object)?;
+    }
+    release_retrieval_ids(&store, release_id)
+}
+
 /// Kind of a typed edge target, matched against the stored object's type.
 #[derive(Clone, Copy)]
 enum Kind {
@@ -88,13 +103,8 @@ const RELEASE_EDGES: &[Forward] = &[
     one("artifact", &[Kind::Manifest]),
 ];
 const COMMIT_EDGES: &[Forward] = &[one("tree", &[TREE]), many("parent", &[Kind::Commit])];
-const MANIFEST_EDGES: &[Forward] = &[
-    many("chunk", &[Kind::Named("mini/chunk")]),
-    many(
-        "part",
-        &[Kind::Named("mini/superblock"), Kind::Named("mini/chunk")],
-    ),
-];
+// `part` belongs to superblocks; a manifest's verifier reads only `chunk`.
+const MANIFEST_EDGES: &[Forward] = &[many("chunk", &[Kind::Named("mini/chunk")])];
 const TREE_ENTRY_KINDS: &[Kind] = &[
     TREE,
     Kind::Named(FILE_TYPE),
@@ -135,44 +145,40 @@ fn forward_edges(ty: &ObjectType) -> &'static [Forward] {
 }
 
 /// One typed reverse edge: an object of `owner` kind may be reached from
-/// objects of `candidate` kind that link to it under `rel`.
+/// objects of `candidate` kind that link to it. The governed verifiers count
+/// any stored attestation/approval/chain entry that links to the target (they
+/// do not check the relation name), so retrieval must offer the same set;
+/// the candidate's own forward edges stay typed and project-scoped.
 struct Reverse {
     owner: Kind,
     candidate: Kind,
-    rel: &'static str,
 }
 
 const REVERSE_EDGES: &[Reverse] = &[
     Reverse {
         owner: Kind::Release,
         candidate: Kind::Named(ATTEST_TYPE),
-        rel: "release",
     },
     Reverse {
         owner: PROJECT,
         candidate: CHAIN,
-        rel: "prev",
     },
     Reverse {
         owner: CHAIN,
         candidate: CHAIN,
-        rel: "prev",
     },
     // Amendment quorum: approvals whose `pr` link targets a chain entry.
     Reverse {
         owner: CHAIN,
         candidate: Kind::Named(APPROVE_TYPE),
-        rel: "pr",
     },
     Reverse {
         owner: PR,
         candidate: Kind::Named(APPROVE_TYPE),
-        rel: "pr",
     },
     Reverse {
         owner: PR,
         candidate: CHAIN,
-        rel: "pr",
     },
 ];
 
@@ -255,7 +261,6 @@ pub fn release_retrieval_ids<B: Backend>(
             for candidate_id in store.linking_to(&id)? {
                 let candidate = store.get(&candidate_id)?;
                 if !edge.candidate.matches(&candidate.object_type)
-                    || single_link(&candidate, edge.rel).as_ref() != Some(&id)
                     || !in_project(&candidate, &candidate_id, &project_id)
                 {
                     continue;
@@ -534,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn reverse_candidates_are_admitted_by_type_and_relation_together() {
+    fn reverse_candidates_are_admitted_by_type_but_their_forward_edges_stay_scoped() {
         let (human, device) = identity(13);
         let mut store = Store::new(MemoryBackend::new());
         let project = object(
@@ -601,12 +606,10 @@ mod tests {
         );
         store.insert(&release).unwrap();
         let ids = release_retrieval_ids(&store, release.id()).unwrap();
-        for excluded in [
-            crafted.id(),
-            doubled.id(),
-            foreign_pr.id(),
-            other_project.id(),
-        ] {
+        // The verifiers count any approval linking to the target, so those
+        // approvals are offered; what they point at elsewhere is not.
+        assert!(ids.contains(crafted.id()) && ids.contains(doubled.id()));
+        for excluded in [foreign_pr.id(), other_project.id()] {
             assert!(!ids.contains(excluded), "{} admitted", excluded.as_str());
         }
         assert!(ids.contains(chain.id()) && ids.contains(pr.id()));
@@ -684,5 +687,92 @@ mod tests {
         assert!(ids.contains(quorum.id()), "amendment approval missing");
         assert!(ids.contains(file_a.id()), "payload tree target missing");
         assert!(!ids.contains(file_b.id()), "link-only tree target offered");
+    }
+
+    #[test]
+    fn manifest_part_links_and_odd_relation_names_follow_the_verifier() {
+        let (human, device) = identity(17);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let chunk = object(
+            ObjectType::Custom("mini/chunk".to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&chunk).unwrap();
+        let stray = ObjectBuilder::new(ObjectType::Custom("mini/chunk".to_string()))
+            .payload(Payload::Public(vec![9]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&stray).unwrap();
+        let manifest = object(
+            ObjectType::MEDIA_MANIFEST,
+            &human.did(),
+            &device,
+            &[("chunk", chunk.id()), ("part", stray.id())],
+        );
+        store.insert(&manifest).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("artifact", manifest.id())],
+        );
+        store.insert(&release).unwrap();
+        // An attestation that links the release under a non-conventional
+        // relation is still counted by the verifier, so it is offered.
+        let odd = object(
+            ObjectType::Custom(ATTEST_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("attests", release.id())],
+        );
+        store.insert(&odd).unwrap();
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(ids.contains(chunk.id()));
+        assert!(!ids.contains(stray.id()), "manifest part link followed");
+        assert!(ids.contains(odd.id()), "odd-relation attestation missing");
+    }
+
+    #[test]
+    fn closure_from_received_objects_matches_and_rejects_unrelated_extras() {
+        let (human, device) = identity(19);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&release).unwrap();
+        let unrelated = ObjectBuilder::new(ObjectType::POST)
+            .payload(Payload::Public(vec![5]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        let derived = release_closure_from_objects(
+            &[project.clone(), release.clone(), unrelated.clone()],
+            release.id(),
+        )
+        .unwrap();
+        assert!(derived.contains(release.id()) && derived.contains(project.id()));
+        assert!(!derived.contains(unrelated.id()));
+        // A missing referenced object fails closed.
+        assert!(
+            release_closure_from_objects(std::slice::from_ref(&release), release.id()).is_err()
+        );
     }
 }

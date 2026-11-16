@@ -76,7 +76,9 @@ pub use release::{
     check_no_rollback, detect_equivocation, detect_equivocation_strict, list_releases,
     list_releases_strict, release_version, Equivocation, Version, MAX_VERSION_COMPONENTS,
 };
-pub use retrieval::{release_retrieval_ids, MAX_RELEASE_RETRIEVAL_OBJECTS};
+pub use retrieval::{
+    release_closure_from_objects, release_retrieval_ids, MAX_RELEASE_RETRIEVAL_OBJECTS,
+};
 
 use crate::oracle::author_verified;
 use did_mini::{Controller, Did};

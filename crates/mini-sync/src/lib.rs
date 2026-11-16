@@ -73,8 +73,9 @@ pub use private_protocol::{
     sync_private_route_bidirectional, sync_private_route_responder_any, PrivateSyncReport,
 };
 pub use protocol::{
-    receive_retrieval_request, request_retrieval, serve_pull, serve_retrieval, sync_bidirectional,
-    sync_bidirectional_paged, IngestReport, RetrievalReport, SyncRole,
+    receive_retrieval_request, request_retrieval, request_retrieval_checked, serve_pull,
+    serve_retrieval, sync_bidirectional, sync_bidirectional_paged, ClosureCheck, IngestReport,
+    RetrievalReport, SyncRole,
 };
 
 use mini_bearer::BearerError;
