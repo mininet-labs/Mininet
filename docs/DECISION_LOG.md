@@ -26725,3 +26725,20 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** an iOS build of the claim crates and a measurement run on the chosen device; the canonical Decision (with every applicable external gate) before any consensus change or activation; the external audit.
 
 **Supersedes / superseded by:** accepts the proposals of D-0553; none.
+
+
+### D-0555 — `mini-bootstrap-state`: the one-way Forge-canonical / Go-Live state log (partial discharge of issue #338)  ·  *Shipped (code); not activated*
+
+**Decision:** Add `crates/mini-bootstrap-state`, a pure leaf crate that makes the Pre-Go-Live pause's section 10 requirement machine-readable: the state is derived by replaying an append-only, hash-chained log of at most two records (`ForgeCanonical`, then `GoLive`), each naming its evidence by digest only. There is no API or record kind that moves a flag back to false, `GoLive` needs `ForgeCanonical` first, nothing may follow `GoLive`, any edited/dropped/reordered/repeated record is refused on replay, and after `GoLive` `founder_integration_enabled()` is permanently false (`require_founder_integration()` fails with a clear error). Records carry no name, DID, pseudonym or other identity field.
+
+**Reason:** `docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md` section 2 says the implementation MUST make the Go-Live transition one-way, and section 10 items 2, 4 and 11 call for an enforced one-way bit that ends Founder canonical authority; before this there was only prose.
+
+**Constitutional impact:** Directive 9 and the bootstrap governance decision; Directive 14 (smallest construction: one hash, two record kinds). No dependency on any value, governance or identity crate (enforced by a test); no Tier-F row touched.
+
+**Implementation status:** library and tests only. **Nothing consults it yet and it activates nothing**: `forge_canonical` is still false, and #338 stays open because its outage itinerary (including GitHub mirror/export after the outage) is not fully proven and the log is not yet bound to canonical Forge storage.
+
+**Failure point:** this crate does not decide **who may append** a record or whether the evidence digests are real; a host that lets anyone write the log can write a fresh log, so the one-way property holds only for a log the host treats as canonical append-only storage (for example signed Forge objects). That binding, the enforcement call sites (`governance/exceptions.yml`, merge paths) and the outage proof are follow-up work. Unaudited.
+
+**Required follow-up:** store the log as signed canonical Forge objects; call `require_founder_integration` at every bootstrap-authority decision point; replace the date-based Founder exception with this state; finish and record the #338 outage itinerary.
+
+**Supersedes / superseded by:** none.

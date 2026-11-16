@@ -2786,6 +2786,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-bootstrap-state"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+]
+
+[[package]]
 name = "mini-bounty"
 version = "0.0.1"
 dependencies = [

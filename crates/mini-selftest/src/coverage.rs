@@ -200,6 +200,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-bootstrap-state",
+        Coverage::Gap {
+            reason: "one-way Forge-canonical/Go-Live state log (issue #338); covered by its own ordering, tamper and one-way tests, not by the selftest",
+        },
+    ),
+    (
         "mini-chain-observer",
         Coverage::Gap {
             reason: "read-only XRPL/Monero observation (research PR #429); covered by its own quorum, ambiguity and journal tests, not by the selftest",
