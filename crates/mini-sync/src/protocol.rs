@@ -1014,3 +1014,149 @@ mod paged_tests {
         assert_eq!(client_store.all_ids().unwrap().len(), 4);
     }
 }
+
+/// Adversarial coverage of the shared verify-before-insert step that exact
+/// release retrieval uses (issue #268): objects the client never asked for,
+/// tampered bytes and unknown authors must not reach the store.
+#[cfg(test)]
+mod retrieval_ingest_tests {
+    use super::*;
+    use did_mini::{Capabilities, Controller};
+    use mini_objects::{ObjectBuilder, Payload};
+    use mini_store::MemoryBackend;
+
+    fn author(seed: u8) -> (Controller, Controller) {
+        let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+        let device = Controller::incept_device_single_from_seeds(
+            &root.did(),
+            &[seed + 2; 32],
+            &[seed + 3; 32],
+        )
+        .unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        (root, device)
+    }
+
+    fn post(root: &Controller, device: &Controller, text: &[u8], seq: u64) -> Object {
+        ObjectBuilder::new(ObjectType::POST)
+            .timestamp_ms(1_000)
+            .sequence(seq)
+            .payload(Payload::Public(text.to_vec()))
+            .sign(&root.did(), device)
+            .unwrap()
+    }
+
+    fn trusting(root: &Controller, device: &Controller) -> KelCache {
+        let mut cache = KelCache::new();
+        cache.insert_verified(root.kel());
+        cache.insert_verified(device.kel());
+        cache
+    }
+
+    #[test]
+    fn an_object_outside_the_allow_list_is_dropped_before_decoding_into_the_store() {
+        let (root, device) = author(10);
+        let wanted = post(&root, &device, b"wanted", 1);
+        let extra = post(&root, &device, b"extra", 2);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![wanted.to_bytes(), extra.to_bytes()],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.received, 2);
+        assert_eq!(report.accepted, 1);
+        assert_eq!(report.unsolicited, 1);
+        assert!(store.get(extra.id()).is_err(), "unsolicited object stored");
+        assert!(store.get(wanted.id()).is_ok());
+    }
+
+    #[test]
+    fn tampered_bytes_never_reach_the_store() {
+        let (root, device) = author(20);
+        let wanted = post(&root, &device, b"honest content", 1);
+        let mut bytes = wanted.to_bytes();
+        // Flip a bit inside the payload: the id no longer matches the bytes,
+        // so the object is either undecodable or not the requested one.
+        let at = bytes.len() / 2;
+        bytes[at] ^= 0x01;
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![bytes],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.accepted, 0, "tampered object accepted");
+        assert!(store.get(wanted.id()).is_err());
+    }
+
+    #[test]
+    fn an_author_the_client_never_trusted_is_refused_even_when_the_object_was_asked_for() {
+        let (root, device) = author(30);
+        let wanted = post(&root, &device, b"from a stranger", 1);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = KelCache::new(); // explicit local trust: none
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![wanted.to_bytes()],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.accepted, 0);
+        assert_eq!(report.unknown_author, 1);
+        assert!(store.get(wanted.id()).is_err());
+    }
+
+    #[test]
+    fn garbage_bytes_are_counted_invalid_and_never_panic() {
+        let (root, device) = author(40);
+        let wanted = post(&root, &device, b"real", 1);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![vec![], vec![0xff; 17], wanted.to_bytes()[..9].to_vec()],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.invalid, 3);
+        assert_eq!(report.accepted, 0);
+    }
+
+    #[test]
+    fn selections_over_the_bound_are_refused_by_both_ends() {
+        // A request for more seeds than the one-shot bound is refused outright.
+        let (root, device) = author(50);
+        let too_many: Vec<ObjectId> = (0..=MAX_RETRIEVAL_OBJECTS)
+            .map(|n| {
+                post(&root, &device, format!("p{n}").as_bytes(), n as u64)
+                    .id()
+                    .clone()
+            })
+            .collect();
+        let (mut client, mut server) = mini_bearer::pair();
+        let (init, hello) = mini_bearer::Initiator::start().unwrap();
+        let (mut server_channel, response) = mini_bearer::Responder::respond(&hello).unwrap();
+        let mut client_channel = init.finish(&response).unwrap();
+        let _ = (&mut server, &mut server_channel);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = KelCache::new();
+        let result = request_retrieval(
+            &mut client,
+            &mut client_channel,
+            &mut store,
+            &mut cache,
+            &too_many,
+        );
+        assert!(matches!(result, Err(SyncError::LimitExceeded)));
+    }
+}

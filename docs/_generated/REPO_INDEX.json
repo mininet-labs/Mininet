@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 96,
-    "files": 1310,
+    "files": 1311,
     "headings": 4362,
-    "rust_symbols": 15828
+    "rust_symbols": 15844
   },
   "crates": {
     "askama_derive": {
@@ -57272,6 +57272,78 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
+      "bytes": 5230,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "store",
+        "author",
+        "dev",
+        "unwrap",
+        "release",
+        "proj",
+        "world",
+        "seed",
+        "controller",
+        "publish",
+        "did",
+        "root",
+        "seq",
+        "closure",
+        "release_retrieval_ids",
+        "objectid",
+        "clone",
+        "sorted",
+        "memorybackend",
+        "rel",
+        "ids",
+        "assert",
+        "human",
+        "commit"
+      ],
+      "lines": 208,
+      "path": "crates/mini-forge/tests/retrieval.rs",
+      "sha256": "80fbe379c765efb23a337ac507777f0152e51871f7416f3065c5db85ae0d7c73",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 15,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "publish"
+        },
+        {
+          "kind": "struct",
+          "line": 88,
+          "name": "World"
+        },
+        {
+          "kind": "fn",
+          "line": 95,
+          "name": "world"
+        },
+        {
+          "kind": "fn",
+          "line": 121,
+          "name": "the_closure_is_the_releases_own_evidence_sorted_and_repeatable"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "a_second_release_and_unrelated_objects_are_not_part_of_the_closure"
+        },
+        {
+          "kind": "fn",
+          "line": 186,
+          "name": "only_a_release_can_seed_a_retrieval_and_a_missing_one_fails_closed"
+        }
+      ],
+      "title": "use did_mini::{Capabilities, Controller, Did};"
+    },
+    {
       "bytes": 705,
       "group": "crate:mini-installer",
       "headings": [],
@@ -99634,7 +99706,7 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 37844,
+      "bytes": 43350,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
@@ -99663,9 +99735,9 @@
         "buf",
         "pull_byte_budget"
       ],
-      "lines": 1017,
+      "lines": 1163,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "e24bfbb021e65e77a726fc1772f3f35122833bb4ddbd2f9ba567ef2725eb5b4c",
+      "sha256": "baa813a2cc78a052bee6a0595ea5792297038b62207e261265d29961f142a994",
       "symbols": [
         {
           "kind": "const",
@@ -99866,6 +99938,51 @@
           "kind": "fn",
           "line": 935,
           "name": "paged_windows_persist_verified_progress_and_resume_to_completion"
+        },
+        {
+          "kind": "mod",
+          "line": 1022,
+          "name": "retrieval_ingest_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 1028,
+          "name": "author"
+        },
+        {
+          "kind": "fn",
+          "line": 1041,
+          "name": "post"
+        },
+        {
+          "kind": "fn",
+          "line": 1050,
+          "name": "trusting"
+        },
+        {
+          "kind": "fn",
+          "line": 1058,
+          "name": "an_object_outside_the_allow_list_is_dropped_before_decoding_into_the_store"
+        },
+        {
+          "kind": "fn",
+          "line": 1079,
+          "name": "tampered_bytes_never_reach_the_store"
+        },
+        {
+          "kind": "fn",
+          "line": 1101,
+          "name": "an_author_the_client_never_trusted_is_refused_even_when_the_object_was_asked_for"
+        },
+        {
+          "kind": "fn",
+          "line": 1119,
+          "name": "garbage_bytes_are_counted_invalid_and_never_panic"
+        },
+        {
+          "kind": "fn",
+          "line": 1136,
+          "name": "selections_over_the_bound_are_refused_by_both_ends"
         }
       ],
       "title": "use mini_bearer::{Bearer, Channel};"
@@ -117340,7 +117457,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1625811,
+      "bytes": 1627987,
       "group": "docs",
       "headings": [
         {
@@ -117770,9 +117887,9 @@
         "decision",
         "log"
       ],
-      "lines": 26745,
+      "lines": 26762,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "15f70ff18d81fb4c8dfd9ca04dd872de9e8fbde85a7adfc4a0fd0afe25dfd563",
+      "sha256": "d0f44bc2617e5c347e7d06afa24b049cd738e607f8069d97823a7ef5ecdb4f09",
       "symbols": [],
       "title": "Decision Log"
     },

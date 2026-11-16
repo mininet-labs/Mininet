@@ -26742,3 +26742,20 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** store the log as signed canonical Forge objects; call `require_founder_integration` at every bootstrap-authority decision point; replace the date-based Founder exception with this state; finish and record the #338 outage itinerary.
 
 **Supersedes / superseded by:** none.
+
+
+### D-0556 — Exact release retrieval (D-0408) has its adversarial evidence: acceptance of issue #268 is met  ·  *Accepted*
+
+**Decision:** Record that issue #268's acceptance criteria are now backed by tests, and accept D-0408 (which was left `Proposed`). New tests: `mini-forge/tests/retrieval.rs` (the selector returns the release's own deterministic, sorted, duplicate-free closure; a second release and an unrelated object that merely mentions the release under another relation are not offered; only a release can seed a retrieval; a missing release fails rather than yielding an empty plan) and `mini-sync` `retrieval_ingest_tests` (an object outside the echoed allow-list is dropped and counted, not stored; tampered bytes are never stored; an author the client never trusted is refused even when asked for; garbage bytes are counted invalid without panicking; a request over the one-shot bound is refused). Existing evidence: `exact_retrieval_transfers_only_the_selected_object`, `exact_retrieval_fails_closed_when_the_selection_omits_the_seed`, and `mini-cli`'s `a_release_reaches_install_on_a_peer_that_never_shared_a_filesystem`, which retrieves a release by a fresh peer over real TCP and verifies it before writing output.
+
+**Reason:** #268 said it stays open until the code, tests, docs and evidence are all present; the adversarial tests (unsolicited, malformed, tampered, incomplete) were the missing part.
+
+**Constitutional impact:** none beyond D-0408 (no new authority, no new cryptography; retrieval never activates anything). No value/governance dependency edge.
+
+**Implementation status:** shipped with tests. The tampered/unsolicited cases are tested at the shared verify-before-insert step both retrieval and full sync use, not as a separate CLI scenario; a CLI-level negative test (a release whose chunk is withheld) is not written.
+
+**Failure point:** unaudited; no peer discovery, daemon or payment (non-goals of #268); a malicious server can still refuse to serve, which is availability, not integrity.
+
+**Required follow-up:** a CLI-level negative retrieval scenario; the external audit.
+
+**Supersedes / superseded by:** accepts D-0408; none.
