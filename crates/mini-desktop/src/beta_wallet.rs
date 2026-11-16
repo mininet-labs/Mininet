@@ -498,12 +498,15 @@ It has no effect until the policy threshold of members approve it. Test value on
             return Err("enter the accepted contribution ID".into());
         }
         let contribution_id = contribution.to_string();
-        let secret = parse_hex32(&self.claim_secret, "claim secret")?;
+        let mut secret = parse_hex32(&self.claim_secret, "claim secret")?;
         let account = parse_hex32(&self.claim_account, "your BETA account")?;
         zeroize::Zeroize::zeroize(&mut self.claim_secret);
+        // `[u8; 32]` is `Copy`, so wrapping it leaves this local behind: wipe it.
+        let claim_secret = ClaimSecret::new(secret);
+        zeroize::Zeroize::zeroize(&mut secret);
         Ok(Request::ClaimRedeem {
             contribution_id,
-            claim_secret: ClaimSecret::new(secret),
+            claim_secret,
             account,
         })
     }

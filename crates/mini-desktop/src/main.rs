@@ -2743,6 +2743,7 @@ impl MininetApp {
             }
             (CoreAction::BetaClaimRedeem, Ok(AppReply::BetaClaimRedeemed { redemption_id })) => {
                 self.beta_wallet.on_claim_redeemed(&redemption_id);
+                self.reload_workspace();
                 self.notice = "Claim redeemed under a one-time identity.".into();
             }
             (CoreAction::BetaGrantCreate, Ok(AppReply::BetaGrantCreated { grant_id })) => {
