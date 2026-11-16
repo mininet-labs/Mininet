@@ -289,6 +289,11 @@ impl<V: IdentityVault> Core<V> {
                 valid_from_ms,
                 valid_until_ms,
             ),
+            Command::BetaClaimRedeem {
+                contribution_id,
+                claim_secret,
+                account,
+            } => self.beta_claim_redeem(&contribution_id, &claim_secret, account),
             Command::BetaGrantCreate {
                 operation_id,
                 campaign_id,

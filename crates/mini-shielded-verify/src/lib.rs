@@ -48,6 +48,7 @@ use mini_execution::{
 };
 use mini_private_payment::PrivatePaymentClaim;
 
+pub mod exchange;
 mod v3;
 pub use v3::{ClaimEvidencePoolV3, ShieldedClaimVerifierV3};
 

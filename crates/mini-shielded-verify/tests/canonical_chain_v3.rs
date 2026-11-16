@@ -598,6 +598,118 @@ fn evidence_survives_a_restart_and_a_corrupt_file_fails_closed() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn fetching_missing_claims_stores_only_what_was_asked_for() {
+    use mini_shielded_verify::exchange::{
+        ingest, serve, ClaimRequest, ClaimResponse, ExchangeError, MAX_REQUEST_IDS,
+        MAX_RESPONSE_CLAIMS,
+    };
+    let fixture = Fixture::new();
+    let fee = quote_fee_micro(&FEE_POLICY, 1, 1);
+    let claim_a = payment(
+        &fixture.outputs,
+        vec![genesis_spend(&fixture, 0)],
+        &fixture.owners[1],
+        10_000 - fee,
+    );
+    let claim_b = payment(
+        &fixture.outputs,
+        vec![genesis_spend(&fixture, 1)],
+        &fixture.owners[1],
+        10_000 - fee,
+    );
+    let (id_a, id_b) = (claim_a.claim_id(), claim_b.claim_id());
+
+    // A peer holds both; we ask for A only and it also offers B.
+    let peer = ClaimEvidencePoolV3::new();
+    peer.insert(claim_a.encode()).unwrap();
+    peer.insert(claim_b.encode()).unwrap();
+    let ask_a = ClaimRequest::new([id_a]).unwrap();
+    let greedy = ClaimResponse::decode(&{
+        let both = ClaimRequest::new([id_a, id_b]).unwrap();
+        serve(&peer, &both).encode()
+    })
+    .unwrap();
+    let mine = ClaimEvidencePoolV3::new();
+    let report = ingest(&mine, &ask_a, &greedy);
+    assert_eq!(report.stored, vec![id_a]);
+    assert_eq!(report.unsolicited, 1, "B was not asked for");
+    assert!(mine.get(&id_b).is_none(), "unsolicited bytes never stored");
+    assert!(report.still_missing.is_empty());
+
+    // A claim we already hold is not "missing" even if the peer omits it.
+    let held = ingest(&mine, &ask_a, &serve(&ClaimEvidencePoolV3::new(), &ask_a));
+    assert!(held.still_missing.is_empty());
+    assert_eq!(held.stored, vec![id_a]);
+
+    // Withholding is reported, not mistaken for absence.
+    let empty_peer = ClaimEvidencePoolV3::new();
+    let ask_both = ClaimRequest::new([id_a, id_b]).unwrap();
+    let fresh_for_withholding = ClaimEvidencePoolV3::new();
+    let report = ingest(
+        &fresh_for_withholding,
+        &ask_both,
+        &serve(&empty_peer, &ask_both),
+    );
+    let mut both_sorted = vec![id_a, id_b];
+    both_sorted.sort();
+    assert_eq!(report.still_missing, both_sorted);
+
+    // Serving never mutates the server and omits what it does not hold.
+    let partial = ClaimEvidencePoolV3::new();
+    partial.insert(claim_b.encode()).unwrap();
+    let answered = serve(&partial, &ask_both);
+    assert_eq!(answered.claims().len(), 1);
+    assert_eq!(partial.len(), 1);
+
+    // Garbage and substituted bytes under a wanted id cannot get in.
+    let hostile = ClaimResponse::decode(
+        &ClaimResponse::decode(&serve(&peer, &ask_a).encode())
+            .map(|_| {
+                let mut bytes = serve(&peer, &ask_a).encode();
+                let last = bytes.len() - 1;
+                bytes[last] ^= 1; // flips a byte inside the claim
+                bytes
+            })
+            .unwrap(),
+    )
+    .unwrap();
+    let fresh = ClaimEvidencePoolV3::new();
+    let report = ingest(&fresh, &ask_a, &hostile);
+    assert!(report.stored.is_empty());
+    assert_eq!(report.still_missing, vec![id_a]);
+    assert!(fresh.is_empty());
+
+    // Codecs are strict.
+    let request_bytes = ask_both.encode();
+    assert_eq!(ClaimRequest::decode(&request_bytes).unwrap(), ask_both);
+    assert_eq!(
+        ClaimRequest::decode(&request_bytes[..request_bytes.len() - 1]),
+        Err(ExchangeError::Malformed)
+    );
+    let mut trailing = request_bytes.clone();
+    trailing.push(0);
+    assert_eq!(
+        ClaimRequest::decode(&trailing),
+        Err(ExchangeError::Malformed)
+    );
+    // Unsorted or duplicated ids in a request are refused.
+    let mut dup = ask_both.encode();
+    let n = dup.len();
+    let first: Vec<u8> = dup[n - 64..n - 32].to_vec();
+    dup[n - 32..].copy_from_slice(&first);
+    assert_eq!(ClaimRequest::decode(&dup), Err(ExchangeError::DuplicateId));
+    assert_eq!(
+        ClaimRequest::new((0..=MAX_REQUEST_IDS as u8).map(|i| [i; 32])),
+        Err(ExchangeError::TooMany)
+    );
+    // A response claiming more items than allowed is refused before parsing.
+    let mut huge = b"mininet/claim-fetch/v3/response\n".to_vec();
+    huge.extend_from_slice(&((MAX_RESPONSE_CLAIMS as u16) + 1).to_be_bytes());
+    assert_eq!(ClaimResponse::decode(&huge), Err(ExchangeError::TooMany));
+    let _ = MAX_RESPONSE_CLAIMS;
+}
+
 const MAX_BYTES_OVER: usize = mini_private_payment::MAX_CLAIM_V3_BYTES + 1;
 
 #[test]

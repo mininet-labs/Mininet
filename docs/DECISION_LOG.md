@@ -26690,3 +26690,38 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** the items listed above under "Not done".
 
 **Supersedes / superseded by:** extends D-0550; none.
+
+
+### D-0553 — Follow-ups to D-0552: anchored FROST signer, claim-fetch message layer, fuzz targets, desktop claim redemption, and the three decisions left open  ·  *Shipped (code); decisions Proposed*
+
+**Decision:** Close what code can close, and set out (not decide) what it cannot.
+(1) `mini_custody::anchor`: `MonotonicCounter` plus `AnchoredSigner`, which does a compare-and-set on an external counter before every FROST `commit` and `sign` and refuses a restored or forked signer (T19). (2) `mini_shielded_verify::exchange`: bounded request/response messages, a server and an ingest step for fetching missing V3 claim bytes; only solicited ids are stored. (3) `fuzz/`: cargo-fuzz targets for the claim, fetch, evidence-file and journal decoders. (4) Desktop claim redemption: `Command::BetaClaimRedeem`, a service handler that signs under a throwaway identity, and a panel section; the secret is a redacted, wiped `ClaimSecret`. (5) `docs/design/v3-activation-decisions.md` sets out transparent-path retirement, fee-policy activation and the weak-device baseline as proposals.
+
+**Reason:** D-0552 listed these as the remaining follow-ups; the founder asked for them in the next PR.
+
+**Constitutional impact:** Directive 9, Directive 14, Directive 16 (P1). No value/governance dependency edge; no Tier-F row touched; no new cryptographic construction (compare-and-set on a counter, existing signatures and hashes). The three decisions are **not** made here.
+
+**Implementation status:** shipped with tests. The anchor's counters (`MemoryCounter`, `FileCounter`) are only as external as their medium; a real deployment must back `MonotonicCounter` with an HSM/TPM counter or a remote service the other signers trust, which is not built or audited. The fetch layer has no transport, peer selection, per-peer rate limit or peer authentication. The fuzz targets compile and were smoke-run on stable without coverage instrumentation; a coverage-guided campaign needs nightly and has not run. Desktop redemption is not journaled, so a retry makes another valid redemption (a grant can cite only one) and it has had no GUI test beyond the panel's unit tests.
+
+**Failure point:** the anchor accepts a one-operation crash window by design; a counter on restored storage protects nothing; unaudited (Gate #72/#93 open). Real-value release remains NO-GO.
+
+**Required follow-up:** the three decisions in the design note; a hardware-backed counter; a transport for the fetch messages; a real fuzz campaign; bridges and the external audits.
+
+**Supersedes / superseded by:** extends D-0552; none.
+
+
+### D-0554 — Founder direction: accept the V3 activation proposals as engineering direction; weak-device baseline is the current iPhone "e" model  ·  *Accepted (direction); nothing activated*
+
+**Decision:** On 2026-11-09 the founder accepted the three proposals in `docs/design/v3-activation-decisions.md` as engineering direction: (1) retire the transparent (V2) path by starting any value-bearing network on V3 from genesis rather than migrating V2 state (option A); (2) activate a fee policy by epoch, with the policy id selecting a fee table that is genesis data changeable only through the process for other consensus parameters; (3) measure on a weak-device baseline, which the founder chose as the current iPhone "e" model.
+
+**Reason:** Every current balance is Beta test value that resets each epoch, so a migration would be inventing machinery the audit would then have to cover; a fee floor should not be set below measured verification cost; the baseline had to be a concrete device before a number could mean anything.
+
+**Constitutional impact:** Directive 14 (smaller construction over a migration); Directive 16 (P1: fee policy stays separate from balances and voting weight). Chat direction is task authorization, not protocol authority: this entry records direction and changes no consensus rule. No Tier-F row is weakened or touched.
+
+**Implementation status:** nothing is activated or switched off. V2 code remains. `quote_fee_micro` is still the placeholder. No baseline measurement exists: the harness (`mini-private-payment/tests/budget_v3.rs`, `--ignored`) is a Rust test and nothing in the repo builds or runs the claim crates on iOS, so the exact "e" model (the iPhone 16e as far as the author knows) must be confirmed and measured on a physical device by someone with one.
+
+**Failure point:** "start V3 from genesis" is only safe if no real value ever lived on V2; that is still an assumption to confirm. A fee table in genesis needs the measured numbers first, so it cannot be finalized yet. Unaudited (Gate #72/#93 open). Real-value release remains NO-GO.
+
+**Required follow-up:** an iOS build of the claim crates and a measurement run on the chosen device; the canonical Decision (with every applicable external gate) before any consensus change or activation; the external audit.
+
+**Supersedes / superseded by:** accepts the proposals of D-0553; none.

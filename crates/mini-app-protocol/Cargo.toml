@@ -10,3 +10,5 @@ authors.workspace = true
 publish = false
 
 [dependencies]
+# Wipes the one-time claim secret when a command carrying it is dropped.
+zeroize = "1"

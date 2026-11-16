@@ -154,6 +154,9 @@ fn beta_lib_error(error: BetaError) -> ServiceError {
         BetaError::InvalidObject | BetaError::InvalidPolicy | BetaError::DuplicateGrant => {
             bad("grant request is not valid for this campaign")
         }
+        BetaError::InvalidClaimProof => {
+            bad("the claim secret does not match this contribution's claim key")
+        }
         _ => ServiceError::new(ErrorCode::Internal, "BETA grant error"),
     }
 }
@@ -392,6 +395,60 @@ impl<V: IdentityVault> Core<V> {
     /// design (the threshold is over named authorizers), so the approval must
     /// be attributable to the member's real DID. It therefore links the
     /// approver's public DID to the approved grant.
+    /// Redeem a private participation claim under a throwaway identity.
+    ///
+    /// The claim secret is only ever in this call's memory (it is wiped when the
+    /// command drops) and is not journaled. The redemption is signed by a fresh
+    /// identity that is discarded afterwards, so nothing links it to this
+    /// device's identity or to the BETA account's derived identity. Retrying
+    /// publishes another valid redemption; a grant can cite only one.
+    pub(crate) fn beta_claim_redeem(
+        &mut self,
+        contribution_id: &str,
+        claim_secret: &mini_app_protocol::ClaimSecret,
+        account: [u8; 32],
+    ) -> Result<Reply, ServiceError> {
+        let contribution = object_id(contribution_id)?;
+        let account = account_id(account)?;
+        let key = mini_beta::ClaimKey::from_secret(claim_secret.expose());
+
+        let mut human = did_mini::Controller::incept_single().map_err(storage_error)?;
+        let current = mini_crypto::SigningKey::generate().map_err(storage_error)?;
+        let next = mini_crypto::SigningKey::generate().map_err(storage_error)?;
+        let device =
+            did_mini::Controller::incept_device(&human.did(), vec![current], 1, vec![next], 1)
+                .map_err(storage_error)?;
+        human
+            .delegate_device(&device.did(), did_mini::Capabilities::POST)
+            .map_err(storage_error)?;
+
+        // Build first: a wrong secret fails here before anything is stored. The
+        // throwaway author has its own sequence space, so the primary identity's
+        // counter is not touched.
+        let sequence = 1;
+        let redemption = mini_beta::build_claim_redemption(
+            &self.store,
+            &human.did(),
+            &device,
+            &contribution,
+            account,
+            &key,
+            now_ms(),
+            sequence,
+        )
+        .map_err(beta_lib_error)?;
+
+        for kel in [device.kel(), human.kel()] {
+            let carrier =
+                mini_sync::kel_carrier(&kel, &human.did(), &device).map_err(storage_error)?;
+            self.store.insert(&carrier).map_err(storage_error)?;
+        }
+        self.store.insert(&redemption).map_err(storage_error)?;
+        Ok(Reply::BetaClaimRedeemed {
+            redemption_id: redemption.id().as_str().to_string(),
+        })
+    }
+
     pub(crate) fn beta_grant_approve(
         &mut self,
         operation_id: &str,

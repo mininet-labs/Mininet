@@ -223,6 +223,9 @@ pub struct DurableCustodySigner {
     binding: [u8; 32],
     instance: [u8; 32],
     record_count: usize,
+    /// Reservations that were consumed by a real `sign` (non-zero transcript),
+    /// as opposed to burned unused on reopen.
+    signed_count: usize,
     poisoned: bool,
     _lock: std::fs::File,
 }
@@ -325,6 +328,10 @@ impl DurableCustodySigner {
         // Re-establish barriers in case a previous manifest write returned
         // an uncertain error. Runs before any new commitment is released.
         mini_durable::atomic_replace(&manifest_path, &manifest).map_err(journal_error)?;
+        let records_signed = records
+            .iter()
+            .filter(|record| record.transcript != [0; 32])
+            .count();
         for mut record in records {
             if !record.burned {
                 record.burned = true;
@@ -333,6 +340,7 @@ impl DurableCustodySigner {
             }
         }
 
+        let signed_count = records_signed;
         let instance = mini_crypto::random_32().map_err(|_| CustodyError::Entropy)?;
         Ok(Self {
             directory,
@@ -340,6 +348,7 @@ impl DurableCustodySigner {
             binding,
             instance,
             record_count,
+            signed_count,
             poisoned: false,
             _lock: lock,
         })
@@ -438,7 +447,15 @@ impl DurableCustodySigner {
         record.burned = true;
         record.transcript = *blake3::hash(package.message()).as_bytes();
         self.persist(&record)?;
+        self.signed_count += 1;
         round2_sign(package, nonces.nonces, &self.key)
+    }
+
+    /// Total `commit` + `sign` operations this journal has recorded. The
+    /// external anchor ([`crate::anchor`]) counts the same operations, which is
+    /// what lets a restored older copy of this directory be told apart.
+    pub fn operation_count(&self) -> u64 {
+        (self.record_count + self.signed_count) as u64
     }
 }
 

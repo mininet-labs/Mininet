@@ -111,6 +111,16 @@ impl ClaimEvidencePoolV3 {
         Ok(claim_id)
     }
 
+    /// The `claim_id` of canonically encoded claim bytes, without storing them.
+    /// `None` if the bytes do not decode strictly and re-encode to themselves.
+    pub fn claim_id_of(claim_bytes: &[u8]) -> Option<[u8; 32]> {
+        if claim_bytes.len() > MAX_CLAIM_V3_BYTES {
+            return None;
+        }
+        let claim = PrivatePaymentClaimV3::decode(claim_bytes).ok()?;
+        (claim.encode() == claim_bytes).then(|| claim.claim_id())
+    }
+
     /// Copy retained bytes, if present.
     pub fn get(&self, claim_id: &[u8; 32]) -> Option<Vec<u8>> {
         self.state
