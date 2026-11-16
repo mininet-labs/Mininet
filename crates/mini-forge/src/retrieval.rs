@@ -111,14 +111,17 @@ const TREE_ENTRY_KINDS: &[Kind] = &[
     Kind::Named(EXECUTABLE_FILE_TYPE),
 ];
 const PR_EDGES: &[Forward] = &[
-    one("project", &[PROJECT]),
+    many("project", &[PROJECT]),
     one("head", &[Kind::Commit]),
     one("base", &[Kind::Commit]),
 ];
+// The resolver reads chain entries with `any(link)` and PRs with the first
+// `project` link, so these relations are not treated as single-valued here: a
+// resolver-valid entry must not be omitted. Targets stay typed and scoped.
 const CHAIN_EDGES: &[Forward] = &[
-    one("project", &[PROJECT]),
-    one("prev", &[CHAIN, PROJECT]),
-    one("pr", &[PR]),
+    many("project", &[PROJECT]),
+    many("prev", &[CHAIN, PROJECT]),
+    many("pr", &[PR]),
 ];
 const APPROVE_EDGES: &[Forward] = &[one("pr", &[PR])];
 const ATTEST_EDGES: &[Forward] = &[one("release", &[Kind::Release])];
@@ -284,15 +287,28 @@ fn single_link(object: &mini_objects::Object, rel: &str) -> Option<ObjectId> {
     Some(first.target.clone())
 }
 
-/// Governance objects must belong to the release's own project. Other kinds
-/// carry no project link and are bounded by their typed edge instead.
+/// Governance objects must belong to the release's own project, judged the
+/// way the resolver judges them: a chain entry has *a* `project` link to it,
+/// a PR's first `project` link is it. Other kinds carry no project link and
+/// are bounded by their typed edge instead.
 fn in_project(object: &mini_objects::Object, id: &ObjectId, project: &ObjectId) -> bool {
     let ty = &object.object_type;
     if PROJECT.matches(ty) {
         return id == project;
     }
-    if PR.matches(ty) || CHAIN.matches(ty) {
-        return single_link(object, "project").as_ref() == Some(project);
+    if CHAIN.matches(ty) {
+        return object
+            .links
+            .iter()
+            .any(|l| l.rel == "project" && l.target == *project);
+    }
+    if PR.matches(ty) {
+        return object
+            .links
+            .iter()
+            .find(|l| l.rel == "project")
+            .map(|l| &l.target)
+            == Some(project);
     }
     true
 }
@@ -774,5 +790,48 @@ mod tests {
         assert!(
             release_closure_from_objects(std::slice::from_ref(&release), release.id()).is_err()
         );
+    }
+
+    #[test]
+    fn a_resolver_valid_chain_entry_with_a_repeated_project_link_is_offered() {
+        let (human, device) = identity(21);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let pr = object(
+            ObjectType::Custom(PR_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&pr).unwrap();
+        // The resolver accepts this entry (it only needs *a* project link).
+        let fork = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("project", project.id()),
+                ("prev", project.id()),
+                ("pr", pr.id()),
+            ],
+        );
+        store.insert(&fork).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&release).unwrap();
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(ids.contains(fork.id()), "resolver-valid entry omitted");
+        assert!(ids.contains(pr.id()));
     }
 }

@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15896
+    "rust_symbols": 15897
   },
   "crates": {
     "askama_derive": {
@@ -56615,38 +56615,38 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 27119,
+      "bytes": 29167,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
         "kind",
-        "one",
         "forward",
         "const",
+        "one",
         "release",
-        "named",
         "project",
+        "named",
         "object",
-        "owner_is",
         "commit",
+        "owner_is",
+        "many",
         "objecttype",
         "static",
-        "else",
+        "chain",
         "tree",
         "store",
         "retrieval",
-        "chain",
         "closure",
-        "objects",
         "manifest",
         "rel",
         "kinds",
+        "else",
         "matches",
-        "many"
+        "peer"
       ],
-      "lines": 779,
+      "lines": 838,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "8d3cce4a868930bad6627d7376204ca63749293beb030aa7877943b095d36ea4",
+      "sha256": "ec7ad1a6fa49e6334c585925a46db16cc69fbf7338da9695a12f0503b25a18a6",
       "symbols": [
         {
           "kind": "const",
@@ -56740,103 +56740,108 @@
         },
         {
           "kind": "const",
-          "line": 118,
+          "line": 121,
           "name": "CHAIN_EDGES"
         },
         {
           "kind": "const",
-          "line": 123,
+          "line": 126,
           "name": "APPROVE_EDGES"
         },
         {
           "kind": "const",
-          "line": 124,
+          "line": 127,
           "name": "ATTEST_EDGES"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 130,
           "name": "forward_edges"
         },
         {
           "kind": "struct",
-          "line": 152,
+          "line": 155,
           "name": "Reverse"
         },
         {
           "kind": "const",
-          "line": 157,
+          "line": 160,
           "name": "REVERSE_EDGES"
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 205,
           "name": "release_retrieval_ids"
         },
         {
           "kind": "fn",
-          "line": 278,
+          "line": 281,
           "name": "single_link"
         },
         {
           "kind": "fn",
-          "line": 289,
+          "line": 294,
           "name": "in_project"
         },
         {
           "kind": "fn",
-          "line": 303,
+          "line": 319,
           "name": "enqueue"
         },
         {
           "kind": "mod",
-          "line": 320,
+          "line": 336,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 327,
+          "line": 343,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 341,
+          "line": 357,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 371,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 490,
           "name": "approval_extra_reviewed_link_does_not_widen_closure"
         },
         {
           "kind": "fn",
-          "line": 517,
+          "line": 533,
           "name": "forward_targets_must_be_the_type_the_relation_means"
         },
         {
           "kind": "fn",
-          "line": 542,
+          "line": 558,
           "name": "reverse_candidates_are_admitted_by_type_but_their_forward_edges_stay_scoped"
         },
         {
           "kind": "fn",
-          "line": 619,
+          "line": 635,
           "name": "amendment_approvals_and_payload_tree_targets_are_in_the_closure"
         },
         {
           "kind": "fn",
-          "line": 693,
+          "line": 709,
           "name": "manifest_part_links_and_odd_relation_names_follow_the_verifier"
         },
         {
           "kind": "fn",
-          "line": 745,
+          "line": 761,
           "name": "closure_from_received_objects_matches_and_rejects_unrelated_extras"
+        },
+        {
+          "kind": "fn",
+          "line": 796,
+          "name": "a_resolver_valid_chain_entry_with_a_repeated_project_link_is_offered"
         }
       ],
       "title": "use std::collections::{HashSet, VecDeque};"
@@ -117754,7 +117759,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1631732,
+      "bytes": 1631905,
       "group": "docs",
       "headings": [
         {
@@ -118186,7 +118191,7 @@
       ],
       "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "51d2f16590b12f7fe697163d3a9edd8b4b177f908e6923b56f6f07a111ca12c9",
+      "sha256": "6a064d6f7128efb6cccbee142d2d4354b4d87ea3bc3d067a7f66dd56241e944a",
       "symbols": [],
       "title": "Decision Log"
     },
