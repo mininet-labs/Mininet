@@ -40265,7 +40265,7 @@
       "title": "use mini_app_protocol::{"
     },
     {
-      "bytes": 48373,
+      "bytes": 48535,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -40294,9 +40294,9 @@
         "campaigns",
         "memo"
       ],
-      "lines": 1266,
+      "lines": 1269,
       "path": "crates/mini-desktop/src/beta_wallet.rs",
-      "sha256": "391bc32ccd5e2e9fd5c071932e0d9a0a050211d1768294064e5f7ed04215d1c5",
+      "sha256": "d5c89e3575e072f9e44fa9bb30610cd66565fb7a78f91357db42ad48695ca725",
       "symbols": [
         {
           "kind": "const",
@@ -40320,87 +40320,87 @@
         },
         {
           "kind": "mod",
-          "line": 856,
+          "line": 859,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 859,
+          "line": 862,
           "name": "panel"
         },
         {
           "kind": "fn",
-          "line": 872,
+          "line": 875,
           "name": "amounts_are_exact_decimal_micro_units_without_floats"
         },
         {
           "kind": "fn",
-          "line": 901,
+          "line": 904,
           "name": "ids_and_campaigns_are_validated_and_deduplicated"
         },
         {
           "kind": "fn",
-          "line": 925,
+          "line": 928,
           "name": "requests_are_built_only_from_valid_input"
         },
         {
           "kind": "fn",
-          "line": 956,
+          "line": 959,
           "name": "a_retried_request_reuses_its_operation_id_until_the_core_answers"
         },
         {
           "kind": "fn",
-          "line": 990,
+          "line": 993,
           "name": "changing_epoch_or_campaigns_drops_the_cached_balances_view"
         },
         {
           "kind": "fn",
-          "line": 1013,
+          "line": 1016,
           "name": "grant_requests_need_both_ids_and_reuse_their_operation_id_until_answered"
         },
         {
           "kind": "fn",
-          "line": 1053,
+          "line": 1056,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 1061,
+          "line": 1064,
           "name": "policy_panel"
         },
         {
           "kind": "fn",
-          "line": 1074,
+          "line": 1077,
           "name": "policy_id"
         },
         {
           "kind": "fn",
-          "line": 1082,
+          "line": 1085,
           "name": "policy_requests_validate_inputs_and_reuse_their_operation_id_until_answered"
         },
         {
           "kind": "fn",
-          "line": 1134,
+          "line": 1137,
           "name": "suggested_window_is_absolute_and_stable_across_retries"
         },
         {
           "kind": "fn",
-          "line": 1143,
+          "line": 1146,
           "name": "grant_creation_requests_validate_inputs_and_reuse_their_operation_id"
         },
         {
           "kind": "fn",
-          "line": 1195,
+          "line": 1198,
           "name": "grant_status_text_is_honest_and_flags_equivocation"
         },
         {
           "kind": "fn",
-          "line": 1206,
+          "line": 1209,
           "name": "replies_update_state_and_never_hide_conflicts"
         },
         {
           "kind": "fn",
-          "line": 1224,
+          "line": 1227,
           "name": "the_claim_secret_is_wiped_on_success_kept_on_error_and_never_printed"
         }
       ],
@@ -41172,7 +41172,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 458198,
+      "bytes": 458239,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -41201,9 +41201,9 @@
         "lockidentity",
         "lockafterprofile"
       ],
-      "lines": 10721,
+      "lines": 10722,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "ae173a70e6b92bd605f3aa1e6901c3ee4430f1cfd881e782e0e62cd384aba8e1",
+      "sha256": "a43766139fa515142bb7aa0df1f8ad56edd38bbd7f0b8013ab8fb3a41d69ce9b",
       "symbols": [
         {
           "kind": "mod",
@@ -41897,312 +41897,312 @@
         },
         {
           "kind": "fn",
-          "line": 2789,
+          "line": 2790,
           "name": "reload_workspace"
         },
         {
           "kind": "fn",
-          "line": 2805,
+          "line": 2806,
           "name": "rebuild_conversation_previews"
         },
         {
           "kind": "fn",
-          "line": 2849,
+          "line": 2850,
           "name": "save_connections"
         },
         {
           "kind": "fn",
-          "line": 2857,
+          "line": 2858,
           "name": "apply_launch_policy"
         },
         {
           "kind": "fn",
-          "line": 2876,
+          "line": 2877,
           "name": "start_host"
         },
         {
           "kind": "fn",
-          "line": 2922,
+          "line": 2923,
           "name": "stop_host"
         },
         {
           "kind": "fn",
-          "line": 2930,
+          "line": 2931,
           "name": "start_router_mapping"
         },
         {
           "kind": "fn",
-          "line": 2945,
+          "line": 2946,
           "name": "poll_router"
         },
         {
           "kind": "fn",
-          "line": 2995,
+          "line": 2996,
           "name": "poll_host"
         },
         {
           "kind": "fn",
-          "line": 3057,
+          "line": 3058,
           "name": "start_session"
         },
         {
           "kind": "fn",
-          "line": 3088,
+          "line": 3089,
           "name": "stop_session"
         },
         {
           "kind": "fn",
-          "line": 3095,
+          "line": 3096,
           "name": "schedule_session"
         },
         {
           "kind": "fn",
-          "line": 3144,
+          "line": 3145,
           "name": "poll_session"
         },
         {
           "kind": "fn",
-          "line": 3180,
+          "line": 3181,
           "name": "poll_dropped_files"
         },
         {
           "kind": "fn",
-          "line": 3210,
+          "line": 3211,
           "name": "poll_discovery"
         },
         {
           "kind": "fn",
-          "line": 3228,
+          "line": 3229,
           "name": "poll_one_shot_sync"
         },
         {
           "kind": "fn",
-          "line": 3261,
+          "line": 3262,
           "name": "poll_selftest"
         },
         {
           "kind": "fn",
-          "line": 3297,
+          "line": 3298,
           "name": "poll_visibility"
         },
         {
           "kind": "fn",
-          "line": 3329,
+          "line": 3330,
           "name": "connection_state"
         },
         {
           "kind": "fn",
-          "line": 3346,
+          "line": 3347,
           "name": "connection_summary"
         },
         {
           "kind": "fn",
-          "line": 3371,
+          "line": 3372,
           "name": "top_bar"
         },
         {
           "kind": "fn",
-          "line": 3459,
+          "line": 3460,
           "name": "navigation_rail"
         },
         {
           "kind": "fn",
-          "line": 3532,
+          "line": 3533,
           "name": "discovery_column"
         },
         {
           "kind": "fn",
-          "line": 3668,
+          "line": 3669,
           "name": "set_muted"
         },
         {
           "kind": "fn",
-          "line": 3686,
+          "line": 3687,
           "name": "peer_label"
         },
         {
           "kind": "fn",
-          "line": 3696,
+          "line": 3697,
           "name": "follow_suggestions"
         },
         {
           "kind": "fn",
-          "line": 3712,
+          "line": 3713,
           "name": "publish_comment_via_core"
         },
         {
           "kind": "fn",
-          "line": 3745,
+          "line": 3746,
           "name": "start_beta_wallet"
         },
         {
           "kind": "fn",
-          "line": 3865,
+          "line": 3866,
           "name": "set_like_via_core"
         },
         {
           "kind": "fn",
-          "line": 3886,
+          "line": 3887,
           "name": "set_downvote_via_core"
         },
         {
           "kind": "fn",
-          "line": 3907,
+          "line": 3908,
           "name": "follow_did"
         },
         {
           "kind": "fn",
-          "line": 3911,
+          "line": 3912,
           "name": "set_follow_via_core"
         },
         {
           "kind": "fn",
-          "line": 3947,
+          "line": 3948,
           "name": "poll_timeline"
         },
         {
           "kind": "fn",
-          "line": 4070,
+          "line": 4071,
           "name": "timeline_controls"
         },
         {
           "kind": "fn",
-          "line": 4116,
+          "line": 4117,
           "name": "render_timeline"
         },
         {
           "kind": "fn",
-          "line": 4184,
+          "line": 4185,
           "name": "discover"
         },
         {
           "kind": "fn",
-          "line": 4218,
+          "line": 4219,
           "name": "start_network_search"
         },
         {
           "kind": "fn",
-          "line": 4256,
+          "line": 4257,
           "name": "poll_netsearch"
         },
         {
           "kind": "fn",
-          "line": 4319,
+          "line": 4320,
           "name": "start_fetch"
         },
         {
           "kind": "fn",
-          "line": 4339,
+          "line": 4340,
           "name": "poll_catalog"
         },
         {
           "kind": "fn",
-          "line": 4386,
+          "line": 4387,
           "name": "thumbnail"
         },
         {
           "kind": "fn",
-          "line": 4438,
+          "line": 4439,
           "name": "media_timeline"
         },
         {
           "kind": "fn",
-          "line": 4606,
+          "line": 4607,
           "name": "catalog_grid"
         },
         {
           "kind": "fn",
-          "line": 4760,
+          "line": 4761,
           "name": "channel"
         },
         {
           "kind": "fn",
-          "line": 4885,
+          "line": 4886,
           "name": "media_texture"
         },
         {
           "kind": "fn",
-          "line": 4915,
+          "line": 4916,
           "name": "media_description"
         },
         {
           "kind": "fn",
-          "line": 4961,
+          "line": 4962,
           "name": "start_nearby_scan"
         },
         {
           "kind": "fn",
-          "line": 4978,
+          "line": 4979,
           "name": "start_profile_visibility"
         },
         {
           "kind": "fn",
-          "line": 5031,
+          "line": 5032,
           "name": "start_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 5057,
+          "line": 5058,
           "name": "start_private_sync"
         },
         {
           "kind": "fn",
-          "line": 5094,
+          "line": 5095,
           "name": "add_friend"
         },
         {
           "kind": "fn",
-          "line": 5107,
+          "line": 5108,
           "name": "post_card"
         },
         {
           "kind": "fn",
-          "line": 5266,
+          "line": 5267,
           "name": "thread"
         },
         {
           "kind": "const",
-          "line": 5267,
+          "line": 5268,
           "name": "MAX_SHOWN"
         },
         {
           "kind": "fn",
-          "line": 5340,
+          "line": 5341,
           "name": "nav_button"
         },
         {
           "kind": "fn",
-          "line": 5360,
+          "line": 5361,
           "name": "header"
         },
         {
           "kind": "fn",
-          "line": 5435,
+          "line": 5436,
           "name": "home"
         },
         {
           "kind": "fn",
-          "line": 5557,
+          "line": 5558,
           "name": "connections"
         },
         {
           "kind": "fn",
-          "line": 5994,
+          "line": 5995,
           "name": "onboarding"
         },
         {
           "kind": "fn",
-          "line": 6136,
+          "line": 6137,
           "name": "inbox"
         },
         {
           "kind": "fn",
-          "line": 6456,
+          "line": 6457,
           "name": "profile_texture"
         },
         {
           "kind": "fn",
-          "line": 6479,
+          "line": 6480,
           "name": "people"
         }
       ],
