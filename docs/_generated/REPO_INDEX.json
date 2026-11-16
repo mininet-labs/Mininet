@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1310,
     "headings": 4362,
-    "rust_symbols": 15824
+    "rust_symbols": 15828
   },
   "crates": {
     "askama_derive": {
@@ -16628,250 +16628,260 @@
       "title": "[package]"
     },
     {
-      "bytes": 9822,
+      "bytes": 11654,
       "group": "crate:mini-bootstrap-state",
       "headings": [],
       "keywords": [
         "self",
         "kind",
-        "go_live",
         "log",
+        "go_live",
         "forge_canonical",
         "fmt",
-        "record",
         "go-live",
+        "record",
         "false",
-        "const",
-        "transition",
         "founder",
         "bool",
         "founderintegrationended",
         "core",
-        "evidence",
-        "digest",
+        "transition",
         "state",
         "bootstrap",
-        "canonical",
         "integration",
         "golive",
+        "const",
         "bootstrapstate",
-        "tag"
+        "tag",
+        "head",
+        "true",
+        "canonical"
       ],
-      "lines": 282,
+      "lines": 315,
       "path": "crates/mini-bootstrap-state/src/lib.rs",
-      "sha256": "fcdc0634c6a76f83ea222de638ca755cbf66a67331770136021fda1dc6fcfc80",
+      "sha256": "918eac3e1dbd9418cd50b42b85ee0936e4097e88214c3dda6962d0e0c32304d7",
       "symbols": [
         {
           "kind": "struct",
-          "line": 40,
-          "name": "BootstrapState"
-        },
-        {
-          "kind": "impl",
           "line": 45,
           "name": "BootstrapState"
         },
         {
+          "kind": "impl",
+          "line": 50,
+          "name": "BootstrapState"
+        },
+        {
           "kind": "fn",
-          "line": 47,
+          "line": 52,
           "name": "pre_go_live"
         },
         {
           "kind": "fn",
-          "line": 55,
+          "line": 60,
           "name": "forge_canonical"
         },
         {
           "kind": "fn",
-          "line": 60,
+          "line": 65,
           "name": "go_live"
         },
         {
           "kind": "fn",
-          "line": 66,
+          "line": 71,
           "name": "governance_pause_active"
         },
         {
           "kind": "fn",
-          "line": 73,
+          "line": 78,
           "name": "founder_integration_enabled"
         },
         {
           "kind": "fn",
-          "line": 79,
+          "line": 84,
           "name": "require_founder_integration"
         },
         {
           "kind": "struct",
-          "line": 90,
+          "line": 95,
           "name": "FounderIntegrationEnded"
         },
         {
           "kind": "impl",
-          "line": 92,
+          "line": 97,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 98,
           "name": "fmt"
         },
         {
           "kind": "enum",
-          "line": 100,
+          "line": 105,
           "name": "Kind"
         },
         {
           "kind": "impl",
-          "line": 107,
+          "line": 112,
           "name": "Kind"
         },
         {
           "kind": "fn",
-          "line": 108,
+          "line": 113,
           "name": "tag"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 119,
           "name": "from_tag"
         },
         {
           "kind": "struct",
-          "line": 125,
+          "line": 130,
           "name": "Transition"
         },
         {
           "kind": "const",
-          "line": 134,
+          "line": 139,
           "name": "DOMAIN"
         },
         {
           "kind": "const",
-          "line": 136,
+          "line": 141,
           "name": "RECORD_BYTES"
         },
         {
           "kind": "impl",
-          "line": 138,
+          "line": 143,
           "name": "Transition"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 145,
           "name": "kind"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 150,
           "name": "evidence"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 155,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 159,
+          "line": 164,
           "name": "digest"
         },
         {
           "kind": "enum",
-          "line": 169,
+          "line": 174,
           "name": "StateError"
         },
         {
           "kind": "impl",
-          "line": 184,
+          "line": 192,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 185,
+          "line": 193,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 197,
+          "line": 208,
           "name": "std::error::Error"
         },
         {
           "kind": "struct",
-          "line": 201,
+          "line": 212,
           "name": "Log"
         },
         {
           "kind": "impl",
-          "line": 206,
+          "line": 217,
           "name": "Log"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 219,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 224,
           "name": "state"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 229,
           "name": "records"
         },
         {
           "kind": "fn",
-          "line": 224,
+          "line": 235,
           "name": "append"
         },
         {
           "kind": "fn",
-          "line": 254,
+          "line": 270,
+          "name": "head"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 261,
-          "name": "replay"
+          "line": 286,
+          "name": "replay_to_head"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
+          "name": "replay_chain"
         }
       ],
       "title": "pub struct BootstrapState {"
     },
     {
-      "bytes": 4965,
+      "bytes": 6446,
       "group": "crate:mini-bootstrap-state",
       "headings": [],
       "keywords": [
         "log",
+        "bytes",
         "state",
         "assert_eq",
-        "bytes",
         "kind",
-        "assert",
-        "replay",
         "stateerror",
+        "replay_full",
+        "assert",
         "record_bytes",
         "append",
-        "unwrap",
+        "full_log",
         "unwrap_err",
+        "unwrap",
         "outage_proof",
         "closure",
-        "full_log",
         "forgecanonical",
         "err",
         "clone",
+        "go-live",
+        "replay_to_head",
         "new",
         "golive",
         "go_live",
-        "unknown",
-        "malformed",
-        "record"
+        "encode"
       ],
-      "lines": 148,
+      "lines": 187,
       "path": "crates/mini-bootstrap-state/tests/one_way.rs",
-      "sha256": "f2a792be88794d7ac547e95ecde3136fc0211772bd9e5501152693740014eae6",
+      "sha256": "6d1131fdaa9518ec8db80d20d96b052ff8235d33e005f259f6fab83743576b35",
       "symbols": [
         {
           "kind": "const",
@@ -16885,42 +16895,52 @@
         },
         {
           "kind": "fn",
-          "line": 10,
+          "line": 11,
+          "name": "replay_full"
+        },
+        {
+          "kind": "fn",
+          "line": 15,
           "name": "full_log"
         },
         {
           "kind": "fn",
-          "line": 18,
+          "line": 23,
           "name": "it_starts_pre_go_live_with_the_pause_and_founder_path_on"
         },
         {
           "kind": "fn",
-          "line": 27,
+          "line": 32,
           "name": "go_live_needs_forge_canonical_first_and_each_happens_once"
         },
         {
           "kind": "fn",
-          "line": 45,
+          "line": 50,
           "name": "after_go_live_the_founder_path_and_pause_are_gone_for_good"
         },
         {
           "kind": "fn",
-          "line": 62,
+          "line": 67,
           "name": "empty_evidence_is_refused"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 77,
           "name": "a_log_round_trips_and_state_is_recomputed_not_read"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 92,
           "name": "every_tampering_of_a_log_is_refused"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 134,
+          "name": "cutting_off_the_final_record_is_caught_by_the_committed_head"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
           "name": "records_carry_no_identity_fields"
         }
       ],
@@ -117320,7 +117340,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1625410,
+      "bytes": 1625811,
       "group": "docs",
       "headings": [
         {
@@ -117752,7 +117772,7 @@
       ],
       "lines": 26745,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "65b5813a7b77a2d35b4d0f89f8981e1f78dd263356d3dae3ca99ce5e04f6dd6d",
+      "sha256": "15f70ff18d81fb4c8dfd9ca04dd872de9e8fbde85a7adfc4a0fd0afe25dfd563",
       "symbols": [],
       "title": "Decision Log"
     },

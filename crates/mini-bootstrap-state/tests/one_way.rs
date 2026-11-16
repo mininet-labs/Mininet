@@ -1,11 +1,16 @@
 //! The Go-Live transition is one-way, ordered, tamper-evident and identity-free.
 
 use mini_bootstrap_state::{
-    replay, BootstrapState, FounderIntegrationEnded, Kind, Log, StateError, RECORD_BYTES,
+    replay_to_head, BootstrapState, FounderIntegrationEnded, Kind, Log, StateError, RECORD_BYTES,
 };
 
 const OUTAGE_PROOF: [u8; 32] = [7; 32];
 const CLOSURE: [u8; 32] = [9; 32];
+
+/// Replay against the head of the canonical two-record log.
+fn replay_full(bytes: &[u8]) -> Result<Log, StateError> {
+    replay_to_head(bytes, full_log().head())
+}
 
 fn full_log() -> Log {
     let mut log = Log::new();
@@ -73,11 +78,14 @@ fn a_log_round_trips_and_state_is_recomputed_not_read() {
     let log = full_log();
     let bytes = log.encode();
     assert_eq!(bytes.len(), 2 * RECORD_BYTES);
-    let again = replay(&bytes).unwrap();
+    let again = replay_full(&bytes).unwrap();
     assert_eq!(again.state(), log.state());
     assert_eq!(again.encode(), bytes);
-    // The empty log is the pre-Go-Live log.
-    assert_eq!(replay(&[]).unwrap().state(), BootstrapState::pre_go_live());
+    // The empty log is the pre-Go-Live log, with the zero head.
+    assert_eq!(
+        replay_to_head(&[], [0; 32]).unwrap().state(),
+        BootstrapState::pre_go_live()
+    );
 }
 
 #[test]
@@ -86,40 +94,71 @@ fn every_tampering_of_a_log_is_refused() {
 
     // Truncation, padding, unknown kind.
     assert_eq!(
-        replay(&bytes[..bytes.len() - 1]).unwrap_err(),
+        replay_full(&bytes[..bytes.len() - 1]).unwrap_err(),
         StateError::Malformed
     );
     let mut padded = bytes.clone();
     padded.push(0);
-    assert_eq!(replay(&padded).unwrap_err(), StateError::Malformed);
+    assert_eq!(replay_full(&padded).unwrap_err(), StateError::Malformed);
     let mut unknown = bytes.clone();
     unknown[0] = 9;
-    assert_eq!(replay(&unknown).unwrap_err(), StateError::Malformed);
+    assert_eq!(replay_full(&unknown).unwrap_err(), StateError::Malformed);
 
     // Dropping the first record leaves a Go-Live with no Forge canonicality.
     assert_eq!(
-        replay(&bytes[RECORD_BYTES..]).unwrap_err(),
+        replay_full(&bytes[RECORD_BYTES..]).unwrap_err(),
         StateError::GoLiveBeforeForgeCanonical
     );
     // Reordering is refused.
     let mut swapped = bytes[RECORD_BYTES..].to_vec();
     swapped.extend_from_slice(&bytes[..RECORD_BYTES]);
-    assert!(replay(&swapped).is_err());
+    assert!(replay_full(&swapped).is_err());
     // Editing the first record's evidence breaks the second record's link.
     let mut edited = bytes.clone();
     edited[1] ^= 1;
-    assert_eq!(replay(&edited).unwrap_err(), StateError::BrokenChain);
+    assert_eq!(replay_full(&edited).unwrap_err(), StateError::BrokenChain);
     // Editing the link itself is caught too.
     let mut relinked = bytes.clone();
     relinked[RECORD_BYTES + 40] ^= 1;
-    assert_eq!(replay(&relinked).unwrap_err(), StateError::BrokenChain);
+    assert_eq!(replay_full(&relinked).unwrap_err(), StateError::BrokenChain);
     // A longer history than the two legal records, or a repeat, is refused.
     let mut repeated = bytes.clone();
     repeated.extend_from_slice(&bytes[..RECORD_BYTES]);
-    assert_eq!(replay(&repeated).unwrap_err(), StateError::Malformed);
+    assert_eq!(replay_full(&repeated).unwrap_err(), StateError::Malformed);
     let mut twice = bytes[..RECORD_BYTES].to_vec();
     twice.extend_from_slice(&bytes[..RECORD_BYTES]);
-    assert!(replay(&twice).is_err());
+    assert!(replay_full(&twice).is_err());
+}
+
+#[test]
+fn cutting_off_the_final_record_is_caught_by_the_committed_head() {
+    let full = full_log();
+    let bytes = full.encode();
+    let prefix = &bytes[..RECORD_BYTES]; // valid chain, Go-Live record removed
+                                         // As a log on its own the prefix is a perfectly legal history ...
+    let forge_only = replay_to_head(prefix, {
+        let mut l = Log::new();
+        l.append(Kind::ForgeCanonical, OUTAGE_PROOF).unwrap();
+        l.head()
+    })
+    .unwrap();
+    assert!(!forge_only.state().go_live());
+    // ... but it does not end at the head the host committed after Go-Live, so
+    // it cannot be presented as current and re-enable the Founder path.
+    assert_eq!(
+        replay_to_head(prefix, full.head()).unwrap_err(),
+        StateError::HeadMismatch
+    );
+    // The empty log is no better: it too is refused once a head was committed.
+    assert_eq!(
+        replay_to_head(&[], full.head()).unwrap_err(),
+        StateError::HeadMismatch
+    );
+    // And a log claiming the zero head after a transition was committed fails.
+    assert_eq!(
+        replay_to_head(&bytes, [0; 32]).unwrap_err(),
+        StateError::HeadMismatch
+    );
 }
 
 #[test]

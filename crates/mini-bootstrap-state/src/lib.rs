@@ -22,6 +22,11 @@
 //!
 //! What this crate does **not** do, and why that matters:
 //!
+//! - It does not hold the **committed head**. A hash chain cannot show that the
+//!   newest record was not cut off, so [`replay_to_head`] requires the caller to
+//!   supply the head it committed to storage that cannot be rolled back (after
+//!   every append, from [`Log::head`]). Without that anchor a truncated log would
+//!   look valid and current; there is deliberately no unanchored `replay`.
 //! - It does not decide **who may append** a record. That is the canonical Forge
 //!   process (exact-state review, governance attestations). A caller that can
 //!   write the log file can write a *new* log; the one-way property holds for a
@@ -179,6 +184,9 @@ pub enum StateError {
     AfterGoLive,
     /// A record's `prev` does not match the digest of the record before it.
     BrokenChain,
+    /// The log is internally valid but its head is not the committed head: it
+    /// was truncated (rolled back) or is a different history.
+    HeadMismatch,
 }
 
 impl core::fmt::Display for StateError {
@@ -190,6 +198,9 @@ impl core::fmt::Display for StateError {
             StateError::AlreadyDone => "that transition already happened and is one-way",
             StateError::AfterGoLive => "nothing may follow Go-Live",
             StateError::BrokenChain => "the transition log's hash chain is broken",
+            StateError::HeadMismatch => {
+                "the transition log does not end at the committed head (truncated or different history)"
+            }
         })
     }
 }
@@ -250,15 +261,37 @@ impl Log {
         Ok(record)
     }
 
+    /// Digest of the newest record, or zeros for the empty log. A host commits
+    /// this value to storage that cannot be rolled back (for example a signed
+    /// Forge object) after every append, and [`replay_to_head`] checks against it:
+    /// a hash chain protects every record but the last, so without an
+    /// externally held head, cutting the final record off a valid log would
+    /// silently turn Go-Live back into "Forge canonical, not yet live".
+    pub fn head(&self) -> [u8; 32] {
+        self.records.last().map_or([0u8; 32], Transition::digest)
+    }
+
     /// Canonical bytes: the concatenated records.
     pub fn encode(&self) -> Vec<u8> {
         self.records.iter().flat_map(|r| r.encode()).collect()
     }
 }
 
-/// Rebuild a log from bytes, refusing anything that is not a legal history. The
-/// state is recomputed from the records, never read from the input.
-pub fn replay(bytes: &[u8]) -> Result<Log, StateError> {
+/// Rebuild a log from bytes and check it ends at `committed_head`, the head the
+/// host last committed to storage that cannot be rolled back (zeros for a host
+/// that has never committed a transition). Anything that is not a legal history
+/// ending exactly there is refused, so a valid *prefix* of the real log (the
+/// final record cut off) cannot be presented as current. The state is
+/// recomputed from the records, never read from the input.
+pub fn replay_to_head(bytes: &[u8], committed_head: [u8; 32]) -> Result<Log, StateError> {
+    let log = replay_chain(bytes)?;
+    if log.head() != committed_head {
+        return Err(StateError::HeadMismatch);
+    }
+    Ok(log)
+}
+
+fn replay_chain(bytes: &[u8]) -> Result<Log, StateError> {
     if bytes.len() % RECORD_BYTES != 0 || bytes.len() > 2 * RECORD_BYTES {
         return Err(StateError::Malformed);
     }
