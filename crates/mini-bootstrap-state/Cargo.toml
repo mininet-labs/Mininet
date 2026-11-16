@@ -1,0 +1,13 @@
+[package]
+name = "mini-bootstrap-state"
+version = "0.0.1"
+description = "Machine-readable, one-way Forge-canonical / Go-Live bootstrap state (governance pause, section 10): an append-only hash-chained transition log that can only move false -> true, never back, and ends Founder integration authority at Go-Live. Pure logic: holds no keys, activates nothing, decides who may append."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+blake3 = "1"
