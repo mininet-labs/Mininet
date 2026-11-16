@@ -21,8 +21,8 @@ use std::path::Path;
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_objects::ObjectId;
 use mini_sync::{
-    kel_carrier, receive_retrieval_request, request_retrieval, serve_retrieval, sync_bidirectional,
-    IngestReport, RetrievalReport, SyncRole,
+    kel_carrier, receive_retrieval_request, request_retrieval_checked, serve_retrieval,
+    sync_bidirectional, IngestReport, RetrievalReport, SyncRole,
 };
 
 use crate::error::{CliError, Result};
@@ -207,12 +207,21 @@ pub fn retrieve_release(
         .finish(&response)
         .map_err(|e| CliError::Sync(e.to_string()))?;
 
-    request_retrieval(
+    // The responder's advertised list is not trusted: the closure derived
+    // from the objects it actually sent, by the same selector the serving
+    // side runs, must equal it exactly before anything is stored.
+    let release = release_id.clone();
+    let check = move |objects: &[mini_objects::Object]| {
+        mini_forge::release_closure_from_objects(objects, &release)
+            .map_err(|_| mini_sync::SyncError::RetrievalIncomplete)
+    };
+    request_retrieval_checked(
         &mut bearer,
         &mut chan,
         &mut store,
         &mut cache,
         std::slice::from_ref(release_id),
+        Some(&check),
     )
     .map_err(|e| CliError::Sync(e.to_string()))
 }

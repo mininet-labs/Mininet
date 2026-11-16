@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 96,
-    "files": 1310,
-    "headings": 4362,
-    "rust_symbols": 15828
+    "files": 1313,
+    "headings": 4365,
+    "rust_symbols": 15897
   },
   "crates": {
     "askama_derive": {
@@ -16592,6 +16592,108 @@
       "title": "use did_mini::Controller;"
     },
     {
+      "bytes": 9080,
+      "group": "crate:mini-beta",
+      "headings": [],
+      "keywords": [
+        "object",
+        "signer",
+        "payload",
+        "fixture",
+        "unwrap",
+        "store",
+        "campaign",
+        "finding",
+        "target",
+        "parsers",
+        "new",
+        "did",
+        "builder",
+        "disposition",
+        "contribution",
+        "link",
+        "parser",
+        "controller",
+        "to_string",
+        "public",
+        "clone",
+        "map",
+        "parse",
+        "rebuilt"
+      ],
+      "lines": 281,
+      "path": "crates/mini-beta/tests/strict_parsing.rs",
+      "sha256": "6a4a23a89414612fe4e7fd717ece8638bf279a74990cd3c461d9094d5646c1a1",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "signer"
+        },
+        {
+          "kind": "struct",
+          "line": 20,
+          "name": "Fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
+          "name": "fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 110,
+          "name": "rebuilt"
+        },
+        {
+          "kind": "fn",
+          "line": 132,
+          "name": "bytes_of"
+        },
+        {
+          "kind": "type",
+          "line": 139,
+          "name": "Parser"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "parsers"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "the_valid_objects_parse_so_every_failure_below_is_caused_by_its_mutation"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "truncated_and_padded_payloads_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 192,
+          "name": "an_unknown_payload_version_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "unknown_duplicate_and_missing_links_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
+          "name": "a_wrong_object_type_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 252,
+          "name": "oversized_text_fields_fail_closed"
+        }
+      ],
+      "title": "use did_mini::Controller;"
+    },
+    {
       "bytes": 562,
       "group": "crate:mini-bootstrap-state",
       "headings": [],
@@ -27068,7 +27170,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 19491,
+      "bytes": 19985,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -27097,9 +27199,9 @@
         "exactly",
         "already"
       ],
-      "lines": 486,
+      "lines": 495,
       "path": "crates/mini-cli/src/sync.rs",
-      "sha256": "c1e14e6f2b93acedc6bc37a990acf085fd89c4ec5d1b737b40c6bcab6b7b4d8c",
+      "sha256": "bc8387e91f3a7c0a31799e1034e4112b113ac2cdcbc29f05a2a4b6fef31105c6",
       "symbols": [
         {
           "kind": "fn",
@@ -27138,32 +27240,32 @@
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 232,
           "name": "serve_release"
         },
         {
           "kind": "const",
-          "line": 326,
+          "line": 335,
           "name": "SESSION_AAD"
         },
         {
           "kind": "const",
-          "line": 327,
+          "line": 336,
           "name": "SESSION_TYPE"
         },
         {
           "kind": "const",
-          "line": 328,
+          "line": 337,
           "name": "MAX_SESSION_PROOF"
         },
         {
           "kind": "fn",
-          "line": 338,
+          "line": 347,
           "name": "proof_payload"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 420,
           "name": "connect_authenticated_report"
         }
       ],
@@ -55650,7 +55752,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 33120,
+      "bytes": 33157,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -55674,14 +55776,14 @@
         "root",
         "type",
         "const",
-        "str",
         "file_type",
         "executable_file_type",
-        "tree_type"
+        "tree_type",
+        "core"
       ],
-      "lines": 886,
+      "lines": 888,
       "path": "crates/mini-forge/src/lib.rs",
-      "sha256": "19fd5c5c983e5a1d4809b4c554b88efd202f3bd8b3b532c9c177b26858e0c5c5",
+      "sha256": "0aae14c61a9bad822c1148a354dff346f3ed7c76615954da4713c310d9e0fee5",
       "symbols": [
         {
           "kind": "mod",
@@ -55725,252 +55827,252 @@
         },
         {
           "kind": "const",
-          "line": 89,
+          "line": 91,
           "name": "FILE_TYPE"
         },
         {
           "kind": "const",
-          "line": 92,
+          "line": 94,
           "name": "EXECUTABLE_FILE_TYPE"
         },
         {
           "kind": "const",
-          "line": 94,
+          "line": 96,
           "name": "TREE_TYPE"
         },
         {
           "kind": "const",
-          "line": 96,
+          "line": 98,
           "name": "ATTEST_TYPE"
         },
         {
           "kind": "const",
-          "line": 98,
+          "line": 100,
           "name": "MAX_TREE_ENTRIES"
         },
         {
           "kind": "const",
-          "line": 100,
+          "line": 102,
           "name": "MAX_TREE_DEPTH"
         },
         {
           "kind": "const",
-          "line": 103,
+          "line": 105,
           "name": "MAX_CHECKOUT_FILES"
         },
         {
           "kind": "const",
-          "line": 105,
+          "line": 107,
           "name": "MAX_CHECKOUT_BYTES"
         },
         {
           "kind": "const",
-          "line": 107,
+          "line": 109,
           "name": "MAX_MESSAGE_BYTES"
         },
         {
           "kind": "const",
-          "line": 109,
+          "line": 111,
           "name": "MAX_VERSION_BYTES"
         },
         {
           "kind": "type",
-          "line": 112,
+          "line": 114,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 117,
+          "line": 119,
           "name": "ForgeError"
         },
         {
           "kind": "impl",
-          "line": 162,
+          "line": 164,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 165,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 199,
+          "line": 201,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 200,
+          "line": 202,
           "name": "From<StoreError>"
         },
         {
           "kind": "fn",
-          "line": 201,
+          "line": 203,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 205,
+          "line": 207,
           "name": "From<mini_objects::ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 208,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 210,
+          "line": 212,
           "name": "From<mini_media::MediaError>"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 213,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 215,
+          "line": 217,
           "name": "From<did_mini::IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 216,
+          "line": 218,
           "name": "from"
         },
         {
           "kind": "const",
-          "line": 223,
+          "line": 225,
           "name": "MAX_FILENAME_BYTES"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 229,
           "name": "file_name_is_well_formed"
         },
         {
           "kind": "struct",
-          "line": 247,
+          "line": 249,
           "name": "TreeEntry"
         },
         {
           "kind": "fn",
-          "line": 257,
+          "line": 259,
           "name": "put_file"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 273,
           "name": "put_executable_file"
         },
         {
           "kind": "fn",
-          "line": 286,
+          "line": 288,
           "name": "put_tree"
         },
         {
           "kind": "fn",
-          "line": 324,
+          "line": 326,
           "name": "read_tree"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 379,
           "name": "commit"
         },
         {
           "kind": "fn",
-          "line": 404,
+          "line": 406,
           "name": "set_branch"
         },
         {
           "kind": "fn",
-          "line": 429,
+          "line": 431,
           "name": "resolve_branch"
         },
         {
           "kind": "fn",
-          "line": 442,
+          "line": 444,
           "name": "checkout"
         },
         {
           "kind": "fn",
-          "line": 455,
+          "line": 457,
           "name": "checkout_with_modes"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 476,
           "name": "validated_commit_tree"
         },
         {
           "kind": "fn",
-          "line": 499,
+          "line": 501,
           "name": "commit_is_well_formed"
         },
         {
           "kind": "fn",
-          "line": 506,
+          "line": 508,
           "name": "commit_validation_cost"
         },
         {
           "kind": "struct",
-          "line": 524,
+          "line": 526,
           "name": "Budget"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 532,
           "name": "walk"
         },
         {
           "kind": "fn",
-          "line": 586,
+          "line": 588,
           "name": "release"
         },
         {
           "kind": "fn",
-          "line": 653,
+          "line": 655,
           "name": "attest"
         },
         {
           "kind": "struct",
-          "line": 674,
+          "line": 676,
           "name": "ReleasePolicy"
         },
         {
           "kind": "const",
-          "line": 685,
+          "line": 687,
           "name": "ADOPTION_MIN_ATTESTATIONS"
         },
         {
           "kind": "const",
-          "line": 688,
+          "line": 690,
           "name": "ADOPTION_MIN_TIMELOCK_MS"
         },
         {
           "kind": "impl",
-          "line": 690,
+          "line": 692,
           "name": "ReleasePolicy"
         },
         {
           "kind": "fn",
-          "line": 693,
+          "line": 695,
           "name": "validate_for_adoption"
         },
         {
           "kind": "struct",
-          "line": 705,
+          "line": 707,
           "name": "VerifiedRelease"
         },
         {
           "kind": "fn",
-          "line": 724,
+          "line": 726,
           "name": "verify_release_artifact_only"
         },
         {
           "kind": "fn",
-          "line": 815,
+          "line": 817,
           "name": "verify_governed_release"
         }
       ],
@@ -56513,81 +56615,236 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 9601,
+      "bytes": 29167,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
+        "kind",
+        "forward",
+        "const",
+        "one",
         "release",
-        "selected",
-        "store",
+        "project",
+        "named",
         "object",
-        "existing",
+        "commit",
+        "owner_is",
+        "many",
         "objecttype",
-        "pending",
+        "static",
+        "chain",
+        "tree",
+        "store",
         "retrieval",
-        "reverse_relations",
-        "links",
-        "objectid",
-        "link",
-        "name",
         "closure",
-        "peer",
-        "object_type",
-        "controller",
-        "enqueue",
-        "objects",
-        "release_id",
-        "iter",
-        "max_release_retrieval_objects",
-        "evidence",
-        "attestations"
+        "manifest",
+        "rel",
+        "kinds",
+        "else",
+        "matches",
+        "peer"
       ],
-      "lines": 273,
+      "lines": 838,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "054057e128cf295fc372930c1f044cf28de1f7decee3613ccc676cfe77f89beb",
+      "sha256": "ec7ad1a6fa49e6334c585925a46db16cc69fbf7338da9695a12f0503b25a18a6",
       "symbols": [
         {
           "kind": "const",
-          "line": 27,
+          "line": 30,
           "name": "MAX_RELEASE_RETRIEVAL_OBJECTS"
         },
         {
           "kind": "fn",
-          "line": 40,
+          "line": 36,
+          "name": "release_closure_from_objects"
+        },
+        {
+          "kind": "enum",
+          "line": 49,
+          "name": "Kind"
+        },
+        {
+          "kind": "impl",
+          "line": 56,
+          "name": "Kind"
+        },
+        {
+          "kind": "fn",
+          "line": 57,
+          "name": "matches"
+        },
+        {
+          "kind": "struct",
+          "line": 70,
+          "name": "Forward"
+        },
+        {
+          "kind": "const",
+          "line": 76,
+          "name": "PROJECT"
+        },
+        {
+          "kind": "const",
+          "line": 77,
+          "name": "PR"
+        },
+        {
+          "kind": "const",
+          "line": 78,
+          "name": "CHAIN"
+        },
+        {
+          "kind": "const",
+          "line": 79,
+          "name": "TREE"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "owner_is"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "one"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "many"
+        },
+        {
+          "kind": "const",
+          "line": 100,
+          "name": "RELEASE_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 105,
+          "name": "COMMIT_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 107,
+          "name": "MANIFEST_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 108,
+          "name": "TREE_ENTRY_KINDS"
+        },
+        {
+          "kind": "const",
+          "line": 113,
+          "name": "PR_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 121,
+          "name": "CHAIN_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 126,
+          "name": "APPROVE_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 127,
+          "name": "ATTEST_EDGES"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "forward_edges"
+        },
+        {
+          "kind": "struct",
+          "line": 155,
+          "name": "Reverse"
+        },
+        {
+          "kind": "const",
+          "line": 160,
+          "name": "REVERSE_EDGES"
+        },
+        {
+          "kind": "fn",
+          "line": 205,
           "name": "release_retrieval_ids"
         },
         {
           "kind": "fn",
-          "line": 94,
-          "name": "enqueue"
+          "line": 281,
+          "name": "single_link"
         },
         {
           "kind": "fn",
-          "line": 102,
-          "name": "reverse_relations"
+          "line": 294,
+          "name": "in_project"
+        },
+        {
+          "kind": "fn",
+          "line": 319,
+          "name": "enqueue"
         },
         {
           "kind": "mod",
-          "line": 115,
+          "line": 336,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 343,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 357,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 371,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
+        },
+        {
+          "kind": "fn",
+          "line": 490,
+          "name": "approval_extra_reviewed_link_does_not_widen_closure"
+        },
+        {
+          "kind": "fn",
+          "line": 533,
+          "name": "forward_targets_must_be_the_type_the_relation_means"
+        },
+        {
+          "kind": "fn",
+          "line": 558,
+          "name": "reverse_candidates_are_admitted_by_type_but_their_forward_edges_stay_scoped"
+        },
+        {
+          "kind": "fn",
+          "line": 635,
+          "name": "amendment_approvals_and_payload_tree_targets_are_in_the_closure"
+        },
+        {
+          "kind": "fn",
+          "line": 709,
+          "name": "manifest_part_links_and_odd_relation_names_follow_the_verifier"
+        },
+        {
+          "kind": "fn",
+          "line": 761,
+          "name": "closure_from_received_objects_matches_and_rejects_unrelated_extras"
+        },
+        {
+          "kind": "fn",
+          "line": 796,
+          "name": "a_resolver_valid_chain_entry_with_a_repeated_project_link_is_offered"
         }
       ],
-      "title": "use std::collections::VecDeque;"
+      "title": "use std::collections::{HashSet, VecDeque};"
     },
     {
       "bytes": 13186,
@@ -57267,6 +57524,88 @@
           "kind": "fn",
           "line": 280,
           "name": "non_equivocating_releases_are_never_flagged"
+        }
+      ],
+      "title": "use did_mini::{Capabilities, Controller, Did};"
+    },
+    {
+      "bytes": 8115,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "store",
+        "author",
+        "dev",
+        "unwrap",
+        "release",
+        "proj",
+        "world",
+        "seed",
+        "controller",
+        "publish",
+        "did",
+        "root",
+        "seq",
+        "closure",
+        "release_retrieval_ids",
+        "objectid",
+        "clone",
+        "sorted",
+        "memorybackend",
+        "rel",
+        "ids",
+        "assert",
+        "human",
+        "commit"
+      ],
+      "lines": 295,
+      "path": "crates/mini-forge/tests/retrieval.rs",
+      "sha256": "0a09761ac76baaf6a899c9f91443457ea03195508ea1e7bf6d26b93928ea81db",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 15,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 26,
+          "name": "publish"
+        },
+        {
+          "kind": "struct",
+          "line": 89,
+          "name": "World"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "world"
+        },
+        {
+          "kind": "fn",
+          "line": 122,
+          "name": "the_closure_is_the_releases_own_evidence_sorted_and_repeatable"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "a_second_release_and_unrelated_objects_are_not_part_of_the_closure"
+        },
+        {
+          "kind": "fn",
+          "line": 187,
+          "name": "only_a_release_can_seed_a_retrieval_and_a_missing_one_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 211,
+          "name": "a_release_object_cannot_widen_the_closure_with_an_unrelated_forward_link"
+        },
+        {
+          "kind": "fn",
+          "line": 257,
+          "name": "an_object_using_a_verifier_relation_name_but_the_wrong_type_is_not_admitted"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
@@ -99183,13 +99522,13 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 5823,
+      "bytes": 5868,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
         "protocol",
-        "syncerror",
         "objects",
+        "syncerror",
         "server",
         "client",
         "sync",
@@ -99205,16 +99544,16 @@
         "peer",
         "you",
         "store",
-        "write",
         "gossip",
         "private_protocol",
         "bearererror",
         "storeerror",
-        "objecterror"
+        "objecterror",
+        "two"
       ],
-      "lines": 143,
+      "lines": 144,
       "path": "crates/mini-sync/src/lib.rs",
-      "sha256": "7a8f8711d2c695cc126bfbf835e7b58306620f4a585bd6a68e182b8f738de145",
+      "sha256": "4eca6728f8d003a9d4869f56904d2e338b76edde3bfb9914e4d548cc22c7322f",
       "symbols": [
         {
           "kind": "mod",
@@ -99243,57 +99582,57 @@
         },
         {
           "kind": "type",
-          "line": 85,
+          "line": 86,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 91,
+          "line": 92,
           "name": "SyncError"
         },
         {
           "kind": "impl",
-          "line": 109,
+          "line": 110,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 110,
+          "line": 111,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 127,
+          "line": 128,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 128,
+          "line": 129,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 130,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 133,
+          "line": 134,
           "name": "From<StoreError>"
         },
         {
           "kind": "fn",
-          "line": 134,
+          "line": 135,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 138,
+          "line": 139,
           "name": "From<ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 139,
+          "line": 140,
           "name": "from"
         }
       ],
@@ -99634,13 +99973,13 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 37844,
+      "bytes": 51194,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
         "usize",
-        "const",
         "ids",
+        "const",
         "bearer",
         "vec",
         "carriers",
@@ -99663,9 +100002,9 @@
         "buf",
         "pull_byte_budget"
       ],
-      "lines": 1017,
+      "lines": 1353,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "e24bfbb021e65e77a726fc1772f3f35122833bb4ddbd2f9ba567ef2725eb5b4c",
+      "sha256": "829eea96e9482b40d43355f6ba8092809b3ea646bcadbb03517d044d29d95b53",
       "symbols": [
         {
           "kind": "const",
@@ -99823,49 +100162,129 @@
           "name": "request_retrieval"
         },
         {
+          "kind": "type",
+          "line": 650,
+          "name": "ClosureCheck"
+        },
+        {
           "kind": "fn",
-          "line": 705,
+          "line": 658,
+          "name": "request_retrieval_checked"
+        },
+        {
+          "kind": "fn",
+          "line": 758,
           "name": "receive_retrieval_request"
         },
         {
           "kind": "fn",
-          "line": 726,
+          "line": 779,
           "name": "serve_retrieval"
         },
         {
           "kind": "fn",
-          "line": 776,
+          "line": 829,
           "name": "has_duplicate_strings"
         },
         {
           "kind": "mod",
-          "line": 784,
+          "line": 837,
           "name": "paged_tests"
         },
         {
           "kind": "fn",
-          "line": 790,
+          "line": 843,
           "name": "bound_offer_keeps_small_offers_untouched_and_carriers_first_when_truncating"
         },
         {
           "kind": "fn",
-          "line": 808,
+          "line": 861,
           "name": "bound_offer_rotates_so_repeated_sessions_cover_the_whole_store"
         },
         {
           "kind": "fn",
-          "line": 825,
+          "line": 878,
           "name": "paged_offer_rejects_duplicate_ids_across_pages"
         },
         {
           "kind": "fn",
-          "line": 874,
+          "line": 927,
           "name": "paged_inventory_skips_more_than_65536_already_present_ids"
         },
         {
           "kind": "fn",
-          "line": 935,
+          "line": 988,
           "name": "paged_windows_persist_verified_progress_and_resume_to_completion"
+        },
+        {
+          "kind": "mod",
+          "line": 1075,
+          "name": "retrieval_ingest_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 1081,
+          "name": "author"
+        },
+        {
+          "kind": "fn",
+          "line": 1094,
+          "name": "post"
+        },
+        {
+          "kind": "fn",
+          "line": 1103,
+          "name": "trusting"
+        },
+        {
+          "kind": "fn",
+          "line": 1111,
+          "name": "an_object_outside_the_allow_list_is_dropped_before_decoding_into_the_store"
+        },
+        {
+          "kind": "fn",
+          "line": 1132,
+          "name": "tampered_bytes_never_reach_the_store"
+        },
+        {
+          "kind": "fn",
+          "line": 1154,
+          "name": "an_author_the_client_never_trusted_is_refused_even_when_the_object_was_asked_for"
+        },
+        {
+          "kind": "fn",
+          "line": 1172,
+          "name": "garbage_bytes_are_counted_invalid_and_never_panic"
+        },
+        {
+          "kind": "fn",
+          "line": 1189,
+          "name": "wired"
+        },
+        {
+          "kind": "fn",
+          "line": 1202,
+          "name": "ids"
+        },
+        {
+          "kind": "fn",
+          "line": 1214,
+          "name": "the_client_refuses_to_ask_for_more_than_the_one_shot_bound"
+        },
+        {
+          "kind": "fn",
+          "line": 1229,
+          "name": "the_responder_refuses_a_request_over_the_bound_and_a_duplicate_request"
+        },
+        {
+          "kind": "fn",
+          "line": 1257,
+          "name": "a_checked_retrieval_refuses_a_responder_closure_with_unrelated_ids_and_stores_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 1304,
+          "name": "a_server_that_advertises_a_closure_and_ends_the_stream_early_leaves_nothing_behind"
         }
       ],
       "title": "use mini_bearer::{Bearer, Channel};"
@@ -117340,7 +117759,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1625811,
+      "bytes": 1631905,
       "group": "docs",
       "headings": [
         {
@@ -117748,14 +118167,14 @@
         "accepted",
         "proposed",
         "shipped",
-        "real",
         "issue",
+        "real",
         "track",
         "android",
         "founder",
+        "beta",
         "gate",
         "slice",
-        "beta",
         "review",
         "phase",
         "batch",
@@ -117770,9 +118189,9 @@
         "decision",
         "log"
       ],
-      "lines": 26745,
+      "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "15f70ff18d81fb4c8dfd9ca04dd872de9e8fbde85a7adfc4a0fd0afe25dfd563",
+      "sha256": "6a064d6f7128efb6cccbee142d2d4354b4d87ea3bc3d067a7f66dd56241e944a",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -124345,6 +124764,58 @@
       "sha256": "b734d8a929553bea054c5de21a3b4fa96e8bd0069c3869b8094073131d01424c",
       "symbols": [],
       "title": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
+    },
+    {
+      "bytes": 3098,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Beta workflow: mapping from the temporary GitHub adapter to the Forge-native path"
+        },
+        {
+          "level": 2,
+          "line": 22,
+          "text": "What stays on GitHub, honestly"
+        },
+        {
+          "level": 2,
+          "line": 31,
+          "text": "Verification"
+        }
+      ],
+      "keywords": [
+        "github",
+        "beta",
+        "issue",
+        "finding",
+        "claim",
+        "adapter",
+        "forge-native",
+        "path",
+        "work",
+        "campaign",
+        "none",
+        "mapping",
+        "still",
+        "task",
+        "workflow",
+        "temporary",
+        "what",
+        "bootstrap",
+        "nothing",
+        "strict",
+        "objects",
+        "integration",
+        "stays",
+        "honestly"
+      ],
+      "lines": 35,
+      "path": "docs/design/beta-github-adapter-mapping.md",
+      "sha256": "0516720de50e47d668107c758a856a8f48273d06f4698f06838758bb2dfa1854",
+      "symbols": [],
+      "title": "Beta workflow: mapping from the temporary GitHub adapter to the Forge-native path"
     },
     {
       "bytes": 8678,
