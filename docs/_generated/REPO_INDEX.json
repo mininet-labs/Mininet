@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 96,
-    "files": 1311,
-    "headings": 4362,
-    "rust_symbols": 15844
+    "files": 1313,
+    "headings": 4365,
+    "rust_symbols": 15857
   },
   "crates": {
     "askama_derive": {
@@ -16587,6 +16587,108 @@
           "kind": "fn",
           "line": 304,
           "name": "self_transfer_still_requires_sufficient_balance"
+        }
+      ],
+      "title": "use did_mini::Controller;"
+    },
+    {
+      "bytes": 8370,
+      "group": "crate:mini-beta",
+      "headings": [],
+      "keywords": [
+        "object",
+        "signer",
+        "payload",
+        "fixture",
+        "unwrap",
+        "store",
+        "campaign",
+        "finding",
+        "target",
+        "parsers",
+        "new",
+        "did",
+        "builder",
+        "disposition",
+        "contribution",
+        "link",
+        "parser",
+        "controller",
+        "to_string",
+        "public",
+        "clone",
+        "map",
+        "parse",
+        "rebuilt"
+      ],
+      "lines": 266,
+      "path": "crates/mini-beta/tests/strict_parsing.rs",
+      "sha256": "d5fdec55d708596af332654af7f6b1d4f876e8590b56225336bfc1981307ebc0",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "signer"
+        },
+        {
+          "kind": "struct",
+          "line": 20,
+          "name": "Fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
+          "name": "fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 110,
+          "name": "rebuilt"
+        },
+        {
+          "kind": "fn",
+          "line": 132,
+          "name": "bytes_of"
+        },
+        {
+          "kind": "type",
+          "line": 139,
+          "name": "Parser"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "parsers"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "the_valid_objects_parse_so_every_failure_below_is_caused_by_its_mutation"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "truncated_and_padded_payloads_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 192,
+          "name": "an_unknown_payload_version_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "unknown_duplicate_and_missing_links_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
+          "name": "a_wrong_object_type_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 239,
+          "name": "oversized_text_fields_fail_closed"
         }
       ],
       "title": "use did_mini::Controller;"
@@ -57272,7 +57374,7 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 5230,
+      "bytes": 5267,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -57301,9 +57403,9 @@
         "human",
         "commit"
       ],
-      "lines": 208,
+      "lines": 209,
       "path": "crates/mini-forge/tests/retrieval.rs",
-      "sha256": "80fbe379c765efb23a337ac507777f0152e51871f7416f3065c5db85ae0d7c73",
+      "sha256": "c90850340172c9cd4f319576e1163615e2e744c89515bc50712a417815e5a204",
       "symbols": [
         {
           "kind": "fn",
@@ -57312,32 +57414,32 @@
         },
         {
           "kind": "fn",
-          "line": 25,
+          "line": 26,
           "name": "publish"
         },
         {
           "kind": "struct",
-          "line": 88,
+          "line": 89,
           "name": "World"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 96,
           "name": "world"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 122,
           "name": "the_closure_is_the_releases_own_evidence_sorted_and_repeatable"
         },
         {
           "kind": "fn",
-          "line": 144,
+          "line": 145,
           "name": "a_second_release_and_unrelated_objects_are_not_part_of_the_closure"
         },
         {
           "kind": "fn",
-          "line": 186,
+          "line": 187,
           "name": "only_a_release_can_seed_a_retrieval_and_a_missing_one_fails_closed"
         }
       ],
@@ -117457,7 +117559,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1627987,
+      "bytes": 1629827,
       "group": "docs",
       "headings": [
         {
@@ -117865,14 +117967,14 @@
         "accepted",
         "proposed",
         "shipped",
-        "real",
         "issue",
+        "real",
         "track",
         "android",
         "founder",
+        "beta",
         "gate",
         "slice",
-        "beta",
         "review",
         "phase",
         "batch",
@@ -117887,9 +117989,9 @@
         "decision",
         "log"
       ],
-      "lines": 26762,
+      "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d0f44bc2617e5c347e7d06afa24b049cd738e607f8069d97823a7ef5ecdb4f09",
+      "sha256": "37bd2c3f2e91b08d6cc6ba6c6cd8b88c3276b2f0c7fe77ea0c98455e74024ca5",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -124462,6 +124564,58 @@
       "sha256": "b734d8a929553bea054c5de21a3b4fa96e8bd0069c3869b8094073131d01424c",
       "symbols": [],
       "title": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
+    },
+    {
+      "bytes": 3098,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Beta workflow: mapping from the temporary GitHub adapter to the Forge-native path"
+        },
+        {
+          "level": 2,
+          "line": 22,
+          "text": "What stays on GitHub, honestly"
+        },
+        {
+          "level": 2,
+          "line": 31,
+          "text": "Verification"
+        }
+      ],
+      "keywords": [
+        "github",
+        "beta",
+        "issue",
+        "finding",
+        "claim",
+        "adapter",
+        "forge-native",
+        "path",
+        "work",
+        "campaign",
+        "none",
+        "mapping",
+        "still",
+        "task",
+        "workflow",
+        "temporary",
+        "what",
+        "bootstrap",
+        "nothing",
+        "strict",
+        "objects",
+        "integration",
+        "stays",
+        "honestly"
+      ],
+      "lines": 35,
+      "path": "docs/design/beta-github-adapter-mapping.md",
+      "sha256": "0516720de50e47d668107c758a856a8f48273d06f4698f06838758bb2dfa1854",
+      "symbols": [],
+      "title": "Beta workflow: mapping from the temporary GitHub adapter to the Forge-native path"
     },
     {
       "bytes": 8678,

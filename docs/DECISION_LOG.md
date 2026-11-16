@@ -26759,3 +26759,20 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** a CLI-level negative retrieval scenario; the external audit.
 
 **Supersedes / superseded by:** accepts D-0408; none.
+
+
+### D-0557 — Strict-parsing evidence and the GitHub-adapter mapping for the Forge-native Beta workflow (issue #336 acceptance)  ·  *Accepted*
+
+**Decision:** Record that issue #336's acceptance criteria are met. New: `crates/mini-beta/tests/strict_parsing.rs` (every Beta object parser — campaign, finding, disposition, contribution — refuses a truncated, padded or empty payload, an unknown payload version, an unknown, duplicate or missing link, a wrong object type, an oversized text field and a length prefix that points past the payload; each case re-signs a valid object with exactly one change so the signature is not what rejects it) and `docs/design/beta-github-adapter-mapping.md` (a step-by-step table from the temporary GitHub adapter to the Forge-native commands, and what stays adapter-only). Existing evidence: strict round trip (`forge_beta_objects_round_trip_without_a_contributor_identity`), two independent stores syncing the whole finding→task→contribution→grant chain (`beta_two_node_loop`), the no-GitHub path (`beta_native_loop`, `beta_native_flow`), and the `mini-beta` dependency wall.
+
+**Reason:** #336 listed these acceptance items; the parsers were already strict by construction but nothing tested it, and the mapping document did not exist.
+
+**Constitutional impact:** none; evidence and documentation only. No dependency edge added; no Tier-F row touched.
+
+**Implementation status:** shipped. The Android app's coverage of the Beta workflow was not checked. Merging code into this repository is still the GitHub PR path until `forge_canonical` (issue #338).
+
+**Failure point:** the parsers are tested one mutation at a time, not fuzzed; unaudited.
+
+**Required follow-up:** #338 (outage itinerary and wiring `mini-bootstrap-state`); Android coverage check.
+
+**Supersedes / superseded by:** none.
