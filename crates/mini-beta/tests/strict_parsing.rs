@@ -238,28 +238,30 @@ fn a_wrong_object_type_fails_closed() {
 #[test]
 fn oversized_text_fields_fail_closed() {
     let f = fixture();
-    // A campaign title longer than the short-text bound: rebuild the payload
-    // with the title length prefix and bytes inflated.
-    let bytes = bytes_of(&f.campaign);
-    // version(1) + epoch(32) + starts(8) + ends(8) + grant(8) = 57, then the
-    // title: a u32 length and its bytes.
-    let title_len_at = 57;
-    let old_len =
-        u32::from_be_bytes(bytes[title_len_at..title_len_at + 4].try_into().unwrap()) as usize;
-    let huge = 1_000_000usize;
-    let mut inflated = bytes[..title_len_at].to_vec();
-    inflated.extend_from_slice(&(huge as u32).to_be_bytes());
-    inflated.extend(std::iter::repeat_n(b'a', huge));
-    inflated.extend_from_slice(&bytes[title_len_at + 4 + old_len..]);
-    let bad = rebuilt(&f, &f.campaign, Payload::Public(inflated), &[], false);
-    assert!(
-        parse_campaign_object(&bad).is_err(),
-        "oversized title parsed"
-    );
+    // Offset of the first u32-length-prefixed text field in each payload:
+    // campaign = version + epoch(32) + starts(8) + ends(8) + grant(8);
+    // finding / contribution = version + 32-byte tag; disposition = version.
+    let offsets = [
+        ("campaign", 57usize),
+        ("finding", 33),
+        ("disposition", 1),
+        ("contribution", 33),
+    ];
+    for (name, object, parse) in parsers(&f) {
+        let at = offsets.iter().find(|(n, _)| *n == name).unwrap().1;
+        let bytes = bytes_of(object);
+        let old_len = u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+        let huge = 1_000_000usize;
+        let mut inflated = bytes[..at].to_vec();
+        inflated.extend_from_slice(&(huge as u32).to_be_bytes());
+        inflated.extend(std::iter::repeat_n(b'a', huge));
+        inflated.extend_from_slice(&bytes[at + 4 + old_len..]);
+        let bad = rebuilt(&f, object, Payload::Public(inflated), &[], false);
+        assert!(parse(&bad).is_err(), "{name}: oversized text parsed");
 
-    // A length prefix that points past the end of the payload.
-    let mut lying = bytes.clone();
-    lying[title_len_at..title_len_at + 4].copy_from_slice(&u32::MAX.to_be_bytes());
-    let bad = rebuilt(&f, &f.campaign, Payload::Public(lying), &[], false);
-    assert!(parse_campaign_object(&bad).is_err(), "lying length parsed");
+        let mut lying = bytes.clone();
+        lying[at..at + 4].copy_from_slice(&u32::MAX.to_be_bytes());
+        let bad = rebuilt(&f, object, Payload::Public(lying), &[], false);
+        assert!(parse(&bad).is_err(), "{name}: lying length parsed");
+    }
 }

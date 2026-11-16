@@ -133,7 +133,7 @@ fn forward_relations(object_type: &ObjectType) -> &'static [&'static str] {
         ObjectType::Custom(name) if name == TREE_TYPE => &["entry"],
         ObjectType::Custom(name) if name == PR_TYPE => &["project", "head", "base"],
         ObjectType::Custom(name) if name == CHAIN_TYPE => &["project", "prev", "pr"],
-        ObjectType::Custom(name) if name == APPROVE_TYPE => &["pr", "reviewed"],
+        ObjectType::Custom(name) if name == APPROVE_TYPE => &["pr"],
         ObjectType::Custom(name) if name == ATTEST_TYPE => &["release"],
         _ => &[],
     }
@@ -323,5 +323,48 @@ mod tests {
         assert!(!ids.contains(noise.id()));
         assert!(!ids.contains(&attestation.id().clone()));
         assert!(ids.windows(2).all(|w| w[0].as_str() < w[1].as_str()));
+    }
+
+    #[test]
+    fn approval_extra_reviewed_link_does_not_widen_closure() {
+        let (human, device) = identity(9);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let unrelated = object(
+            ObjectType::Custom("mini/comment".to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&unrelated).unwrap();
+        let pr = object(
+            ObjectType::Custom(PR_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&pr).unwrap();
+        let approval = object(
+            ObjectType::Custom(APPROVE_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("pr", pr.id()), ("reviewed", unrelated.id())],
+        );
+        store.insert(&approval).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&release).unwrap();
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(!ids.contains(unrelated.id()));
     }
 }

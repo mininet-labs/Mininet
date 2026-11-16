@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15865
+    "rust_symbols": 15866
   },
   "crates": {
     "askama_derive": {
@@ -16592,7 +16592,7 @@
       "title": "use did_mini::Controller;"
     },
     {
-      "bytes": 8370,
+      "bytes": 8444,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -16621,9 +16621,9 @@
         "parse",
         "rebuilt"
       ],
-      "lines": 266,
+      "lines": 268,
       "path": "crates/mini-beta/tests/strict_parsing.rs",
-      "sha256": "d5fdec55d708596af332654af7f6b1d4f876e8590b56225336bfc1981307ebc0",
+      "sha256": "232f3a1b33907d9afd937296c19cf1ab2ac430e4edff9635f5fa4ac366e07912",
       "symbols": [
         {
           "kind": "fn",
@@ -56615,7 +56615,7 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 12273,
+      "bytes": 13647,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -56644,9 +56644,9 @@
         "evidence",
         "existing"
       ],
-      "lines": 328,
+      "lines": 371,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "2b2df8053852ac886b9f8452f0bd5fb6804ace87359583dcc0ae55990014f7d7",
+      "sha256": "eed5e7335dfc958559b5ec63d01a91623298b8470dbf88c7c647d9a1e47e28d0",
       "symbols": [
         {
           "kind": "const",
@@ -56697,6 +56697,11 @@
           "kind": "fn",
           "line": 205,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
+        },
+        {
+          "kind": "fn",
+          "line": 329,
+          "name": "approval_extra_reviewed_link_does_not_widen_closure"
         }
       ],
       "title": "use std::collections::VecDeque;"
