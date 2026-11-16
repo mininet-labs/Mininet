@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15857
+    "rust_symbols": 15865
   },
   "crates": {
     "askama_derive": {
@@ -56615,77 +56615,87 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 9601,
+      "bytes": 12273,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
-        "release",
-        "selected",
-        "store",
         "object",
-        "existing",
-        "objecttype",
-        "pending",
-        "retrieval",
-        "reverse_relations",
-        "links",
-        "objectid",
+        "release",
+        "store",
         "link",
-        "name",
+        "selected",
+        "retrieval",
+        "links",
+        "relation",
+        "reverse_relations",
         "closure",
+        "forward",
         "peer",
         "object_type",
-        "controller",
+        "pending",
+        "target",
         "enqueue",
+        "verifier",
         "objects",
         "release_id",
-        "iter",
+        "as_str",
+        "candidate",
         "max_release_retrieval_objects",
         "evidence",
-        "attestations"
+        "existing"
       ],
-      "lines": 273,
+      "lines": 328,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "054057e128cf295fc372930c1f044cf28de1f7decee3613ccc676cfe77f89beb",
+      "sha256": "2b2df8053852ac886b9f8452f0bd5fb6804ace87359583dcc0ae55990014f7d7",
       "symbols": [
         {
           "kind": "const",
-          "line": 27,
+          "line": 29,
           "name": "MAX_RELEASE_RETRIEVAL_OBJECTS"
         },
         {
           "kind": "fn",
-          "line": 40,
+          "line": 42,
           "name": "release_retrieval_ids"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 112,
           "name": "enqueue"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 122,
+          "name": "forward_relations"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "reverse_candidate_admitted"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
           "name": "reverse_relations"
         },
         {
           "kind": "mod",
-          "line": 115,
+          "line": 170,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 177,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 191,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 205,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
         }
       ],
@@ -57374,7 +57384,7 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 5267,
+      "bytes": 8115,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -57403,9 +57413,9 @@
         "human",
         "commit"
       ],
-      "lines": 209,
+      "lines": 295,
       "path": "crates/mini-forge/tests/retrieval.rs",
-      "sha256": "c90850340172c9cd4f319576e1163615e2e744c89515bc50712a417815e5a204",
+      "sha256": "0a09761ac76baaf6a899c9f91443457ea03195508ea1e7bf6d26b93928ea81db",
       "symbols": [
         {
           "kind": "fn",
@@ -57441,6 +57451,16 @@
           "kind": "fn",
           "line": 187,
           "name": "only_a_release_can_seed_a_retrieval_and_a_missing_one_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 211,
+          "name": "a_release_object_cannot_widen_the_closure_with_an_unrelated_forward_link"
+        },
+        {
+          "kind": "fn",
+          "line": 257,
+          "name": "an_object_using_a_verifier_relation_name_but_the_wrong_type_is_not_admitted"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
@@ -99808,13 +99828,13 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 43350,
+      "bytes": 47359,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
         "usize",
-        "const",
         "ids",
+        "const",
         "bearer",
         "vec",
         "carriers",
@@ -99837,9 +99857,9 @@
         "buf",
         "pull_byte_budget"
       ],
-      "lines": 1163,
+      "lines": 1266,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "baa813a2cc78a052bee6a0595ea5792297038b62207e261265d29961f142a994",
+      "sha256": "b988db6e7f52fe6bb82ad9e9bc789fa657318a0d4f9e393a470fc543ab6ec73e",
       "symbols": [
         {
           "kind": "const",
@@ -99998,93 +100018,113 @@
         },
         {
           "kind": "fn",
-          "line": 705,
+          "line": 718,
           "name": "receive_retrieval_request"
         },
         {
           "kind": "fn",
-          "line": 726,
+          "line": 739,
           "name": "serve_retrieval"
         },
         {
           "kind": "fn",
-          "line": 776,
+          "line": 789,
           "name": "has_duplicate_strings"
         },
         {
           "kind": "mod",
-          "line": 784,
+          "line": 797,
           "name": "paged_tests"
         },
         {
           "kind": "fn",
-          "line": 790,
+          "line": 803,
           "name": "bound_offer_keeps_small_offers_untouched_and_carriers_first_when_truncating"
         },
         {
           "kind": "fn",
-          "line": 808,
+          "line": 821,
           "name": "bound_offer_rotates_so_repeated_sessions_cover_the_whole_store"
         },
         {
           "kind": "fn",
-          "line": 825,
+          "line": 838,
           "name": "paged_offer_rejects_duplicate_ids_across_pages"
         },
         {
           "kind": "fn",
-          "line": 874,
+          "line": 887,
           "name": "paged_inventory_skips_more_than_65536_already_present_ids"
         },
         {
           "kind": "fn",
-          "line": 935,
+          "line": 948,
           "name": "paged_windows_persist_verified_progress_and_resume_to_completion"
         },
         {
           "kind": "mod",
-          "line": 1022,
+          "line": 1035,
           "name": "retrieval_ingest_tests"
         },
         {
           "kind": "fn",
-          "line": 1028,
+          "line": 1041,
           "name": "author"
         },
         {
           "kind": "fn",
-          "line": 1041,
+          "line": 1054,
           "name": "post"
         },
         {
           "kind": "fn",
-          "line": 1050,
+          "line": 1063,
           "name": "trusting"
         },
         {
           "kind": "fn",
-          "line": 1058,
+          "line": 1071,
           "name": "an_object_outside_the_allow_list_is_dropped_before_decoding_into_the_store"
         },
         {
           "kind": "fn",
-          "line": 1079,
+          "line": 1092,
           "name": "tampered_bytes_never_reach_the_store"
         },
         {
           "kind": "fn",
-          "line": 1101,
+          "line": 1114,
           "name": "an_author_the_client_never_trusted_is_refused_even_when_the_object_was_asked_for"
         },
         {
           "kind": "fn",
-          "line": 1119,
+          "line": 1132,
           "name": "garbage_bytes_are_counted_invalid_and_never_panic"
         },
         {
           "kind": "fn",
-          "line": 1136,
-          "name": "selections_over_the_bound_are_refused_by_both_ends"
+          "line": 1149,
+          "name": "wired"
+        },
+        {
+          "kind": "fn",
+          "line": 1162,
+          "name": "ids"
+        },
+        {
+          "kind": "fn",
+          "line": 1174,
+          "name": "the_client_refuses_to_ask_for_more_than_the_one_shot_bound"
+        },
+        {
+          "kind": "fn",
+          "line": 1189,
+          "name": "the_responder_refuses_a_request_over_the_bound_and_a_duplicate_request"
+        },
+        {
+          "kind": "fn",
+          "line": 1217,
+          "name": "a_server_that_advertises_a_closure_and_ends_the_stream_early_leaves_nothing_behind"
         }
       ],
       "title": "use mini_bearer::{Bearer, Channel};"
@@ -117559,7 +117599,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1629827,
+      "bytes": 1630413,
       "group": "docs",
       "headings": [
         {
@@ -117991,7 +118031,7 @@
       ],
       "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "37bd2c3f2e91b08d6cc6ba6c6cd8b88c3276b2f0c7fe77ea0c98455e74024ca5",
+      "sha256": "d602ee34b0fe88729e31044d690f100ef77ed36cc79227ea289c4d3ca0564061",
       "symbols": [],
       "title": "Decision Log"
     },

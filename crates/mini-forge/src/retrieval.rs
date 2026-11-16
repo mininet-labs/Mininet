@@ -16,7 +16,9 @@ use std::collections::VecDeque;
 use mini_objects::{ObjectId, ObjectType};
 use mini_store::{Backend, Store};
 
-use crate::{ForgeError, Result, CHAIN_TYPE, PROJECT_TYPE, PR_TYPE};
+use crate::{
+    ForgeError, Result, APPROVE_TYPE, ATTEST_TYPE, CHAIN_TYPE, PROJECT_TYPE, PR_TYPE, TREE_TYPE,
+};
 
 /// Maximum number of objects in one release retrieval closure.
 ///
@@ -63,8 +65,16 @@ pub fn release_retrieval_ids<B: Backend>(
         // The content-addressed object graph carries repository and artifact
         // closure in its ordinary typed links. No release-specific wire
         // format is needed to walk these edges.
+        // Only the forward relations the governed-release verifier reads for
+        // this object type are followed. A link under any other relation (for
+        // example a `release` object that also points at some unrelated
+        // object) is not a reason to disclose its target or that target's own
+        // graph.
+        let forward = forward_relations(&object.object_type);
         for link in &object.links {
-            enqueue(&mut pending, &selected, link.target.clone());
+            if forward.contains(&link.rel.as_str()) {
+                enqueue(&mut pending, &selected, link.target.clone());
+            }
         }
 
         // Governance and attestations are indexed by reverse links because
@@ -76,6 +86,14 @@ pub fn release_retrieval_ids<B: Backend>(
         if !reverse_relations.is_empty() {
             for candidate_id in store.linking_to(&id)? {
                 let candidate = store.get(&candidate_id)?;
+                // The relation name alone is not enough: the verifier also
+                // requires the candidate to be the kind of object that relation
+                // means (an attestation for `release`, a chain entry for `prev`,
+                // an approval or merge entry for `pr`). An unrelated object that
+                // merely uses the same relation name is not admitted.
+                if !reverse_candidate_admitted(&object.object_type, &candidate.object_type) {
+                    continue;
+                }
                 if candidate
                     .links
                     .iter()
@@ -96,6 +114,43 @@ fn enqueue(pending: &mut VecDeque<ObjectId>, selected: &[ObjectId], id: ObjectId
         && !pending.iter().any(|existing| existing == &id)
     {
         pending.push_back(id);
+    }
+}
+
+/// Forward relations followed from an object of this type. Mirrors what the
+/// builders in `mini-forge` and `mini-media` create and what verification reads.
+fn forward_relations(object_type: &ObjectType) -> &'static [&'static str] {
+    if *object_type == ObjectType::RELEASE {
+        return &["project", "commit", "artifact"];
+    }
+    if *object_type == ObjectType::COMMIT {
+        return &["tree", "parent"];
+    }
+    if *object_type == ObjectType::MEDIA_MANIFEST {
+        return &["chunk", "part"];
+    }
+    match object_type {
+        ObjectType::Custom(name) if name == TREE_TYPE => &["entry"],
+        ObjectType::Custom(name) if name == PR_TYPE => &["project", "head", "base"],
+        ObjectType::Custom(name) if name == CHAIN_TYPE => &["project", "prev", "pr"],
+        ObjectType::Custom(name) if name == APPROVE_TYPE => &["pr", "reviewed"],
+        ObjectType::Custom(name) if name == ATTEST_TYPE => &["release"],
+        _ => &[],
+    }
+}
+
+/// Whether a reverse-linking candidate is the right kind of object for the
+/// relation that reached it from `owner`.
+fn reverse_candidate_admitted(owner: &ObjectType, candidate: &ObjectType) -> bool {
+    let is = |name: &str| matches!(candidate, ObjectType::Custom(n) if n == name);
+    if *owner == ObjectType::RELEASE {
+        return is(ATTEST_TYPE);
+    }
+    match owner {
+        ObjectType::Custom(name) if name == PROJECT_TYPE => is(CHAIN_TYPE),
+        ObjectType::Custom(name) if name == CHAIN_TYPE => is(CHAIN_TYPE) || is(APPROVE_TYPE),
+        ObjectType::Custom(name) if name == PR_TYPE => is(APPROVE_TYPE) || is(CHAIN_TYPE),
+        _ => false,
     }
 }
 

@@ -690,6 +690,19 @@ pub fn request_retrieval<B: Backend>(
         }
     }
 
+    // Fail closed on an incomplete transfer before anything is stored: every
+    // selected id must actually have arrived as a decodable object. A server
+    // that advertises a closure and then ends the stream early (or substitutes
+    // junk for a member) must not leave a partial closure behind.
+    let arrived: std::collections::BTreeSet<String> = received_bytes
+        .iter()
+        .filter_map(|bytes| Object::from_bytes(bytes).ok())
+        .map(|object| object.id().as_str().to_string())
+        .collect();
+    if selected.iter().any(|id| !arrived.contains(id)) {
+        return Err(SyncError::RetrievalIncomplete);
+    }
+
     let ingest = ingest_objects(store, cache, received_bytes, &selected)?;
     Ok(RetrievalReport {
         requested: seeds.len(),
@@ -1132,22 +1145,34 @@ mod retrieval_ingest_tests {
         assert_eq!(report.accepted, 0);
     }
 
-    #[test]
-    fn selections_over_the_bound_are_refused_by_both_ends() {
-        // A request for more seeds than the one-shot bound is refused outright.
+    /// A connected pair of channels for driving both ends by hand.
+    fn wired() -> (
+        mini_bearer::InProcessBearer,
+        Channel,
+        mini_bearer::InProcessBearer,
+        Channel,
+    ) {
+        let (client, server) = mini_bearer::pair();
+        let (init, hello) = mini_bearer::Initiator::start().unwrap();
+        let (server_channel, response) = mini_bearer::Responder::respond(&hello).unwrap();
+        let client_channel = init.finish(&response).unwrap();
+        (client, client_channel, server, server_channel)
+    }
+
+    fn ids(count: usize) -> Vec<ObjectId> {
         let (root, device) = author(50);
-        let too_many: Vec<ObjectId> = (0..=MAX_RETRIEVAL_OBJECTS)
+        (0..count)
             .map(|n| {
                 post(&root, &device, format!("p{n}").as_bytes(), n as u64)
                     .id()
                     .clone()
             })
-            .collect();
-        let (mut client, mut server) = mini_bearer::pair();
-        let (init, hello) = mini_bearer::Initiator::start().unwrap();
-        let (mut server_channel, response) = mini_bearer::Responder::respond(&hello).unwrap();
-        let mut client_channel = init.finish(&response).unwrap();
-        let _ = (&mut server, &mut server_channel);
+            .collect()
+    }
+
+    #[test]
+    fn the_client_refuses_to_ask_for_more_than_the_one_shot_bound() {
+        let (mut client, mut client_channel, _server, _server_channel) = wired();
         let mut store = Store::new(MemoryBackend::new());
         let mut cache = KelCache::new();
         let result = request_retrieval(
@@ -1155,8 +1180,86 @@ mod retrieval_ingest_tests {
             &mut client_channel,
             &mut store,
             &mut cache,
-            &too_many,
+            &ids(MAX_RETRIEVAL_OBJECTS + 1),
         );
         assert!(matches!(result, Err(SyncError::LimitExceeded)));
+    }
+
+    #[test]
+    fn the_responder_refuses_a_request_over_the_bound_and_a_duplicate_request() {
+        let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+        // A hostile client sends more seeds than allowed, bypassing its own check.
+        let oversized: Vec<String> = ids(MAX_RETRIEVAL_OBJECTS + 1)
+            .iter()
+            .map(|id| id.as_str().to_string())
+            .collect();
+        send(&mut client, &mut client_channel, &Msg::Want(oversized)).unwrap();
+        // Refused either by the message-size bound or the seed-count bound.
+        assert!(matches!(
+            receive_retrieval_request(&mut server, &mut server_channel),
+            Err(SyncError::LimitExceeded | SyncError::Protocol)
+        ));
+        // Duplicate seeds are refused too.
+        let one = ids(1)[0].as_str().to_string();
+        send(
+            &mut client,
+            &mut client_channel,
+            &Msg::Want(vec![one.clone(), one]),
+        )
+        .unwrap();
+        assert!(matches!(
+            receive_retrieval_request(&mut server, &mut server_channel),
+            Err(SyncError::Protocol)
+        ));
+    }
+
+    #[test]
+    fn a_server_that_advertises_a_closure_and_ends_the_stream_early_leaves_nothing_behind() {
+        let (root, device) = author(60);
+        let first = post(&root, &device, b"first", 1);
+        let second = post(&root, &device, b"second", 2);
+        let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+        let (first_id, second_id) = (
+            first.id().as_str().to_string(),
+            second.id().as_str().to_string(),
+        );
+        let first_bytes = first.to_bytes();
+        let server_thread = std::thread::spawn(move || {
+            // Hostile server: advertise both objects, serve only the first.
+            let wanted = match recv(&mut server, &mut server_channel).unwrap() {
+                Msg::Want(ids) => ids,
+                _ => panic!("expected a request"),
+            };
+            assert_eq!(wanted.len(), 1);
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Ids(vec![first_id.clone(), second_id]),
+            )
+            .unwrap();
+            let _ = recv(&mut server, &mut server_channel).unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Objects(vec![first_bytes]),
+            )
+            .unwrap();
+            send(&mut server, &mut server_channel, &Msg::Objects(Vec::new())).unwrap();
+        });
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let result = request_retrieval(
+            &mut client,
+            &mut client_channel,
+            &mut store,
+            &mut cache,
+            std::slice::from_ref(first.id()),
+        );
+        server_thread.join().unwrap();
+        assert!(matches!(result, Err(SyncError::RetrievalIncomplete)));
+        assert!(
+            store.get(first.id()).is_err(),
+            "a partial closure must not be left in the store"
+        );
     }
 }
