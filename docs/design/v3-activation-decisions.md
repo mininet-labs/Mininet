@@ -1,6 +1,13 @@
 # V3 shielded path: the three decisions code cannot make (proposal, D-0553)
 
-Status: **proposal only. Nothing here is decided, and nothing is activated.** These
+Status: **proposals accepted as engineering direction on 2026-11-09; nothing is
+activated.** (Founder direction in chat: accept the three proposals below; the
+weak-device baseline is "the current iPhone 'e' model". Chat direction is task
+authorization, not protocol authority, so any change to consensus rules or a
+Tier-F row still goes through the canonical Decision process, recorded in D-0554.)
+Original wording follows.
+
+Original status: **proposal only. Nothing here is decided, and nothing is activated.** These
 three items were left open by D-0550 because each needs an authorised decision
 (or hardware) rather than more code. This note gives the decision-maker what they
 need: the options, the recommended choice, what must be true first, and what the
@@ -56,6 +63,13 @@ altering the policy after signing invalidates the spend (T07).
 (`mini-private-payment/tests/budget_v3.rs`, `--ignored`). Sandbox release numbers:
 a 16-in/16-out claim is 51,052 of 65,536 bytes; build 0.30 s, verify 0.10 s. A
 sandbox is not a phone.
+
+**Baseline chosen (founder direction): the current iPhone "e" model.** At the time
+of writing that is the iPhone 16e as far as this repo's author knows; confirm the
+exact current "e" model when the measurement is taken and record it with the
+numbers. The harness is a Rust test that has not been run on any iOS device: that
+needs an iOS build of the claim crates and a physical device, neither of which
+exists in this repository or sandbox, so **no baseline number has been measured**.
 
 **Needs hardware, not a decision alone.** Choose the lowest-end device the project
 promises to support, run the harness there (release build, thermal steady state),

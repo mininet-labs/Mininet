@@ -26708,3 +26708,20 @@ retirement; fuzz targets; a multiprocess partition test.
 **Required follow-up:** the three decisions in the design note; a hardware-backed counter; a transport for the fetch messages; a real fuzz campaign; bridges and the external audits.
 
 **Supersedes / superseded by:** extends D-0552; none.
+
+
+### D-0554 — Founder direction: accept the V3 activation proposals as engineering direction; weak-device baseline is the current iPhone "e" model  ·  *Accepted (direction); nothing activated*
+
+**Decision:** On 2026-11-09 the founder accepted the three proposals in `docs/design/v3-activation-decisions.md` as engineering direction: (1) retire the transparent (V2) path by starting any value-bearing network on V3 from genesis rather than migrating V2 state (option A); (2) activate a fee policy by epoch, with the policy id selecting a fee table that is genesis data changeable only through the process for other consensus parameters; (3) measure on a weak-device baseline, which the founder chose as the current iPhone "e" model.
+
+**Reason:** Every current balance is Beta test value that resets each epoch, so a migration would be inventing machinery the audit would then have to cover; a fee floor should not be set below measured verification cost; the baseline had to be a concrete device before a number could mean anything.
+
+**Constitutional impact:** Directive 14 (smaller construction over a migration); Directive 16 (P1: fee policy stays separate from balances and voting weight). Chat direction is task authorization, not protocol authority: this entry records direction and changes no consensus rule. No Tier-F row is weakened or touched.
+
+**Implementation status:** nothing is activated or switched off. V2 code remains. `quote_fee_micro` is still the placeholder. No baseline measurement exists: the harness (`mini-private-payment/tests/budget_v3.rs`, `--ignored`) is a Rust test and nothing in the repo builds or runs the claim crates on iOS, so the exact "e" model (the iPhone 16e as far as the author knows) must be confirmed and measured on a physical device by someone with one.
+
+**Failure point:** "start V3 from genesis" is only safe if no real value ever lived on V2; that is still an assumption to confirm. A fee table in genesis needs the measured numbers first, so it cannot be finalized yet. Unaudited (Gate #72/#93 open). Real-value release remains NO-GO.
+
+**Required follow-up:** an iOS build of the claim crates and a measurement run on the chosen device; the canonical Decision (with every applicable external gate) before any consensus change or activation; the external audit.
+
+**Supersedes / superseded by:** accepts the proposals of D-0553; none.

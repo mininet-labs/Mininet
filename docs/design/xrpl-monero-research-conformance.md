@@ -25,9 +25,10 @@ research's own recommended defaults, recorded here so they can be corrected:
 3. **Suite and fee-policy activation:** not decided here. `fee_policy_id` is signed
    but not yet interpreted (`quote_fee_micro` is a placeholder); who may change it
    is an open governance question that must stay separate from balances.
-4. **Acceptance baseline device:** not chosen. `T22` is a measurement harness to
-   run on whichever device is chosen. Numbers from this sandbox are not evidence
-   for a weak phone.
+4. **Acceptance baseline device:** chosen by founder direction (D-0554): the
+   current iPhone "e" model (confirm the exact model when measuring). **Not yet
+   measured**: `T22` is a Rust measurement harness and nothing here builds or runs
+   on iOS. Numbers from this sandbox are not evidence for a weak phone.
 5. **External reviewers:** not procured; nothing here is an audit.
 6. **XRPL/Monero interoperability:** observers only, read-only, a replaceable edge;
    no bridge, minting or custody.
@@ -73,7 +74,7 @@ research's own recommended defaults, recorded here so they can be corrected:
 | T19 FROST nonce reuse | partial | existing `DurableCustodySigner` burns reservations on reopen (`mini-custody` unit tests). A whole-disk restore **cannot** be detected by a local file; `mini_custody::anchor` (D-0553) detects it given a monotonic counter outside the restored storage, but no hardware/remote counter is built or audited here |
 | T20 malicious coordinator | partial | existing `session_binding.rs` covers manifest/attempt mismatch in the DKG; signing-package substitution across signers is not separately tested |
 | T21 DKG share churn | partial | existing DKG/resharing tests; not re-verified for this matrix |
-| T22 weak-device DoS | partial | harness and sandbox numbers only; no weak-device baseline chosen or measured |
+| T22 weak-device DoS | partial | harness and sandbox numbers only; baseline device chosen (current iPhone "e" model, D-0554) but not measured; no iOS build exists here |
 | T23 fake external deposit | done | `mini-chain-observer` tests |
 | T24 Monero remote-view leakage | not done | observer weighs reports it is given; view-key/tx-proof model is out of scope |
 | T25 bridge witness collusion | not done | no bridge exists by design; the trust assumption stays explicit |

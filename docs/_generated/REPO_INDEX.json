@@ -3,7 +3,7 @@
     "crates": 95,
     "files": 1307,
     "headings": 4362,
-    "rust_symbols": 15777
+    "rust_symbols": 15779
   },
   "crates": {
     "askama_derive": {
@@ -7638,7 +7638,7 @@
       "title": "Wipes the one-time claim secret when a command carrying it is dropped."
     },
     {
-      "bytes": 140762,
+      "bytes": 142017,
       "group": "crate:mini-app-protocol",
       "headings": [],
       "keywords": [
@@ -7667,9 +7667,9 @@
         "publicwalldraft",
         "publicprofiledetails"
       ],
-      "lines": 4127,
+      "lines": 4157,
       "path": "crates/mini-app-protocol/src/lib.rs",
-      "sha256": "af7c090355b5c7b602c0bfa59588d6a93f06813f62d5c7277b5959714dc3ca3d",
+      "sha256": "c86e1e117adbe3fa9590d921cceaa55ee15cad1762d929578145d83560c5e7c8",
       "symbols": [
         {
           "kind": "const",
@@ -8008,587 +8008,597 @@
         },
         {
           "kind": "struct",
-          "line": 674,
+          "line": 677,
           "name": "ClaimSecret"
         },
         {
           "kind": "impl",
-          "line": 676,
+          "line": 679,
           "name": "ClaimSecret"
         },
         {
           "kind": "fn",
-          "line": 678,
+          "line": 681,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 683,
+          "line": 686,
           "name": "expose"
         },
         {
           "kind": "impl",
-          "line": 688,
+          "line": 691,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 689,
+          "line": 692,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 694,
+          "line": 697,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 695,
+          "line": 698,
           "name": "drop"
         },
         {
           "kind": "enum",
-          "line": 701,
+          "line": 704,
           "name": "Command"
         },
         {
           "kind": "struct",
-          "line": 912,
+          "line": 915,
           "name": "Response"
         },
         {
           "kind": "impl",
-          "line": 918,
+          "line": 921,
           "name": "Response"
         },
         {
           "kind": "fn",
-          "line": 919,
+          "line": 922,
           "name": "ok"
         },
         {
           "kind": "fn",
-          "line": 927,
+          "line": 930,
           "name": "error"
         },
         {
           "kind": "enum",
-          "line": 937,
+          "line": 940,
           "name": "ResponseBody"
         },
         {
           "kind": "enum",
-          "line": 943,
+          "line": 946,
           "name": "Reply"
         },
         {
           "kind": "enum",
-          "line": 1011,
+          "line": 1014,
           "name": "ErrorCode"
         },
         {
           "kind": "struct",
-          "line": 1023,
+          "line": 1026,
           "name": "ServiceError"
         },
         {
           "kind": "impl",
-          "line": 1028,
+          "line": 1031,
           "name": "ServiceError"
         },
         {
           "kind": "fn",
-          "line": 1029,
+          "line": 1032,
           "name": "new"
         },
         {
           "kind": "enum",
-          "line": 1038,
+          "line": 1041,
           "name": "ProtocolError"
         },
         {
           "kind": "impl",
-          "line": 1047,
+          "line": 1050,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 1048,
+          "line": 1051,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 1062,
+          "line": 1065,
           "name": "std::error::Error"
         },
         {
           "kind": "fn",
-          "line": 1064,
+          "line": 1067,
           "name": "validate_operation_id"
         },
         {
           "kind": "fn",
-          "line": 1079,
+          "line": 1082,
           "name": "write_request"
         },
         {
           "kind": "fn",
-          "line": 1088,
+          "line": 1091,
           "name": "read_request"
         },
         {
           "kind": "fn",
-          "line": 1103,
+          "line": 1106,
           "name": "write_response"
         },
         {
           "kind": "fn",
-          "line": 1125,
+          "line": 1128,
           "name": "read_response"
         },
         {
           "kind": "fn",
-          "line": 1154,
+          "line": 1157,
           "name": "encode_profile_details"
         },
         {
           "kind": "fn",
-          "line": 1174,
+          "line": 1177,
           "name": "decode_profile_details"
         },
         {
           "kind": "fn",
-          "line": 1208,
+          "line": 1211,
           "name": "encode_command"
         },
         {
           "kind": "fn",
-          "line": 1555,
+          "line": 1558,
           "name": "decode_command"
         },
         {
           "kind": "fn",
-          "line": 1826,
+          "line": 1842,
           "name": "validate_beta_campaigns"
         },
         {
           "kind": "fn",
-          "line": 1839,
+          "line": 1855,
           "name": "array32"
         },
         {
           "kind": "fn",
-          "line": 1845,
+          "line": 1861,
           "name": "encode_campaigns"
         },
         {
           "kind": "fn",
-          "line": 1854,
+          "line": 1870,
           "name": "decode_campaigns"
         },
         {
           "kind": "fn",
-          "line": 1864,
+          "line": 1880,
           "name": "encode_reply"
         },
         {
           "kind": "fn",
-          "line": 2056,
+          "line": 2072,
           "name": "decode_reply"
         },
         {
           "kind": "fn",
-          "line": 2237,
+          "line": 2253,
           "name": "encode_delivery"
         },
         {
           "kind": "fn",
-          "line": 2261,
+          "line": 2277,
           "name": "decode_delivery"
         },
         {
           "kind": "fn",
-          "line": 2295,
+          "line": 2311,
           "name": "encode_status"
         },
         {
           "kind": "fn",
-          "line": 2302,
+          "line": 2318,
           "name": "decode_status"
         },
         {
           "kind": "fn",
-          "line": 2311,
+          "line": 2327,
           "name": "encode_profile_option"
         },
         {
           "kind": "fn",
-          "line": 2325,
+          "line": 2341,
           "name": "decode_profile_option"
         },
         {
           "kind": "fn",
-          "line": 2337,
+          "line": 2353,
           "name": "encode_feed_card"
         },
         {
           "kind": "fn",
-          "line": 2355,
+          "line": 2371,
           "name": "decode_feed_card"
         },
         {
           "kind": "fn",
-          "line": 2386,
+          "line": 2402,
           "name": "encode_published"
         },
         {
           "kind": "fn",
-          "line": 2406,
+          "line": 2422,
           "name": "decode_published"
         },
         {
           "kind": "fn",
-          "line": 2430,
+          "line": 2446,
           "name": "encode_event"
         },
         {
           "kind": "fn",
-          "line": 2465,
+          "line": 2481,
           "name": "decode_event"
         },
         {
           "kind": "fn",
-          "line": 2503,
+          "line": 2519,
           "name": "encode_service_error"
         },
         {
           "kind": "fn",
-          "line": 2517,
+          "line": 2533,
           "name": "decode_service_error"
         },
         {
           "kind": "fn",
-          "line": 2539,
+          "line": 2555,
           "name": "write_frame"
         },
         {
           "kind": "fn",
-          "line": 2553,
+          "line": 2569,
           "name": "read_frame"
         },
         {
           "kind": "struct",
-          "line": 2576,
+          "line": 2598,
           "name": "Encoder"
         },
         {
           "kind": "impl",
-          "line": 2580,
+          "line": 2602,
+          "name": "Drop"
+        },
+        {
+          "kind": "fn",
+          "line": 2603,
+          "name": "drop"
+        },
+        {
+          "kind": "impl",
+          "line": 2608,
           "name": "Encoder"
-        },
-        {
-          "kind": "fn",
-          "line": 2581,
-          "name": "new"
-        },
-        {
-          "kind": "fn",
-          "line": 2585,
-          "name": "finish"
-        },
-        {
-          "kind": "fn",
-          "line": 2589,
-          "name": "u8"
-        },
-        {
-          "kind": "fn",
-          "line": 2593,
-          "name": "bool"
-        },
-        {
-          "kind": "fn",
-          "line": 2597,
-          "name": "u16"
-        },
-        {
-          "kind": "fn",
-          "line": 2601,
-          "name": "u32"
-        },
-        {
-          "kind": "fn",
-          "line": 2605,
-          "name": "u64"
         },
         {
           "kind": "fn",
           "line": 2609,
-          "name": "byte_string"
-        },
-        {
-          "kind": "fn",
-          "line": 2618,
-          "name": "string"
-        },
-        {
-          "kind": "fn",
-          "line": 2629,
-          "name": "option_string"
-        },
-        {
-          "kind": "struct",
-          "line": 2639,
-          "name": "Decoder"
-        },
-        {
-          "kind": "impl",
-          "line": 2644,
-          "name": "Decoder<'a>"
-        },
-        {
-          "kind": "fn",
-          "line": 2645,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 2649,
+          "line": 2615,
           "name": "finish"
         },
         {
           "kind": "fn",
-          "line": 2657,
-          "name": "take"
-        },
-        {
-          "kind": "fn",
-          "line": 2670,
+          "line": 2619,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 2674,
+          "line": 2623,
           "name": "bool"
         },
         {
           "kind": "fn",
-          "line": 2684,
+          "line": 2627,
           "name": "u16"
         },
         {
           "kind": "fn",
-          "line": 2692,
+          "line": 2631,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 2700,
+          "line": 2635,
           "name": "u64"
         },
         {
           "kind": "fn",
-          "line": 2708,
+          "line": 2639,
           "name": "byte_string"
         },
         {
           "kind": "fn",
-          "line": 2716,
+          "line": 2648,
           "name": "string"
         },
         {
           "kind": "fn",
-          "line": 2725,
+          "line": 2659,
+          "name": "option_string"
+        },
+        {
+          "kind": "struct",
+          "line": 2669,
+          "name": "Decoder"
+        },
+        {
+          "kind": "impl",
+          "line": 2674,
+          "name": "Decoder<'a>"
+        },
+        {
+          "kind": "fn",
+          "line": 2675,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 2679,
+          "name": "finish"
+        },
+        {
+          "kind": "fn",
+          "line": 2687,
+          "name": "take"
+        },
+        {
+          "kind": "fn",
+          "line": 2700,
+          "name": "u8"
+        },
+        {
+          "kind": "fn",
+          "line": 2704,
+          "name": "bool"
+        },
+        {
+          "kind": "fn",
+          "line": 2714,
+          "name": "u16"
+        },
+        {
+          "kind": "fn",
+          "line": 2722,
+          "name": "u32"
+        },
+        {
+          "kind": "fn",
+          "line": 2730,
+          "name": "u64"
+        },
+        {
+          "kind": "fn",
+          "line": 2738,
+          "name": "byte_string"
+        },
+        {
+          "kind": "fn",
+          "line": 2746,
+          "name": "string"
+        },
+        {
+          "kind": "fn",
+          "line": 2755,
           "name": "option_string"
         },
         {
           "kind": "mod",
-          "line": 2735,
+          "line": 2765,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 2739,
+          "line": 2769,
           "name": "delivery_peer_and_runtime_capabilities_round_trip_with_bounded_public_material"
         },
         {
           "kind": "fn",
-          "line": 2817,
+          "line": 2847,
           "name": "durable_delivery_contract_round_trips_and_rejects_unbounded_lists"
         },
         {
           "kind": "fn",
-          "line": 2897,
+          "line": 2927,
           "name": "request_round_trip_is_framed_versioned_and_bounded"
         },
         {
           "kind": "fn",
-          "line": 2912,
+          "line": 2942,
           "name": "response_round_trip_carries_feed_and_events"
         },
         {
           "kind": "fn",
-          "line": 2937,
+          "line": 2967,
           "name": "policy_create"
         },
         {
           "kind": "fn",
-          "line": 2953,
+          "line": 2983,
           "name": "malformed_beta_grant_creation_requests_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 3056,
+          "line": 3086,
           "name": "beta_wallet_commands_and_replies_round_trip_with_bounded_fields"
         },
         {
           "kind": "fn",
-          "line": 3190,
+          "line": 3220,
           "name": "malformed_or_oversized_beta_requests_are_rejected_before_dispatch"
         },
         {
           "kind": "fn",
-          "line": 3227,
+          "line": 3257,
           "name": "malformed_beta_grant_requests_are_rejected_before_dispatch"
         },
         {
           "kind": "fn",
-          "line": 3282,
+          "line": 3312,
           "name": "maximum_feed_response_fits_the_declared_frame"
         },
         {
           "kind": "fn",
-          "line": 3313,
+          "line": 3343,
           "name": "malformed_limits_are_rejected_before_dispatch"
         },
         {
           "kind": "fn",
-          "line": 3335,
+          "line": 3365,
           "name": "declared_oversized_frame_is_rejected_before_allocation"
         },
         {
           "kind": "fn",
-          "line": 3345,
+          "line": 3375,
           "name": "clean_eof_is_not_a_protocol_failure"
         },
         {
           "kind": "mod",
-          "line": 3351,
+          "line": 3381,
           "name": "follow_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3354,
+          "line": 3384,
           "name": "follow_command_and_published_events_round_trip_with_bounded_fields"
         },
         {
           "kind": "mod",
-          "line": 3413,
+          "line": 3443,
           "name": "like_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3416,
+          "line": 3446,
           "name": "like_command_publication_and_events_round_trip_and_reject_invalid_bounds"
         },
         {
           "kind": "mod",
-          "line": 3477,
+          "line": 3507,
           "name": "comment_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3480,
+          "line": 3510,
           "name": "comment_commands_publications_events_round_trip_and_text_is_bounded_nonblank"
         },
         {
           "kind": "mod",
-          "line": 3548,
+          "line": 3578,
           "name": "membership_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3551,
+          "line": 3581,
           "name": "membership_commands_publications_events_round_trip_and_bounds_reject"
         },
         {
           "kind": "mod",
-          "line": 3612,
+          "line": 3642,
           "name": "community_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3615,
+          "line": 3645,
           "name": "community_commands_publications_events_round_trip_and_name_charter_bounds_reject"
         },
         {
           "kind": "mod",
-          "line": 3681,
+          "line": 3711,
           "name": "public_delivery_preview_tests"
         },
         {
           "kind": "fn",
-          "line": 3684,
+          "line": 3714,
           "name": "public_preview_round_trips_bounded_metadata_and_rejects_larger_summaries_or_targets"
         },
         {
           "kind": "mod",
-          "line": 3746,
+          "line": 3776,
           "name": "profile_details_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3748,
+          "line": 3778,
           "name": "draft"
         },
         {
           "kind": "fn",
-          "line": 3768,
+          "line": 3798,
           "name": "profile_details_options_and_order_round_trip_and_every_field_limit_is_checked"
         },
         {
           "kind": "mod",
-          "line": 3870,
+          "line": 3900,
           "name": "profile_photo_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3872,
+          "line": 3902,
           "name": "draft"
         },
         {
           "kind": "fn",
-          "line": 3883,
+          "line": 3913,
           "name": "reviewed_photo_command_round_trip_rejects_large_empty_or_preexisting_avatar"
         },
         {
           "kind": "mod",
-          "line": 3926,
+          "line": 3956,
           "name": "wall_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 3928,
+          "line": 3958,
           "name": "draft"
         },
         {
           "kind": "fn",
-          "line": 3937,
+          "line": 3967,
           "name": "wall_visibility_round_trips_and_all_draft_bounds_are_checked"
         },
         {
           "kind": "mod",
-          "line": 4027,
+          "line": 4057,
           "name": "media_post_protocol_tests"
         },
         {
           "kind": "fn",
-          "line": 4030,
+          "line": 4060,
           "name": "media_caption_command_round_trips_blank_and_maximum_and_bounds_reject"
         },
         {
           "kind": "fn",
-          "line": 4097,
+          "line": 4127,
           "name": "claim_redeem_round_trips_validates_and_never_prints_its_secret"
         }
       ],
@@ -90167,7 +90177,7 @@
       "title": "The two halves R8's own design note says must never meet inside"
     },
     {
-      "bytes": 9661,
+      "bytes": 9815,
       "group": "crate:mini-shielded-verify",
       "headings": [],
       "keywords": [
@@ -90196,9 +90206,9 @@
         "one",
         "usize"
       ],
-      "lines": 244,
+      "lines": 249,
       "path": "crates/mini-shielded-verify/src/exchange.rs",
-      "sha256": "6e3de7567cd9d167073aca0e062376c346fa41dc06c96fde9fb3151e3d876b81",
+      "sha256": "627d576d8b55d05273b39ddefa82df08bc4f597abbe2e596499335912656987c",
       "symbols": [
         {
           "kind": "const",
@@ -90775,7 +90785,7 @@
       "title": "use std::{collections::BTreeMap, sync::Arc};"
     },
     {
-      "bytes": 31504,
+      "bytes": 31856,
       "group": "crate:mini-shielded-verify",
       "headings": [],
       "keywords": [
@@ -90804,9 +90814,9 @@
         "outputs",
         "genesis"
       ],
-      "lines": 879,
+      "lines": 889,
       "path": "crates/mini-shielded-verify/tests/canonical_chain_v3.rs",
-      "sha256": "057704e35945f73f90064c1f9e034c8f4a7b4b90c243588e802c90d01fb676b9",
+      "sha256": "1e0e37e5d4a9566780ae912d792b2651b972019bad00b45f42fad8ab51996913",
       "symbols": [
         {
           "kind": "const",
@@ -90935,37 +90945,37 @@
         },
         {
           "kind": "const",
-          "line": 703,
+          "line": 713,
           "name": "MAX_BYTES_OVER"
         },
         {
           "kind": "fn",
-          "line": 706,
+          "line": 716,
           "name": "t14_missing_or_unknown_evidence_never_passes"
         },
         {
           "kind": "fn",
-          "line": 726,
+          "line": 736,
           "name": "t03_two_valid_claims_spending_one_output_finalize_at_most_once_in_either_order"
         },
         {
           "kind": "fn",
-          "line": 771,
+          "line": 781,
           "name": "t18_a_failed_application_leaves_the_prior_state_untouched"
         },
         {
           "kind": "fn",
-          "line": 798,
+          "line": 808,
           "name": "t07_altering_the_fee_policy_after_signing_invalidates_the_spend"
         },
         {
           "kind": "fn",
-          "line": 817,
+          "line": 827,
           "name": "t06_an_output_commitment_swapped_for_another_amount_cannot_balance_or_prove"
         },
         {
           "kind": "fn",
-          "line": 837,
+          "line": 847,
           "name": "t09_swapped_memos_do_not_open_in_the_other_outputs_context"
         }
       ],
@@ -116971,7 +116981,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1620576,
+      "bytes": 1622962,
       "group": "docs",
       "headings": [
         {
@@ -117401,9 +117411,9 @@
         "decision",
         "first"
       ],
-      "lines": 26711,
+      "lines": 26728,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e8ce908fc4b1745a1f68b8d0c6f91b1b292ed557ec224e1341bd8a291795adb2",
+      "sha256": "cbf0000e2ba6b30628d7f7a7dbfb57fd6764b8f6ff581f625a3a20c95b12afd1",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -129699,7 +129709,7 @@
       "title": "Treasury economic model \u2014 founder decision (D-0073)"
     },
     {
-      "bytes": 4349,
+      "bytes": 5270,
       "group": "docs",
       "headings": [
         {
@@ -129709,22 +129719,22 @@
         },
         {
           "level": 2,
-          "line": 13,
+          "line": 20,
           "text": "1. Retiring the transparent (V2) path"
         },
         {
           "level": 2,
-          "line": 34,
+          "line": 41,
           "text": "2. Fee-policy activation"
         },
         {
           "level": 2,
-          "line": 53,
+          "line": 60,
           "text": "3. Weak-device acceptance baseline"
         },
         {
           "level": 2,
-          "line": 67,
+          "line": 81,
           "text": "Not in this note"
         }
       ],
@@ -129732,31 +129742,31 @@
         "code",
         "genesis",
         "path",
+        "baseline",
+        "decision",
+        "needs",
         "what",
         "claim",
+        "three",
         "cannot",
         "weak-device",
-        "needs",
-        "decision",
+        "direction",
+        "nothing",
+        "below",
+        "current",
+        "change",
+        "process",
         "network",
         "state",
-        "audit",
         "per",
         "fee",
         "policy",
         "same",
-        "shielded",
-        "three",
-        "proposal",
-        "transparent",
-        "activation",
-        "note",
-        "nothing",
-        "each"
+        "numbers"
       ],
-      "lines": 71,
+      "lines": 85,
       "path": "docs/design/v3-activation-decisions.md",
-      "sha256": "1d48b4cbf9fd2e06cdcac5c328dd0850ce143c4d3ed89d39aea06a771d10747d",
+      "sha256": "4c654a2ab4f83295f525589a99cc345c8a6c45099379038e66a563e653371d8d",
       "symbols": [],
       "title": "V3 shielded path: the three decisions code cannot make (proposal, D-0553)"
     },
@@ -129933,7 +129943,7 @@
       "title": "Windows whole-workspace integration"
     },
     {
-      "bytes": 8953,
+      "bytes": 9140,
       "group": "docs",
       "headings": [
         {
@@ -129948,54 +129958,54 @@
         },
         {
           "level": 2,
-          "line": 35,
+          "line": 36,
           "text": "What was built"
         },
         {
           "level": 2,
-          "line": 48,
+          "line": 49,
           "text": "Test matrix T01\u2013T30"
         },
         {
           "level": 2,
-          "line": 86,
+          "line": 87,
           "text": "Deviations from the research text"
         },
         {
           "level": 2,
-          "line": 96,
+          "line": 97,
           "text": "Not built (and why)"
         }
       ],
       "keywords": [
-        "done",
         "research",
+        "done",
         "claim",
         "built",
         "partial",
+        "here",
         "bytes",
         "xrpl",
         "monero",
         "code",
         "t01",
-        "here",
-        "evidence",
         "memo",
         "record",
+        "founder",
         "decision",
         "gates",
         "replay",
-        "t14",
-        "run",
         "audit",
         "t05",
         "wallet_v3",
         "never",
-        "image"
+        "image",
+        "conformance",
+        "cryptography"
       ],
-      "lines": 107,
+      "lines": 108,
       "path": "docs/design/xrpl-monero-research-conformance.md",
-      "sha256": "78d46b26f7454d87b12cbfad38caed85925b17865c5d6324922349ca099da44e",
+      "sha256": "6fc2d859785f871eaad0e6915b3d208387cb968a2c13f843568b9740d74179e1",
       "symbols": [],
       "title": "Conformance: XRPL/Monero cryptography research (PR #429) \u2192 code"
     },
