@@ -224,13 +224,26 @@ fn unknown_duplicate_and_missing_links_fail_closed() {
 #[test]
 fn a_wrong_object_type_fails_closed() {
     let f = fixture();
-    // Each object fed to every other parser is refused.
+    // One mutation only: take each parser's own valid object, keep its payload
+    // and links, change just the object type to another Beta type, re-sign.
     let all = parsers(&f);
-    for (name, _, parse) in &all {
-        for (other, object, _) in &all {
-            if name != other {
-                assert!(parse(object).is_err(), "{name} parser accepted a {other}");
+    for (name, object, parse) in &all {
+        for (other, other_object, _) in &all {
+            if name == other {
+                continue;
             }
+            let mut builder = ObjectBuilder::new(other_object.object_type.clone())
+                .timestamp_ms(object.timestamp_ms)
+                .sequence(object.sequence)
+                .payload(object.payload.clone());
+            for link in &object.links {
+                builder = builder.link(&link.rel, link.target.clone());
+            }
+            let retyped = builder.sign(&f.signer.did(), &f.signer).unwrap();
+            assert!(
+                parse(&retyped).is_err(),
+                "{name} parser accepted its own payload retyped as {other}"
+            );
         }
     }
 }

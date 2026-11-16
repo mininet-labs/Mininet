@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15889
+    "rust_symbols": 15890
   },
   "crates": {
     "askama_derive": {
@@ -16592,7 +16592,7 @@
       "title": "use did_mini::Controller;"
     },
     {
-      "bytes": 8444,
+      "bytes": 9080,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -16621,9 +16621,9 @@
         "parse",
         "rebuilt"
       ],
-      "lines": 268,
+      "lines": 281,
       "path": "crates/mini-beta/tests/strict_parsing.rs",
-      "sha256": "232f3a1b33907d9afd937296c19cf1ab2ac430e4edff9635f5fa4ac366e07912",
+      "sha256": "6a4a23a89414612fe4e7fd717ece8638bf279a74990cd3c461d9094d5646c1a1",
       "symbols": [
         {
           "kind": "fn",
@@ -16687,7 +16687,7 @@
         },
         {
           "kind": "fn",
-          "line": 239,
+          "line": 252,
           "name": "oversized_text_fields_fail_closed"
         }
       ],
@@ -56615,38 +56615,38 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 19586,
+      "bytes": 23193,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
         "kind",
-        "forward",
         "one",
+        "forward",
         "const",
         "named",
         "release",
         "project",
-        "owner_is",
         "rel",
+        "chain",
+        "owner_is",
         "commit",
         "static",
-        "chain",
         "reverse",
         "objecttype",
         "else",
         "tree",
-        "many",
         "object",
+        "owner",
         "retrieval",
+        "many",
         "str",
         "kinds",
-        "owner",
         "candidate",
         "matches"
       ],
-      "lines": 600,
+      "lines": 689,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "387e5d768c30c9ca2e606afd59614d3db16f4fa3ff052a8b980c2ad91d66f74a",
+      "sha256": "368484232647ebca05b7cdf378a97717f668fc4379bd352d3400c6d94b2156ba",
       "symbols": [
         {
           "kind": "const",
@@ -56726,100 +56726,105 @@
         {
           "kind": "const",
           "line": 98,
-          "name": "TREE_EDGES"
+          "name": "TREE_ENTRY_KINDS"
         },
         {
           "kind": "const",
-          "line": 106,
+          "line": 103,
           "name": "PR_EDGES"
         },
         {
           "kind": "const",
-          "line": 111,
+          "line": 108,
           "name": "CHAIN_EDGES"
         },
         {
           "kind": "const",
-          "line": 116,
+          "line": 113,
           "name": "APPROVE_EDGES"
         },
         {
           "kind": "const",
-          "line": 117,
+          "line": 114,
           "name": "ATTEST_EDGES"
         },
         {
           "kind": "fn",
-          "line": 120,
+          "line": 117,
           "name": "forward_edges"
         },
         {
           "kind": "struct",
-          "line": 144,
+          "line": 139,
           "name": "Reverse"
         },
         {
           "kind": "const",
-          "line": 150,
+          "line": 145,
           "name": "REVERSE_EDGES"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 196,
           "name": "release_retrieval_ids"
         },
         {
           "kind": "fn",
-          "line": 264,
+          "line": 273,
           "name": "single_link"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 284,
           "name": "in_project"
         },
         {
           "kind": "fn",
-          "line": 286,
+          "line": 298,
           "name": "enqueue"
         },
         {
           "kind": "mod",
-          "line": 295,
+          "line": 315,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 302,
+          "line": 322,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 336,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 330,
+          "line": 350,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
         },
         {
           "kind": "fn",
-          "line": 454,
+          "line": 469,
           "name": "approval_extra_reviewed_link_does_not_widen_closure"
         },
         {
           "kind": "fn",
-          "line": 497,
+          "line": 512,
           "name": "forward_targets_must_be_the_type_the_relation_means"
         },
         {
           "kind": "fn",
-          "line": 522,
+          "line": 537,
           "name": "reverse_candidates_are_admitted_by_type_and_relation_together"
+        },
+        {
+          "kind": "fn",
+          "line": 616,
+          "name": "amendment_approvals_and_payload_tree_targets_are_in_the_closure"
         }
       ],
-      "title": "use std::collections::VecDeque;"
+      "title": "use std::collections::{HashSet, VecDeque};"
     },
     {
       "bytes": 13186,
@@ -117719,7 +117724,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1630860,
+      "bytes": 1631067,
       "group": "docs",
       "headings": [
         {
@@ -118151,7 +118156,7 @@
       ],
       "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "9ced02dafb086af2dc603c6cddcc4daa02cf806fb56643a9a565da32b2fa8820",
+      "sha256": "1c54ccd18becd7be364367f60bf66529d3b7446eae9b67ae7d52ee80c60b1bea",
       "symbols": [],
       "title": "Decision Log"
     },

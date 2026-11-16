@@ -11,7 +11,7 @@
 //! `mini-sync` and then runs [`crate::verify_governed_release`]. A missing or
 //! oversized closure fails closed rather than being silently shortened.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use mini_objects::{ObjectId, ObjectType};
 use mini_store::{Backend, Store};
@@ -95,14 +95,11 @@ const MANIFEST_EDGES: &[Forward] = &[
         &[Kind::Named("mini/superblock"), Kind::Named("mini/chunk")],
     ),
 ];
-const TREE_EDGES: &[Forward] = &[many(
-    "entry",
-    &[
-        TREE,
-        Kind::Named(FILE_TYPE),
-        Kind::Named(EXECUTABLE_FILE_TYPE),
-    ],
-)];
+const TREE_ENTRY_KINDS: &[Kind] = &[
+    TREE,
+    Kind::Named(FILE_TYPE),
+    Kind::Named(EXECUTABLE_FILE_TYPE),
+];
 const PR_EDGES: &[Forward] = &[
     one("project", &[PROJECT]),
     one("head", &[Kind::Commit]),
@@ -124,8 +121,6 @@ fn forward_edges(ty: &ObjectType) -> &'static [Forward] {
         COMMIT_EDGES
     } else if owner_is(ty, Kind::Manifest) {
         MANIFEST_EDGES
-    } else if owner_is(ty, TREE) {
-        TREE_EDGES
     } else if owner_is(ty, PR) {
         PR_EDGES
     } else if owner_is(ty, CHAIN) {
@@ -162,6 +157,12 @@ const REVERSE_EDGES: &[Reverse] = &[
         owner: CHAIN,
         candidate: CHAIN,
         rel: "prev",
+    },
+    // Amendment quorum: approvals whose `pr` link targets a chain entry.
+    Reverse {
+        owner: CHAIN,
+        candidate: Kind::Named(APPROVE_TYPE),
+        rel: "pr",
     },
     Reverse {
         owner: PR,
@@ -204,17 +205,25 @@ pub fn release_retrieval_ids<B: Backend>(
 
     let mut selected = Vec::new();
     let mut pending = VecDeque::from([release_id.clone()]);
+    let mut seen: HashSet<ObjectId> = HashSet::from([release_id.clone()]);
 
     while let Some(id) = pending.pop_front() {
-        if selected.iter().any(|existing| existing == &id) {
-            continue;
-        }
-        if selected.len() >= MAX_RELEASE_RETRIEVAL_OBJECTS {
-            return Err(ForgeError::FieldTooLarge);
-        }
-
         let object = store.get(&id)?;
         selected.push(id.clone());
+
+        // A tree's children are the targets its canonical payload names (what
+        // `checkout` reads), not whatever its `entry` links claim.
+        if TREE.matches(&object.object_type) {
+            for entry in crate::read_tree(&object)? {
+                let target_object = store.get(&entry.target)?;
+                if TREE_ENTRY_KINDS
+                    .iter()
+                    .any(|k| k.matches(&target_object.object_type))
+                {
+                    enqueue(&mut pending, &mut seen, &entry.target)?;
+                }
+            }
+        }
 
         for edge in forward_edges(&object.object_type) {
             let targets: Vec<&ObjectId> = object
@@ -234,7 +243,7 @@ pub fn release_retrieval_ids<B: Backend>(
                     .any(|k| k.matches(&target_object.object_type))
                     && in_project(&target_object, target, &project_id)
                 {
-                    enqueue(&mut pending, &selected, target.clone());
+                    enqueue(&mut pending, &mut seen, target)?;
                 }
             }
         }
@@ -251,7 +260,7 @@ pub fn release_retrieval_ids<B: Backend>(
                 {
                     continue;
                 }
-                enqueue(&mut pending, &selected, candidate_id);
+                enqueue(&mut pending, &mut seen, &candidate_id)?;
             }
         }
     }
@@ -283,12 +292,23 @@ fn in_project(object: &mini_objects::Object, id: &ObjectId, project: &ObjectId) 
     true
 }
 
-fn enqueue(pending: &mut VecDeque<ObjectId>, selected: &[ObjectId], id: ObjectId) {
-    if !selected.iter().any(|existing| existing == &id)
-        && !pending.iter().any(|existing| existing == &id)
-    {
-        pending.push_back(id);
+/// Queue `id` once. The closure limit is enforced here, over everything
+/// selected or pending, so a hostile fan-out stops at the bound instead of
+/// being materialized first.
+fn enqueue(
+    pending: &mut VecDeque<ObjectId>,
+    seen: &mut HashSet<ObjectId>,
+    id: &ObjectId,
+) -> Result<()> {
+    if seen.contains(id) {
+        return Ok(());
     }
+    if seen.len() >= MAX_RELEASE_RETRIEVAL_OBJECTS {
+        return Err(ForgeError::FieldTooLarge);
+    }
+    seen.insert(id.clone());
+    pending.push_back(id.clone());
+    Ok(())
 }
 
 #[cfg(test)]
@@ -338,13 +358,8 @@ mod tests {
             &[],
         );
         store.insert(&project).unwrap();
-        let tree = object(
-            ObjectType::Custom("mini/tree".to_string()),
-            &human.did(),
-            &device,
-            &[],
-        );
-        store.insert(&tree).unwrap();
+        let tree_id = crate::put_tree(&mut store, &human.did(), &device, &[]).unwrap();
+        let tree = store.get(&tree_id).unwrap();
         let commit = object(
             ObjectType::COMMIT,
             &human.did(),
@@ -595,5 +610,79 @@ mod tests {
             assert!(!ids.contains(excluded), "{} admitted", excluded.as_str());
         }
         assert!(ids.contains(chain.id()) && ids.contains(pr.id()));
+    }
+
+    #[test]
+    fn amendment_approvals_and_payload_tree_targets_are_in_the_closure() {
+        let (human, device) = identity(15);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        // Amendment-style chain entry with an approval targeting it directly.
+        let amend = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("prev", project.id())],
+        );
+        store.insert(&amend).unwrap();
+        let quorum = object(
+            ObjectType::Custom(APPROVE_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("pr", amend.id())],
+        );
+        store.insert(&quorum).unwrap();
+
+        // A tree whose canonical payload names file A but whose `entry` link
+        // names file B: the payload target is what checkout reads.
+        let file_a = object(
+            ObjectType::Custom(FILE_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&file_a).unwrap();
+        let file_b = ObjectBuilder::new(ObjectType::Custom(FILE_TYPE.to_string()))
+            .payload(Payload::Public(vec![1]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&file_b).unwrap();
+        let mut payload = 1u32.to_be_bytes().to_vec();
+        payload.push(0);
+        payload.extend_from_slice(&1u32.to_be_bytes());
+        payload.push(b'a');
+        payload.extend_from_slice(&(file_a.id().as_str().len() as u32).to_be_bytes());
+        payload.extend_from_slice(file_a.id().as_str().as_bytes());
+        let tree = ObjectBuilder::new(ObjectType::Custom(TREE_TYPE.to_string()))
+            .link("entry", file_b.id().clone())
+            .payload(Payload::Public(payload))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&tree).unwrap();
+        let commit = object(
+            ObjectType::COMMIT,
+            &human.did(),
+            &device,
+            &[("tree", tree.id())],
+        );
+        store.insert(&commit).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("commit", commit.id())],
+        );
+        store.insert(&release).unwrap();
+
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(ids.contains(quorum.id()), "amendment approval missing");
+        assert!(ids.contains(file_a.id()), "payload tree target missing");
+        assert!(!ids.contains(file_b.id()), "link-only tree target offered");
     }
 }
