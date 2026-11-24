@@ -702,6 +702,16 @@ pub fn request_retrieval_checked<B: Backend>(
             Msg::Objects(objects) if objects.is_empty() => break,
             Msg::Objects(objects) => {
                 for object in objects {
+                    // A real object is never empty, and the responder was
+                    // asked for exactly `selected`, so it can send no more
+                    // bodies than that: empty or surplus bodies cost no byte
+                    // budget and would otherwise be buffered without bound.
+                    if object.is_empty() {
+                        return Err(SyncError::Protocol);
+                    }
+                    if received_bytes.len() >= selected.len() {
+                        return Err(SyncError::LimitExceeded);
+                    }
                     budget = budget
                         .checked_sub(object.len())
                         .ok_or(SyncError::LimitExceeded)?;
@@ -1251,6 +1261,46 @@ mod retrieval_ingest_tests {
             receive_retrieval_request(&mut server, &mut server_channel),
             Err(SyncError::Protocol)
         ));
+    }
+
+    #[test]
+    fn empty_and_surplus_response_bodies_are_refused_and_store_nothing() {
+        for surplus in [Vec::new(), vec![1u8]] {
+            let (root, device) = author(80);
+            let wanted = post(&root, &device, b"wanted", 1);
+            let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+            let wanted_id = wanted.id().as_str().to_string();
+            let wanted_bytes = wanted.to_bytes();
+            let extra = surplus.clone();
+            let server_thread = std::thread::spawn(move || {
+                // Hostile server: advertise one object, then send it plus an
+                // extra body (empty, or a second non-empty one).
+                let _ = recv(&mut server, &mut server_channel).unwrap();
+                send(&mut server, &mut server_channel, &Msg::Ids(vec![wanted_id])).unwrap();
+                let _ = recv(&mut server, &mut server_channel).unwrap();
+                let _ = send(
+                    &mut server,
+                    &mut server_channel,
+                    &Msg::Objects(vec![wanted_bytes, extra]),
+                );
+                let _ = send(&mut server, &mut server_channel, &Msg::Objects(Vec::new()));
+            });
+            let mut store = Store::new(MemoryBackend::new());
+            let mut cache = trusting(&root, &device);
+            let result = request_retrieval(
+                &mut client,
+                &mut client_channel,
+                &mut store,
+                &mut cache,
+                std::slice::from_ref(wanted.id()),
+            );
+            server_thread.join().unwrap();
+            assert!(matches!(
+                result,
+                Err(SyncError::Protocol | SyncError::LimitExceeded)
+            ));
+            assert!(store.get(wanted.id()).is_err(), "partial closure stored");
+        }
     }
 
     #[test]

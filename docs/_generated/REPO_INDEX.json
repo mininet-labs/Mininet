@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15911
+    "rust_symbols": 15912
   },
   "crates": {
     "askama_derive": {
@@ -100043,7 +100043,7 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 51197,
+      "bytes": 53622,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
@@ -100072,9 +100072,9 @@
         "buf",
         "pull_byte_budget"
       ],
-      "lines": 1353,
+      "lines": 1403,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "6acb9dc9fe1f6f97c78765ff8abab7c64b1f59763743d171fd46f1c80b433556",
+      "sha256": "80d7c75b555e37df679ca8ad4183ce80c2cf6f3876ebb5d707a3f51ef732e854",
       "symbols": [
         {
           "kind": "const",
@@ -100243,117 +100243,122 @@
         },
         {
           "kind": "fn",
-          "line": 758,
+          "line": 768,
           "name": "receive_retrieval_request"
         },
         {
           "kind": "fn",
-          "line": 779,
+          "line": 789,
           "name": "serve_retrieval"
         },
         {
           "kind": "fn",
-          "line": 829,
+          "line": 839,
           "name": "has_duplicate_strings"
         },
         {
           "kind": "mod",
-          "line": 837,
+          "line": 847,
           "name": "paged_tests"
         },
         {
           "kind": "fn",
-          "line": 843,
+          "line": 853,
           "name": "bound_offer_keeps_small_offers_untouched_and_carriers_first_when_truncating"
         },
         {
           "kind": "fn",
-          "line": 861,
+          "line": 871,
           "name": "bound_offer_rotates_so_repeated_sessions_cover_the_whole_store"
         },
         {
           "kind": "fn",
-          "line": 878,
+          "line": 888,
           "name": "paged_offer_rejects_duplicate_ids_across_pages"
         },
         {
           "kind": "fn",
-          "line": 927,
+          "line": 937,
           "name": "paged_inventory_skips_more_than_65536_already_present_ids"
         },
         {
           "kind": "fn",
-          "line": 988,
+          "line": 998,
           "name": "paged_windows_persist_verified_progress_and_resume_to_completion"
         },
         {
           "kind": "mod",
-          "line": 1075,
+          "line": 1085,
           "name": "retrieval_ingest_tests"
         },
         {
           "kind": "fn",
-          "line": 1081,
+          "line": 1091,
           "name": "author"
         },
         {
           "kind": "fn",
-          "line": 1094,
+          "line": 1104,
           "name": "post"
         },
         {
           "kind": "fn",
-          "line": 1103,
+          "line": 1113,
           "name": "trusting"
         },
         {
           "kind": "fn",
-          "line": 1111,
+          "line": 1121,
           "name": "an_object_outside_the_allow_list_is_dropped_before_decoding_into_the_store"
         },
         {
           "kind": "fn",
-          "line": 1132,
+          "line": 1142,
           "name": "tampered_bytes_never_reach_the_store"
         },
         {
           "kind": "fn",
-          "line": 1154,
+          "line": 1164,
           "name": "an_author_the_client_never_trusted_is_refused_even_when_the_object_was_asked_for"
         },
         {
           "kind": "fn",
-          "line": 1172,
+          "line": 1182,
           "name": "garbage_bytes_are_counted_invalid_and_never_panic"
         },
         {
           "kind": "fn",
-          "line": 1189,
+          "line": 1199,
           "name": "wired"
         },
         {
           "kind": "fn",
-          "line": 1202,
+          "line": 1212,
           "name": "ids"
         },
         {
           "kind": "fn",
-          "line": 1214,
+          "line": 1224,
           "name": "the_client_refuses_to_ask_for_more_than_the_one_shot_bound"
         },
         {
           "kind": "fn",
-          "line": 1229,
+          "line": 1239,
           "name": "the_responder_refuses_a_request_over_the_bound_and_a_duplicate_request"
         },
         {
           "kind": "fn",
-          "line": 1257,
+          "line": 1267,
+          "name": "empty_and_surplus_response_bodies_are_refused_and_store_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 1307,
           "name": "a_checked_retrieval_refuses_a_responder_closure_with_unrelated_ids_and_stores_nothing"
         },
         {
           "kind": "fn",
-          "line": 1304,
+          "line": 1354,
           "name": "a_server_that_advertises_a_closure_and_ends_the_stream_early_leaves_nothing_behind"
         }
       ],
@@ -117829,7 +117834,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1632707,
+      "bytes": 1632898,
       "group": "docs",
       "headings": [
         {
@@ -118261,7 +118266,7 @@
       ],
       "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "a5106d0b127bfabd935370cdd090c9d46c9771ab29077d22e004f6765bef4c9d",
+      "sha256": "8537c02dea886d75a3899b24e4ce207a0d0e1c64228a062d9a8cf99d7cba0b58",
       "symbols": [],
       "title": "Decision Log"
     },
