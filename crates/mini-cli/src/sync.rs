@@ -197,7 +197,23 @@ pub fn retrieve_release(
         .hydrate_from_store(&store)
         .map_err(|e| CliError::Sync(e.to_string()))?;
 
-    let mut bearer = TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?;
+    // Bound connection and stalled-peer I/O the way ordinary sync does, so a
+    // peer that accepts and then goes silent cannot hold the one-shot
+    // retrieval open indefinitely.
+    let mut bearer = if let Ok(address) = addr.parse::<std::net::SocketAddr>() {
+        let stream =
+            std::net::TcpStream::connect_timeout(&address, std::time::Duration::from_secs(10))
+                .map_err(|e| CliError::Sync(e.to_string()))?;
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(30)))
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(30)))
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+        TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?
+    } else {
+        TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?
+    };
     let (init, hello) = Initiator::start().map_err(|e| CliError::Sync(e.to_string()))?;
     bearer
         .send(&hello)

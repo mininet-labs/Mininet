@@ -64,13 +64,23 @@ impl Kind {
     }
 }
 
+/// How many of a relation's links are followed. The verifiers disagree on this
+/// by relation, and the selector mirrors each: `Single` relations that repeat
+/// are malformed and skipped; `First` follows only the first link (what the
+/// verifier or resolver reads); `Many` follows every link.
+#[derive(Clone, Copy)]
+enum Mode {
+    Single,
+    First,
+    Many,
+}
+
 /// One typed forward edge: relation name, the object types the target may be,
-/// and whether the relation may repeat. A single-valued relation that appears
-/// more than once is malformed and is not followed at all.
+/// and how its links are followed.
 struct Forward {
     rel: &'static str,
     kinds: &'static [Kind],
-    multi: bool,
+    mode: Mode,
 }
 
 const PROJECT: Kind = Kind::Named(PROJECT_TYPE);
@@ -86,21 +96,30 @@ const fn one(rel: &'static str, kinds: &'static [Kind]) -> Forward {
     Forward {
         rel,
         kinds,
-        multi: false,
+        mode: Mode::Single,
+    }
+}
+const fn first(rel: &'static str, kinds: &'static [Kind]) -> Forward {
+    Forward {
+        rel,
+        kinds,
+        mode: Mode::First,
     }
 }
 const fn many(rel: &'static str, kinds: &'static [Kind]) -> Forward {
     Forward {
         rel,
         kinds,
-        multi: true,
+        mode: Mode::Many,
     }
 }
 
+// Release verification reads the first `project`, `commit` and `artifact`
+// link, so only those are followed.
 const RELEASE_EDGES: &[Forward] = &[
-    one("project", &[PROJECT]),
-    one("commit", &[Kind::Commit]),
-    one("artifact", &[Kind::Manifest]),
+    first("project", &[PROJECT]),
+    first("commit", &[Kind::Commit]),
+    first("artifact", &[Kind::Manifest]),
 ];
 const COMMIT_EDGES: &[Forward] = &[one("tree", &[TREE]), many("parent", &[Kind::Commit])];
 // `part` belongs to superblocks; a manifest's verifier reads only `chunk`.
@@ -115,16 +134,19 @@ const PR_EDGES: &[Forward] = &[
     one("head", &[Kind::Commit]),
     one("base", &[Kind::Commit]),
 ];
-// The resolver reads chain entries with `any(link)` and PRs with the first
-// `project` link, so these relations are not treated as single-valued here: a
-// resolver-valid entry must not be omitted. Targets stay typed and scoped.
+// The resolver reads a chain entry's `project` and `prev` with any-link
+// semantics (so a resolver-valid entry is never omitted) but consumes only the
+// first `pr` link, so a second PR is never traversed. Targets stay typed and
+// project-scoped.
 const CHAIN_EDGES: &[Forward] = &[
     many("project", &[PROJECT]),
     many("prev", &[CHAIN, PROJECT]),
-    many("pr", &[PR]),
+    first("pr", &[PR]),
 ];
 const APPROVE_EDGES: &[Forward] = &[one("pr", &[PR])];
-const ATTEST_EDGES: &[Forward] = &[one("release", &[Kind::Release])];
+// An attestation is terminal evidence: its `release` link is not traversed, or
+// an attestation reached for release A could pull in release B.
+const ATTEST_EDGES: &[Forward] = &[];
 
 /// Forward edges the governed-release verifier reads for this object type.
 fn forward_edges(ty: &ObjectType) -> &'static [Forward] {
@@ -210,7 +232,12 @@ pub fn release_retrieval_ids<B: Backend>(
     if release.object_type != ObjectType::RELEASE {
         return Err(ForgeError::BadObject);
     }
-    let project_id = single_link(&release, "project").ok_or(ForgeError::BadObject)?;
+    let project_id = release
+        .links
+        .iter()
+        .find(|l| l.rel == "project")
+        .map(|l| l.target.clone())
+        .ok_or(ForgeError::BadObject)?;
 
     let mut selected = Vec::new();
     let mut pending = VecDeque::from([release_id.clone()]);
@@ -235,14 +262,16 @@ pub fn release_retrieval_ids<B: Backend>(
         }
 
         for edge in forward_edges(&object.object_type) {
-            let targets: Vec<&ObjectId> = object
+            let mut targets: Vec<&ObjectId> = object
                 .links
                 .iter()
                 .filter(|link| link.rel == edge.rel)
                 .map(|link| &link.target)
                 .collect();
-            if targets.len() > 1 && !edge.multi {
-                continue;
+            match edge.mode {
+                Mode::Single if targets.len() > 1 => continue,
+                Mode::First => targets.truncate(1),
+                _ => {}
             }
             for target in targets {
                 let target_object = store.get(target)?;
@@ -275,16 +304,6 @@ pub fn release_retrieval_ids<B: Backend>(
 
     selected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     Ok(selected)
-}
-
-/// The single target of `rel`, or `None` when absent or repeated.
-fn single_link(object: &mini_objects::Object, rel: &str) -> Option<ObjectId> {
-    let mut it = object.links.iter().filter(|l| l.rel == rel);
-    let first = it.next()?;
-    if it.next().is_some() {
-        return None;
-    }
-    Some(first.target.clone())
 }
 
 /// Governance objects must belong to the release's own project, judged the
@@ -833,5 +852,95 @@ mod tests {
         let ids = release_retrieval_ids(&store, release.id()).unwrap();
         assert!(ids.contains(fork.id()), "resolver-valid entry omitted");
         assert!(ids.contains(pr.id()));
+    }
+
+    #[test]
+    fn first_link_semantics_and_terminal_attestations_match_the_verifiers() {
+        let (human, device) = identity(23);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let tree_id = crate::put_tree(&mut store, &human.did(), &device, &[]).unwrap();
+        let commit = object(
+            ObjectType::COMMIT,
+            &human.did(),
+            &device,
+            &[("tree", &tree_id)],
+        );
+        store.insert(&commit).unwrap();
+        let other_commit = ObjectBuilder::new(ObjectType::COMMIT)
+            .link("tree", tree_id.clone())
+            .payload(Payload::Public(vec![7]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&other_commit).unwrap();
+        // The verifier reads the first `commit` link; the second is ignored.
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("project", project.id()),
+                ("commit", commit.id()),
+                ("commit", other_commit.id()),
+            ],
+        );
+        store.insert(&release).unwrap();
+        // A second release, and an attestation of the first that also carries a
+        // `release` link to the second.
+        let second = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("commit", other_commit.id())],
+        );
+        store.insert(&second).unwrap();
+        let attest = object(
+            ObjectType::Custom(ATTEST_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("attests", release.id()), ("release", second.id())],
+        );
+        store.insert(&attest).unwrap();
+        // A merge entry with two `pr` links: the resolver consumes the first.
+        let pr = object(
+            ObjectType::Custom(PR_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&pr).unwrap();
+        let extra_pr = ObjectBuilder::new(ObjectType::Custom(PR_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .payload(Payload::Public(vec![3]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&extra_pr).unwrap();
+        let chain = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("prev", project.id()),
+                ("pr", pr.id()),
+                ("pr", extra_pr.id()),
+            ],
+        );
+        store.insert(&chain).unwrap();
+
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(ids.contains(commit.id()), "first commit link dropped");
+        assert!(!ids.contains(other_commit.id()), "second commit followed");
+        assert!(ids.contains(attest.id()), "attestation not offered");
+        assert!(!ids.contains(second.id()), "attestation traversed to B");
+        assert!(ids.contains(pr.id()), "first pr missing");
+        assert!(!ids.contains(extra_pr.id()), "second pr followed");
     }
 }
