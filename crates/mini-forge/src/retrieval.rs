@@ -172,11 +172,11 @@ const RELEASE_EDGES: &[Forward] = &[
 const COMMIT_EDGES: &[Forward] = &[one("tree", &[TREE])];
 // `part` belongs to superblocks; a manifest's verifier reads only `chunk`.
 const MANIFEST_EDGES: &[Forward] = &[many("chunk", &[Kind::Named("mini/chunk")])];
-const TREE_ENTRY_KINDS: &[Kind] = &[
-    TREE,
-    Kind::Named(FILE_TYPE),
-    Kind::Named(EXECUTABLE_FILE_TYPE),
-];
+// A directory entry must target a tree; a file entry must target a file blob
+// (`checkout` rejects a commit that mixes them), so the type is bound to the
+// entry's `is_dir` flag rather than accepting either for both.
+const TREE_DIR_KINDS: &[Kind] = &[TREE];
+const TREE_FILE_KINDS: &[Kind] = &[Kind::Named(FILE_TYPE), Kind::Named(EXECUTABLE_FILE_TYPE)];
 // The verifier and resolver read a PR's first `head`/`base` link. Its
 // `project` link is not traversed: `in_project` already requires it to name
 // the release's own project, which is selected.
@@ -327,7 +327,12 @@ fn select_closure<S: ObjectSource>(store: &S, release_id: &ObjectId) -> Result<V
                     Err(_) if lenient => continue,
                     Err(e) => return Err(e),
                 };
-                if TREE_ENTRY_KINDS
+                let allowed = if entry.is_dir {
+                    TREE_DIR_KINDS
+                } else {
+                    TREE_FILE_KINDS
+                };
+                if allowed
                     .iter()
                     .any(|k| k.matches(&target_object.object_type))
                 {
@@ -1211,5 +1216,61 @@ mod tests {
             !ids.contains(absent.id()),
             "an object this store never held cannot be offered"
         );
+    }
+
+    #[test]
+    fn tree_entry_target_types_are_bound_to_the_directory_flag() {
+        let (human, device) = identity(29);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        // An unrelated stored tree and a real file.
+        let stray_tree = crate::put_tree(&mut store, &human.did(), &device, &[]).unwrap();
+        let file = ObjectBuilder::new(ObjectType::Custom(FILE_TYPE.to_string()))
+            .payload(Payload::Public(vec![1]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&file).unwrap();
+        // Hand-built tree: entry `a` is marked a FILE but targets the stray
+        // tree; entry `b` is marked a DIRECTORY but targets the file.
+        let entry = |is_dir: u8, name: &str, target: &ObjectId| {
+            let mut e = vec![is_dir];
+            e.extend_from_slice(&(name.len() as u32).to_be_bytes());
+            e.extend_from_slice(name.as_bytes());
+            e.extend_from_slice(&(target.as_str().len() as u32).to_be_bytes());
+            e.extend_from_slice(target.as_str().as_bytes());
+            e
+        };
+        let mut payload = 2u32.to_be_bytes().to_vec();
+        payload.extend(entry(0, "a", &stray_tree));
+        payload.extend(entry(1, "b", file.id()));
+        let tree = ObjectBuilder::new(ObjectType::Custom(TREE_TYPE.to_string()))
+            .payload(Payload::Public(payload))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&tree).unwrap();
+        let commit = object(
+            ObjectType::COMMIT,
+            &human.did(),
+            &device,
+            &[("tree", tree.id())],
+        );
+        store.insert(&commit).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("commit", commit.id())],
+        );
+        store.insert(&release).unwrap();
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(ids.contains(tree.id()));
+        assert!(!ids.contains(&stray_tree), "file entry served a tree");
+        assert!(!ids.contains(file.id()), "directory entry served a file");
     }
 }

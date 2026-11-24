@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15913
+    "rust_symbols": 15915
   },
   "crates": {
     "askama_derive": {
@@ -56615,7 +56615,7 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 44490,
+      "bytes": 47260,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -56644,9 +56644,9 @@
         "clone",
         "received"
       ],
-      "lines": 1216,
+      "lines": 1277,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "e2bcfe6be966128f8a40fd1248c27fb025121e6970bf4720c874bf0e30ab23ee",
+      "sha256": "2039d696f9c979599ba7aa43c4f709d7fa4918ef6eed5508f474cdab45e1a93e",
       "symbols": [
         {
           "kind": "const",
@@ -56790,8 +56790,13 @@
         },
         {
           "kind": "const",
-          "line": 175,
-          "name": "TREE_ENTRY_KINDS"
+          "line": 178,
+          "name": "TREE_DIR_KINDS"
+        },
+        {
+          "kind": "const",
+          "line": 179,
+          "name": "TREE_FILE_KINDS"
         },
         {
           "kind": "const",
@@ -56840,83 +56845,88 @@
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 402,
           "name": "in_project"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 427,
           "name": "enqueue"
         },
         {
           "kind": "mod",
-          "line": 440,
+          "line": 445,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 447,
+          "line": 452,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 461,
+          "line": 466,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 475,
+          "line": 480,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
         },
         {
           "kind": "fn",
-          "line": 594,
+          "line": 599,
           "name": "approval_extra_reviewed_link_does_not_widen_closure"
         },
         {
           "kind": "fn",
-          "line": 637,
+          "line": 642,
           "name": "forward_targets_must_be_the_type_the_relation_means"
         },
         {
           "kind": "fn",
-          "line": 662,
+          "line": 667,
           "name": "reverse_candidates_are_admitted_by_type_but_their_forward_edges_stay_scoped"
         },
         {
           "kind": "fn",
-          "line": 739,
+          "line": 744,
           "name": "amendment_approvals_and_payload_tree_targets_are_in_the_closure"
         },
         {
           "kind": "fn",
-          "line": 813,
+          "line": 818,
           "name": "manifest_part_links_and_odd_relation_names_follow_the_verifier"
         },
         {
           "kind": "fn",
-          "line": 865,
+          "line": 870,
           "name": "closure_from_received_objects_matches_and_rejects_unrelated_extras"
         },
         {
           "kind": "fn",
-          "line": 898,
+          "line": 903,
           "name": "a_resolver_valid_chain_entry_with_a_repeated_project_link_is_offered"
         },
         {
           "kind": "fn",
-          "line": 941,
+          "line": 946,
           "name": "first_link_semantics_and_terminal_attestations_match_the_verifiers"
         },
         {
           "kind": "fn",
-          "line": 1031,
+          "line": 1036,
           "name": "verifier_unused_edges_and_non_resolver_chain_candidates_are_not_offered"
         },
         {
           "kind": "fn",
-          "line": 1135,
+          "line": 1140,
           "name": "ignored_prev_targets_and_malformed_candidates_do_not_widen_or_abort_retrieval"
+        },
+        {
+          "kind": "fn",
+          "line": 1222,
+          "name": "tree_entry_target_types_are_bound_to_the_directory_flag"
         }
       ],
       "title": "use std::borrow::Cow;"
@@ -117839,7 +117849,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1633788,
+      "bytes": 1633923,
       "group": "docs",
       "headings": [
         {
@@ -118271,7 +118281,7 @@
       ],
       "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "3bbe578163fc1150cfd1b7ac9cb97099d1e3f0401a67368207f5f389ff9b2d59",
+      "sha256": "16384a8fa425b7d66be7c5124faf5d195a8df40eda76baa8d1332570743ba489",
       "symbols": [],
       "title": "Decision Log"
     },
