@@ -641,6 +641,28 @@ pub fn request_retrieval<B: Backend>(
     cache: &mut KelCache,
     seeds: &[ObjectId],
 ) -> Result<RetrievalReport> {
+    request_retrieval_checked(bearer, chan, store, cache, seeds, None)
+}
+
+/// Closure check applied by [`request_retrieval_checked`] to the objects a
+/// responder actually sent: it returns the ids those objects justify as the
+/// requested closure (for a release, the same selector the server runs).
+pub type ClosureCheck<'a> = &'a dyn Fn(Vec<Object>) -> Result<Vec<ObjectId>>;
+
+/// Like [`request_retrieval`], but the responder's advertised id list is not
+/// trusted as the allow-list: when `check` is given, the closure it derives
+/// from the received objects must equal the advertised list exactly, or the
+/// transfer fails with [`SyncError::RetrievalIncomplete`] before anything is
+/// stored. Without `check` the responder's list is the allow-list (the
+/// original behavior).
+pub fn request_retrieval_checked<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &mut Store<B>,
+    cache: &mut KelCache,
+    seeds: &[ObjectId],
+    check: Option<ClosureCheck<'_>>,
+) -> Result<RetrievalReport> {
     if seeds.is_empty() || seeds.len() > MAX_RETRIEVAL_OBJECTS {
         return Err(SyncError::LimitExceeded);
     }
@@ -680,6 +702,16 @@ pub fn request_retrieval<B: Backend>(
             Msg::Objects(objects) if objects.is_empty() => break,
             Msg::Objects(objects) => {
                 for object in objects {
+                    // A real object is never empty, and the responder was
+                    // asked for exactly `selected`, so it can send no more
+                    // bodies than that: empty or surplus bodies cost no byte
+                    // budget and would otherwise be buffered without bound.
+                    if object.is_empty() {
+                        return Err(SyncError::Protocol);
+                    }
+                    if received_bytes.len() >= selected.len() {
+                        return Err(SyncError::LimitExceeded);
+                    }
                     budget = budget
                         .checked_sub(object.len())
                         .ok_or(SyncError::LimitExceeded)?;
@@ -687,6 +719,37 @@ pub fn request_retrieval<B: Backend>(
                 }
             }
             _ => return Err(SyncError::Protocol),
+        }
+    }
+
+    // Fail closed on an incomplete transfer before anything is stored: every
+    // selected id must actually have arrived as a decodable object. A server
+    // that advertises a closure and then ends the stream early (or substitutes
+    // junk for a member) must not leave a partial closure behind.
+    let arrived: std::collections::BTreeSet<String> = received_bytes
+        .iter()
+        .filter_map(|bytes| Object::from_bytes(bytes).ok())
+        .map(|object| object.id().as_str().to_string())
+        .collect();
+    if selected.iter().any(|id| !arrived.contains(id)) {
+        return Err(SyncError::RetrievalIncomplete);
+    }
+
+    if let Some(check) = check {
+        // Only objects the responder advertised take part; anything else is
+        // dropped by ingest anyway.
+        let decoded: Vec<Object> = received_bytes
+            .iter()
+            .filter_map(|bytes| Object::from_bytes(bytes).ok())
+            .filter(|object| selected.iter().any(|id| id == object.id().as_str()))
+            .collect();
+        let derived: std::collections::BTreeSet<String> = check(decoded)?
+            .iter()
+            .map(|id| id.as_str().to_string())
+            .collect();
+        let advertised: std::collections::BTreeSet<String> = selected.iter().cloned().collect();
+        if derived != advertised {
+            return Err(SyncError::RetrievalIncomplete);
         }
     }
 
@@ -1012,5 +1075,328 @@ mod paged_tests {
         assert!(third.complete);
         assert_eq!(third.received, 0);
         assert_eq!(client_store.all_ids().unwrap().len(), 4);
+    }
+}
+
+/// Adversarial coverage of the shared verify-before-insert step that exact
+/// release retrieval uses (issue #268): objects the client never asked for,
+/// tampered bytes and unknown authors must not reach the store.
+#[cfg(test)]
+mod retrieval_ingest_tests {
+    use super::*;
+    use did_mini::{Capabilities, Controller};
+    use mini_objects::{ObjectBuilder, Payload};
+    use mini_store::MemoryBackend;
+
+    fn author(seed: u8) -> (Controller, Controller) {
+        let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+        let device = Controller::incept_device_single_from_seeds(
+            &root.did(),
+            &[seed + 2; 32],
+            &[seed + 3; 32],
+        )
+        .unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        (root, device)
+    }
+
+    fn post(root: &Controller, device: &Controller, text: &[u8], seq: u64) -> Object {
+        ObjectBuilder::new(ObjectType::POST)
+            .timestamp_ms(1_000)
+            .sequence(seq)
+            .payload(Payload::Public(text.to_vec()))
+            .sign(&root.did(), device)
+            .unwrap()
+    }
+
+    fn trusting(root: &Controller, device: &Controller) -> KelCache {
+        let mut cache = KelCache::new();
+        cache.insert_verified(root.kel());
+        cache.insert_verified(device.kel());
+        cache
+    }
+
+    #[test]
+    fn an_object_outside_the_allow_list_is_dropped_before_decoding_into_the_store() {
+        let (root, device) = author(10);
+        let wanted = post(&root, &device, b"wanted", 1);
+        let extra = post(&root, &device, b"extra", 2);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![wanted.to_bytes(), extra.to_bytes()],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.received, 2);
+        assert_eq!(report.accepted, 1);
+        assert_eq!(report.unsolicited, 1);
+        assert!(store.get(extra.id()).is_err(), "unsolicited object stored");
+        assert!(store.get(wanted.id()).is_ok());
+    }
+
+    #[test]
+    fn tampered_bytes_never_reach_the_store() {
+        let (root, device) = author(20);
+        let wanted = post(&root, &device, b"honest content", 1);
+        let mut bytes = wanted.to_bytes();
+        // Flip a bit inside the payload: the id no longer matches the bytes,
+        // so the object is either undecodable or not the requested one.
+        let at = bytes.len() / 2;
+        bytes[at] ^= 0x01;
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![bytes],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.accepted, 0, "tampered object accepted");
+        assert!(store.get(wanted.id()).is_err());
+    }
+
+    #[test]
+    fn an_author_the_client_never_trusted_is_refused_even_when_the_object_was_asked_for() {
+        let (root, device) = author(30);
+        let wanted = post(&root, &device, b"from a stranger", 1);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = KelCache::new(); // explicit local trust: none
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![wanted.to_bytes()],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.accepted, 0);
+        assert_eq!(report.unknown_author, 1);
+        assert!(store.get(wanted.id()).is_err());
+    }
+
+    #[test]
+    fn garbage_bytes_are_counted_invalid_and_never_panic() {
+        let (root, device) = author(40);
+        let wanted = post(&root, &device, b"real", 1);
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let report = ingest_objects(
+            &mut store,
+            &mut cache,
+            vec![vec![], vec![0xff; 17], wanted.to_bytes()[..9].to_vec()],
+            &[wanted.id().as_str().to_string()],
+        )
+        .unwrap();
+        assert_eq!(report.invalid, 3);
+        assert_eq!(report.accepted, 0);
+    }
+
+    /// A connected pair of channels for driving both ends by hand.
+    fn wired() -> (
+        mini_bearer::InProcessBearer,
+        Channel,
+        mini_bearer::InProcessBearer,
+        Channel,
+    ) {
+        let (client, server) = mini_bearer::pair();
+        let (init, hello) = mini_bearer::Initiator::start().unwrap();
+        let (server_channel, response) = mini_bearer::Responder::respond(&hello).unwrap();
+        let client_channel = init.finish(&response).unwrap();
+        (client, client_channel, server, server_channel)
+    }
+
+    fn ids(count: usize) -> Vec<ObjectId> {
+        let (root, device) = author(50);
+        (0..count)
+            .map(|n| {
+                post(&root, &device, format!("p{n}").as_bytes(), n as u64)
+                    .id()
+                    .clone()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_client_refuses_to_ask_for_more_than_the_one_shot_bound() {
+        let (mut client, mut client_channel, _server, _server_channel) = wired();
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = KelCache::new();
+        let result = request_retrieval(
+            &mut client,
+            &mut client_channel,
+            &mut store,
+            &mut cache,
+            &ids(MAX_RETRIEVAL_OBJECTS + 1),
+        );
+        assert!(matches!(result, Err(SyncError::LimitExceeded)));
+    }
+
+    #[test]
+    fn the_responder_refuses_a_request_over_the_bound_and_a_duplicate_request() {
+        let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+        // A hostile client sends more seeds than allowed, bypassing its own check.
+        let oversized: Vec<String> = ids(MAX_RETRIEVAL_OBJECTS + 1)
+            .iter()
+            .map(|id| id.as_str().to_string())
+            .collect();
+        send(&mut client, &mut client_channel, &Msg::Want(oversized)).unwrap();
+        // Refused either by the message-size bound or the seed-count bound.
+        assert!(matches!(
+            receive_retrieval_request(&mut server, &mut server_channel),
+            Err(SyncError::LimitExceeded | SyncError::Protocol)
+        ));
+        // Duplicate seeds are refused too.
+        let one = ids(1)[0].as_str().to_string();
+        send(
+            &mut client,
+            &mut client_channel,
+            &Msg::Want(vec![one.clone(), one]),
+        )
+        .unwrap();
+        assert!(matches!(
+            receive_retrieval_request(&mut server, &mut server_channel),
+            Err(SyncError::Protocol)
+        ));
+    }
+
+    #[test]
+    fn empty_and_surplus_response_bodies_are_refused_and_store_nothing() {
+        for surplus in [Vec::new(), vec![1u8]] {
+            let (root, device) = author(80);
+            let wanted = post(&root, &device, b"wanted", 1);
+            let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+            let wanted_id = wanted.id().as_str().to_string();
+            let wanted_bytes = wanted.to_bytes();
+            let extra = surplus.clone();
+            let server_thread = std::thread::spawn(move || {
+                // Hostile server: advertise one object, then send it plus an
+                // extra body (empty, or a second non-empty one).
+                let _ = recv(&mut server, &mut server_channel).unwrap();
+                send(&mut server, &mut server_channel, &Msg::Ids(vec![wanted_id])).unwrap();
+                let _ = recv(&mut server, &mut server_channel).unwrap();
+                let _ = send(
+                    &mut server,
+                    &mut server_channel,
+                    &Msg::Objects(vec![wanted_bytes, extra]),
+                );
+                let _ = send(&mut server, &mut server_channel, &Msg::Objects(Vec::new()));
+            });
+            let mut store = Store::new(MemoryBackend::new());
+            let mut cache = trusting(&root, &device);
+            let result = request_retrieval(
+                &mut client,
+                &mut client_channel,
+                &mut store,
+                &mut cache,
+                std::slice::from_ref(wanted.id()),
+            );
+            server_thread.join().unwrap();
+            assert!(matches!(
+                result,
+                Err(SyncError::Protocol | SyncError::LimitExceeded)
+            ));
+            assert!(store.get(wanted.id()).is_err(), "partial closure stored");
+        }
+    }
+
+    #[test]
+    fn a_checked_retrieval_refuses_a_responder_closure_with_unrelated_ids_and_stores_nothing() {
+        let (root, device) = author(70);
+        let wanted = post(&root, &device, b"wanted", 1);
+        let extra = post(&root, &device, b"unrelated but trusted author", 2);
+        let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+        let (wanted_id, extra_id) = (
+            wanted.id().as_str().to_string(),
+            extra.id().as_str().to_string(),
+        );
+        let (wanted_bytes, extra_bytes) = (wanted.to_bytes(), extra.to_bytes());
+        let server_thread = std::thread::spawn(move || {
+            // Hostile server: advertise the seed plus an unrelated object.
+            let _ = recv(&mut server, &mut server_channel).unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Ids(vec![wanted_id, extra_id]),
+            )
+            .unwrap();
+            let _ = recv(&mut server, &mut server_channel).unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Objects(vec![wanted_bytes, extra_bytes]),
+            )
+            .unwrap();
+            send(&mut server, &mut server_channel, &Msg::Objects(Vec::new())).unwrap();
+        });
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        // The closure derived from what was received is just the seed.
+        let seed = wanted.id().clone();
+        let check = move |_: Vec<Object>| Ok(vec![seed.clone()]);
+        let result = request_retrieval_checked(
+            &mut client,
+            &mut client_channel,
+            &mut store,
+            &mut cache,
+            std::slice::from_ref(wanted.id()),
+            Some(&check),
+        );
+        server_thread.join().unwrap();
+        assert!(matches!(result, Err(SyncError::RetrievalIncomplete)));
+        assert!(store.get(wanted.id()).is_err() && store.get(extra.id()).is_err());
+    }
+
+    #[test]
+    fn a_server_that_advertises_a_closure_and_ends_the_stream_early_leaves_nothing_behind() {
+        let (root, device) = author(60);
+        let first = post(&root, &device, b"first", 1);
+        let second = post(&root, &device, b"second", 2);
+        let (mut client, mut client_channel, mut server, mut server_channel) = wired();
+        let (first_id, second_id) = (
+            first.id().as_str().to_string(),
+            second.id().as_str().to_string(),
+        );
+        let first_bytes = first.to_bytes();
+        let server_thread = std::thread::spawn(move || {
+            // Hostile server: advertise both objects, serve only the first.
+            let wanted = match recv(&mut server, &mut server_channel).unwrap() {
+                Msg::Want(ids) => ids,
+                _ => panic!("expected a request"),
+            };
+            assert_eq!(wanted.len(), 1);
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Ids(vec![first_id.clone(), second_id]),
+            )
+            .unwrap();
+            let _ = recv(&mut server, &mut server_channel).unwrap();
+            send(
+                &mut server,
+                &mut server_channel,
+                &Msg::Objects(vec![first_bytes]),
+            )
+            .unwrap();
+            send(&mut server, &mut server_channel, &Msg::Objects(Vec::new())).unwrap();
+        });
+        let mut store = Store::new(MemoryBackend::new());
+        let mut cache = trusting(&root, &device);
+        let result = request_retrieval(
+            &mut client,
+            &mut client_channel,
+            &mut store,
+            &mut cache,
+            std::slice::from_ref(first.id()),
+        );
+        server_thread.join().unwrap();
+        assert!(matches!(result, Err(SyncError::RetrievalIncomplete)));
+        assert!(
+            store.get(first.id()).is_err(),
+            "a partial closure must not be left in the store"
+        );
     }
 }
