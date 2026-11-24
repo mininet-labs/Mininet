@@ -62,8 +62,21 @@ mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 # October 22 security patch: RUSTSEC-2026-0378 and -0379 fix component
 # host-stream panics and aarch64 br_table code generation respectively.
 # Keep the isolated runtime and WASI packages on the same patched release.
-wasmtime = { version = "=48.0.8", default-features = false, features = ["cranelift", "runtime", "std"] }
-wasmtime-wasi = { version = "=48.0.8", default-features = false }
+#
+# Bumped 48.0.8 -> 48.0.10 (2026-11-24, reviewed commit, re-ran the Batch
+# 2b.3 adversarial suite: 12 of 12 criteria pass): RUSTSEC-2026-0566 through
+# -0573 (unbounded host memory via empty `AsyncWriteStream` writes, aborts
+# in builds without the `threads`/`gc` features, a stale GC heap base pointer
+# that lets a guest abort the host, a `Caller::get_module_export` panic, and
+# related traps) were disclosed against 48.0.8, and RUSTSEC-2026-0587 (WASI
+# filesystem sandbox escape on Windows through a drive-prefixed path
+# component) against `wasmtime-wasi` 48.0.8. The last is again the exact
+# boundary this crate exists to enforce. Solution range for all of them
+# (>=48.0.10, <49.0.0) is satisfied by this patch bump alone -- no WASI
+# Preview 2 API surface change. `url` 2.5.8 -> 2.5.9 rides in the same lock
+# update (RUSTSEC-2026-0592).
+wasmtime = { version = "=48.0.10", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=48.0.10", default-features = false }
 # `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
 # implements `rand_core::TryRng<Error = Infallible>`, which blanket-
 # implements the `Rng` trait `WasiCtxBuilder::secure_random`/
