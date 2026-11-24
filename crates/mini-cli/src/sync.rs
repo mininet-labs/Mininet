@@ -227,7 +227,7 @@ pub fn retrieve_release(
     // from the objects it actually sent, by the same selector the serving
     // side runs, must equal it exactly before anything is stored.
     let release = release_id.clone();
-    let check = move |objects: &[mini_objects::Object]| {
+    let check = move |objects: Vec<mini_objects::Object>| {
         mini_forge::release_closure_from_objects(objects, &release)
             .map_err(|_| mini_sync::SyncError::RetrievalIncomplete)
     };
@@ -249,6 +249,14 @@ pub fn serve_release(store_path: &Path, addr: &str) -> Result<ServeReleaseReport
     let store = open_store(store_path)?;
     let listener = TcpListener::bind(addr).map_err(|e| CliError::Io(e.to_string()))?;
     let (stream, peer) = listener.accept().map_err(|e| CliError::Io(e.to_string()))?;
+    // A client that connects and then stalls must not hold the one-shot
+    // serving session open forever.
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(30)))
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_secs(30)))
+        .map_err(|e| CliError::Sync(e.to_string()))?;
     let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
 
     let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;

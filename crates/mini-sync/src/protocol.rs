@@ -647,7 +647,7 @@ pub fn request_retrieval<B: Backend>(
 /// Closure check applied by [`request_retrieval_checked`] to the objects a
 /// responder actually sent: it returns the ids those objects justify as the
 /// requested closure (for a release, the same selector the server runs).
-pub type ClosureCheck<'a> = &'a dyn Fn(&[Object]) -> Result<Vec<ObjectId>>;
+pub type ClosureCheck<'a> = &'a dyn Fn(Vec<Object>) -> Result<Vec<ObjectId>>;
 
 /// Like [`request_retrieval`], but the responder's advertised id list is not
 /// trusted as the allow-list: when `check` is given, the closure it derives
@@ -733,7 +733,7 @@ pub fn request_retrieval_checked<B: Backend>(
             .filter_map(|bytes| Object::from_bytes(bytes).ok())
             .filter(|object| selected.iter().any(|id| id == object.id().as_str()))
             .collect();
-        let derived: std::collections::BTreeSet<String> = check(&decoded)?
+        let derived: std::collections::BTreeSet<String> = check(decoded)?
             .iter()
             .map(|id| id.as_str().to_string())
             .collect();
@@ -1286,7 +1286,7 @@ mod retrieval_ingest_tests {
         let mut cache = trusting(&root, &device);
         // The closure derived from what was received is just the seed.
         let seed = wanted.id().clone();
-        let check = move |_: &[Object]| Ok(vec![seed.clone()]);
+        let check = move |_: Vec<Object>| Ok(vec![seed.clone()]);
         let result = request_retrieval_checked(
             &mut client,
             &mut client_channel,

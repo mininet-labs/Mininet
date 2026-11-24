@@ -3,7 +3,7 @@
     "crates": 96,
     "files": 1313,
     "headings": 4365,
-    "rust_symbols": 15899
+    "rust_symbols": 15911
   },
   "crates": {
     "askama_derive": {
@@ -16592,7 +16592,7 @@
       "title": "use did_mini::Controller;"
     },
     {
-      "bytes": 9080,
+      "bytes": 10155,
       "group": "crate:mini-beta",
       "headings": [],
       "keywords": [
@@ -16621,9 +16621,9 @@
         "parse",
         "rebuilt"
       ],
-      "lines": 281,
+      "lines": 304,
       "path": "crates/mini-beta/tests/strict_parsing.rs",
-      "sha256": "6a4a23a89414612fe4e7fd717ece8638bf279a74990cd3c461d9094d5646c1a1",
+      "sha256": "9d40261ce745e809e85743b37122b01b1210e34d6ea34709b68cfbd3a890495d",
       "symbols": [
         {
           "kind": "fn",
@@ -16682,12 +16682,12 @@
         },
         {
           "kind": "fn",
-          "line": 225,
+          "line": 248,
           "name": "a_wrong_object_type_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 275,
           "name": "oversized_text_fields_fail_closed"
         }
       ],
@@ -27170,7 +27170,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 20809,
+      "bytes": 21188,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -27199,9 +27199,9 @@
         "exactly",
         "already"
       ],
-      "lines": 511,
+      "lines": 519,
       "path": "crates/mini-cli/src/sync.rs",
-      "sha256": "c41c255ce28b7a928952aef04533c822c4da716faca5949ab5604075c1e37164",
+      "sha256": "02d4bf6525b60fb96c0244a3f8361da7025222271f9a6afe9126cb7a2fa02939",
       "symbols": [
         {
           "kind": "fn",
@@ -27245,27 +27245,27 @@
         },
         {
           "kind": "const",
-          "line": 351,
+          "line": 359,
           "name": "SESSION_AAD"
         },
         {
           "kind": "const",
-          "line": 352,
+          "line": 360,
           "name": "SESSION_TYPE"
         },
         {
           "kind": "const",
-          "line": 353,
+          "line": 361,
           "name": "MAX_SESSION_PROOF"
         },
         {
           "kind": "fn",
-          "line": 363,
+          "line": 371,
           "name": "proof_payload"
         },
         {
           "kind": "fn",
-          "line": 436,
+          "line": 444,
           "name": "connect_authenticated_report"
         }
       ],
@@ -56615,246 +56615,306 @@
       "title": "use crate::{parse_release_payload, ForgeError, Result};"
     },
     {
-      "bytes": 33144,
+      "bytes": 39926,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
-        "kind",
-        "forward",
-        "const",
-        "project",
-        "first",
-        "many",
-        "mode",
-        "release",
-        "one",
-        "commit",
-        "named",
-        "static",
         "object",
+        "kind",
+        "objectid",
+        "self",
+        "release",
+        "result",
+        "objects",
+        "hashmap",
+        "mini_objects",
         "objecttype",
-        "rel",
-        "kinds",
-        "tree",
-        "store",
+        "vec",
+        "objectsource",
+        "linking",
+        "cow",
+        "named",
         "retrieval",
-        "chain",
         "closure",
-        "str",
-        "matches",
-        "peer"
+        "peer",
+        "store",
+        "const",
+        "by_id",
+        "incoming",
+        "clone",
+        "received"
       ],
-      "lines": 947,
+      "lines": 1113,
       "path": "crates/mini-forge/src/retrieval.rs",
-      "sha256": "9e1c495be010e251cdf430befc7d15e9e44ed80dce85972dad1b0ee54e24ce4d",
+      "sha256": "5615730501e459c981356d88028b7c6dbbf7d82f3bb8a179011e482f4a9c021c",
       "symbols": [
         {
           "kind": "const",
-          "line": 30,
+          "line": 31,
           "name": "MAX_RELEASE_RETRIEVAL_OBJECTS"
         },
         {
           "kind": "fn",
-          "line": 36,
+          "line": 39,
           "name": "release_closure_from_objects"
         },
         {
-          "kind": "enum",
-          "line": 49,
-          "name": "Kind"
-        },
-        {
-          "kind": "impl",
-          "line": 56,
-          "name": "Kind"
+          "kind": "trait",
+          "line": 62,
+          "name": "ObjectSource"
         },
         {
           "kind": "fn",
-          "line": 57,
-          "name": "matches"
-        },
-        {
-          "kind": "enum",
-          "line": 72,
-          "name": "Mode"
-        },
-        {
-          "kind": "struct",
-          "line": 80,
-          "name": "Forward"
-        },
-        {
-          "kind": "const",
-          "line": 86,
-          "name": "PROJECT"
-        },
-        {
-          "kind": "const",
-          "line": 87,
-          "name": "PR"
-        },
-        {
-          "kind": "const",
-          "line": 88,
-          "name": "CHAIN"
-        },
-        {
-          "kind": "const",
-          "line": 89,
-          "name": "TREE"
-        },
-        {
-          "kind": "fn",
-          "line": 91,
-          "name": "owner_is"
-        },
-        {
-          "kind": "fn",
-          "line": 95,
-          "name": "one"
-        },
-        {
-          "kind": "fn",
-          "line": 102,
-          "name": "first"
-        },
-        {
-          "kind": "fn",
-          "line": 109,
-          "name": "many"
-        },
-        {
-          "kind": "const",
-          "line": 119,
-          "name": "RELEASE_EDGES"
-        },
-        {
-          "kind": "const",
-          "line": 124,
-          "name": "COMMIT_EDGES"
-        },
-        {
-          "kind": "const",
-          "line": 126,
-          "name": "MANIFEST_EDGES"
-        },
-        {
-          "kind": "const",
-          "line": 127,
-          "name": "TREE_ENTRY_KINDS"
-        },
-        {
-          "kind": "const",
-          "line": 132,
-          "name": "PR_EDGES"
-        },
-        {
-          "kind": "const",
-          "line": 141,
-          "name": "CHAIN_EDGES"
-        },
-        {
-          "kind": "const",
-          "line": 146,
-          "name": "APPROVE_EDGES"
-        },
-        {
-          "kind": "const",
-          "line": 149,
-          "name": "ATTEST_EDGES"
-        },
-        {
-          "kind": "fn",
-          "line": 152,
-          "name": "forward_edges"
-        },
-        {
-          "kind": "struct",
-          "line": 177,
-          "name": "Reverse"
-        },
-        {
-          "kind": "const",
-          "line": 182,
-          "name": "REVERSE_EDGES"
-        },
-        {
-          "kind": "fn",
-          "line": 227,
-          "name": "release_retrieval_ids"
-        },
-        {
-          "kind": "fn",
-          "line": 313,
-          "name": "in_project"
-        },
-        {
-          "kind": "fn",
-          "line": 338,
-          "name": "enqueue"
-        },
-        {
-          "kind": "mod",
-          "line": 355,
-          "name": "tests"
-        },
-        {
-          "kind": "fn",
-          "line": 362,
-          "name": "identity"
-        },
-        {
-          "kind": "fn",
-          "line": 376,
+          "line": 63,
           "name": "object"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 64,
+          "name": "linking"
+        },
+        {
+          "kind": "impl",
+          "line": 67,
+          "name": "ObjectSource"
+        },
+        {
+          "kind": "fn",
+          "line": 68,
+          "name": "object"
+        },
+        {
+          "kind": "fn",
+          "line": 71,
+          "name": "linking"
+        },
+        {
+          "kind": "struct",
+          "line": 76,
+          "name": "Received"
+        },
+        {
+          "kind": "impl",
+          "line": 81,
+          "name": "ObjectSource"
+        },
+        {
+          "kind": "fn",
+          "line": 82,
+          "name": "object"
+        },
+        {
+          "kind": "fn",
+          "line": 88,
+          "name": "linking"
+        },
+        {
+          "kind": "enum",
+          "line": 95,
+          "name": "Kind"
+        },
+        {
+          "kind": "impl",
+          "line": 102,
+          "name": "Kind"
+        },
+        {
+          "kind": "fn",
+          "line": 103,
+          "name": "matches"
+        },
+        {
+          "kind": "enum",
+          "line": 118,
+          "name": "Mode"
+        },
+        {
+          "kind": "struct",
+          "line": 126,
+          "name": "Forward"
+        },
+        {
+          "kind": "const",
+          "line": 132,
+          "name": "PROJECT"
+        },
+        {
+          "kind": "const",
+          "line": 133,
+          "name": "PR"
+        },
+        {
+          "kind": "const",
+          "line": 134,
+          "name": "CHAIN"
+        },
+        {
+          "kind": "const",
+          "line": 135,
+          "name": "TREE"
+        },
+        {
+          "kind": "fn",
+          "line": 137,
+          "name": "owner_is"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "one"
+        },
+        {
+          "kind": "fn",
+          "line": 148,
+          "name": "first"
+        },
+        {
+          "kind": "fn",
+          "line": 155,
+          "name": "many"
+        },
+        {
+          "kind": "const",
+          "line": 165,
+          "name": "RELEASE_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 172,
+          "name": "COMMIT_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 174,
+          "name": "MANIFEST_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 175,
+          "name": "TREE_ENTRY_KINDS"
+        },
+        {
+          "kind": "const",
+          "line": 181,
+          "name": "PR_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 190,
+          "name": "CHAIN_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 197,
+          "name": "APPROVE_EDGES"
+        },
+        {
+          "kind": "const",
+          "line": 200,
+          "name": "ATTEST_EDGES"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "forward_edges"
+        },
+        {
+          "kind": "struct",
+          "line": 230,
+          "name": "Reverse"
+        },
+        {
+          "kind": "const",
+          "line": 236,
+          "name": "REVERSE_EDGES"
+        },
+        {
+          "kind": "fn",
+          "line": 282,
+          "name": "release_retrieval_ids"
+        },
+        {
+          "kind": "fn",
+          "line": 289,
+          "name": "select_closure"
+        },
+        {
+          "kind": "fn",
+          "line": 377,
+          "name": "in_project"
+        },
+        {
+          "kind": "fn",
+          "line": 402,
+          "name": "enqueue"
+        },
+        {
+          "kind": "mod",
+          "line": 419,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 426,
+          "name": "identity"
+        },
+        {
+          "kind": "fn",
+          "line": 440,
+          "name": "object"
+        },
+        {
+          "kind": "fn",
+          "line": 454,
           "name": "closure_includes_forward_and_verifier_reverse_edges_but_not_noise"
         },
         {
           "kind": "fn",
-          "line": 509,
+          "line": 573,
           "name": "approval_extra_reviewed_link_does_not_widen_closure"
         },
         {
           "kind": "fn",
-          "line": 552,
+          "line": 616,
           "name": "forward_targets_must_be_the_type_the_relation_means"
         },
         {
           "kind": "fn",
-          "line": 577,
+          "line": 641,
           "name": "reverse_candidates_are_admitted_by_type_but_their_forward_edges_stay_scoped"
         },
         {
           "kind": "fn",
-          "line": 654,
+          "line": 718,
           "name": "amendment_approvals_and_payload_tree_targets_are_in_the_closure"
         },
         {
           "kind": "fn",
-          "line": 728,
+          "line": 792,
           "name": "manifest_part_links_and_odd_relation_names_follow_the_verifier"
         },
         {
           "kind": "fn",
-          "line": 780,
+          "line": 844,
           "name": "closure_from_received_objects_matches_and_rejects_unrelated_extras"
         },
         {
           "kind": "fn",
-          "line": 815,
+          "line": 877,
           "name": "a_resolver_valid_chain_entry_with_a_repeated_project_link_is_offered"
         },
         {
           "kind": "fn",
-          "line": 858,
+          "line": 920,
           "name": "first_link_semantics_and_terminal_attestations_match_the_verifiers"
+        },
+        {
+          "kind": "fn",
+          "line": 1010,
+          "name": "verifier_unused_edges_and_non_resolver_chain_candidates_are_not_offered"
         }
       ],
-      "title": "use std::collections::{HashSet, VecDeque};"
+      "title": "use std::borrow::Cow;"
     },
     {
       "bytes": 13186,
@@ -99983,7 +100043,7 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 51194,
+      "bytes": 51197,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
@@ -100014,7 +100074,7 @@
       ],
       "lines": 1353,
       "path": "crates/mini-sync/src/protocol.rs",
-      "sha256": "829eea96e9482b40d43355f6ba8092809b3ea646bcadbb03517d044d29d95b53",
+      "sha256": "6acb9dc9fe1f6f97c78765ff8abab7c64b1f59763743d171fd46f1c80b433556",
       "symbols": [
         {
           "kind": "const",
@@ -117769,7 +117829,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1632214,
+      "bytes": 1632707,
       "group": "docs",
       "headings": [
         {
@@ -118201,7 +118261,7 @@
       ],
       "lines": 26779,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "3af5a3551f10490a88d3e57e60fce18dc1a7f72b7425523699899039a71d7263",
+      "sha256": "a5106d0b127bfabd935370cdd090c9d46c9771ab29077d22e004f6765bef4c9d",
       "symbols": [],
       "title": "Decision Log"
     },

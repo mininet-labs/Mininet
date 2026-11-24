@@ -216,8 +216,31 @@ fn unknown_duplicate_and_missing_links_fail_closed() {
             false,
         );
         assert!(parse(&duplicate).is_err(), "{name}: duplicate link parsed");
-        let missing = rebuilt(&f, object, bytes, &[], true);
-        assert!(parse(&missing).is_err(), "{name}: missing link parsed");
+        // Remove exactly one link at a time, so each required (or
+        // conditionally required) link is shown to matter on its own.
+        for skip in 0..object.links.len() {
+            let mut builder = ObjectBuilder::new(object.object_type.clone())
+                .timestamp_ms(object.timestamp_ms)
+                .sequence(object.sequence)
+                .payload(bytes.clone());
+            for (index, link) in object.links.iter().enumerate() {
+                if index != skip {
+                    builder = builder.link(&link.rel, link.target.clone());
+                }
+            }
+            let missing = builder.sign(&f.signer.did(), &f.signer).unwrap();
+            let rel = object.links[skip].rel.as_str();
+            // A contribution's `campaign` link is optional by design
+            // (`optional_link`); every other link is required.
+            if name == "contribution" && rel == "campaign" {
+                assert!(parse(&missing).is_ok(), "contribution requires campaign");
+            } else {
+                assert!(
+                    parse(&missing).is_err(),
+                    "{name}: parsed without its {rel} link"
+                );
+            }
+        }
     }
 }
 

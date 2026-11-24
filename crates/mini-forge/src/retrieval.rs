@@ -11,7 +11,8 @@
 //! `mini-sync` and then runs [`crate::verify_governed_release`]. A missing or
 //! oversized closure fails closed rather than being silently shortened.
 
-use std::collections::{HashSet, VecDeque};
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use mini_objects::{ObjectId, ObjectType};
 use mini_store::{Backend, Store};
@@ -32,16 +33,61 @@ pub const MAX_RELEASE_RETRIEVAL_OBJECTS: usize = 4096;
 /// Compute the release closure from objects a peer actually sent, using the
 /// same selector as the serving side. The receiver uses this to refuse a
 /// responder-advertised closure that contains anything the release does not
-/// reach. Fails closed if any referenced object is absent.
+/// reach. The objects are consumed into an in-memory index rather than copied
+/// into a second store. Fails closed if any referenced object is absent or an
+/// object does not match its id.
 pub fn release_closure_from_objects(
-    objects: &[mini_objects::Object],
+    objects: Vec<mini_objects::Object>,
     release_id: &ObjectId,
 ) -> Result<Vec<ObjectId>> {
-    let mut store = Store::new(mini_store::MemoryBackend::new());
+    let mut by_id: HashMap<ObjectId, mini_objects::Object> = HashMap::with_capacity(objects.len());
+    let mut incoming: HashMap<ObjectId, Vec<ObjectId>> = HashMap::new();
     for object in objects {
-        store.insert(object)?;
+        object
+            .verify_integrity(object.id())
+            .map_err(|_| ForgeError::BadObject)?;
+        for link in &object.links {
+            incoming
+                .entry(link.target.clone())
+                .or_default()
+                .push(object.id().clone());
+        }
+        by_id.insert(object.id().clone(), object);
     }
-    release_retrieval_ids(&store, release_id)
+    select_closure(&Received { by_id, incoming }, release_id)
+}
+
+/// Where the selector reads objects and the reverse-link index from: a real
+/// store when serving, or the objects a peer sent when checking.
+trait ObjectSource {
+    fn object(&self, id: &ObjectId) -> Result<Cow<'_, mini_objects::Object>>;
+    fn linking(&self, id: &ObjectId) -> Result<Vec<ObjectId>>;
+}
+
+impl<B: Backend> ObjectSource for Store<B> {
+    fn object(&self, id: &ObjectId) -> Result<Cow<'_, mini_objects::Object>> {
+        Ok(Cow::Owned(self.get(id)?))
+    }
+    fn linking(&self, id: &ObjectId) -> Result<Vec<ObjectId>> {
+        Ok(self.linking_to(id)?)
+    }
+}
+
+struct Received {
+    by_id: HashMap<ObjectId, mini_objects::Object>,
+    incoming: HashMap<ObjectId, Vec<ObjectId>>,
+}
+
+impl ObjectSource for Received {
+    fn object(&self, id: &ObjectId) -> Result<Cow<'_, mini_objects::Object>> {
+        self.by_id
+            .get(id)
+            .map(Cow::Borrowed)
+            .ok_or(ForgeError::BadObject)
+    }
+    fn linking(&self, id: &ObjectId) -> Result<Vec<ObjectId>> {
+        Ok(self.incoming.get(id).cloned().unwrap_or_default())
+    }
 }
 
 /// Kind of a typed edge target, matched against the stored object's type.
@@ -121,7 +167,9 @@ const RELEASE_EDGES: &[Forward] = &[
     first("commit", &[Kind::Commit]),
     first("artifact", &[Kind::Manifest]),
 ];
-const COMMIT_EDGES: &[Forward] = &[one("tree", &[TREE]), many("parent", &[Kind::Commit])];
+// Only the tree is needed: release verification validates a commit's `parent`
+// ids structurally but never dereferences them, so parents are not offered.
+const COMMIT_EDGES: &[Forward] = &[one("tree", &[TREE])];
 // `part` belongs to superblocks; a manifest's verifier reads only `chunk`.
 const MANIFEST_EDGES: &[Forward] = &[many("chunk", &[Kind::Named("mini/chunk")])];
 const TREE_ENTRY_KINDS: &[Kind] = &[
@@ -129,10 +177,11 @@ const TREE_ENTRY_KINDS: &[Kind] = &[
     Kind::Named(FILE_TYPE),
     Kind::Named(EXECUTABLE_FILE_TYPE),
 ];
+// The verifier and resolver read a PR's first `project`/`head`/`base` link.
 const PR_EDGES: &[Forward] = &[
-    many("project", &[PROJECT]),
-    one("head", &[Kind::Commit]),
-    one("base", &[Kind::Commit]),
+    first("project", &[PROJECT]),
+    first("head", &[Kind::Commit]),
+    first("base", &[Kind::Commit]),
 ];
 // The resolver reads a chain entry's `project` and `prev` with any-link
 // semantics (so a resolver-valid entry is never omitted) but consumes only the
@@ -143,7 +192,9 @@ const CHAIN_EDGES: &[Forward] = &[
     many("prev", &[CHAIN, PROJECT]),
     first("pr", &[PR]),
 ];
-const APPROVE_EDGES: &[Forward] = &[one("pr", &[PR])];
+// Approvals are terminal evidence, like attestations: they are only ever
+// reached from the PR or chain entry they approve, which is already selected.
+const APPROVE_EDGES: &[Forward] = &[];
 // An attestation is terminal evidence: its `release` link is not traversed, or
 // an attestation reached for release A could pull in release B.
 const ATTEST_EDGES: &[Forward] = &[];
@@ -171,39 +222,43 @@ fn forward_edges(ty: &ObjectType) -> &'static [Forward] {
 
 /// One typed reverse edge: an object of `owner` kind may be reached from
 /// objects of `candidate` kind that link to it. The governed verifiers count
-/// any stored attestation/approval/chain entry that links to the target (they
-/// do not check the relation name), so retrieval must offer the same set;
-/// the candidate's own forward edges stay typed and project-scoped.
+/// any stored attestation or approval that links to the target (they do not
+/// check the relation name), so those are admitted by type alone; the
+/// resolver does require a chain entry's `prev` link, so chain candidates
+/// must link the owner under `prev`. The candidate's own forward edges stay
+/// typed and project-scoped, and attestations and approvals are terminal.
 struct Reverse {
     owner: Kind,
     candidate: Kind,
+    rel: Option<&'static str>,
 }
 
 const REVERSE_EDGES: &[Reverse] = &[
     Reverse {
         owner: Kind::Release,
         candidate: Kind::Named(ATTEST_TYPE),
+        rel: None,
     },
     Reverse {
         owner: PROJECT,
         candidate: CHAIN,
+        rel: Some("prev"),
     },
     Reverse {
         owner: CHAIN,
         candidate: CHAIN,
+        rel: Some("prev"),
     },
-    // Amendment quorum: approvals whose `pr` link targets a chain entry.
+    // Amendment quorum: approvals linking a chain entry.
     Reverse {
         owner: CHAIN,
         candidate: Kind::Named(APPROVE_TYPE),
+        rel: None,
     },
     Reverse {
         owner: PR,
         candidate: Kind::Named(APPROVE_TYPE),
-    },
-    Reverse {
-        owner: PR,
-        candidate: CHAIN,
+        rel: None,
     },
 ];
 
@@ -228,7 +283,11 @@ pub fn release_retrieval_ids<B: Backend>(
     store: &Store<B>,
     release_id: &ObjectId,
 ) -> Result<Vec<ObjectId>> {
-    let release = store.get(release_id)?;
+    select_closure(store, release_id)
+}
+
+fn select_closure<S: ObjectSource>(store: &S, release_id: &ObjectId) -> Result<Vec<ObjectId>> {
+    let release = store.object(release_id)?;
     if release.object_type != ObjectType::RELEASE {
         return Err(ForgeError::BadObject);
     }
@@ -244,14 +303,14 @@ pub fn release_retrieval_ids<B: Backend>(
     let mut seen: HashSet<ObjectId> = HashSet::from([release_id.clone()]);
 
     while let Some(id) = pending.pop_front() {
-        let object = store.get(&id)?;
+        let object = store.object(&id)?;
         selected.push(id.clone());
 
         // A tree's children are the targets its canonical payload names (what
         // `checkout` reads), not whatever its `entry` links claim.
         if TREE.matches(&object.object_type) {
             for entry in crate::read_tree(&object)? {
-                let target_object = store.get(&entry.target)?;
+                let target_object = store.object(&entry.target)?;
                 if TREE_ENTRY_KINDS
                     .iter()
                     .any(|k| k.matches(&target_object.object_type))
@@ -274,7 +333,7 @@ pub fn release_retrieval_ids<B: Backend>(
                 _ => {}
             }
             for target in targets {
-                let target_object = store.get(target)?;
+                let target_object = store.object(target)?;
                 if edge
                     .kinds
                     .iter()
@@ -290,9 +349,14 @@ pub fn release_retrieval_ids<B: Backend>(
             .iter()
             .filter(|e| e.owner.matches(&object.object_type))
         {
-            for candidate_id in store.linking_to(&id)? {
-                let candidate = store.get(&candidate_id)?;
+            for candidate_id in store.linking(&id)? {
+                let candidate = store.object(&candidate_id)?;
+                let links_owner = candidate
+                    .links
+                    .iter()
+                    .any(|l| l.target == id && edge.rel.is_none_or(|rel| l.rel == rel));
                 if !edge.candidate.matches(&candidate.object_type)
+                    || !links_owner
                     || !in_project(&candidate, &candidate_id, &project_id)
                 {
                     continue;
@@ -799,16 +863,14 @@ mod tests {
             .sign(&human.did(), &device)
             .unwrap();
         let derived = release_closure_from_objects(
-            &[project.clone(), release.clone(), unrelated.clone()],
+            vec![project.clone(), release.clone(), unrelated.clone()],
             release.id(),
         )
         .unwrap();
         assert!(derived.contains(release.id()) && derived.contains(project.id()));
         assert!(!derived.contains(unrelated.id()));
         // A missing referenced object fails closed.
-        assert!(
-            release_closure_from_objects(std::slice::from_ref(&release), release.id()).is_err()
-        );
+        assert!(release_closure_from_objects(vec![release.clone()], release.id()).is_err());
     }
 
     #[test]
@@ -942,5 +1004,109 @@ mod tests {
         assert!(!ids.contains(second.id()), "attestation traversed to B");
         assert!(ids.contains(pr.id()), "first pr missing");
         assert!(!ids.contains(extra_pr.id()), "second pr followed");
+    }
+
+    #[test]
+    fn verifier_unused_edges_and_non_resolver_chain_candidates_are_not_offered() {
+        let (human, device) = identity(25);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let tree_id = crate::put_tree(&mut store, &human.did(), &device, &[]).unwrap();
+        // A commit's `parent` is validated structurally but never dereferenced.
+        let parent = ObjectBuilder::new(ObjectType::COMMIT)
+            .link("tree", tree_id.clone())
+            .payload(Payload::Public(vec![1]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&parent).unwrap();
+        let commit = ObjectBuilder::new(ObjectType::COMMIT)
+            .link("tree", tree_id.clone())
+            .link("parent", parent.id().clone())
+            .payload(Payload::Public(vec![2]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&commit).unwrap();
+        // A PR with a second `project`/`head`: only the first is read, and an
+        // absent later target must not abort selection.
+        let pr = ObjectBuilder::new(ObjectType::Custom(PR_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .link("head", commit.id().clone())
+            .link("head", parent.id().clone())
+            .link("base", commit.id().clone())
+            .payload(Payload::Public(vec![4]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&pr).unwrap();
+        // A chain object with a `project` link but no `prev` link to the
+        // project: the resolver requires `prev`, so it is not evidence.
+        let loose_pr = ObjectBuilder::new(ObjectType::Custom(PR_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .payload(Payload::Public(vec![5]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&loose_pr).unwrap();
+        let loose_chain = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("next", project.id()),
+                ("pr", loose_pr.id()),
+            ],
+        );
+        store.insert(&loose_chain).unwrap();
+        // An approval reached as reverse evidence is terminal.
+        let other_pr = ObjectBuilder::new(ObjectType::Custom(PR_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .payload(Payload::Public(vec![6]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&other_pr).unwrap();
+        let approval = object(
+            ObjectType::Custom(APPROVE_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("other", pr.id()), ("pr", other_pr.id())],
+        );
+        store.insert(&approval).unwrap();
+        let chain = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("prev", project.id()),
+                ("pr", pr.id()),
+            ],
+        );
+        store.insert(&chain).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id()), ("commit", commit.id())],
+        );
+        store.insert(&release).unwrap();
+
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(!ids.contains(parent.id()), "commit parent offered");
+        assert!(ids.contains(pr.id()) && ids.contains(chain.id()));
+        assert!(
+            !ids.contains(loose_chain.id()),
+            "chain without prev offered"
+        );
+        assert!(!ids.contains(loose_pr.id()), "pr of loose chain offered");
+        assert!(ids.contains(approval.id()), "approval of the PR missing");
+        assert!(
+            !ids.contains(other_pr.id()),
+            "approval traversed its pr link"
+        );
     }
 }
