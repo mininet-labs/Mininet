@@ -177,21 +177,19 @@ const TREE_ENTRY_KINDS: &[Kind] = &[
     Kind::Named(FILE_TYPE),
     Kind::Named(EXECUTABLE_FILE_TYPE),
 ];
-// The verifier and resolver read a PR's first `project`/`head`/`base` link.
+// The verifier and resolver read a PR's first `head`/`base` link. Its
+// `project` link is not traversed: `in_project` already requires it to name
+// the release's own project, which is selected.
 const PR_EDGES: &[Forward] = &[
-    first("project", &[PROJECT]),
     first("head", &[Kind::Commit]),
     first("base", &[Kind::Commit]),
 ];
-// The resolver reads a chain entry's `project` and `prev` with any-link
-// semantics (so a resolver-valid entry is never omitted) but consumes only the
-// first `pr` link, so a second PR is never traversed. Targets stay typed and
-// project-scoped.
-const CHAIN_EDGES: &[Forward] = &[
-    many("project", &[PROJECT]),
-    many("prev", &[CHAIN, PROJECT]),
-    first("pr", &[PR]),
-];
+// The resolver consumes a chain entry's first `pr` link only. Its `project`
+// and `prev` links are not traversed: the project is already selected,
+// and chain history is discovered through the reverse `prev` index (a forward
+// `prev` target the resolver never dereferences must not pull in an unrelated
+// chain).
+const CHAIN_EDGES: &[Forward] = &[first("pr", &[PR])];
 // Approvals are terminal evidence, like attestations: they are only ever
 // reached from the PR or chain entry they approve, which is already selected.
 const APPROVE_EDGES: &[Forward] = &[];
@@ -299,23 +297,41 @@ fn select_closure<S: ObjectSource>(store: &S, release_id: &ObjectId) -> Result<V
         .ok_or(ForgeError::BadObject)?;
 
     let mut selected = Vec::new();
-    let mut pending = VecDeque::from([release_id.clone()]);
+    let mut pending: VecDeque<(ObjectId, bool)> = VecDeque::from([(release_id.clone(), false)]);
     let mut seen: HashSet<ObjectId> = HashSet::from([release_id.clone()]);
 
-    while let Some(id) = pending.pop_front() {
-        let object = store.object(&id)?;
+    while let Some((id, lenient)) = pending.pop_front() {
+        // Objects on the release's own path are strict: a missing one fails
+        // closed. Governance evidence reached through the reverse index (and
+        // what it points at) is lenient: the resolver discards an entry it
+        // cannot fully load, so a candidate with a missing target is skipped
+        // rather than allowed to abort retrieval for the whole project.
+        let object = match store.object(&id) {
+            Ok(object) => object,
+            Err(_) if lenient => continue,
+            Err(e) => return Err(e),
+        };
         selected.push(id.clone());
 
         // A tree's children are the targets its canonical payload names (what
         // `checkout` reads), not whatever its `entry` links claim.
         if TREE.matches(&object.object_type) {
-            for entry in crate::read_tree(&object)? {
-                let target_object = store.object(&entry.target)?;
+            let entries = match crate::read_tree(&object) {
+                Ok(entries) => entries,
+                Err(_) if lenient => Vec::new(),
+                Err(e) => return Err(e),
+            };
+            for entry in entries {
+                let target_object = match store.object(&entry.target) {
+                    Ok(o) => o,
+                    Err(_) if lenient => continue,
+                    Err(e) => return Err(e),
+                };
                 if TREE_ENTRY_KINDS
                     .iter()
                     .any(|k| k.matches(&target_object.object_type))
                 {
-                    enqueue(&mut pending, &mut seen, &entry.target)?;
+                    enqueue(&mut pending, &mut seen, &entry.target, lenient)?;
                 }
             }
         }
@@ -333,14 +349,18 @@ fn select_closure<S: ObjectSource>(store: &S, release_id: &ObjectId) -> Result<V
                 _ => {}
             }
             for target in targets {
-                let target_object = store.object(target)?;
+                let target_object = match store.object(target) {
+                    Ok(o) => o,
+                    Err(_) if lenient => continue,
+                    Err(e) => return Err(e),
+                };
                 if edge
                     .kinds
                     .iter()
                     .any(|k| k.matches(&target_object.object_type))
                     && in_project(&target_object, target, &project_id)
                 {
-                    enqueue(&mut pending, &mut seen, target)?;
+                    enqueue(&mut pending, &mut seen, target, lenient)?;
                 }
             }
         }
@@ -361,7 +381,7 @@ fn select_closure<S: ObjectSource>(store: &S, release_id: &ObjectId) -> Result<V
                 {
                     continue;
                 }
-                enqueue(&mut pending, &mut seen, &candidate_id)?;
+                enqueue(&mut pending, &mut seen, &candidate_id, true)?;
             }
         }
     }
@@ -400,9 +420,10 @@ fn in_project(object: &mini_objects::Object, id: &ObjectId, project: &ObjectId) 
 /// selected or pending, so a hostile fan-out stops at the bound instead of
 /// being materialized first.
 fn enqueue(
-    pending: &mut VecDeque<ObjectId>,
+    pending: &mut VecDeque<(ObjectId, bool)>,
     seen: &mut HashSet<ObjectId>,
     id: &ObjectId,
+    lenient: bool,
 ) -> Result<()> {
     if seen.contains(id) {
         return Ok(());
@@ -411,7 +432,7 @@ fn enqueue(
         return Err(ForgeError::FieldTooLarge);
     }
     seen.insert(id.clone());
-    pending.push_back(id.clone());
+    pending.push_back((id.clone(), lenient));
     Ok(())
 }
 
@@ -1107,6 +1128,88 @@ mod tests {
         assert!(
             !ids.contains(other_pr.id()),
             "approval traversed its pr link"
+        );
+    }
+
+    #[test]
+    fn ignored_prev_targets_and_malformed_candidates_do_not_widen_or_abort_retrieval() {
+        let (human, device) = identity(27);
+        let mut store = Store::new(MemoryBackend::new());
+        let project = object(
+            ObjectType::Custom(PROJECT_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[],
+        );
+        store.insert(&project).unwrap();
+        let pr = object(
+            ObjectType::Custom(PR_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&pr).unwrap();
+        // A same-project chain that nothing in the real history links to.
+        let unrelated_pr = ObjectBuilder::new(ObjectType::Custom(PR_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .payload(Payload::Public(vec![8]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&unrelated_pr).unwrap();
+        let unrelated_chain = ObjectBuilder::new(ObjectType::Custom(CHAIN_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .link("prev", unrelated_pr.id().clone())
+            .link("pr", unrelated_pr.id().clone())
+            .payload(Payload::Public(vec![9]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&unrelated_chain).unwrap();
+        // Real chain entry whose first `prev` is the project and whose later
+        // `prev` names the unrelated chain; the resolver reads only the first.
+        let chain = object(
+            ObjectType::Custom(CHAIN_TYPE.to_string()),
+            &human.did(),
+            &device,
+            &[
+                ("project", project.id()),
+                ("prev", project.id()),
+                ("prev", unrelated_chain.id()),
+                ("pr", pr.id()),
+            ],
+        );
+        store.insert(&chain).unwrap();
+        // A malformed candidate: links the project and its `pr` points at an
+        // object this store does not hold. It must be skipped, not abort.
+        let absent = ObjectBuilder::new(ObjectType::Custom(PR_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .payload(Payload::Public(vec![11]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        let broken = ObjectBuilder::new(ObjectType::Custom(CHAIN_TYPE.to_string()))
+            .link("project", project.id().clone())
+            .link("prev", project.id().clone())
+            .link("pr", absent.id().clone())
+            .payload(Payload::Public(vec![12]))
+            .sign(&human.did(), &device)
+            .unwrap();
+        store.insert(&broken).unwrap();
+        let release = object(
+            ObjectType::RELEASE,
+            &human.did(),
+            &device,
+            &[("project", project.id())],
+        );
+        store.insert(&release).unwrap();
+
+        let ids = release_retrieval_ids(&store, release.id()).unwrap();
+        assert!(ids.contains(chain.id()) && ids.contains(pr.id()));
+        assert!(
+            !ids.contains(unrelated_chain.id()) && !ids.contains(unrelated_pr.id()),
+            "an ignored prev target pulled in an unrelated chain"
+        );
+        assert!(
+            !ids.contains(absent.id()),
+            "an object this store never held cannot be offered"
         );
     }
 }
