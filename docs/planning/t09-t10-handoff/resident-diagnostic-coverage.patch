@@ -1,0 +1,15 @@
+--- a/crates/mini-selftest/src/coverage.rs
++++ b/crates/mini-selftest/src/coverage.rs
+@@ -564,6 +564,12 @@
+         },
+     ),
+     (
++        "mini-resident",
++        Coverage::Gap {
++            reason: "owner-controlled AI assistance has no built-in diagnostic; provider requests and workspace consent require explicit owner configuration and are not exercised by the self-test suite",
++        },
++    ),
++    (
+         "mini-selftest",
+         Coverage::Gap {
+             reason: "this crate: it is the diagnostics, not a subject of them",

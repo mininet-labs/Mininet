@@ -61,7 +61,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$REPO_ROOT"
 
 if [ -z "$VERSION" ]; then
-    VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/mini-desktop/Cargo.toml | head -1)
+    VERSION=$(tr -d '\r' < crates/mini-desktop/Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)
 fi
 if [ -z "$VERSION" ]; then
     echo "build-release.sh: could not read a version; pass --version" >&2
@@ -80,13 +80,13 @@ fi
 
 if [ "$HOST_BUILD" -eq 1 ]; then
     TARGET_ARGS=""
-    BIN_DIR="target/release"
+    BIN_DIR="${CARGO_TARGET_DIR:-target}/release"
     EXE_SUFFIX=""
     echo "NOTE: --host build. The package is structurally real but its"
     echo "      executables are host binaries, not Windows ones."
 else
     TARGET_ARGS="--target $TARGET"
-    BIN_DIR="target/$TARGET/release"
+    BIN_DIR="${CARGO_TARGET_DIR:-target}/$TARGET/release"
     EXE_SUFFIX=".exe"
 fi
 

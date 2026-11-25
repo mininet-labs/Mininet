@@ -1,0 +1,29 @@
+{
+  "name": "Mininet Rust 1.95.0",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": false,
+  "containerEnv": {
+    "CARGO_HOME": "/home/vscode/.cargo",
+    "CARGO_TARGET_DIR": "/home/vscode/.cache/mininet-target/${localWorkspaceFolderBasename}",
+    "CARGO_TERM_COLOR": "always"
+  },
+  "mounts": [
+    "source=mininet-cargo-rust-1.95,target=/home/vscode/.cargo,type=volume",
+    "source=mininet-target-rust-1.95,target=/home/vscode/.cache/mininet-target,type=volume"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+  "postCreateCommand": "rustup show active-toolchain && cargo metadata --locked --no-deps --format-version 1 > /dev/null",
+  "shutdownAction": "stopContainer"
+}

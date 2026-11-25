@@ -19,8 +19,11 @@ docs/DECISION_LOG.md merge=union
 docs/STATUS.md merge=union
 
 AGENTS.md text eol=lf
+*.sh text eol=lf
+CLAUDE.md text eol=lf
 docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md text eol=lf
 docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.summary.json text eol=lf
+docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md text eol=lf
 governance/ai-charter-activation.json text eol=lf
 governance/decisions/*.json text eol=lf
 governance/*.json text eol=lf

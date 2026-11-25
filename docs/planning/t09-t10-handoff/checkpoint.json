@@ -1,0 +1,110 @@
+{
+  "observed_on": "2026-10-22",
+  "human_lead": "current requesting user",
+  "canonical_main": "857b35c9648b37477366572940bf4f0298c39aa4",
+  "publication": "local only; no commits, pushes, review messages or releases",
+  "ownership_verification": "All eleven T09/T10 primary crate directories named in the objective exist in the workspace. Current .github/CODEOWNERS routes them to @mininet-labs without per-team ownership, and no approved T09/T10 team mapping was located; use the human lead's assignment as task scope, not repository owner authority. No separate T10 lead is recorded.",
+  "authority_boundary": "The canonical checkpoint required by AGENTS.md's trust-before-load gate was not independently supplied. Work here is limited to the user-directed local development environment, read-only external triage, and uncommitted test patch; no authority-dependent governance changes or remote writes were made.",
+  "requirements": [
+    {
+      "requirement": "Windows byte-exact governance validation",
+      "implementation": "local .gitattributes LF pins for CLAUDE.md and decision 52",
+      "evidence": "runtime checker passed against separate LF checkpoint; 10 bootstrap tests passed; checkout filtering matches HEAD bytes",
+      "gap": "not committed or integrated; stale operating-state warning remains",
+      "dependency_owner": "T09 and human integration lead",
+      "next_action": "review local diff for integration",
+      "release_impact": "developer workflow reliability only"
+    },
+    {
+      "requirement": "Native migration, bounded serving and reviewed signing",
+      "implementation": "PR 373 at exact current head 2873ca489fe646e48501060a5e551c58f18a7b21; local tested service-lock and separate checkout-directory-budget proposals",
+      "evidence": "GitHub confirms PR #373 is open, mergeable, non-draft, and still at exact head 2873ca489fe646e48501060a5e551c58f18a7b21. Its current workspace snapshot blob b4c4049b32b2d62d0f3fd30527fc71423f36f08c matches the local checkout base. The local proposal retains service-lock ordering changes and adds a separate 100,000-directory budget to mini-forge checkout and mini-cli workspace snapshots, plus an exhausted-budget Forge regression and a 4,000-file/200-directory snapshot test. In Docker, cargo fmt --all -- --check passed; all 7 mini-cli repo workspace tests passed; full mini-forge suite passed (85 tests); mini-cli library Clippy passed with warnings denied; git diff --check passed. A 4,000-object signed commit/checkout extension was stopped after exceeding two minutes; the suite does not include that expensive test. No changes were committed or pushed. Current source already has case-insensitive metadata exclusion, executable-mode round-trip coverage, and correct current/proposed labels in `pr diff`, despite open or outdated review threads. Refreshed Actions for exact PR heads: all 5 PR #373 runs pass (CI 39788694569 plus Android, reproducibility, and governance); all 5 PR #371 runs pass (CI 39806691080 plus Android, reproducibility, and governance). PR #378 exact head still has CI failures 39788866451 and 39788865281; the other returned jobs pass.",
+      "gap": "The local checkout-directory and service-lock changes have not had human review or been applied to PR #373. Other active findings remain, including service peer capacity, cumulative storage quotas, import idempotence/history streaming, proposal-listing cost, and inventory transmitted-window/resumption contract. The latter and durable quota semantics need T03/T06 coordination before shared contracts change.",
+      "dependency_owner": "T09 with T03/T06 for transport/storage interfaces",
+      "next_action": "Route the local tested patches for review/integration. Continue reproducing unaddressed T09 findings that need no shared contract change; keep inventory cursor and durable quota semantics pending T03/T06 review.",
+      "release_impact": "branch implementation is not merged, target acceptance or Forge canonicality"
+    },
+    {
+      "requirement": "Accurate diagnostics catalogue for Resident stack",
+      "implementation": "resident-diagnostic-coverage.patch prepared against 6a5990b642b56af2f9556722cb90c91a3ff293b7",
+      "evidence": "PR #378 remains open/draft at exact head 14aef0d405fd3fe7ff6d0973bfeaffdaf9ffbb69. Current CI runs 39788866451 and 39788865281 fail in `mini-selftest/tests/coverage.rs::every_workspace_crate_is_classified`, which names `mini-resident` as missing; Windows Clippy passes, while the Windows test job fails at the same coverage assertion before packaging steps. The existing six-line `mini-resident` Gap classification is in the user’s PR worktree `.codex-worktrees/t09-coverage`. In the isolated Docker environment, `cargo fmt --all -- --check` and `cargo test --locked --offline -p mini-selftest --test coverage` passed (6/6) against that exact worktree patch. No PR write or source modification was made this turn.",
+      "gap": "The tested classification patch remains uncommitted and unpublished; upstream PR head still fails CI. The failure only records diagnostic coverage status and does not implement new mini-resident runtime diagnostics.",
+      "dependency_owner": "T10 diagnostics and Resident stack contributor",
+      "next_action": "Have the human lead integrate the existing worktree patch into PR #378, then run the exact PR CI and confirm the remaining Windows packaging job completes on that updated head.",
+      "release_impact": "records diagnostic gap honestly; does not add runtime coverage"
+    },
+    {
+      "requirement": "Complete Beta contribution journey including policy/rewards",
+      "implementation": "PR 371 at 826290fb62efe01ecc2f29fcdd9f32ac2b57e452",
+      "evidence": "GitHub confirms PR #371 is open at exact current head 826290fb62efe01ecc2f29fcdd9f32ac2b57e452. Current `refs/pull/371/head` file reads show no public `read_finding` API or `finding show` command; campaign/finding/disposition CLI serializers still emit `author` instead of the established `author_identity_root`, despite earlier review replies claiming the JSON correction. The isolated local proposal is based on this exact current head and adds the finding reader/CLI path, author-field correction, README entry, and two-home regression. `cargo test --locked --offline -p mini-cli --test coordination_commands` passed (2 tests); full `mini-forge` passed (69 tests at that revision); rustfmt, mini-forge Clippy with warnings denied, and `git diff --check` passed. The proposal remains uncommitted and not sent upstream. Exact PR #371 head check runs are all green (5/5).",
+      "gap": "Issue 338 full contribution journey, authorized dispositions, grant policy/value verification, outage itinerary, one-way Forge/GoLive transition, independent post-test artifact, and required human review remain unverified. The local finding reader and JSON contract correction still need review and PR integration.",
+      "dependency_owner": "T09 with T05/T04",
+      "next_action": "Route the exact-head tested reader/JSON patch to the PR author for integration; continue verifying the remaining issue 338 acceptance gates and T05/T04 policy dependencies.",
+      "release_impact": "coordination objects alone do not close contribution gate"
+    },
+    {
+      "requirement": "T10 release packaging in the isolated Cargo environment",
+      "implementation": "packaging/windows/build-release.sh now honors CARGO_TARGET_DIR and strips CR from package version metadata",
+      "evidence": "Focused Docker tests passed: mini-installer (25 integration tests), mini-update (14), mini-windows-setup (78), and CLI Windows packaging/release integration (25). The host-simulated packaging workflow built and verified an embedded setup, installed and verified version 0.0.1, upgraded to 99.0.0, rolled back, then uninstalled while retaining user data. Temporary files and test directories were removed. The rebuilt persistent devcontainer also passed the CI-equivalent Windows GNU Clippy/type-check (`cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features` for mini-windows-vault, mini-windows-setup, mini-setup, mini-app-protocol, mini-app-service, mini-selftest, and mini-desktop; `-D warnings`).",
+      "gap": "Host simulation only. This does not validate a Windows target binary, real Windows shell/registry/shortcut behavior, code signing, real hardware, or a production release.",
+      "dependency_owner": "T10 and human integration lead",
+      "next_action": "Run the supported Windows-target CI and real Windows install/rollback drill; review the local script diff for integration.",
+      "release_impact": "Improves isolated developer/release workflow. Does not establish production readiness or a release gate."
+    }
+  ],
+  "current_review_handoffs": [
+    {
+      "pr": 373,
+      "finding": "Inventory paging bounds missing IDs, not transmitted IDs or work. A mostly synchronized peer can request every page again on each session and repeatedly hit the 120-second deadline before reaching a later missing object.",
+      "source": "crates/mini-sync/src/protocol.rs:472 at head 2873ca489fe646e48501060a5e551c58f18a7b21",
+      "minimal_resolution": "Add a bounded transmitted-ID/work budget plus resumable inventory cursor semantics; preserve progress across sessions rather than restarting from the first page.",
+      "dependency_owners": [
+        "T09 mini-sync integration",
+        "T03 transport",
+        "T06 storage/paging"
+      ],
+      "acceptance": "Large near-synchronized-store test proves per-session work stays bounded and a later missing ID is eventually reached across resumed sessions; test deadline and restart behavior.",
+      "handoff_status": "Not sent. No accountable T03 or T06 human is recorded. The current client counts only missing IDs toward its budget, so an already-held prefix can be retransmitted on every session. Agree the cursor persistence and compatibility contract with the transport and storage owners before changing the shared wire/store interface."
+    },
+    {
+      "pr": 373,
+      "finding": "service run scans/reconciles the blob quota before checking the service instance lock, so a duplicate start can block active workers before reporting that the service is already running.",
+      "source": "crates/mini-cli/src/service.rs:182 at head 2873ca489fe646e48501060a5e551c58f18a7b21",
+      "minimal_resolution": "Acquire the instance lock before quota reconciliation while preserving service stop/status serialization.",
+      "local_status": "On isolated checkout at PR base head 2873ca489fe646e48501060a5e551c58f18a7b21: the service-lock regression proves a duplicate start checks the lock before reading a deliberately corrupt quota index; the authenticated service integration test waits for owner persistence before Bob syncs; shell scripts are pinned to LF; tools/check_native_forge.py respects an existing CARGO_TARGET_DIR. The documented python3 tools/check_native_forge.py --release --offline path passed, including selected CLI acceptance tests, mini-forge/mini-sync suites, clippy, fmt and optimized mini-cli build. GitHub head checks were also all green when refreshed. Patch is local only, not committed or pushed.",
+      "dependency_owners": [
+        "T09 mini-cli",
+        "T06 durable store/quota"
+      ],
+      "acceptance": "Concurrent-start regression proves the second process exits promptly without holding the active quota lock or delaying peer ingress."
+    },
+    {
+      "pr": 373,
+      "finding": "Workspace snapshots count both directories and files against MAX_CHECKOUT_FILES, while checkout limits files; a valid checkout-sized tree can fail an unchanged commit.",
+      "source": "crates/mini-cli/src/repo.rs:193 at head 2873ca489fe646e48501060a5e551c58f18a7b21",
+      "minimal_resolution": "Give directories a separate bounded budget or make snapshot node limits cover every tree checkout accepts.",
+      "dependency_owners": [
+        "T09 mini-cli",
+        "T09 mini-forge contract"
+      ],
+      "acceptance": "Round-trip test commits an unchanged checkout near MAX_CHECKOUT_FILES across many directories and still rejects trees above the agreed node/file limits."
+    }
+  ],
+  "environment": {
+    "rust": "Rust/Cargo 1.95.0, rustfmt, Clippy, wasm32-wasip2, and Linux build libraries are isolated in the persistent mininet-dev:rust-1.95.0 Docker image",
+    "windows_prerequisite": "VS Code with the Microsoft Dev Containers extension and Docker Engine; no Visual Studio or host Rust installation",
+    "compiler_evidence": "Pinned rust:1.95.0-bookworm image digest is recorded in .devcontainer/Dockerfile; image build and Linux workspace test, fmt, and clippy gates passed The isolated image now includes MinGW/NASM and x86_64-pc-windows-gnu; CI-equivalent Windows-conditional Clippy/type-check passed for the seven Windows-facing crates. Cargo build outputs are keyed by local workspace-folder basename inside the persistent named volume to keep worktree fingerprints separate. PR #371 adjacent finding-reader regression also passed in Docker: mini-cli coordination_commands (2/2), mini-forge Clippy with warnings denied, and rustfmt check. Full mini-forge test suite passed (69 tests). PR #373 local checkout-directory bound: mini-cli repo workspace tests 7/7; mini-forge 85 tests; mini-cli library Clippy -D warnings; rustfmt and diff checks passed. A broader 4,000-object commit/checkout test was stopped after exceeding two minutes; the committed test covers the 4,000/200 snapshot shape without creating 4,000 signed objects. Current local PR #373 checkout-budget tests and review triage are on exact upstream base head 2873ca489fe646e48501060a5e551c58f18a7b21; PR #371 reader correction remains based on exact current PR head 826290fb62efe01ecc2f29fcdd9f32ac2b57e452.",
+    "dependency_access": "Cargo registry cache and Rust build outputs persist in named Docker volumes mininet-cargo-rust-1.95 and mininet-target-rust-1.95. Duplicate host Rust/MinGW toolchains and bootstrap files were removed after container validation.",
+    "docker": "User-authorized Docker Engine used with repository .devcontainer config and persistent mininet-dev:rust-1.95.0 image. Rust 1.95.0, rustfmt, Clippy, WASI target, Python 3, Git, and Linux build libraries are isolated in the image; Cargo and build outputs use named mininet-cargo-rust-1.95 and mininet-target-rust-1.95 volumes. The acceptance script now honors the image's CARGO_TARGET_DIR. Ephemeral test containers are removed with --rm; named dependency/build volumes and the image are intentionally persistent.",
+    "host_artifact_cleanup": "The local target/devtools Rust/MinGW installation and VS Code bootstrap task/script were removed. Other ignored target build trees remain; recursive removal of the repository-wide target directory was rejected by auto-review because it also contains unrelated PR 378 and Windows build artifacts. No cleanup bypass was attempted.",
+    "wsl": "wsl --list --verbose returned E_ACCESSDENIED; installed distributions and Linux operational testing are unverified",
+    "build_evidence": "VS Code task command powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/vscode-rust.ps1 passed on HEAD 857b35c9648b37477366572940bf4f0298c39aa4: cargo test --locked --target x86_64-pc-windows-gnu -p mini-selftest --test coverage (6 passed, 0 failed); cargo fmt --all -- --check, PowerShell syntax, tasks.json parsing, checkpoint JSON parsing, and git diff --check passed"
+  },
+  "claims": {
+    "production_ready": false,
+    "forge_canonical": "not established",
+    "go_live": "not established",
+    "real_value_activation": "not established",
+    "unique_human_governance": "not established"
+  }
+}
